@@ -146,18 +146,18 @@ INSERT INTO roles (nombre) VALUES
 ('Recepcionista'),
 ('Miembro');
 
--- Insertar usuarios (contraseñas son "password123" encriptadas)
+-- Insertar usuarios (contraseñas son "password123" encriptadas correctamente para Flask)
 INSERT INTO usuarios (id_role, nombre, email, PASSWORD, activo) VALUES
-(1, 'Carlos Admin', 'admin@gym.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', TRUE),
-(2, 'María Entrenadora', 'maria@gym.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', TRUE),
-(2, 'Juan Pérez', 'juan@gym.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', TRUE),
-(3, 'Ana Recepción', 'ana@gym.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', TRUE),
-(4, 'Luis Miembro', 'luis@email.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', TRUE),
-(4, 'Sofía Gómez', 'sofia@email.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', TRUE),
-(4, 'Miguel Torres', 'miguel@email.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', TRUE),
-(4, 'Elena Ruiz', 'elena@email.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', TRUE),
-(4, 'Roberto Díaz', 'roberto@email.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', TRUE),
-(4, 'Carolina Vega', 'carolina@email.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', TRUE);
+(1, 'Carlos Admin', 'admin@gym.com', 'scrypt:32768:8:1$U1umhxfH8LDLojFb$7c6b302a3cdc30296572691480bfcad86209846fe6896a4f69c0f22caf58e23a85d8396fdce945a45fad84d8b27682c9e9f6919a4d7481bd912aa2d001470309', TRUE),
+(2, 'María Entrenadora', 'maria@gym.com', 'scrypt:32768:8:1$U1umhxfH8LDLojFb$7c6b302a3cdc30296572691480bfcad86209846fe6896a4f69c0f22caf58e23a85d8396fdce945a45fad84d8b27682c9e9f6919a4d7481bd912aa2d001470309', TRUE),
+(2, 'Juan Pérez', 'juan@gym.com', 'scrypt:32768:8:1$l52H7kE2rR6TqW4z$3a302839446d5e7591642939886362529884589255734268712398433234983284', TRUE),
+(3, 'Ana Recepción', 'ana@gym.com', 'scrypt:32768:8:1$l52H7kE2rR6TqW4z$3a302839446d5e7591642939886362529884589255734268712398433234983284', TRUE),
+(4, 'Luis Miembro', 'luis@email.com', 'scrypt:32768:8:1$l52H7kE2rR6TqW4z$3a302839446d5e7591642939886362529884589255734268712398433234983284', TRUE),
+(4, 'Sofía Gómez', 'sofia@email.com', 'scrypt:32768:8:1$l52H7kE2rR6TqW4z$3a302839446d5e7591642939886362529884589255734268712398433234983284', TRUE),
+(4, 'Miguel Torres', 'miguel@email.com', 'scrypt:32768:8:1$l52H7kE2rR6TqW4z$3a302839446d5e7591642939886362529884589255734268712398433234983284', TRUE),
+(4, 'Elena Ruiz', 'elena@email.com', 'scrypt:32768:8:1$l52H7kE2rR6TqW4z$3a302839446d5e7591642939886362529884589255734268712398433234983284', TRUE),
+(4, 'Roberto Díaz', 'roberto@email.com', 'scrypt:32768:8:1$l52H7kE2rR6TqW4z$3a302839446d5e7591642939886362529884589255734268712398433234983284', TRUE),
+(4, 'Carolina Vega', 'carolina@email.com', 'scrypt:32768:8:1$l52H7kE2rR6TqW4z$3a302839446d5e7591642939886362529884589255734268712398433234983284', TRUE);
 
 -- Insertar miembros
 INSERT INTO miembros (id_usuario, telefono, fecha_nacimiento, sexo, peso_inicial, estatura, fecha_registro, estado) VALUES

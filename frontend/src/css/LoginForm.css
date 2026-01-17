@@ -1,0 +1,351 @@
+/* =========================================
+   Variables de Color y Tema (Dark Mode Gym)
+   ========================================= */
+:root {
+  /* Paleta solicitada */
+  --accent-color: #fbe379;       /* Amarillo intenso */
+  --accent-hover: #edd66e;       /* Amarillo un poco más oscuro para hover */
+  
+  --bg-main-dark: #121212;       /* Negro profundo para el fondo derecho */
+  --bg-card-dark: #1e1e24;       /* Gris muy oscuro para la tarjeta del formulario */
+  --input-bg-dark: #2b2b36;      /* Color de fondo de los inputs */
+  --border-dark: #3a3a45;        /* Bordes sutiles */
+  
+  --text-primary: #ffffff;       /* Texto blanco */
+  --text-secondary: #a0a0b0;     /* Texto gris claro */
+  --text-on-accent: #121212;     /* Texto negro sobre el botón amarillo */
+
+  --danger-color: #ff4d4d;
+  
+  --border-radius-card: 16px;
+  --border-radius-input: 8px;
+  --transition: all 0.3s ease;
+}
+
+/* Estilos generales reset */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', 'Segoe UI', Roboto, sans-serif; /* Fuente más moderna si es posible */
+  background-color: var(--bg-main-dark);
+  overflow-x: hidden;
+}
+
+/* Contenedor principal de pantalla dividida */
+.split-login-container {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+}
+
+/* =========================================
+   LADO IZQUIERDO - Imagen y Branding
+   ========================================= */
+.login-left-side {
+  flex: 1.2; /* Un poco más ancho como en la referencia */
+  /* URL de imagen de gimnasio con un overlay oscuro encima */
+  background: linear-gradient(to bottom, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.8) 100%),
+              url('https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1470&auto=format&fit=crop') no-repeat center center;
+  background-size: cover;
+  color: var(--text-primary);
+  padding: 60px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+}
+
+/* Logo simple texto en la parte superior izquierda */
+.brand-text-logo {
+    font-size: 28px;
+    font-weight: 900;
+    letter-spacing: 2px;
+    color: var(--accent-color); /* El logo en amarillo */
+    text-transform: uppercase;
+}
+
+/* Texto hero en la parte inferior izquierda */
+.brand-hero-text {
+  margin-bottom: 40px;
+}
+
+.brand-hero-text h2 {
+  font-size: 42px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--text-primary);
+  text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+}
+
+/* Indicadores tipo carrusel (decorativos) */
+.hero-indicators {
+    display: flex;
+    gap: 8px;
+    margin-top: 25px;
+}
+
+.hero-indicators span {
+    width: 10px;
+    height: 10px;
+    background-color: rgba(255,255,255,0.3);
+    border-radius: 50%;
+    transition: var(--transition);
+}
+
+.hero-indicators span.active {
+    width: 30px;
+    background-color: var(--accent-color);
+    border-radius: 5px;
+}
+
+
+/* =========================================
+   LADO DERECHO - Formulario Oscuro
+   ========================================= */
+.login-right-side {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px;
+  background-color: var(--bg-main-dark); /* Fondo negro */
+}
+
+.login-card {
+  /* La tarjeta ahora es oscura y se funde más con el fondo */
+  background-color: var(--bg-card-dark);
+  border-radius: var(--border-radius-card);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+  width: 100%;
+  max-width: 450px; /* Un poco más estrecho para elegancia */
+  padding: 50px 40px;
+  color: var(--text-primary);
+  border: 1px solid var(--border-dark);
+}
+
+/* Encabezado del formulario */
+.login-header {
+  margin-bottom: 35px;
+}
+
+.login-header h2 {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 10px;
+}
+
+.login-subtitle {
+  font-size: 16px;
+  color: var(--text-secondary); /* Texto gris */
+  margin: 0;
+}
+
+/* Formulario y Controles */
+.form-group {
+  margin-bottom: 25px;
+}
+
+.form-group label {
+  display: block;
+  font-weight: 500;
+  margin-bottom: 10px;
+  color: var(--text-secondary); /* Etiquetas en gris */
+  font-size: 14px;
+}
+
+.label-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+/* Nuevos estilos para los inputs oscuros */
+.input-dark-container input {
+  width: 100%;
+  padding: 16px 20px;
+  /* Fondo oscuro para el input */
+  background-color: var(--input-bg-dark);
+  border: 1px solid var(--border-dark);
+  border-radius: var(--border-radius-input);
+  font-size: 15px;
+  color: var(--text-primary); /* Texto blanco al escribir */
+  transition: var(--transition);
+  outline: none;
+}
+
+.input-dark-container input::placeholder {
+    color: rgba(160, 160, 176, 0.5); /* Placeholder gris sutil */
+}
+
+.input-dark-container input:focus {
+  border-color: var(--accent-color); /* Borde amarillo al enfocar */
+  box-shadow: 0 0 0 3px rgba(251, 227, 121, 0.15); /* Resplandor amarillo suave */
+}
+
+/* Opciones: Recordarme y Olvidé contraseña */
+.form-options {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+.remember-me {
+  display: flex;
+  align-items: center;
+}
+
+/* Checkbox personalizado para que se vea bien en oscuro */
+.custom-checkbox {
+    accent-color: var(--accent-color); /* Checkbox amarillo */
+    width: 16px;
+    height: 16px;
+    margin-right: 10px;
+    cursor: pointer;
+}
+
+.remember-me label {
+  font-size: 14px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  margin: 0;
+}
+
+.forgot-password {
+  font-size: 14px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: var(--transition);
+}
+
+.forgot-password:hover {
+  color: var(--accent-color);
+}
+
+/* Mensaje de error */
+.error-message {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background-color: rgba(255, 77, 77, 0.1);
+  border: 1px solid var(--danger-color);
+  padding: 12px 15px;
+  border-radius: var(--border-radius-input);
+  margin-bottom: 25px;
+}
+
+.error-message svg {
+  width: 18px;
+  height: 18px;
+  color: var(--danger-color);
+}
+
+.error-message span {
+  font-size: 14px;
+  color: var(--danger-color);
+}
+
+/* Botón de login AMARILLO */
+.login-button {
+  width: 100%;
+  padding: 16px;
+  /* Color de fondo amarillo */
+  background-color: var(--accent-color);
+  /* Texto negro sobre el amarillo para contraste */
+  color: var(--text-on-accent);
+  border: none;
+  border-radius: var(--border-radius-input);
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 25px;
+}
+
+.login-button:hover:not(:disabled) {
+  background-color: var(--accent-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px rgba(251, 227, 121, 0.4);
+}
+
+.login-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.login-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  filter: grayscale(0.5);
+}
+
+/* Spinner de carga (negro sobre amarillo) */
+.spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 3px solid rgba(0, 0, 0, 0.2);
+  border-radius: 50%;
+  border-top-color: var(--text-on-accent);
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Enlace de registro */
+.register-link {
+  text-align: center;
+  font-size: 15px;
+  color: var(--text-secondary);
+}
+
+.register-link a {
+  color: var(--accent-color);
+  font-weight: 600;
+  text-decoration: none;
+  margin-left: 5px;
+}
+
+.register-link a:hover {
+  text-decoration: underline;
+}
+
+
+/* Responsive */
+@media (max-width: 900px) {
+  .split-login-container {
+    flex-direction: column;
+  }
+  
+  .login-left-side {
+    min-height: 35vh;
+    padding: 40px 30px;
+  }
+  
+  .brand-hero-text h2 {
+      font-size: 32px;
+  }
+
+  .login-right-side {
+      padding: 20px;
+      min-height: 65vh;
+  }
+  
+  .login-card {
+    padding: 35px 25px;
+    box-shadow: none;
+    background-color: transparent;
+    border: none;
+  }
+}
