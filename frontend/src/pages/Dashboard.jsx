@@ -1,3 +1,4 @@
+//frontend\src\pages\Dashboard.jsx
 import { useState, useEffect } from "react";
 import Sidebar from "../components/Sidebar";
 import "../css/Dashboard.css";
@@ -5,6 +6,8 @@ import "../css/Dashboard.css";
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
   const [loading, setLoading] = useState(true);
+  const user = JSON.parse(localStorage.getItem("user"));
+
   
   // Datos simulados para la vista administrativa
   const [adminData, setAdminData] = useState({
@@ -27,6 +30,9 @@ export default function AdminDashboard() {
   useEffect(() => {
     // Simular carga
     setTimeout(() => setLoading(false), 800);
+    if (!localStorage.getItem("token")) {
+  window.location.href = "/";
+}
   }, []);
 
   const handleLogout = () => {
@@ -50,13 +56,13 @@ export default function AdminDashboard() {
           <h2 className="page-title">Panel Administrativo</h2>
           <div className="header-right">
             <div className="date-display">
-              Octubre 2023
+              enero 2026
             </div>
             <div className="user-profile">
-              <div className="avatar">RG</div>
+              <div className="avatar"> {user.nombre.split(" ").map(n => n[0]).join("")} </div>
               <div className="user-info">
-                <span className="name">Roberto G.</span>
-                <span className="role">Administrador</span>
+                <span className="name">{user.nombre}</span>
+                <span className="role">{user.role}</span>
               </div>
             </div>
           </div>

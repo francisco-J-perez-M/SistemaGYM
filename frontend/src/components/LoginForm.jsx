@@ -1,3 +1,4 @@
+//frontend\src\components\LoginForm.jsx
 import { useState } from "react";
 import { login } from "../api/auth";
 import { useNavigate } from "react-router-dom";
@@ -12,24 +13,31 @@ export default function LoginForm() {
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
+  e.preventDefault();
+  setError("");
+  setLoading(true);
 
-    try {
-      const result = await login(email, password);
-      
-      // Guardar token
-      localStorage.setItem("token", result.token);
+  try {
+    const result = await login(email, password);
 
-      // Redirección al dashboard
+    // Guardar token y usuario
+    localStorage.setItem("token", result.access_token);
+    localStorage.setItem("user", JSON.stringify(result.user));
+
+    // Redirección por rol
+    if (result.user.role === "Administrador") {
       navigate("/dashboard");
-    } catch (err) {
-      setError(err.message || "Credenciales inválidas. Por favor, intente nuevamente.");
-    } finally {
-      setLoading(false);
+    } else {
+      navigate("/user-dashboard");
     }
-  };
+
+  } catch (err) {
+    setError(err.message);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   return (
     <div className="split-login-container">

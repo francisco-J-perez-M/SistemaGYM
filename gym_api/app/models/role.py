@@ -1,3 +1,4 @@
+#gym_api\app\models\role.py
 from app.extensions import db
 
 class Role(db.Model):

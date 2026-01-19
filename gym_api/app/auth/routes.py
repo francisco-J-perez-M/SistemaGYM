@@ -1,6 +1,8 @@
+#gym_api\app\auth\routes.py
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token
 from app.models.user import User
+from app.models.role import Role
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -19,14 +21,22 @@ def login():
     if not user.activo:
         return jsonify({"msg": "Usuario inactivo"}), 403
 
+    role = Role.query.get(user.id_role)
+
     token = create_access_token(
         identity={
             "id": user.id_usuario,
             "email": user.email,
-            "role": user.id_role
+            "role": role.nombre
         }
     )
 
     return jsonify({
-        "access_token": token
+        "access_token": token,
+        "user": {
+            "id": user.id_usuario,
+            "nombre": user.nombre,
+            "email": user.email,
+            "role": role.nombre
+        }
     }), 200
