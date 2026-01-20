@@ -1,7 +1,7 @@
 //frontend\src\pages\Dashboard.jsx
 import { useState, useEffect } from "react";
 import Sidebar from "../components/Sidebar";
-import "../css/Dashboard.css";
+import "../css/CSSUnificado.css";
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("overview");

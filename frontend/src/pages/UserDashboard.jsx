@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import Sidebar from "../components/Sidebar";
-import "../css/Dashboard.css";
+import "../css/CSSUnificado.css";
 
 export default function UserDashboard() {
   const [user, setUser] = useState(null);
