@@ -1,15 +1,16 @@
 import { useState, useRef, useEffect } from "react";
-import "../css/CSSUnificado.css";
-import useTheme from "../hooks/useTheme";
 
-export default function Sidebar({ role, activeTab, onTabChange, onLogout }) {
+import useTheme from "../hooks/ThemeContext";
+
+
+export default function Sidebar({ role = "admin", activeTab = "overview", onTabChange = () => {}, onLogout = () => {} }) {
   const { theme, changeTheme } = useTheme();
-
+  
   const [collapsed, setCollapsed] = useState(false);
   const [showThemeMenu, setShowThemeMenu] = useState(false);
+  const [openSubmenu, setOpenSubmenu] = useState(null);
   const menuRef = useRef(null);
 
-  // Reemplaza tu const themeOptions actual por esta:
   const themeOptions = [
     { 
       id: "light", 
@@ -75,15 +76,39 @@ export default function Sidebar({ role, activeTab, onTabChange, onLogout }) {
       { id: "users", label: "Gestión Usuarios", icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /> },
       { id: "finance", label: "Finanzas", icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /> },
       { type: "divider" },
-      { 
-        id: "settings", 
-        label: "Configuración", 
+      {
+        id: "settings",
+        label: "Configuración",
         icon: (
           <>
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+            />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+            />
           </>
-        )
+        ),
+        children: [
+          {
+            id: "backups",
+            label: "Copias de seguridad",
+            icon: (
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                d="M4 4v6h6M20 20v-6h-6M5 19a9 9 0 0014-7M19 5a9 9 0 00-14 7"
+              />
+            )
+          },
+          {
+            id: "restore",
+            label: "Restaurar respaldo",
+            icon: (
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                d="M12 4v16m8-8H4"
+              />
+            )
+          }
+        ]
       }
     ],
 
@@ -107,16 +132,90 @@ export default function Sidebar({ role, activeTab, onTabChange, onLogout }) {
       <ul className="sidebar-menu">
         {currentMenu.map((item, i) => {
           if (item.type === "divider") return <li key={i} className="divider" />;
+
+          const hasChildren = item.children && item.children.length > 0;
+          
+          // CAMBIO: Verificar si algún hijo está activo
+          const isChildActive = hasChildren && item.children.some(child => child.id === activeTab);
+          
+          // CAMBIO: El submenú se abre si:
+          // 1. Fue abierto manualmente (openSubmenu === item.id)
+          // 2. O si alguno de sus hijos está activo
+          const isOpen = openSubmenu === item.id || isChildActive;
+          
+          // El ítem padre está activo si es el tab actual Y no tiene hijos
+          const isParentActive = activeTab === item.id && !hasChildren;
+
           return (
-            <li
-              key={item.id}
-              className={activeTab === item.id ? "active" : ""}
-              onClick={() => onTabChange(item.id)}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                {item.icon}
-              </svg>
-              <span>{item.label}</span>
+            <li key={item.id}>
+              
+              {/* ITEM PRINCIPAL */}
+              <div
+                className={`menu-item ${isParentActive || isChildActive ? "active" : ""}`}
+                onClick={() => {
+                  if (hasChildren) {
+                    // Si tiene hijos, toggle del acordeón
+                    setOpenSubmenu(openSubmenu === item.id ? null : item.id);
+                  } else {
+                    // Si no tiene hijos, cambiar tab
+                    onTabChange(item.id);
+                  }
+                }}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  {item.icon}
+                </svg>
+                <span>{item.label}</span>
+                
+                {hasChildren && (
+                  <svg 
+                    viewBox="0 0 24 24" 
+                    width="16" 
+                    height="16" 
+                    style={{
+                      marginLeft: 'auto', 
+                      transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', 
+                      transition: 'transform 0.3s ease'
+                    }}
+                    fill="none" 
+                    stroke="currentColor" 
+                    strokeWidth="2"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                )}
+              </div>
+
+              {/* SUBMENÚ ANIMADO */}
+              {hasChildren && (
+                <div className={`submenu-wrapper ${isOpen ? "open" : ""}`}>
+                  <div className="submenu-inner">
+                    <ul className="submenu">
+                      {item.children.map(sub => (
+                        <li
+                          key={sub.id}
+                          className={activeTab === sub.id ? "active" : ""}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onTabChange(sub.id);
+                          }}
+                        >
+                          <svg 
+                            viewBox="0 0 24 24" 
+                            fill="none" 
+                            stroke="currentColor" 
+                            strokeWidth="2" 
+                            style={{ width: '1.1rem', height: '1.1rem', opacity: 0.8 }} 
+                          >
+                            {sub.icon}
+                          </svg>
+                          <span>{sub.label}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
             </li>
           );
         })}
@@ -125,7 +224,7 @@ export default function Sidebar({ role, activeTab, onTabChange, onLogout }) {
       <div className="sidebar-footer">
         <div className="theme-menu-container" ref={menuRef}>
           
-          {/* MENÚ DESPLEGABLE */}
+          {/* MENÚ DESPLEGABLE TEMAS */}
           {showThemeMenu && (
             <div className="theme-dropdown">
               {themeOptions.map(t => (
@@ -144,7 +243,7 @@ export default function Sidebar({ role, activeTab, onTabChange, onLogout }) {
             </div>
           )}
 
-          {/* BOTÓN PRINCIPAL */}
+          {/* BOTÓN PRINCIPAL TEMAS */}
           <button
             className={`theme-toggle-btn ${showThemeMenu ? "active" : ""}`}
             onClick={() => setShowThemeMenu(!showThemeMenu)}
@@ -153,7 +252,6 @@ export default function Sidebar({ role, activeTab, onTabChange, onLogout }) {
               <span className="theme-toggle-icon">
                 {currentTheme?.icon}
               </span>
-              {/* Quitamos el style inline, el CSS se encarga del espacio con 'gap' */}
               <span className="theme-btn-text">Temas</span>
             </div>
 
@@ -170,6 +268,6 @@ export default function Sidebar({ role, activeTab, onTabChange, onLogout }) {
           <span>Salir</span>
         </button>
       </div>
-    </aside>
+      </aside>
   );
 }
