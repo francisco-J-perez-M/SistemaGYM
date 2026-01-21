@@ -42,5 +42,5 @@ yarn-error.log*
 # --- Archivos de Base de Datos temporales o Backups ---
 *.sqlite3
 *.db
-backups/
+storage/
 dump.rdb

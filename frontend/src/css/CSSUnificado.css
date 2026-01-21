@@ -1462,3 +1462,116 @@ body {
   margin-left: auto;
   transition: transform 0.3s ease;
 }
+/* =========================================
+   MEJORA DE ACCIONES MANUALES (CONTROL PANEL)
+   ========================================= */
+
+/* Ajuste específico para esta tarjeta */
+.control-panel-card {
+  border-left: 4px solid var(--border-dark); /* Borde sutil por defecto */
+  transition: all 0.3s ease;
+}
+
+.control-panel-card:hover {
+  border-left-color: var(--accent-color); /* Brilla al pasar el mouse */
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+/* --- Selector de Segmentos (Reemplazo del Select) --- */
+.backup-type-selector {
+  display: flex;
+  background-color: var(--input-bg-dark);
+  padding: 4px;
+  border-radius: 12px;
+  margin: 20px 0;
+  border: 1px solid var(--border-dark);
+}
+
+.type-option {
+  flex: 1;
+  background: transparent;
+  border: none;
+  padding: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  color: var(--text-secondary);
+}
+
+.type-option:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+}
+
+/* Estado Activo (Seleccionado) */
+.type-option.active {
+  background-color: var(--bg-card-dark); /* Fondo tarjeta para efecto 'elevado' */
+  color: var(--accent-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border-dark);
+}
+
+/* Tipografía dentro del selector */
+.type-label {
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 2px;
+}
+
+.type-desc {
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+/* Cuando está activo, el texto descriptivo también se ilumina */
+.type-option.active .type-label {
+  color: var(--accent-color);
+}
+
+/* --- Botón Mejorado --- */
+.action-wrapper {
+  margin-top: auto;
+}
+
+.btn-block {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px;
+  font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Spinner pequeño para el botón */
+.spinner-small {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(0, 0, 0, 0.1);
+  border-left-color: var(--text-on-accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* Efecto de pulso para el badge de "Ejecutando" */
+.pulse-animation {
+  animation: pulse-warning 2s infinite;
+}
+
+@keyframes pulse-warning {
+  0% { box-shadow: 0 0 0 0 rgba(255, 189, 46, 0.4); }
+  70% { box-shadow: 0 0 0 6px rgba(255, 189, 46, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 189, 46, 0); }
+}
+
+/* Deshabilitar interacción visualmente */
+.type-option:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
