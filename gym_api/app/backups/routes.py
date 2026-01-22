@@ -1,12 +1,15 @@
-# app/backups/routes.py
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, current_app, send_file
 from datetime import datetime, timedelta
 import uuid
 import threading
-
-from app.backups.service import backup_state, run_backup
+import os
+from flask_mail import Message
+from app.extensions import mail
+from app.backups.service import backup_state, run_backup, BACKUP_DIR
 
 backups_bp = Blueprint("backups", __name__, url_prefix="/api/backups")
+
+
 @backups_bp.route("/dashboard-summary", methods=["GET"])
 def dashboard_summary():
     response = {
@@ -30,23 +33,27 @@ def dashboard_summary():
     }
 
     return jsonify(response), 200
+
+
 @backups_bp.route("/trigger", methods=["POST"])
 def trigger_backup():
     if backup_state["is_running"]:
         return jsonify({
-            "message": "Ya hay un backup en ejecución",
+            "message": "Backup en curso",
             "status": "running",
-            "job_id": backup_state["job_id"],
+            "job_id": backup_state.get("job_id")
         }), 409
 
     data = request.get_json() or {}
     backup_type = data.get("type", "incremental")
-
     job_id = f"job_{uuid.uuid4().hex[:8]}"
+
+    # Importante: pasar la app real al thread
+    app_instance = current_app._get_current_object()
 
     thread = threading.Thread(
         target=run_backup,
-        args=(job_id, backup_type),
+        args=(job_id, backup_type, app_instance),
         daemon=True
     )
     thread.start()
@@ -56,22 +63,45 @@ def trigger_backup():
         "job_id": job_id,
         "status": "running"
     }), 202
+
+
 @backups_bp.route("/status", methods=["GET"])
 def backup_status():
-    if not backup_state["start_time"]:
-        return jsonify({
-            "is_running": False,
-            "progress_percentage": 0,
-            "current_step": None,
-            "time_elapsed": "00:00:00"
-        }), 200
-
-    elapsed = datetime.utcnow() - backup_state["start_time"]
-    time_elapsed = str(elapsed).split(".")[0]
-
-    return jsonify({
+    response = {
         "is_running": backup_state["is_running"],
         "progress_percentage": backup_state["progress_percentage"],
         "current_step": backup_state["current_step"],
-        "time_elapsed": time_elapsed
-    }), 200
+        "last_backup": backup_state["last_backup"],
+        "files": {}
+    }
+
+    if backup_state.get("generated_files"):
+        for f_type, f_path in backup_state["generated_files"].items():
+            filename = os.path.basename(f_path)
+            response["files"][f_type] = f"/api/backups/download/{filename}"
+
+    return jsonify(response), 200
+
+
+@backups_bp.route("/download/<filename>", methods=["GET"])
+def download_backup(filename):
+    for root, dirs, files in os.walk(BACKUP_DIR):
+        if filename in files:
+            file_path = os.path.join(root, filename)
+            return send_file(file_path, as_attachment=True)
+
+    return jsonify({"error": "Archivo no encontrado"}), 404
+@backups_bp.route("/test-email", methods=["GET"])
+def test_email():
+    try:
+        msg = Message(
+            subject="Prueba de Configuración",
+            sender="al222310604@gmail.com", # Asegúrate que coincida con tu .env
+            recipients=["al222310604@gmail.com"],
+            body="Si lees esto, el correo funciona."
+        )
+        mail.send(msg)
+        return jsonify({"message": "Correo enviado con éxito"}), 200
+    except Exception as e:
+        # Esto nos mostrará el error real en el navegador
+        return jsonify({"error": str(e)}), 500

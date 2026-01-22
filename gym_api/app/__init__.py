@@ -2,6 +2,7 @@ from flask import Flask
 from .config import Config
 from .extensions import db, jwt
 from app.backups.routes import backups_bp
+from .extensions import db, jwt, mail
 
 def create_app():
     app = Flask(__name__)
@@ -9,6 +10,7 @@ def create_app():
 
     db.init_app(app)
     jwt.init_app(app)
+    mail.init_app(app)
 
     from .auth.routes import auth_bp
     from .routes.health import health_bp

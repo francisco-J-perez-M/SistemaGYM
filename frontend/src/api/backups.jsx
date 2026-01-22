@@ -15,3 +15,12 @@ export const triggerBackup = (type) =>
 
 export const getBackupStatus = () =>
   API.get("/backups/status");
+
+export const downloadFile = (url) => {
+
+  const cleanUrl = url.replace('/api/', '/'); 
+  
+  return API.get(cleanUrl, {
+    responseType: "blob",
+  });
+};
