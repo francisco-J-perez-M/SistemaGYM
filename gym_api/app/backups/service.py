@@ -1,19 +1,25 @@
-import threading
-import time
 import os
 import subprocess
+import json
 import pandas as pd
 from fpdf import FPDF
 from datetime import datetime
 from flask_mail import Message
-from app.extensions import mail, db
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
+from app.extensions import mail
 
-# Ajusta esta ruta a tu ejecutable
+# ================= CONFIG =================
+
 MYSQLDUMP_PATH = r"C:\Program Files\MySQL\MySQL Workbench 8.0 CE\mysqldump.exe"
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../"))
 BACKUP_DIR = os.path.join(BASE_DIR, "storage", "backups")
+
+LAST_FULL_BACKUP_FILE = os.path.join(BACKUP_DIR, "last_full_backup.txt")
+LAST_BACKUP_FILE = os.path.join(BACKUP_DIR, "last_backup_any.txt")
+HISTORY_FILE = os.path.join(BACKUP_DIR, "backup_history.json")
+
+# ================= STATE =================
 
 backup_state = {
     "is_running": False,
@@ -22,127 +28,226 @@ backup_state = {
     "start_time": None,
     "job_id": None,
     "last_backup": None,
-    "generated_files": {} 
+    "generated_files": {}
 }
+
+# ================= UTILS =================
 
 def ensure_dirs(backup_type):
     path = os.path.join(BACKUP_DIR, backup_type)
     os.makedirs(path, exist_ok=True)
     return path
 
-# --- Función para generar Excel ---
-def generate_excel(connection_str, output_path):
+def now_str():
+    return datetime.now().strftime("%Y%m%d_%H%M%S")
+
+def save_last_backup(path):
+    with open(path, "w") as f:
+        f.write(datetime.now().isoformat())
+
+def get_last_backup(path):
+    if not os.path.exists(path):
+        return None
+    with open(path, "r") as f:
+        return f.read().strip()
+
+# ================= HISTORY =================
+
+def load_history():
+    if not os.path.exists(HISTORY_FILE):
+        return []
     try:
-        engine = create_engine(connection_str)
-        with engine.connect() as conn:
-            tables = pd.read_sql("SHOW TABLES", conn)
-            # Verificación de seguridad si la BD está vacía
-            if tables.empty:
-                return False
-                
-            table_names = tables.iloc[:, 0].tolist()
+        with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except:
+        return []
 
-            with pd.ExcelWriter(output_path, engine='openpyxl') as writer:
-                for table in table_names:
-                    df = pd.read_sql(f"SELECT * FROM {table}", conn)
-                    df[:100000].to_excel(writer, sheet_name=table[:31], index=False)
-        return True
-    except Exception as e:
-        print(f"Error generando Excel: {e}")
-        return False
+def save_history(entry):
+    history = load_history()
+    history.insert(0, entry)
+    history = history[:10]  # máximo 10 registros
+    with open(HISTORY_FILE, "w", encoding="utf-8") as f:
+        json.dump(history, f, indent=2, ensure_ascii=False)
 
-# --- Función para generar PDF (Simple) ---
-def generate_pdf(connection_str, output_path):
-    try:
-        engine = create_engine(connection_str)
-        pdf = FPDF()
-        pdf.set_auto_page_break(auto=True, margin=15)
-        pdf.add_page()
-        pdf.set_font("Arial", size=10)
-        
-        pdf.cell(200, 10, txt="Reporte de Backup de Base de Datos", ln=True, align='C')
-        pdf.ln(10)
+# ================= EXCEL =================
 
-        with engine.connect() as conn:
-            tables_df = pd.read_sql("SHOW TABLES", conn)
-            if tables_df.empty:
-                 return False
-            tables = tables_df.iloc[:, 0].tolist()
-            
+def generate_excel(connection_str, output_path, since_date=None):
+    engine = create_engine(connection_str)
+    with engine.connect() as conn:
+        # Obtener lista de tablas
+        result = conn.execute(text("SHOW TABLES"))
+        tables = [row[0] for row in result]
+
+        with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
             for table in tables:
-                pdf.set_font("Arial", 'B', 12)
-                pdf.cell(0, 10, f"Tabla: {table}", ln=True)
+                try:
+                    # Verificar si la tabla tiene columna updated_at
+                    columns_result = conn.execute(text(f"SHOW COLUMNS FROM `{table}`"))
+                    columns = [row[0] for row in columns_result]
+                    
+                    if since_date and "updated_at" in columns:
+                        # Backup incremental/diferencial
+                        query = text(f"SELECT * FROM `{table}` WHERE updated_at >= :since_date")
+                        df = pd.read_sql(query, conn, params={"since_date": since_date})
+                    else:
+                        # Backup completo o tabla sin updated_at
+                        query = text(f"SELECT * FROM `{table}`")
+                        df = pd.read_sql(query, conn)
+                    
+                    if not df.empty:
+                        # Limitar nombre de hoja a 31 caracteres
+                        sheet_name = table[:31]
+                        df.to_excel(writer, sheet_name=sheet_name, index=False)
+                except Exception as e:
+                    print(f"Error procesando tabla {table}: {e}")
+                    continue
+
+# ================= PDF =================
+
+def generate_pdf(connection_str, output_path, since_date=None, mode="FULL"):
+    engine = create_engine(connection_str)
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=10)
+
+    pdf.cell(0, 10, f"Reporte de Respaldo {mode}", ln=True, align="C")
+    pdf.cell(0, 8, f"Generado: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", ln=True)
+
+    if since_date:
+        pdf.cell(0, 8, f"Desde: {since_date}", ln=True)
+
+    with engine.connect() as conn:
+        result = conn.execute(text("SHOW TABLES"))
+        tables = [row[0] for row in result]
+
+        for table in tables:
+            try:
+                columns_result = conn.execute(text(f"SHOW COLUMNS FROM `{table}`"))
+                columns = [row[0] for row in columns_result]
+                
+                if since_date and "updated_at" in columns:
+                    query = text(f"SELECT * FROM `{table}` WHERE updated_at >= :since_date LIMIT 20")
+                    result = conn.execute(query, {"since_date": since_date})
+                else:
+                    query = text(f"SELECT * FROM `{table}` LIMIT 20")
+                    result = conn.execute(query)
+                
+                rows = result.fetchall()
+                
+                if not rows:
+                    continue
+
+                pdf.ln(5)
+                pdf.set_font("Arial", "B", 11)
+                pdf.cell(0, 8, f"Tabla: {table}", ln=True)
                 pdf.set_font("Arial", size=8)
                 
-                df = pd.read_sql(f"SELECT * FROM {table} LIMIT 50", conn)
-                text = df.to_string(index=False)
-                pdf.multi_cell(0, 5, text)
-                pdf.ln(5)
+                # Mostrar primeras filas
+                pdf.multi_cell(0, 5, f"Registros: {len(rows)}")
                 
-        pdf.output(output_path)
-        return True
-    except Exception as e:
-        print(f"Error generando PDF: {e}")
-        return False
+            except Exception as e:
+                print(f"Error en PDF para tabla {table}: {e}")
+                continue
 
-# --- Función para enviar correo ---
-def send_email_with_attachments(app, files):
-    # Usamos el destinatario del config
-    recipient = app.config.get('MAIL_RECIPIENT') or app.config.get('MAIL_USERNAME')
-    
-    print(f"[EMAIL DEBUG] Iniciando envío a: {recipient}")
-    print(f"[EMAIL DEBUG] Config SMTP: {app.config.get('MAIL_SERVER')}:{app.config.get('MAIL_PORT')}")
+    pdf.output(output_path)
 
-    # IMPORTANTE: No abrimos 'with app.app_context()' aquí porque
-    # ya lo abriremos en run_backup. Si se abre dos veces no pasa nada,
-    # pero es más limpio hacerlo en la función principal del hilo.
-    
+# ================= SQL =================
+
+def generate_incremental_sql(connection_str, output_path, since_date):
+    engine = create_engine(connection_str)
+    with engine.connect() as conn, open(output_path, "w", encoding="utf-8") as f:
+        f.write(f"-- Backup Incremental desde {since_date}\n")
+        f.write(f"-- Generado: {datetime.now().isoformat()}\n\n")
+        
+        result = conn.execute(text("SHOW TABLES"))
+        tables = [row[0] for row in result]
+
+        for table in tables:
+            try:
+                # Verificar si tiene updated_at
+                columns_result = conn.execute(text(f"SHOW COLUMNS FROM `{table}`"))
+                columns = [row[0] for row in columns_result]
+                
+                if "updated_at" not in columns:
+                    continue
+
+                # Obtener datos modificados
+                query = text(f"SELECT * FROM `{table}` WHERE updated_at >= :since_date")
+                result = conn.execute(query, {"since_date": since_date})
+                rows = result.fetchall()
+                
+                if not rows:
+                    continue
+                
+                f.write(f"-- Tabla: {table}\n")
+                
+                for row in rows:
+                    cols = ", ".join([f"`{col}`" for col in columns])
+                    values = []
+                    
+                    for val in row:
+                        if val is None:
+                            values.append("NULL")
+                        elif isinstance(val, (int, float)):
+                            values.append(str(val))
+                        else:
+                            # Escapar comillas simples
+                            escaped = str(val).replace("'", "''")
+                            values.append(f"'{escaped}'")
+                    
+                    values_str = ", ".join(values)
+                    f.write(f"INSERT INTO `{table}` ({cols}) VALUES ({values_str});\n")
+                
+                f.write("\n")
+                
+            except Exception as e:
+                f.write(f"-- Error en tabla {table}: {e}\n")
+                print(f"Error procesando tabla {table}: {e}")
+                continue
+
+# ================= EMAIL =================
+
+def send_email_with_attachments(app, files, backup_type):
     try:
+        recipient = app.config.get("MAIL_RECIPIENT") or app.config.get("MAIL_USERNAME")
+
         msg = Message(
-            subject="[Backup Completo] Tu respaldo está listo",
+            subject=f"[Backup] Respaldo {backup_type.upper()} generado",
             sender=app.config.get("MAIL_USERNAME"),
             recipients=[recipient],
-            body="El proceso de respaldo ha finalizado exitosamente. Adjunto encontrarás los archivos."
+            body=f"El respaldo {backup_type} se generó correctamente.\n\nFecha: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
         )
 
-        for format_type, file_path in files.items():
+        for file_type, file_path in files.items():
             if os.path.exists(file_path):
-                with open(file_path, "rb") as fp:
-                    content_type = "application/octet-stream"
-                    if file_path.endswith(".pdf"): content_type = "application/pdf"
-                    elif file_path.endswith(".xlsx"): content_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                    
-                    msg.attach(os.path.basename(file_path), content_type, fp.read())
-        
-        mail.send(msg)
-        print("[EMAIL DEBUG] ✅ Correo enviado exitosamente.")
-    except Exception as e:
-        print(f"[EMAIL DEBUG] ❌ Error enviando correo: {e}")
-        # Imprimimos el tipo de error para saber si es Auth o Conexión
-        import traceback
-        traceback.print_exc()
+                with open(file_path, "rb") as f:
+                    msg.attach(
+                        os.path.basename(file_path), 
+                        "application/octet-stream", 
+                        f.read()
+                    )
 
-# --- UPDATE: run_backup recibe 'app' ---
+        mail.send(msg)
+        return True
+    except Exception as e:
+        print(f"Error enviando email: {e}")
+        return False
+
+# ================= MAIN =================
+
 def run_backup(job_id: str, backup_type: str, app):
-    # Establecemos el contexto de la aplicación para todo el hilo
-    # Esto es vital para que Flask-Mail acceda a la configuración
     with app.app_context():
         backup_state.update({
             "is_running": True,
-            "progress_percentage": 0,
-            "current_step": "Preparando respaldo...",
-            "start_time": datetime.utcnow(),
+            "progress_percentage": 10,
+            "current_step": "Iniciando respaldo",
             "job_id": job_id,
             "generated_files": {}
         })
 
         try:
-            backup_path = ensure_dirs(backup_type)
-            timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
-            
-            sql_file = os.path.join(backup_path, f"backup_{timestamp}.sql")
-            xlsx_file = os.path.join(backup_path, f"backup_{timestamp}.xlsx")
-            pdf_file = os.path.join(backup_path, f"backup_{timestamp}.pdf")
+            timestamp = now_str()
+            path = ensure_dirs(backup_type)
 
             db_user = os.getenv("DB_USER")
             db_pass = os.getenv("DB_PASSWORD", "")
@@ -150,49 +255,130 @@ def run_backup(job_id: str, backup_type: str, app):
             db_name = os.getenv("DB_NAME")
             db_uri = f"mysql+pymysql://{db_user}:{db_pass}@{db_host}/{db_name}"
 
-            # 1️⃣ SQL DUMP
-            backup_state.update({"progress_percentage": 10, "current_step": "Generando SQL..."})
-            my_env = os.environ.copy()
-            if db_pass: my_env["MYSQL_PWD"] = db_pass
+            sql = None
+            xlsx = None
+            pdf = None
+            file_size = 0
 
-            with open(sql_file, "w") as f:
-                subprocess.run(
-                    [MYSQLDUMP_PATH, "-u", db_user, db_name],
-                    env=my_env, stdout=f, stderr=subprocess.PIPE, check=True
-                )
-            backup_state["generated_files"]["sql"] = sql_file
+            if backup_type == "full":
+                backup_state["current_step"] = "Generando backup completo SQL"
+                backup_state["progress_percentage"] = 20
+                
+                sql = os.path.join(path, f"backup_full_{timestamp}.sql")
+                xlsx = os.path.join(path, f"backup_full_{timestamp}.xlsx")
+                pdf = os.path.join(path, f"backup_full_{timestamp}.pdf")
 
-            # 2️⃣ EXCEL
-            backup_state.update({"progress_percentage": 40, "current_step": "Exportando a Excel..."})
-            if generate_excel(db_uri, xlsx_file):
-                backup_state["generated_files"]["excel"] = xlsx_file
+                env = os.environ.copy()
+                if db_pass:
+                    env["MYSQL_PWD"] = db_pass
 
-            # 3️⃣ PDF
-            backup_state.update({"progress_percentage": 70, "current_step": "Generando reporte PDF..."})
-            if generate_pdf(db_uri, pdf_file):
-                backup_state["generated_files"]["pdf"] = pdf_file
+                with open(sql, "w", encoding="utf-8") as f:
+                    subprocess.run(
+                        [MYSQLDUMP_PATH, "-u", db_user, db_name],
+                        stdout=f, stderr=subprocess.PIPE, env=env, check=True
+                    )
 
-            # 4️⃣ ENVIAR CORREO
-            backup_state.update({"progress_percentage": 90, "current_step": "Enviando correo..."})
-            # Pasamos 'app' aunque ya estamos en contexto, por compatibilidad con la función
-            send_email_with_attachments(app, backup_state["generated_files"])
+                backup_state["progress_percentage"] = 50
+                backup_state["current_step"] = "Generando Excel"
+                generate_excel(db_uri, xlsx)
 
-            # FINALIZAR
-            time.sleep(1)
-            backup_state.update({
-                "progress_percentage": 100,
-                "current_step": "Completado",
-                "last_backup": datetime.utcnow(),
+                backup_state["progress_percentage"] = 75
+                backup_state["current_step"] = "Generando PDF"
+                generate_pdf(db_uri, pdf, mode="FULL")
+
+                save_last_backup(LAST_FULL_BACKUP_FILE)
+                save_last_backup(LAST_BACKUP_FILE)
+
+            elif backup_type == "differential":
+                since = get_last_backup(LAST_FULL_BACKUP_FILE)
+                if not since:
+                    raise Exception("No existe respaldo FULL previo. Ejecute primero un backup completo.")
+
+                backup_state["current_step"] = "Generando backup diferencial"
+                backup_state["progress_percentage"] = 30
+                
+                sql = os.path.join(path, f"backup_diff_{timestamp}.sql")
+                xlsx = os.path.join(path, f"backup_diff_{timestamp}.xlsx")
+                pdf = os.path.join(path, f"backup_diff_{timestamp}.pdf")
+
+                generate_incremental_sql(db_uri, sql, since)
+                
+                backup_state["progress_percentage"] = 60
+                generate_excel(db_uri, xlsx, since)
+                
+                backup_state["progress_percentage"] = 80
+                generate_pdf(db_uri, pdf, since, "DIFERENCIAL")
+
+                save_last_backup(LAST_BACKUP_FILE)
+
+            elif backup_type == "incremental":
+                since = get_last_backup(LAST_BACKUP_FILE)
+                if not since:
+                    raise Exception("No existe respaldo previo. Ejecute primero un backup completo.")
+
+                backup_state["current_step"] = "Generando backup incremental"
+                backup_state["progress_percentage"] = 30
+                
+                sql = os.path.join(path, f"backup_inc_{timestamp}.sql")
+                xlsx = os.path.join(path, f"backup_inc_{timestamp}.xlsx")
+                pdf = os.path.join(path, f"backup_inc_{timestamp}.pdf")
+
+                generate_incremental_sql(db_uri, sql, since)
+                
+                backup_state["progress_percentage"] = 60
+                generate_excel(db_uri, xlsx, since)
+                
+                backup_state["progress_percentage"] = 80
+                generate_pdf(db_uri, pdf, since, "INCREMENTAL")
+
+                save_last_backup(LAST_BACKUP_FILE)
+
+            else:
+                raise Exception("Tipo de respaldo no válido")
+
+            # Calcular tamaño
+            if sql and os.path.exists(sql):
+                file_size = os.path.getsize(sql) / (1024 * 1024)  # MB
+
+            backup_state["generated_files"] = {
+                "sql": sql,
+                "excel": xlsx,
+                "pdf": pdf
+            }
+
+            backup_state["progress_percentage"] = 90
+            backup_state["current_step"] = "Guardando historial"
+
+            # Guardar en historial
+            save_history({
+                "date": datetime.now().isoformat(),
+                "type": backup_type,
+                "size": f"{file_size:.2f} MB",
+                "url": sql
             })
+
+            backup_state["progress_percentage"] = 95
+            backup_state["current_step"] = "Enviando email"
+            
+            send_email_with_attachments(app, backup_state["generated_files"], backup_type)
+
+            backup_state["current_step"] = "Completado"
+            backup_state["progress_percentage"] = 100
+            backup_state["last_backup"] = datetime.now()
 
         except Exception as e:
-            error_msg = str(e)
-            backup_state.update({
-                "current_step": f"Error: {error_msg}",
-                "progress_percentage": 0,
-                "is_running": False
+            backup_state["current_step"] = f"Error: {str(e)}"
+            backup_state["progress_percentage"] = 0
+            print("[BACKUP ERROR]", e)
+            
+            # Guardar error en historial
+            save_history({
+                "date": datetime.now().isoformat(),
+                "type": backup_type,
+                "size": "ERROR",
+                "url": None,
+                "error": str(e)
             })
-            print(f"[BACKUP ERROR]: {error_msg}")
 
         finally:
             backup_state["is_running"] = False

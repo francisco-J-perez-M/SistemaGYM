@@ -10,17 +10,21 @@ const API = axios.create({
 export const getDashboardSummary = () =>
   API.get("/backups/dashboard-summary");
 
+export const getBackupHistory = () => 
+  API.get("/backups/history");
+
 export const triggerBackup = (type) =>
   API.post("/backups/trigger", { type });
 
 export const getBackupStatus = () =>
   API.get("/backups/status");
 
-export const downloadFile = (url) => {
-
-  const cleanUrl = url.replace('/api/', '/'); 
-  
-  return API.get(cleanUrl, {
+export const downloadFile = (filename) => {
+  return API.get(`/backups/download/${filename}`, {
     responseType: "blob",
   });
 };
+
+
+export const testEmail = () =>
+  API.get("/backups/test-email");

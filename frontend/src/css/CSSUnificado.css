@@ -1575,3 +1575,76 @@ body {
   opacity: 0.5;
   cursor: not-allowed;
 }
+/* =========================================
+   10. ESTILOS ESPECÍFICOS BACKUP DASHBOARD
+   ========================================= */
+
+/* Contenedor de botones de descarga */
+.download-buttons-container {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+  width: 100%;
+  justify-content: center;
+  flex-wrap: wrap;
+  animation: popIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-download {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background-color: var(--input-bg-dark);
+  color: var(--text-primary);
+}
+
+.btn-download:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+/* Variantes de color según tipo de archivo */
+.btn-download.sql:hover {
+  background-color: rgba(56, 189, 248, 0.15); /* Azulito */
+  border-color: #38bdf8;
+  color: #38bdf8;
+}
+
+.btn-download.excel:hover {
+  background-color: rgba(76, 217, 100, 0.15); /* Verde */
+  border-color: var(--success-color);
+  color: var(--success-color);
+}
+
+.btn-download.pdf:hover {
+  background-color: rgba(255, 77, 77, 0.15); /* Rojo */
+  border-color: var(--danger-color);
+  color: var(--danger-color);
+}
+
+.btn-download .icon {
+  font-size: 16px;
+}
+
+/* Ajustes tabla historial */
+.custom-table-container {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.admin-table td {
+    white-space: nowrap;
+}
+
+/* Animación de entrada para los resultados */
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
