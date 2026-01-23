@@ -1,4 +1,3 @@
-#gym_api\app\auth\routes.py
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token
 from app.models.user import User
@@ -23,16 +22,17 @@ def login():
 
     role = Role.query.get(user.id_role)
 
-    token = create_access_token(
-        identity={
-            "id": user.id_usuario,
+    # ✅ JWT CORRECTO
+    access_token = create_access_token(
+        identity=str(user.id_usuario),   # ← SIEMPRE STRING
+        additional_claims={
             "email": user.email,
             "role": role.nombre
         }
     )
 
     return jsonify({
-        "access_token": token,
+        "access_token": access_token,
         "user": {
             "id": user.id_usuario,
             "nombre": user.nombre,

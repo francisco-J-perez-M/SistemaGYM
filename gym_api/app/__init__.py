@@ -3,6 +3,8 @@ from .config import Config
 from .extensions import db, jwt
 from app.backups.routes import backups_bp
 from .extensions import db, jwt, mail
+from app.routes.miembros import miembros_bp
+from app.routes.pagos import pagos_bp
 
 def create_app():
     app = Flask(__name__)
@@ -18,5 +20,7 @@ def create_app():
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
     app.register_blueprint(health_bp, url_prefix="/api")
     app.register_blueprint(backups_bp)
+    app.register_blueprint(miembros_bp)
+    app.register_blueprint(pagos_bp)
 
     return app

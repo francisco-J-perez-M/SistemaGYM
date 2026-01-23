@@ -1,0 +1,36 @@
+from flask import Blueprint, request, jsonify
+from app.extensions import db
+from app.models.pago import Pago
+from app.utils.luhn import validar_luhn
+from flask_jwt_extended import jwt_required
+
+pagos_bp = Blueprint("pagos", __name__)
+
+@pagos_bp.route("/api/pagos", methods=["POST"])
+@jwt_required()
+def registrar_pago():
+    data = request.json
+
+    # 💳 Validar tarjeta solo si el método es Tarjeta
+    if data["metodo_pago"] == "Tarjeta":
+        if not validar_luhn(data.get("numero_tarjeta", "")):
+            return jsonify({"error": "Tarjeta inválida (Regla de Luhn)"}), 400
+
+    pago = Pago(
+        id_miembro=data["id_miembro"],
+        monto=data["monto"],
+        metodo_pago=data["metodo_pago"],
+        concepto=data["concepto"]
+    )
+
+    db.session.add(pago)
+    db.session.commit()
+
+    return jsonify(pago.to_dict()), 201
+
+
+@pagos_bp.route("/api/pagos/miembro/<int:id_miembro>", methods=["GET"])
+@jwt_required()
+def pagos_por_miembro(id_miembro):
+    pagos = Pago.query.filter_by(id_miembro=id_miembro).all()
+    return jsonify([p.to_dict() for p in pagos]), 200
