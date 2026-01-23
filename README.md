@@ -1,43 +1,67 @@
-Gym Management API
-Documentación oficial del Backend para el sistema de gestión de gimnasio.
+# Gym Management API
 
-Stack Tecnológico
-Python 3.10+
+Backend oficial para el **Sistema de Gestión de Gimnasio**, diseñado para administrar usuarios, miembros, pagos y respaldos de la base de datos de forma segura y escalable.
 
-Flask 2.0+
+---
 
-JWT para autenticación
+##  Descripción General
 
-SQLAlchemy como ORM
+Esta API REST proporciona los servicios necesarios para la operación administrativa de un gimnasio, incluyendo:
 
-Configuración General
-Base URL: http://localhost:5000
+* Autenticación y control de acceso mediante JWT
+* Gestión de miembros
+* Registro y consulta de pagos
+* Sistema de copias de seguridad (backups) con monitoreo de estado
 
-Autenticación: JWT (Bearer Token)
+El backend está construido siguiendo buenas prácticas de diseño, seguridad y mantenibilidad.
 
+---
+
+##  Stack Tecnológico
+
+* **Lenguaje:** Python 3.10+
+* **Framework:** Flask 2.0+
+* **Autenticación:** JSON Web Tokens (JWT)
+* **ORM:** SQLAlchemy
+* **Formato de intercambio:** JSON
+
+---
+
+##  Configuración General
+
+* **Base URL:** `http://localhost:5000`
+* **Autenticación:** JWT (Bearer Token)
+* **Headers requeridos:**
+
+```http
 Content-Type: application/json
+Authorization: Bearer <access_token>
+```
 
-Autenticación Requerida
-Para todos los endpoints marcados como protegidos, debes enviar el token en el header:
+---
 
-http
-Authorization: Bearer <tu_access_token>
-1. Autenticación (Auth)
-Iniciar Sesión
-Genera un token de acceso para utilizar la API.
+##  Autenticación
 
-Endpoint: POST /api/auth/login
+Todos los endpoints marcados como **protegidos** requieren un token JWT válido en el header `Authorization`.
 
-Body:
+### Iniciar Sesión
 
-json
+Genera un token de acceso para consumir la API.
+
+* **Endpoint:** `POST /api/auth/login`
+
+**Body:**
+
+```json
 {
   "email": "admin@gym.com",
   "password": "password123"
 }
-Respuesta (200 OK):
+```
 
-json
+**Respuesta exitosa (200 OK):**
+
+```json
 {
   "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "user": {
@@ -46,31 +70,43 @@ json
     "role": "admin"
   }
 }
-Errores:
+```
 
-Código	Causa
-401	Contraseña incorrecta
-404	Usuario no encontrado
-2. System Health
-Verificar estado
-Comprueba si la API está en línea.
+**Posibles errores:**
 
-Endpoint: GET /api/health
+| Código | Descripción           |
+| ------ | --------------------- |
+| 401    | Contraseña incorrecta |
+| 404    | Usuario no encontrado |
 
-Respuesta:
+---
 
-json
+##  System Health
+
+### Verificar estado del sistema
+
+Comprueba si la API se encuentra operativa.
+
+* **Endpoint:** `GET /api/health`
+
+**Respuesta:**
+
+```json
 { "status": "ok" }
-3. Gestión de Miembros
-Base: /api/miembros
-Autenticación: Requiere Token JWT
+```
 
-Listar todos los miembros
-Endpoint: GET /api/miembros
+---
 
-Respuesta:
+## 👥 Gestión de Miembros
 
-json
+* **Base:** `/api/miembros`
+* **Autenticación:** Requiere JWT
+
+### Listar miembros
+
+* **Endpoint:** `GET /api/miembros`
+
+```json
 [
   {
     "id": 1,
@@ -80,59 +116,69 @@ json
     "activo": true
   }
 ]
-Crear un miembro
-Endpoint: POST /api/miembros
+```
 
-Body:
+### Crear miembro
 
-json
+* **Endpoint:** `POST /api/miembros`
+
+```json
 {
   "nombre": "Ana López",
   "email": "ana@email.com",
   "telefono": "555-9876"
 }
-Actualizar miembro
-Endpoint: PUT /api/miembros/<id>
+```
 
-Body:
+### Actualizar miembro
 
-json
+* **Endpoint:** `PUT /api/miembros/<id>`
+
+```json
 {
   "nombre": "Ana López Gómez",
   "telefono": "555-0000"
 }
-Eliminar miembro
-Endpoint: DELETE /api/miembros/<id>
+```
 
-Respuesta:
+### Eliminar miembro
 
-json
+* **Endpoint:** `DELETE /api/miembros/<id>`
+
+```json
 { "msg": "Miembro eliminado correctamente" }
-4. Gestión de Pagos
-Base: /api/pagos
-Autenticación: Requiere Token JWT
+```
 
-Registrar nuevo pago
-Endpoint: POST /api/pagos
+---
 
-Body:
+##  Gestión de Pagos
 
-json
+* **Base:** `/api/pagos`
+* **Autenticación:** Requiere JWT
+
+### Registrar pago
+
+* **Endpoint:** `POST /api/pagos`
+
+```json
 {
   "id_miembro": 1,
   "monto": 50,
   "metodo": "Efectivo"
 }
-Respuesta (201 Created):
+```
 
-json
+**Respuesta (201 Created):**
+
+```json
 { "msg": "Pago registrado correctamente" }
-Historial de pagos
-Endpoint: GET /api/pagos
+```
 
-Respuesta:
+### Historial de pagos
 
-json
+* **Endpoint:** `GET /api/pagos`
+
+```json
 [
   {
     "id": 10,
@@ -142,20 +188,22 @@ json
     "metodo": "Efectivo"
   }
 ]
-5. Sistema de Backups
-Base: /api/backups
-Autenticación: Requiere Token JWT (Rol Admin)
+```
 
-Este módulo gestiona las copias de seguridad de la base de datos de forma asíncrona.
+---
 
-Dashboard General
-Obtiene un resumen del estado del sistema de backups.
+##  Sistema de Backups
 
-Endpoint: GET /api/backups/dashboard-summary
+* **Base:** `/api/backups`
+* **Autenticación:** JWT (Rol **Admin**)
 
-Respuesta:
+Este módulo gestiona copias de seguridad de la base de datos de forma asíncrona, permitiendo seguimiento del progreso y descarga de archivos.
 
-json
+### Dashboard de Backups
+
+* **Endpoint:** `GET /api/backups/dashboard-summary`
+
+```json
 {
   "system_status": "OK",
   "last_backup": "2026-01-22T03:00:00",
@@ -165,57 +213,61 @@ json
   },
   "recent_history": []
 }
-Ejecutar Backup Manual
-Inicia el proceso de respaldo en segundo plano.
+```
 
-Endpoint: POST /api/backups/trigger
+### Ejecutar backup manual
 
-Body (Opcional):
+* **Endpoint:** `POST /api/backups/trigger`
 
-json
+```json
 {
-  "type": "full" 
+  "type": "full"
 }
-Tipos válidos: full, incremental, differential.
+```
 
-Respuesta (202 Accepted):
+**Tipos válidos:** `full`, `incremental`, `differential`
 
-json
+```json
 {
   "message": "Backup full iniciado",
   "job_id": "job_a1b2c3d4",
   "status": "running"
 }
-Estado del Backup (Progreso)
-Verifica el progreso del backup que se está ejecutando actualmente.
+```
 
-Endpoint: GET /api/backups/status
+### Estado del backup
 
-Respuesta:
+* **Endpoint:** `GET /api/backups/status`
 
-json
+```json
 {
   "is_running": true,
   "progress_percentage": 60,
   "current_step": "Comprimiendo archivos",
   "last_backup": null
 }
-Historial de Backups
-Obtiene la lista de todos los backups generados anteriormente.
+```
 
-Endpoint: GET /api/backups/history
+### Historial de backups
 
-Descargar Backup
-Descarga el archivo físico generado.
+* **Endpoint:** `GET /api/backups/history`
 
-Endpoint: GET /api/backups/download/<filename>
+### Descargar backup
 
-Prueba de Correo
-Envía un email de prueba para verificar la configuración SMTP de notificaciones.
+* **Endpoint:** `GET /api/backups/download/<filename>`
 
-Endpoint: GET /api/backups/test-email
+### Prueba de correo
 
-Respuesta:
+Verifica la configuración SMTP para notificaciones.
 
-json
+* **Endpoint:** `GET /api/backups/test-email`
+
+```json
 { "message": "Correo enviado con éxito" }
+```
+
+---
+
+## 📄 Licencia
+
+Proyecto de uso académico / interno. Adaptable a producción bajo configuración adecuada de seguridad y despliegue.
