@@ -14,7 +14,9 @@ API.interceptors.request.use((config) => {
 
 /* ================= MIEMBROS ================= */
 
-export const getMiembros = () => API.get("/miembros");
+// Modificado: Ahora acepta página y si queremos ver inactivos
+export const getMiembros = (page = 1, mostrarInactivos = false) => 
+  API.get(`/miembros?page=${page}&inactivos=${mostrarInactivos}`);
 
 export const createMiembro = (data) => API.post("/miembros", data);
 
@@ -23,3 +25,7 @@ export const updateMiembro = (id, data) =>
 
 export const deleteMiembro = (id) =>
   API.delete(`/miembros/${id}`);
+
+// Nuevo: Para reactivar un usuario inactivo
+export const reactivateMiembro = (id) => 
+  API.put(`/miembros/${id}/reactivar`);

@@ -97,7 +97,7 @@ Comprueba si la API se encuentra operativa.
 
 ---
 
-## 👥 Gestión de Miembros
+## Gestión de Miembros
 
 * **Base:** `/api/miembros`
 * **Autenticación:** Requiere JWT
@@ -105,17 +105,31 @@ Comprueba si la API se encuentra operativa.
 ### Listar miembros
 
 * **Endpoint:** `GET /api/miembros`
+Parámetros (Query Params):
+
+page: Número de página (default: 1).
+
+inactivos: true para ver papelera, false para ver activos (default: false).
+GET /api/miembros?page=1&inactivos=false
 
 ```json
-[
-  {
-    "id": 1,
-    "nombre": "Juan Pérez",
-    "email": "juan@email.com",
-    "telefono": "555-1234",
-    "activo": true
-  }
-]
+{
+  "miembros": [
+    {
+      "id": 10,
+      "nombre": "Juan Pérez",
+      "email": "juan@example.com",
+      "telefono": "555-1234",
+      "sexo": "M",
+      "peso_inicial": 75.5,
+      "estatura": 1.75,
+      "activo": true
+    }
+  ],
+  "total": 15,
+  "pages": 3,
+  "current_page": 1
+}
 ```
 
 ### Crear miembro
@@ -124,9 +138,13 @@ Comprueba si la API se encuentra operativa.
 
 ```json
 {
-  "nombre": "Ana López",
-  "email": "ana@email.com",
-  "telefono": "555-9876"
+  "id_usuario": 5,
+  "telefono": "555-9876",
+  "fecha_nacimiento": "1998-05-20",
+  "sexo": "M",
+  "peso_inicial": 80.0,
+  "estatura": 1.80,
+  "fecha_registro": "2024-01-27"
 }
 ```
 
@@ -136,8 +154,8 @@ Comprueba si la API se encuentra operativa.
 
 ```json
 {
-  "nombre": "Ana López Gómez",
-  "telefono": "555-0000"
+  "telefono": "555-0000",
+  "peso_inicial": 78.5
 }
 ```
 
@@ -268,6 +286,6 @@ Verifica la configuración SMTP para notificaciones.
 
 ---
 
-## 📄 Licencia
+## Licencia
 
 Proyecto de uso académico / interno. Adaptable a producción bajo configuración adecuada de seguridad y despliegue.
