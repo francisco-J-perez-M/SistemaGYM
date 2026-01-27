@@ -9,33 +9,50 @@ export default function Layout() {
 
   // Determinar qué tab iluminar según la URL actual
   const getActiveTab = () => {
-    const path = location.pathname;
-    if (path === "/dashboard") return "overview";
-    if (path === "/dashboard/backups") return "backups";
-    if (path === "/user-dashboard") return "progress"; // Ejemplo para usuario
-    return "";
-  };
+  const path = location.pathname;
+
+  if (path === "/dashboard") return "overview";
+  if (path === "/dashboard/members") return "miembros";
+  if (path === "/dashboard/payments") return "pagos";
+  if (path === "/dashboard/backups") return "backups";
+  if (path === "/dashboard/restore") return "restore";
+
+  return "";
+};
+
 
   // Lógica de navegación CENTRALIZADA
   const handleTabChange = (tabId) => {
-    switch (tabId) {
-      case "overview":
-        navigate("/dashboard");
-        break;
-      case "backups":
-      case "restore": // Si ambos llevan al mismo sitio
-        navigate("/dashboard/backups");
-        break;
-      case "users":
-        // navigate("/dashboard/users"); // Cuando crees esta ruta
-        break;
-      case "finance":
-        // navigate("/dashboard/finance"); // Cuando crees esta ruta
-        break;
-      default:
-        break;
-    }
-  };
+  switch (tabId) {
+    case "overview":
+      navigate("/dashboard");
+      break;
+
+    case "miembros":
+      navigate("/dashboard/members");
+      break;
+
+    case "pagos":
+      navigate("/dashboard/payments");
+      break;
+
+    case "backups":
+      navigate("/dashboard/backups");
+      break;
+
+    case "restore":
+      navigate("/dashboard/restore");
+      break;
+
+    case "users":
+      navigate("/dashboard/users");
+      break;
+
+    default:
+      break;
+  }
+};
+
 
   const handleLogout = () => {
     localStorage.removeItem("token");

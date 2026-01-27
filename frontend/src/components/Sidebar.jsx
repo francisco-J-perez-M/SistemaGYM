@@ -1,7 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-
 import useTheme from "../hooks/ThemeContext";
-
 
 export default function Sidebar({ role = "admin", activeTab = "overview", onTabChange = () => {}, onLogout = () => {} }) {
   const { theme, changeTheme } = useTheme();
@@ -74,7 +72,45 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
     admin: [
       { id: "overview", label: "Resumen KPIs", icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /> },
       { id: "users", label: "Gestión Usuarios", icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /> },
-      { id: "finance", label: "Finanzas", icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /> },
+      // ✅ CAMBIO 1: Finanzas con submenú actualizado
+      {
+        id: "finance",
+        label: "Finanzas",
+        icon: (
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+            d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        ),
+        children: [
+          {
+            id: "miembros",
+            label: "Miembros",
+            icon: (
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M17 20h5v-1a4 4 0 00-5-3.87M9 20H4v-1a4 4 0 015-3.87m6-8a4 4 0 11-8 0 4 4 0 018 0zm6 4a3 3 0 11-6 0 3 3 0 016 0z"
+              />
+            )
+          },
+          {
+            id: "pagos",
+            label: "Pagos",
+            icon: (
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-2m4-4H9m12 0l-4-4m4 4l-4 4"
+              />
+            )
+          }
+        ]
+      },
       { type: "divider" },
       {
         id: "settings",
@@ -135,10 +171,10 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
 
           const hasChildren = item.children && item.children.length > 0;
           
-          // CAMBIO: Verificar si algún hijo está activo
+          // Verificar si algún hijo está activo
           const isChildActive = hasChildren && item.children.some(child => child.id === activeTab);
           
-          // CAMBIO: El submenú se abre si:
+          // El submenú se abre si:
           // 1. Fue abierto manualmente (openSubmenu === item.id)
           // 2. O si alguno de sus hijos está activo
           const isOpen = openSubmenu === item.id || isChildActive;
@@ -268,6 +304,6 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
           <span>Salir</span>
         </button>
       </div>
-      </aside>
+    </aside>
   );
 }
