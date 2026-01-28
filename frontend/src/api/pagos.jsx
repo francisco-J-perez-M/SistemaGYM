@@ -1,4 +1,3 @@
-// src/api/pagos.jsx
 import axios from "axios";
 
 const API = axios.create({
@@ -15,8 +14,6 @@ API.interceptors.request.use((config) => {
 
 /* ================= PAGOS ================= */
 
-export const registrarPago = (data) =>
-  API.post("/pagos", data);
+export const getPagos = () => API.get("/pagos");
 
-export const getPagos = () =>
-  API.get("/pagos");
+export const registrarPago = (data) => API.post("/pagos", data);
