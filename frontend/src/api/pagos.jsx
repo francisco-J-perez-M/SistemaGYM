@@ -1,19 +1,24 @@
 import axios from "axios";
 
-const API = axios.create({
-  baseURL: "http://127.0.0.1:5000/api",
+const API_URL = "http://localhost:5000/api/pagos";
+
+const authHeader = () => ({
+  Authorization: `Bearer ${localStorage.getItem("token")}`,
 });
 
-API.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+export const getPagos = async (page = 1) => {
+  const res = await axios.get(`${API_URL}?page=${page}`, {
+    headers: authHeader(),
+  });
+  return res.data;
+};
 
-/* ================= PAGOS ================= */
-
-export const getPagos = () => API.get("/pagos");
-
-export const registrarPago = (data) => API.post("/pagos", data);
+export const registrarPago = async (data) => {
+  const res = await axios.post(API_URL, data, {
+    headers: {
+      ...authHeader(),
+      "Content-Type": "application/json",
+    },
+  });
+  return res.data;
+};

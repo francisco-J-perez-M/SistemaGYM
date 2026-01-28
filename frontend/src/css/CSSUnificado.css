@@ -2291,3 +2291,27 @@ body {
 .compact-form-card.closed .compact-form-header {
   background: var(--bg-card-dark);
 }
+/* =========================================
+   AGREGAR AL FINAL DE TU CSS
+   ========================================= */
+
+/* Cuando el formulario está cerrado, forzamos 3 columnas */
+.kpi-grid.grid-wide-view {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+/* RESPONSIVE: Ajustes para que no se rompa en pantallas medianas */
+
+/* En tablets o laptops pequeñas, bajamos a 2 columnas */
+@media (max-width: 1100px) {
+  .kpi-grid.grid-wide-view {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* En móviles, mantenemos 1 columna */
+@media (max-width: 650px) {
+  .kpi-grid.grid-wide-view {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,51 +1,95 @@
 from flask import Blueprint, request, jsonify
+from flask_jwt_extended import jwt_required
+from datetime import date
+from dateutil.relativedelta import relativedelta # <--- Recomendado para manejar meses
+
 from app.extensions import db
 from app.models.pago import Pago
+from app.models.membresia import Membresia
+from app.models.miembro_membresia import MiembroMembresia
+from app.models.miembro import Miembro # <--- IMPORTANTE: Importar el modelo Miembro
 from app.utils.luhn import validar_luhn
-from flask_jwt_extended import jwt_required
 
 pagos_bp = Blueprint("pagos", __name__)
 
-# ================= REGISTRAR PAGO =================
 @pagos_bp.route("/api/pagos", methods=["POST"])
 @jwt_required()
 def registrar_pago():
-    data = request.json
+    try:
+        data = request.json
 
-    required_fields = ["id_miembro", "monto", "metodo_pago", "concepto"]
-    for field in required_fields:
-        if field not in data:
-            return jsonify({"error": f"Falta el campo {field}"}), 400
+        # 1. Validaciones básicas
+        required = ["id_miembro", "id_membresia", "metodo_pago"]
+        for field in required:
+            if field not in data:
+                return jsonify({"error": f"Falta el campo {field}"}), 400
 
-    # 💳 Validar tarjeta solo si es tarjeta
-    if data["metodo_pago"] == "Tarjeta":
-        if not validar_luhn(data.get("numero_tarjeta", "")):
-            return jsonify({"error": "Tarjeta inválida (Regla de Luhn)"}), 400
+        # 2. Validar que la Membresía existe
+        membresia = Membresia.query.get(data["id_membresia"])
+        if not membresia:
+            return jsonify({"error": "Membresía no válida"}), 404
 
-    pago = Pago(
-        id_miembro=data["id_miembro"],
-        monto=data["monto"],
-        metodo_pago=data["metodo_pago"],
-        concepto=data["concepto"]
-    )
+        # 3. Validar que el Miembro existe (¡Faltaba esto!)
+        miembro = Miembro.query.get(data["id_miembro"])
+        if not miembro:
+            return jsonify({"error": "Miembro no encontrado"}), 404
 
-    db.session.add(pago)
-    db.session.commit()
+        # 4. Validar tarjeta (solo si aplica)
+        if data["metodo_pago"] == "Tarjeta":
+            tarjeta = data.get("numero_tarjeta", "")
+            if not validar_luhn(tarjeta):
+                return jsonify({"error": "Número de tarjeta inválido"}), 400
 
-    return jsonify(pago.to_dict()), 201
+        # 5. Crear el objeto Pago
+        pago = Pago(
+            id_miembro=data["id_miembro"],
+            monto=membresia.precio,
+            metodo_pago=data["metodo_pago"],
+            concepto=f"Pago membresía {membresia.nombre}"
+        )
+        db.session.add(pago)
 
+        # 6. Calcular fechas de forma segura
+        # Usamos relativedelta para evitar errores tipo "30 de febrero"
+        inicio = date.today()
+        fin = inicio + relativedelta(months=membresia.duracion_meses)
 
-# ================= LISTAR TODOS LOS PAGOS =================
+        # 7. Crear/Actualizar la relación Miembro-Membresía
+        mm = MiembroMembresia(
+            id_miembro=data["id_miembro"],
+            id_membresia=membresia.id_membresia,
+            fecha_inicio=inicio,
+            fecha_fin=fin,
+            estado="Activa"
+        )
+        db.session.add(mm)
+        
+        db.session.commit()
+
+        return jsonify(pago.to_dict()), 201
+
+    except Exception as e:
+        db.session.rollback() # Deshacer cambios si algo falla
+        print(f"Error en registrar_pago: {str(e)}") # Ver error en consola
+        return jsonify({"error": "Error interno del servidor", "detalle": str(e)}), 500
+
 @pagos_bp.route("/api/pagos", methods=["GET"])
 @jwt_required()
 def listar_pagos():
-    pagos = Pago.query.order_by(Pago.fecha_pago.desc()).all()
-    return jsonify([p.to_dict() for p in pagos]), 200
+    try:
+        page = request.args.get("page", 1, type=int)
+        per_page = 6
 
+        pagination = Pago.query.order_by(
+            Pago.fecha_pago.desc()
+        ).paginate(page=page, per_page=per_page, error_out=False)
 
-# ================= PAGOS POR MIEMBRO =================
-@pagos_bp.route("/api/pagos/miembro/<int:id_miembro>", methods=["GET"])
-@jwt_required()
-def pagos_por_miembro(id_miembro):
-    pagos = Pago.query.filter_by(id_miembro=id_miembro).all()
-    return jsonify([p.to_dict() for p in pagos]), 200
+        return jsonify({
+            "pagos": [p.to_dict() for p in pagination.items],
+            "total": pagination.total,
+            "pages": pagination.pages,
+            "page": pagination.page
+        }), 200
+    except Exception as e:
+        print(f"Error listando pagos: {e}")
+        return jsonify({"pagos": [], "total": 0}), 500
