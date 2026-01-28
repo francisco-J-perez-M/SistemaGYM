@@ -1,15 +1,16 @@
 import axios from "axios";
 
-const API_URL = "http://localhost:5000/api/membresias";
+const API = axios.create({
+  baseURL: "http://127.0.0.1:5000/api",
+});
 
-export const getMembresias = async () => {
+API.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
 
-  const res = await axios.get(API_URL, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  return res.data;
-};
+/* ================= MEMBRESÍAS ================= */
+export const getMembresias = () => API.get("/membresias");
