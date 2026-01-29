@@ -3,7 +3,15 @@ from datetime import datetime, timedelta
 import uuid
 import threading
 import os
-from app.backups.service import backup_state, run_backup, BACKUP_DIR, load_history
+from app.backups.service import (
+    backup_state,
+    run_backup,
+    BACKUP_DIR,
+    load_history,
+    save_history
+)
+
+from app.backups.restore_service import restore_sql_backup
 
 backups_bp = Blueprint("backups", __name__, url_prefix="/api/backups")
 
@@ -115,6 +123,54 @@ def download_backup(filename):
 
     return jsonify({"error": "Archivo no encontrado"}), 404
 
+@backups_bp.route("/restore", methods=["POST"])
+def restore_backup():
+    data = request.get_json()
+
+    if not data or "filename" not in data:
+        return jsonify({"error": "Archivo no especificado"}), 400
+
+    # Limpiamos la entrada para quedarnos solo con el nombre del archivo
+    raw_filename = data["filename"]
+    filename = os.path.basename(raw_filename)
+
+    # Buscar el archivo
+    sql_path = None
+    for root, _, files in os.walk(BACKUP_DIR):
+        if filename in files and filename.endswith(".sql"):
+            sql_path = os.path.join(root, filename)
+            break
+
+    if not sql_path:
+        print(f"DEBUG: Buscaba '{filename}' en '{BACKUP_DIR}' y no lo encontré.")
+        return jsonify({"error": "Backup no encontrado"}), 404
+
+    # --- AQUI ESTABA EL ERROR: FALTABA EL CODIGO DENTRO DEL TRY Y EL EXCEPT ---
+    try:
+        # 1. Ejecutar la restauración
+        restore_sql_backup(sql_path)
+
+        # 2. Guardar en el historial que se hizo una restauración
+        save_history({
+            "date": datetime.utcnow().isoformat(),
+            "type": "restore",
+            "size": "N/A",
+            "url": filename
+        })
+
+        # 3. Retornar éxito al frontend
+        return jsonify({
+            "message": "Base de datos restaurada correctamente",
+            "file": filename
+        }), 200
+
+    except Exception as e:
+        # 4. Capturar errores si falla
+        print(f"Error crítico restaurando backup: {e}")
+        return jsonify({
+            "error": "Error al restaurar",
+            "detail": str(e)
+        }), 500
 
 @backups_bp.route("/test-email", methods=["GET"])
 def test_email():
@@ -132,3 +188,4 @@ def test_email():
         return jsonify({"message": "Correo enviado con éxito"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    

@@ -28,3 +28,6 @@ export const downloadFile = (filename) => {
 
 export const testEmail = () =>
   API.get("/backups/test-email");
+
+export const restoreBackup = (filename) =>
+  API.post("/backups/restore", { filename });
