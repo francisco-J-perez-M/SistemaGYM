@@ -1,17 +1,18 @@
 import { useEffect, useState } from "react";
 import "../css/CSSUnificado.css";
-import {
-  getBackupHistory,
-  restoreBackup,
-} from "../api/backups";
+import { getBackupHistory, restoreBackup } from "../api/backups";
 
 const RestoreDashboard = () => {
   const [backups, setBackups] = useState([]);
   const [isRestoring, setIsRestoring] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  // Paginación
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
   // ===============================
-  // Cargar historial de backups
+  // Cargar historial
   // ===============================
   const loadBackups = async () => {
     try {
@@ -33,7 +34,9 @@ const RestoreDashboard = () => {
   // ===============================
   // Restaurar backup
   // ===============================
-  const handleRestore = async (filename) => {
+  const handleRestore = async (fullPath) => {
+    const filename = getCleanFilename(fullPath);
+
     const confirm = window.confirm(
       `⚠ ATENCIÓN ⚠\n\n¿Deseas restaurar el respaldo:\n\n${filename}\n\nEsta acción sobrescribirá TODA la base de datos actual.`
     );
@@ -42,7 +45,7 @@ const RestoreDashboard = () => {
 
     try {
       setIsRestoring(true);
-      await restoreBackup(filename);
+      await restoreBackup(fullPath);
       alert("✅ Base de datos restaurada correctamente");
       loadBackups();
     } catch (error) {
@@ -59,11 +62,28 @@ const RestoreDashboard = () => {
   // ===============================
   // Helpers
   // ===============================
-  const formatDate = (date) =>
-    new Date(date).toLocaleString();
+  const getCleanFilename = (path) =>
+    path ? path.split(/[/\\]/).pop() : "—";
 
-  const getFilename = (url) =>
-    url ? url.split("/").pop() : "—";
+  const formatDate = (date) =>
+    date ? new Date(date).toLocaleString() : "-";
+
+  // ===============================
+  // Separación de datos
+  // ===============================
+  const restoreLogs = backups.filter(b => b.type === "restore");
+  const availableBackups = backups.filter(b => b.type !== "restore");
+
+  // ===============================
+  // Paginación
+  // ===============================
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentBackups = availableBackups.slice(
+    indexOfFirstItem,
+    indexOfLastItem
+  );
+  const totalPages = Math.ceil(availableBackups.length / itemsPerPage);
 
   // ===============================
   // Render
@@ -72,7 +92,7 @@ const RestoreDashboard = () => {
     <>
       {/* HEADER */}
       <header className="top-header">
-        <h2 className="page-title">Restaurar Respaldo</h2>
+        <h2 className="page-title">Gestión y Restauración de Respaldos</h2>
       </header>
 
       <main className="dashboard-content">
@@ -90,15 +110,15 @@ const RestoreDashboard = () => {
           <div className="stat-card">
             <h3>Total de Respaldos</h3>
             <p className="stat-value highlight">
-              {backups.length}
+              {availableBackups.length}
             </p>
             <p className="stat-detail">
-              Disponibles en historial
+              Disponibles para restaurar
             </p>
           </div>
         </div>
 
-        {/* ALERTA RESTAURANDO */}
+        {/* ALERTA DE RESTAURACIÓN */}
         {isRestoring && (
           <div
             className="welcome-section pulse-animation"
@@ -111,10 +131,15 @@ const RestoreDashboard = () => {
           </div>
         )}
 
-        {/* TABLA */}
+        {/* ============================= */}
+        {/* TABLA: RESPALDOS DISPONIBLES */}
+        {/* ============================= */}
         <div className="table-section">
           <div className="section-header">
-            <h3>Historial de Respaldos</h3>
+            <h3>Respaldos Disponibles</h3>
+            <span style={{ fontSize: "0.85em", color: "#666" }}>
+              Página {currentPage} de {totalPages || 1}
+            </span>
           </div>
 
           <div className="custom-table-container">
@@ -128,32 +153,31 @@ const RestoreDashboard = () => {
                   <th>Acción</th>
                 </tr>
               </thead>
-
               <tbody>
                 {loading && (
                   <tr>
-                    <td colSpan="5" style={{ textAlign: "center" }}>
+                    <td colSpan="5" className="text-center">
                       Cargando respaldos...
                     </td>
                   </tr>
                 )}
 
-                {!loading && backups.length === 0 && (
+                {!loading && currentBackups.length === 0 && (
                   <tr>
-                    <td colSpan="5" style={{ textAlign: "center" }}>
+                    <td colSpan="5" className="text-center">
                       No hay respaldos disponibles
                     </td>
                   </tr>
                 )}
 
                 {!loading &&
-                  backups.map((backup, index) => {
-                    const filename = getFilename(backup.url);
+                  currentBackups.map((backup, index) => {
+                    const filename = getCleanFilename(backup.url);
                     const isSQL = filename.endsWith(".sql");
 
                     return (
                       <tr key={index}>
-                        <td>{filename}</td>
+                        <td style={{ fontWeight: "bold" }}>{filename}</td>
                         <td>{formatDate(backup.date)}</td>
                         <td>{backup.size}</td>
                         <td>
@@ -165,9 +189,8 @@ const RestoreDashboard = () => {
                           {isSQL ? (
                             <button
                               className="btn-download pdf"
-                              onClick={() =>
-                                handleRestore(filename)
-                              }
+                              style={{ backgroundColor: "#08111e" }}
+                              onClick={() => handleRestore(backup.url)}
                               disabled={isRestoring}
                             >
                               Restaurar
@@ -184,7 +207,63 @@ const RestoreDashboard = () => {
               </tbody>
             </table>
           </div>
+
+          {/* PAGINACIÓN */}
+          {availableBackups.length > itemsPerPage && (
+            <div className="pagination-controls">
+              <button
+                className="btn-download"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(currentPage - 1)}
+              >
+                Anterior
+              </button>
+              <button
+                className="btn-download"
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(currentPage + 1)}
+              >
+                Siguiente
+              </button>
+            </div>
+          )}
         </div>
+
+        {/* ============================= */}
+        {/* HISTORIAL DE RESTAURACIONES */}
+        {/* ============================= */}
+        {restoreLogs.length > 0 && (
+          <div className="table-section" style={{ opacity: 0.85 }}>
+            <div className="section-header">
+              <h3>Historial de Restauraciones</h3>
+            </div>
+
+            <div className="custom-table-container">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Archivo</th>
+                    <th>Fecha</th>
+                    <th>Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {restoreLogs.map((log, index) => (
+                    <tr key={index}>
+                      <td>{getCleanFilename(log.url)}</td>
+                      <td>{formatDate(log.date)}</td>
+                      <td>
+                        <span className="status-badge success">
+                          Completado
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
       </main>
     </>
