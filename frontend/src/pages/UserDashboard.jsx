@@ -104,7 +104,7 @@ export default function UserDashboard() {
           <div className="welcome-section">
             <div className="welcome-content">
               <div className="welcome-text">
-                <h2>Hoy es día de {todayWorkout.type} 🦵</h2>
+                <h2>Hoy es día de {todayWorkout.type} </h2>
                 <p>Completa tu rutina para mantener tu racha de {workoutData.streakDays} días</p>
               </div>
               <div className="circular-progress" style={{ width: '80px', height: '80px' }}>
@@ -120,7 +120,7 @@ export default function UserDashboard() {
             <div className="stat-card highlight-border">
               <div className="stat-header">
                 <h3>Racha Actual</h3>
-                <span className="trend positive">🔥 {workoutData.streakDays} días</span>
+                <span className="trend positive"> {workoutData.streakDays} días</span>
               </div>
               <div className="stat-value">{workoutData.streakDays}</div>
               <div className="stat-detail">Días consecutivos entrenando</div>
@@ -259,7 +259,7 @@ export default function UserDashboard() {
                       justifyContent: 'center',
                       color: 'var(--accent-color)'
                     }}>
-                      🔥
+                      
                     </div>
                     <span style={{ fontWeight: '600' }}>Racha de 7 días</span>
                   </div>
@@ -311,7 +311,7 @@ export default function UserDashboard() {
                       justifyContent: 'center',
                       color: 'var(--warning-color)'
                     }}>
-                      ⚡
+                      
                     </div>
                     <span style={{ fontWeight: '600' }}>Entrenamiento Express</span>
                   </div>

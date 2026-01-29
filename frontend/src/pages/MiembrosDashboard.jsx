@@ -443,7 +443,8 @@ export default function MiembrosDashboard() {
         </div>
       ) : (
         <>
-          <div className="kpi-grid">
+          {/* CAMBIO AQUÍ: Se agregó style para 3 columnas fijas */}
+          <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
             {filteredMiembros.map((m) => (
               <div key={m.id} className="stat-card member-card-hover" style={{ opacity: verInactivos ? 0.85 : 1 }}>
                 <div className="member-header">
