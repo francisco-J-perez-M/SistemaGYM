@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import Swal from "sweetalert2";
 import "../css/CSSUnificado.css";
 import { getBackupHistory, restoreBackup } from "../api/backups";
 
@@ -12,6 +13,44 @@ const RestoreDashboard = () => {
   const itemsPerPage = 5;
 
   // ===============================
+  // CONFIGURACIÓN DE ALERTAS (ESTILO PRO)
+  // ===============================
+  
+  // 1. Toast: Para notificaciones pequeñas en la esquina (Éxito/Error)
+  const Toast = Swal.mixin({
+    toast: true,
+    position: 'top-end',
+    showConfirmButton: false,
+    timer: 3000,
+    timerProgressBar: true,
+    background: 'var(--bg-card-dark)', // Usa tu variable de fondo
+    color: 'var(--text-primary)',      // Usa tu variable de texto
+    didOpen: (toast) => {
+      toast.addEventListener('mouseenter', Swal.stopTimer)
+      toast.addEventListener('mouseleave', Swal.resumeTimer)
+    }
+  });
+
+  // 2. Modal Estilizado: Para confirmaciones peligrosas
+  const showConfirmModal = async (filename) => {
+    return Swal.fire({
+      title: '¿Estás seguro?',
+      html: `Vas a restaurar: <strong>${filename}</strong>.<br/><br/>
+             <span style="color: var(--danger-color)">⚠ Esta acción sobrescribirá TODA la base de datos actual.</span>`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: 'var(--accent-color)', // Tu amarillo/verde
+      cancelButtonColor: '#d33',
+      confirmButtonText: '<span style="color: var(--text-on-accent)">Sí, restaurar</span>',
+      cancelButtonText: 'Cancelar',
+      background: 'var(--bg-card-dark)',
+      color: 'var(--text-primary)',
+      focusConfirm: false,
+      backdrop: `rgba(0,0,0,0.6)` // Fondo oscurecido
+    });
+  };
+
+  // ===============================
   // Cargar historial
   // ===============================
   const loadBackups = async () => {
@@ -21,7 +60,11 @@ const RestoreDashboard = () => {
       setBackups(res.data || []);
     } catch (error) {
       console.error("Error cargando backups", error);
-      alert("Error al cargar el historial de respaldos");
+      // Reemplazo de alert con Toast de error
+      Toast.fire({
+        icon: 'error',
+        title: 'Error al cargar historial'
+      });
     } finally {
       setLoading(false);
     }
@@ -37,23 +80,56 @@ const RestoreDashboard = () => {
   const handleRestore = async (fullPath) => {
     const filename = getCleanFilename(fullPath);
 
-    const confirm = window.confirm(
-      `⚠ ATENCIÓN ⚠\n\n¿Deseas restaurar el respaldo:\n\n${filename}\n\nEsta acción sobrescribirá TODA la base de datos actual.`
-    );
+    // 1. Usar el nuevo Modal Pro en lugar de window.confirm
+    const result = await showConfirmModal(filename);
 
-    if (!confirm) return;
+    if (!result.isConfirmed) return;
 
     try {
       setIsRestoring(true);
+      
+      // Mostrar loading modal bloqueante mientras restaura
+      Swal.fire({
+        title: 'Restaurando...',
+        html: 'Por favor no cierres la ventana.',
+        allowOutsideClick: false,
+        background: 'var(--bg-card-dark)',
+        color: 'var(--text-primary)',
+        didOpen: () => {
+          Swal.showLoading();
+        }
+      });
+
       await restoreBackup(fullPath);
-      alert("✅ Base de datos restaurada correctamente");
+      
+      // Cerrar loading y mostrar éxito
+      Swal.close(); 
+      
+      await Swal.fire({
+        icon: 'success',
+        title: '¡Restauración Completada!',
+        text: 'La base de datos ha sido actualizada correctamente.',
+        confirmButtonColor: 'var(--accent-color)',
+        confirmButtonText: '<span style="color: var(--text-on-accent)">Entendido</span>',
+        background: 'var(--bg-card-dark)',
+        color: 'var(--text-primary)',
+      });
+
       loadBackups();
+
     } catch (error) {
       console.error(error);
-      alert(
-        error?.response?.data?.detail ||
-        "❌ Error al restaurar la base de datos"
-      );
+      Swal.close(); // Asegurar que se cierre el loading
+      
+      Swal.fire({
+        icon: 'error',
+        title: 'Falló la restauración',
+        text: error?.response?.data?.detail || "Ocurrió un error inesperado.",
+        background: 'var(--bg-card-dark)',
+        color: 'var(--text-primary)',
+        confirmButtonColor: 'var(--danger-color)'
+      });
+
     } finally {
       setIsRestoring(false);
     }
@@ -118,16 +194,22 @@ const RestoreDashboard = () => {
           </div>
         </div>
 
-        {/* ALERTA DE RESTAURACIÓN */}
+        {/* ALERTA VISUAL EN UI (Mantén esta, es útil visualmente) */}
         {isRestoring && (
           <div
             className="welcome-section pulse-animation"
-            style={{ borderColor: "var(--warning-color)" }}
+            style={{ borderColor: "var(--warning-color)", marginBottom: '20px' }}
           >
-            <h3 style={{ color: "var(--warning-color)" }}>
-              ⚠ Restaurando base de datos...
-            </h3>
-            <p>No cierres ni recargues esta ventana.</p>
+            <div className="welcome-content" style={{justifyContent: 'flex-start', gap: '15px'}}>
+               {/* Un pequeño spinner inline */}
+               <div className="spinner-small" style={{borderColor: 'var(--warning-color)', borderLeftColor: 'transparent'}}></div>
+               <div>
+                <h3 style={{ color: "var(--warning-color)", fontSize: '18px' }}>
+                  Restaurando base de datos...
+                </h3>
+                <p style={{fontSize: '14px'}}>El sistema puede estar inestable durante unos segundos.</p>
+               </div>
+            </div>
           </div>
         )}
 
@@ -156,15 +238,18 @@ const RestoreDashboard = () => {
               <tbody>
                 {loading && (
                   <tr>
-                    <td colSpan="5" className="text-center">
-                      Cargando respaldos...
+                    <td colSpan="5" className="text-center" style={{padding: '40px'}}>
+                      <div className="loading-spinner">
+                        <div className="dashboard-spinner"></div>
+                        <p>Cargando respaldos...</p>
+                      </div>
                     </td>
                   </tr>
                 )}
 
                 {!loading && currentBackups.length === 0 && (
                   <tr>
-                    <td colSpan="5" className="text-center">
+                    <td colSpan="5" className="text-center" style={{padding: '30px', color: 'var(--text-secondary)'}}>
                       No hay respaldos disponibles
                     </td>
                   </tr>
@@ -177,9 +262,9 @@ const RestoreDashboard = () => {
 
                     return (
                       <tr key={index}>
-                        <td style={{ fontWeight: "bold" }}>{filename}</td>
-                        <td>{formatDate(backup.date)}</td>
-                        <td>{backup.size}</td>
+                        <td style={{ fontWeight: "600", color: 'var(--text-primary)' }}>{filename}</td>
+                        <td style={{color: 'var(--text-secondary)'}}>{formatDate(backup.date)}</td>
+                        <td style={{color: 'var(--text-secondary)'}}>{backup.size}</td>
                         <td>
                           <span className="status-badge normal">
                             {backup.type}
@@ -189,14 +274,19 @@ const RestoreDashboard = () => {
                           {isSQL ? (
                             <button
                               className="btn-download pdf"
-                              style={{ backgroundColor: "#08111e" }}
+                              // Usamos estilos inline para override específico o clase de tu CSS
+                              style={{ 
+                                backgroundColor: "rgba(255, 77, 77, 0.1)", 
+                                color: "var(--danger-color)",
+                                border: "1px solid var(--danger-color)"
+                              }}
                               onClick={() => handleRestore(backup.url)}
                               disabled={isRestoring}
                             >
                               Restaurar
                             </button>
                           ) : (
-                            <span style={{ opacity: 0.5 }}>
+                            <span style={{ opacity: 0.5, fontSize: '12px' }}>
                               No restaurable
                             </span>
                           )}
@@ -215,13 +305,16 @@ const RestoreDashboard = () => {
                 className="btn-download"
                 disabled={currentPage === 1}
                 onClick={() => setCurrentPage(currentPage - 1)}
+                style={{opacity: currentPage === 1 ? 0.5 : 1}}
               >
                 Anterior
               </button>
+              <span className="page-info">Página {currentPage}</span>
               <button
                 className="btn-download"
                 disabled={currentPage === totalPages}
                 onClick={() => setCurrentPage(currentPage + 1)}
+                style={{opacity: currentPage === totalPages ? 0.5 : 1}}
               >
                 Siguiente
               </button>
@@ -233,7 +326,7 @@ const RestoreDashboard = () => {
         {/* HISTORIAL DE RESTAURACIONES */}
         {/* ============================= */}
         {restoreLogs.length > 0 && (
-          <div className="table-section" style={{ opacity: 0.85 }}>
+          <div className="table-section" style={{ opacity: 0.85, marginTop: '40px' }}>
             <div className="section-header">
               <h3>Historial de Restauraciones</h3>
             </div>
