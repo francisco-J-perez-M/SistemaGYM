@@ -14,27 +14,24 @@ export default function AdminDashboard() {
   };
 
   const [adminData, setAdminData] = useState({
-    retention: 87, // Dato mock (o puedes agregarlo al endpoint del backend)
-    churn: 13,     // Dato mock
+    retention: 87,
+    churn: 13,
     activeMembers: 0,
     monthlyRevenue: 0,
     expiringMembers: [],
     kpiRevenue: [], 
-    kpiExpenses: [20, 25, 22, 30, 28, 35], // Mock de gastos
-    peakHours: [10, 30, 80, 50, 20, 40, 90, 100, 60, 20], // Mock de horas pico
+    kpiExpenses: [20, 25, 22, 30, 28, 35],
+    peakHours: [10, 30, 80, 50, 20, 40, 90, 100, 60, 20],
   });
 
   useEffect(() => {
     const loadDashboard = async () => {
       try {
-        // Hacemos las peticiones en paralelo para mayor velocidad
         const [kpiRes, expiringRes] = await Promise.all([
-          getDashboardKPIs(),          // Trae ingresos y miembros del backend
-          getMembresiasPorExpirar(7),  // Trae la tabla de vencimientos
+          getDashboardKPIs(),
+          getMembresiasPorExpirar(7),
         ]);
 
-        // Mapeamos la respuesta del backend al estado de React
-        // Asumiendo que tu backend devuelve: { active_members, monthly_revenue, revenue_6_months }
         setAdminData((prev) => ({
           ...prev,
           activeMembers: kpiRes.active_members,     
@@ -57,7 +54,6 @@ export default function AdminDashboard() {
     }
   }, []);
 
-  // Función auxiliar para obtener nombres de los últimos 6 meses dinámicamente
   const getLast6MonthsLabels = () => {
     const months = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
     const currentMonth = new Date().getMonth();
@@ -89,10 +85,6 @@ export default function AdminDashboard() {
                     .join("")
                 : "A"}
             </div>
-            <div className="user-info">
-              <span className="name">{user.nombre}</span>
-              <span className="role">{user.role}</span>
-            </div>
           </div>
         </div>
       </header>
@@ -101,40 +93,95 @@ export default function AdminDashboard() {
       <main className="dashboard-content">
         {loading ? (
           <div className="loading-spinner">
-            <div className="spinner"></div>
+            <div className="dashboard-spinner"></div>
             <p>Cargando datos...</p>
           </div>
         ) : (
           <>
             {/* KPIs */}
             <div className="kpi-grid">
+              {/* TARJETA DE RETENCIÓN - CORREGIDA */}
               <div className="stat-card">
                 <div className="stat-header">
                   <h3>Retención de Clientes</h3>
                   <span className="trend positive">+2.4%</span>
                 </div>
-                <div className="retention-chart">
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '20px',
+                  marginTop: '15px'
+                }}>
+                  {/* Círculo de progreso */}
                   <div
-                    className="circular-progress"
                     style={{
-                      background: `conic-gradient(var(--accent-color) ${
-                        adminData.retention * 3.6
-                      }deg, var(--bg-main-dark) 0deg)`,
+                      width: '80px',
+                      height: '80px',
+                      borderRadius: '50%',
+                      background: `conic-gradient(
+                        var(--accent-color) ${adminData.retention * 3.6}deg, 
+                        var(--input-bg-dark) ${adminData.retention * 3.6}deg
+                      )`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      position: 'relative'
                     }}
                   >
-                    <div className="inner-circle">
-                      <span className="percentage">
-                        {adminData.retention}%
-                      </span>
+                    <div
+                      style={{
+                        width: '65px',
+                        height: '65px',
+                        background: 'var(--bg-card-dark)',
+                        borderRadius: '50%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: '700',
+                        fontSize: '18px',
+                        color: 'var(--text-primary)'
+                      }}
+                    >
+                      {adminData.retention}%
                     </div>
                   </div>
-                  <div className="retention-legend">
-                    <p>
-                      <span className="dot active"></span> Renuevan
+
+                  {/* Leyenda */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <p style={{ 
+                      fontSize: '13px', 
+                      color: 'var(--text-secondary)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      margin: 0
+                    }}>
+                      <span style={{
+                        width: '8px',
+                        height: '8px',
+                        borderRadius: '50%',
+                        background: 'var(--accent-color)',
+                        display: 'inline-block'
+                      }}></span>
+                      Renuevan ({adminData.retention}%)
                     </p>
-                    <p>
-                      <span className="dot inactive"></span> Se van (
-                      {adminData.churn}%)
+                    <p style={{ 
+                      fontSize: '13px', 
+                      color: 'var(--text-secondary)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      margin: 0
+                    }}>
+                      <span style={{
+                        width: '8px',
+                        height: '8px',
+                        borderRadius: '50%',
+                        background: 'var(--input-bg-dark)',
+                        border: '1px solid var(--border-dark)',
+                        display: 'inline-block'
+                      }}></span>
+                      Se van ({adminData.churn}%)
                     </p>
                   </div>
                 </div>
@@ -143,19 +190,22 @@ export default function AdminDashboard() {
               <div className="stat-card">
                 <div className="stat-info">
                   <h3>Ingresos Mes Actual</h3>
-                  <p className="stat-value">
+                  <p className="stat-value highlight">
                     ${adminData.monthlyRevenue?.toLocaleString()}
                   </p>
+                  <p className="stat-detail">Meta: $50,000</p>
                 </div>
               </div>
 
               <div className="stat-card">
                 <div className="stat-header">
                   <h3>Miembros Activos</h3>
+                  <span className="trend positive">↑ 12%</span>
                 </div>
                 <p className="stat-value">
                   {adminData.activeMembers?.toLocaleString()}
                 </p>
+                <p className="stat-detail">Con membresía vigente</p>
               </div>
 
               <div className="stat-card">
@@ -164,40 +214,75 @@ export default function AdminDashboard() {
                   <span className="trend warning">↔ 0%</span>
                 </div>
                 <p className="stat-value">74%</p>
+                <p className="stat-detail">Basado en última semana</p>
               </div>
             </div>
 
             {/* GRÁFICAS */}
             <div className="charts-row">
-              <div className="chart-card large">
+              <div className="chart-card">
                 <div className="chart-header">
                   <h3>Ingresos vs. Gastos (Últimos 6 meses)</h3>
+                  <div className="chart-legend">
+                    <div className="legend-item">
+                      <span className="color-box income"></span>
+                      Ingresos
+                    </div>
+                    <div className="legend-item">
+                      <span className="color-box expense"></span>
+                      Gastos
+                    </div>
+                  </div>
                 </div>
                 <div className="css-bar-chart">
-                  {adminData.kpiRevenue && adminData.kpiRevenue.map((rev, i) => (
-                    <div key={i} className="bar-group">
-                      {/* Barra de Ingresos (Backend) */}
-                      <div
-                        className="bar income"
-                        // Normalizamos la altura para que no se salga (asumiendo max 5000 para ejemplo visual, ajusta según tus ingresos reales)
-                        style={{ height: `${Math.min((rev / 5000) * 100, 100)}%` }} 
-                      >
-                        <span className="tooltip">${rev}</span>
+                  {adminData.kpiRevenue && adminData.kpiRevenue.map((rev, i) => {
+                    // Calculamos el máximo para normalizar
+                    const maxRevenue = Math.max(...adminData.kpiRevenue);
+                    const normalizedHeight = (rev / maxRevenue) * 100;
+                    
+                    return (
+                      <div key={i} className="bar-group">
+                        {/* Barra de Ingresos */}
+                        <div
+                          className="bar income"
+                          style={{ height: `${normalizedHeight}%` }}
+                        >
+                          <span className="tooltip">Ingresos: ${rev.toLocaleString()}</span>
+                        </div>
+                        
+                        {/* Barra de Gastos */}
+                        <div
+                          className="bar expense"
+                          style={{ height: `${adminData.kpiExpenses[i]}%` }}
+                        >
+                          <span className="tooltip">Gastos estimados</span>
+                        </div>
+                        
+                        <span className="bar-label">{monthLabels[i]}</span>
                       </div>
-                      
-                      {/* Barra de Gastos (Mock) */}
-                      <div
-                        className="bar expense"
-                        style={{
-                          height: `${adminData.kpiExpenses[i]}%`,
-                        }}
-                      ></div>
-                      
-                      <span className="bar-label">
-                        {monthLabels[i]}
-                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Gráfica de horas pico */}
+              <div className="chart-card">
+                <div className="chart-header">
+                  <h3>Horas Pico del Día</h3>
+                </div>
+                <div className="css-peak-chart">
+                  {adminData.peakHours.map((h, i) => (
+                    <div
+                      key={i}
+                      className="peak-bar"
+                      style={{ height: `${h}%` }}
+                    >
+                      <span className="peak-label">{6 + i * 2}h</span>
                     </div>
                   ))}
+                </div>
+                <div className="peak-overlay">
+                  <strong>Pico máximo:</strong> 18:00 - 20:00
                 </div>
               </div>
             </div>
@@ -205,7 +290,10 @@ export default function AdminDashboard() {
             {/* TABLA */}
             <div className="table-section">
               <div className="section-header">
-                <h3>⚠️ Membresías Próximas a Vencer</h3>
+                <h3> Membresías Próximas a Vencer</h3>
+                <span className="total-count">
+                  {adminData.expiringMembers.length} membresía(s)
+                </span>
               </div>
               <div className="custom-table-container">
                 <table className="admin-table">
@@ -226,17 +314,15 @@ export default function AdminDashboard() {
                           <td>{m.fecha_fin}</td>
                           <td>
                             <span className={`status-badge ${m.status}`}>
-                              {m.status === "urgent"
-                                ? "Crítico"
-                                : "Pendiente"}
+                              {m.status === "urgent" ? "Crítico" : "Pendiente"}
                             </span>
                           </td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colspan="4" style={{textAlign: "center", padding: "20px"}}>
-                            No hay membresías por vencer en los próximos 7 días.
+                        <td colSpan="4" style={{ textAlign: "center", padding: "20px" }}>
+                           No hay membresías por vencer en los próximos 7 días.
                         </td>
                       </tr>
                     )}

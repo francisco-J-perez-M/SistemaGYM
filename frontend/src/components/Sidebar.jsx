@@ -70,48 +70,38 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
 
   const menus = {
     admin: [
-      { id: "overview", label: "Resumen KPIs", icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /> },
-      
-      // ✅ CAMBIO 1: Finanzas con submenú actualizado
-      {
-        id: "finance",
-        label: "Finanzas",
+      { 
+        id: "overview", 
+        label: "Resumen KPIs", 
         icon: (
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-            d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" 
+            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" 
           />
-        ),
-        children: [
-          {
-            id: "miembros",
-            label: "Miembros",
-            icon: (
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M17 20h5v-1a4 4 0 00-5-3.87M9 20H4v-1a4 4 0 015-3.87m6-8a4 4 0 11-8 0 4 4 0 018 0zm6 4a3 3 0 11-6 0 3 3 0 016 0z"
-              />
-            )
-          },
-          {
-            id: "pagos",
-            label: "Pagos",
-            icon: (
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-2m4-4H9m12 0l-4-4m4 4l-4 4"
-              />
-            )
-          }
-        ]
+        ) 
       },
+      
+      { 
+        id: "miembros", 
+        label: "Miembros", 
+        icon: (
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+            d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+          />
+        ) 
+      },
+
+      { 
+        id: "pagos", 
+        label: "Pagos", 
+        icon: (
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+            d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
+          />
+        ) 
+      },
+
       { type: "divider" },
+      
       {
         id: "settings",
         label: "Configuración",
@@ -131,7 +121,7 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
             label: "Copias de seguridad",
             icon: (
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                d="M4 4v6h6M20 20v-6h-6M5 19a9 9 0 0014-7M19 5a9 9 0 00-14 7"
+                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
               />
             )
           },
@@ -140,7 +130,7 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
             label: "Restaurar respaldo",
             icon: (
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                d="M12 4v16m8-8H4"
+                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
               />
             )
           }
@@ -149,11 +139,43 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
     ],
 
     user: [
-      { id: "payments", label: "Historial de Pagos", icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /> },
-      { id: "progress", label: "Mi Progreso", icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3v18h18M7 13l3-3 4 4 5-6" /> },
-      { id: "renew", label: "Renovar Membresía", icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /> },
+      { 
+        id: "payments", 
+        label: "Historial de Pagos", 
+        icon: (
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" 
+            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" 
+          />
+        ) 
+      },
+      { 
+        id: "progress", 
+        label: "Mi Progreso", 
+        icon: (
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" 
+            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" 
+          />
+        ) 
+      },
+      { 
+        id: "renew", 
+        label: "Renovar Membresía", 
+        icon: (
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" 
+            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" 
+          />
+        ) 
+      },
       { type: "divider" },
-      { id: "profile", label: "Mi Perfil", icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /> }
+      { 
+        id: "profile", 
+        label: "Mi Perfil", 
+        icon: (
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" 
+            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" 
+          />
+        ) 
+      }
     ]
   };
 
@@ -161,8 +183,20 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
 
   return (
     <aside className={`sidebar ${collapsed ? "collapsed" : ""}`}>
+      {/* Botón de colapsar */}
+      <button 
+        className="collapse-btn" 
+        onClick={() => setCollapsed(!collapsed)}
+        aria-label="Colapsar menú"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+        </svg>
+      </button>
+
       <div className="sidebar-header">
         <span className="brand-name">GYM PRO</span>
+        <span className="admin-badge">ADMIN</span>
       </div>
 
       <ul className="sidebar-menu">
@@ -170,59 +204,46 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
           if (item.type === "divider") return <li key={i} className="divider" />;
 
           const hasChildren = item.children && item.children.length > 0;
-          
-          // Verificar si algún hijo está activo
           const isChildActive = hasChildren && item.children.some(child => child.id === activeTab);
-          
-          // El submenú se abre si:
-          // 1. Fue abierto manualmente (openSubmenu === item.id)
-          // 2. O si alguno de sus hijos está activo
           const isOpen = openSubmenu === item.id || isChildActive;
-          
-          // El ítem padre está activo si es el tab actual Y no tiene hijos
           const isParentActive = activeTab === item.id && !hasChildren;
 
           return (
-            <li key={item.id}>
+            <li 
+              key={item.id}
+              className={isParentActive || isChildActive ? "active" : ""}
+              onClick={() => {
+                if (hasChildren) {
+                  setOpenSubmenu(openSubmenu === item.id ? null : item.id);
+                } else {
+                  onTabChange(item.id);
+                }
+              }}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                {item.icon}
+              </svg>
+              <span>{item.label}</span>
               
-              {/* ITEM PRINCIPAL */}
-              <div
-                className={`menu-item ${isParentActive || isChildActive ? "active" : ""}`}
-                onClick={() => {
-                  if (hasChildren) {
-                    // Si tiene hijos, toggle del acordeón
-                    setOpenSubmenu(openSubmenu === item.id ? null : item.id);
-                  } else {
-                    // Si no tiene hijos, cambiar tab
-                    onTabChange(item.id);
-                  }
-                }}
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  {item.icon}
+              {hasChildren && (
+                <svg 
+                  viewBox="0 0 24 24" 
+                  width="16" 
+                  height="16" 
+                  style={{
+                    marginLeft: 'auto', 
+                    transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', 
+                    transition: 'transform 0.3s ease'
+                  }}
+                  fill="none" 
+                  stroke="currentColor" 
+                  strokeWidth="2"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                 </svg>
-                <span>{item.label}</span>
-                
-                {hasChildren && (
-                  <svg 
-                    viewBox="0 0 24 24" 
-                    width="16" 
-                    height="16" 
-                    style={{
-                      marginLeft: 'auto', 
-                      transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', 
-                      transition: 'transform 0.3s ease'
-                    }}
-                    fill="none" 
-                    stroke="currentColor" 
-                    strokeWidth="2"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                  </svg>
-                )}
-              </div>
+              )}
 
-              {/* SUBMENÚ ANIMADO */}
+              {/* SUBMENÚ */}
               {hasChildren && (
                 <div className={`submenu-wrapper ${isOpen ? "open" : ""}`}>
                   <div className="submenu-inner">
@@ -241,7 +262,7 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
                             fill="none" 
                             stroke="currentColor" 
                             strokeWidth="2" 
-                            style={{ width: '1.1rem', height: '1.1rem', opacity: 0.8 }} 
+                            style={{ width: '18px', height: '18px' }} 
                           >
                             {sub.icon}
                           </svg>
@@ -258,9 +279,8 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
       </ul>
 
       <div className="sidebar-footer">
+        {/* SELECTOR DE TEMA */}
         <div className="theme-menu-container" ref={menuRef}>
-          
-          {/* MENÚ DESPLEGABLE TEMAS */}
           {showThemeMenu && (
             <div className="theme-dropdown">
               {themeOptions.map(t => (
@@ -279,14 +299,13 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
             </div>
           )}
 
-          {/* BOTÓN PRINCIPAL TEMAS */}
           <button
             className={`theme-toggle-btn ${showThemeMenu ? "active" : ""}`}
             onClick={() => setShowThemeMenu(!showThemeMenu)}
           >
             <div className="theme-btn-left">
               <span className="theme-toggle-icon">
-                {currentTheme?.icon}
+                {currentTheme?.icon || "🎨"}
               </span>
               <span className="theme-btn-text">Temas</span>
             </div>
@@ -297,12 +316,24 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
           </button>
         </div>
 
+        {/* BOTÓN LOGOUT */}
         <button onClick={onLogout} className="logout-btn-sidebar">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            <path strokeLinecap="round" strokeLinejoin="round" 
+              d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" 
+            />
           </svg>
           <span>Salir</span>
         </button>
+      </div>
+
+      {/* INFO DE USUARIO AL FINAL */}
+      <div className="user-info-section">
+        <div className="avatar">AD</div>
+        <div className="user-info">
+          <span className="name">Admin</span>
+          <span className="role">Administrador</span>
+        </div>
       </div>
     </aside>
   );

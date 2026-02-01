@@ -142,7 +142,7 @@ export default function BackupsDashboard() {
           <div className="stat-card highlight-border">
             <div className="stat-header">
               <h3>Estado del Sistema</h3>
-              <span className={`status-badge ${isRunning ? "warning pulse-animation" : "success"}`}>
+              <span className={`status-badge ${isRunning ? "warning pulse-animation" : "normal"}`}>
                 {isRunning ? "Procesando" : "Operativo"}
               </span>
             </div>
@@ -157,14 +157,23 @@ export default function BackupsDashboard() {
           <div className="stat-card">
             <h3>Próximo Programado</h3>
             <div className="card-icon-wrapper" style={{ marginBottom: '5px', marginTop: '10px' }}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
             </div>
             <p className="stat-value highlight" style={{ fontSize: '20px' }}>
               {summary?.config?.next_scheduled
                 ? new Date(summary.config.next_scheduled).toLocaleDateString()
                 : "No programado"}
             </p>
-            <p className="stat-detail">{summary?.config?.next_scheduled ? new Date(summary.config.next_scheduled).toLocaleTimeString() : ""}</p>
+            <p className="stat-detail">
+              {summary?.config?.next_scheduled 
+                ? new Date(summary.config.next_scheduled).toLocaleTimeString() 
+                : ""}
+            </p>
           </div>
         </div>
 
@@ -179,7 +188,7 @@ export default function BackupsDashboard() {
 
             <p className="stat-detail">Seleccione el tipo de respaldo manual a ejecutar.</p>
 
-            <div className="backup-type-selector improved">
+            <div className="backup-type-selector">
               {[
                 { id: "incremental", title: "Incremental", desc: "Solo cambios recientes" },
                 { id: "differential", title: "Diferencial", desc: "Desde último Full" },
@@ -210,7 +219,11 @@ export default function BackupsDashboard() {
                   </>
                 ) : (
                   <>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                      <polyline points="17 8 12 3 7 8"></polyline>
+                      <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
                     <span>
                       Iniciar {
                         backupType === 'full' ? 'Completo' :
@@ -223,36 +236,68 @@ export default function BackupsDashboard() {
             </div>
           </div>
 
-          {/* DERECHA: Progreso y Descargas */}
+          {/* DERECHA: Progreso y Descargas - BARRA CORREGIDA */}
           <div className="stat-card">
             <div className="chart-header">
               <h3>Monitor de Proceso</h3>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+            <div style={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              height: '100%',
+              gap: '15px'
+            }}>
+              {/* Círculo de progreso CORREGIDO */}
               <div
-                className="circular-progress"
                 style={{
-                  width: '120px', height: '120px',
-                  background: `conic-gradient(var(--accent-color) 0% ${progress}%, var(--input-bg-dark) ${progress}% 100%)`,
+                  width: '120px',
+                  height: '120px',
+                  borderRadius: '50%',
+                  background: `conic-gradient(
+                    var(--accent-color) ${progress * 3.6}deg, 
+                    var(--input-bg-dark) ${progress * 3.6}deg
+                  )`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
                 }}
               >
-                <div className="inner-circle" style={{ width: '100px', height: '100px' }}>
-                  <span className="percentage" style={{ fontSize: '24px' }}>{progress}%</span>
+                <div
+                  style={{
+                    width: '100px',
+                    height: '100px',
+                    background: 'var(--bg-card-dark)',
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: '700',
+                    fontSize: '24px',
+                    color: 'var(--text-primary)'
+                  }}
+                >
+                  {progress}%
                 </div>
               </div>
-              <p className="stat-detail" style={{ marginTop: "15px", textAlign: "center", minHeight: '20px' }}>
-                {isRunning ? currentStep : (downloadLinks ? "¡Respaldo Finalizado!" : "Sistema en espera")}
+
+              <p className="stat-detail" style={{ textAlign: "center", minHeight: '20px' }}>
+                {isRunning ? currentStep : (downloadLinks ? "Respaldo Finalizado" : "Sistema en espera")}
               </p>
 
-              {/* === BOTONES DE DESCARGA CON ICONOS SVG === */}
+              {/* BOTONES DE DESCARGA */}
               {!isRunning && downloadLinks && (
                 <div className="download-buttons-container">
                   {downloadLinks.sql && (
                     <button className="btn-download sql" onClick={() => handleDownload('sql', downloadLinks.sql)}>
                       <span className="icon" style={{ display: 'flex', alignItems: 'center' }}>
-                        {/* Icono Database */}
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s 9-1.34 9-3V5"></path></svg>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+                          <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+                          <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+                        </svg>
                       </span>
                       SQL
                     </button>
@@ -260,8 +305,11 @@ export default function BackupsDashboard() {
                   {downloadLinks.excel && (
                     <button className="btn-download excel" onClick={() => handleDownload('excel', downloadLinks.excel)}>
                       <span className="icon" style={{ display: 'flex', alignItems: 'center' }}>
-                         {/* Icono Sheet/Excel */}
-                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                          <line x1="3" y1="9" x2="21" y2="9"></line>
+                          <line x1="9" y1="21" x2="9" y2="9"></line>
+                        </svg>
                       </span>
                       Excel
                     </button>
@@ -269,8 +317,13 @@ export default function BackupsDashboard() {
                   {downloadLinks.pdf && (
                     <button className="btn-download pdf" onClick={() => handleDownload('pdf', downloadLinks.pdf)}>
                       <span className="icon" style={{ display: 'flex', alignItems: 'center' }}>
-                         {/* Icono File Text/PDF */}
-                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                          <polyline points="14 2 14 8 20 8"></polyline>
+                          <line x1="16" y1="13" x2="8" y2="13"></line>
+                          <line x1="16" y1="17" x2="8" y2="17"></line>
+                          <polyline points="10 9 9 9 8 9"></polyline>
+                        </svg>
                       </span>
                       PDF
                     </button>
@@ -284,7 +337,7 @@ export default function BackupsDashboard() {
         {/* 3. ZONA INFERIOR: HISTORIAL Y PLAN */}
         <div className="charts-row">
 
-          {/* HISTORIAL RECIENTE (Últimos 3) */}
+          {/* HISTORIAL RECIENTE */}
           <div className="chart-card">
             <div className="chart-header">
               <h3>Historial Reciente (Últimos 3)</h3>
@@ -297,7 +350,6 @@ export default function BackupsDashboard() {
                     <tr>
                       <th>Fecha</th>
                       <th>Tipo</th>
-                      {/* COLUMNA TAMAÑO ELIMINADA AQUI */}
                       <th>Acción</th>
                     </tr>
                   </thead>
@@ -309,16 +361,16 @@ export default function BackupsDashboard() {
                           {new Date(bk.date).toLocaleTimeString()}
                         </td>
                         <td>
-                          <span className={`status-badge ${bk.type === 'full' ? 'urgent' :
-                              bk.type === 'differential' ? 'warning' :
-                                'normal'
-                            }`}>
+                          <span className={`status-badge ${
+                            bk.type === 'full' ? 'urgent' :
+                            bk.type === 'differential' ? 'warning' :
+                            'normal'
+                          }`}>
                             {bk.type === 'full' ? 'COMPLETO' :
-                              bk.type === 'differential' ? 'DIFERENCIAL' :
-                                'INCREMENTAL'}
+                             bk.type === 'differential' ? 'DIFERENCIAL' :
+                             'INCREMENTAL'}
                           </span>
                         </td>
-                        {/* CELDA DE TAMAÑO ELIMINADA AQUI */}
                         <td>
                           {bk.url && !bk.error ? (
                             <button
@@ -329,8 +381,11 @@ export default function BackupsDashboard() {
                                 handleDownload('sql', filename);
                               }}
                             >
-                              {/* Icono Download */}
-                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="7 10 12 15 17 10"></polyline>
+                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                              </svg>
                               Descargar
                             </button>
                           ) : (
@@ -369,9 +424,14 @@ export default function BackupsDashboard() {
                       <span className="exercise-sets">{plan.desc}</span>
                     </div>
                     <div className="exercise-checkbox">
-                      <div className="checkbox checked" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                         {/* Icono Check */}
-                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                      <div className="checkbox checked" style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center' 
+                      }}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
                       </div>
                     </div>
                   </li>

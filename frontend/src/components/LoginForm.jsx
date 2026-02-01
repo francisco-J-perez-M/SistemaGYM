@@ -1,40 +1,35 @@
 import { useState, useRef, useEffect } from "react";
 import { login } from "../api/auth";
-import { useNavigate } from "react-router-dom";
-import useTheme from "../hooks/useTheme"; // Importamos el hook
+import { useNavigate, Link } from "react-router-dom";
+import useTheme from "../hooks/useTheme";
+import { motion, AnimatePresence } from "framer-motion";
 import "../css/CSSUnificado.css";
+import { FiSun, FiMoon, FiStar, FiEye, FiEyeOff, FiAlertTriangle } from "react-icons/fi";
+import { GiPineTree } from "react-icons/gi";
+
 
 export default function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   
-  // Lógica del Tema
   const { theme, changeTheme } = useTheme();
   const [showThemeMenu, setShowThemeMenu] = useState(false);
   const menuRef = useRef(null);
   const navigate = useNavigate();
 
-  // 1. Definimos los mismos iconos SVG profesionales
   const themeOptions = [
-    { 
-      id: "light", label: "Claro", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5" /><line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" /><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" /><line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" /><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" /></svg> 
-    },
-    { 
-      id: "dark", label: "Oscuro", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg> 
-    },
-    { 
-      id: "forest", label: "Bosque", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L4 13h5l-2 9h10l-2-9h5z" /></svg> 
-    },
-    { 
-      id: "nebula", label: "Nebulosa", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" /></svg> 
-    },
-  ];
+  { id: "light", label: "Claro", icon: <FiSun /> },
+  { id: "dark", label: "Oscuro", icon: <FiMoon /> },
+  { id: "forest", label: "Bosque", icon: <GiPineTree /> },
+  { id: "nebula", label: "Nebulosa", icon: <FiStar /> },
+];
+
 
   const currentTheme = themeOptions.find(t => t.id === theme);
 
-  // 2. Cerrar menú al hacer click fuera
   useEffect(() => {
     function handleClickOutside(e) {
       if (menuRef.current && !menuRef.current.contains(e.target)) {
@@ -67,132 +62,260 @@ export default function LoginForm() {
     }
   };
 
+  // Variantes de animación para los elementos
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1,
+        delayChildren: 0.2
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.5,
+        ease: [0.25, 0.1, 0.25, 1]
+      }
+    }
+  };
+
+  const leftSideVariants = {
+    hidden: { opacity: 0, x: -100 },
+    visible: {
+      opacity: 1,
+      x: 0,
+      transition: {
+        duration: 0.8,
+        ease: [0.22, 1, 0.36, 1]
+      }
+    }
+  };
+
+  const heroTextVariants = {
+    hidden: { opacity: 0, y: 50 },
+    visible: (custom) => ({
+      opacity: 1,
+      y: 0,
+      transition: {
+        delay: custom * 0.2,
+        duration: 0.8,
+        ease: [0.22, 1, 0.36, 1]
+      }
+    })
+  };
+
   return (
     <div className="split-login-container">
-      {/* Lado izquierdo */}
-      <div className="login-left-side">
-        <div className="brand-logo-container">
+      {/* Lado izquierdo - Imagen con animación */}
+      <motion.div 
+        className="login-left-side"
+        variants={leftSideVariants}
+        initial="hidden"
+        animate="visible"
+      >
+        <motion.div 
+          className="brand-logo-container"
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.3, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+        >
           <h1 className="brand-text-logo">GYM PRO</h1>
-        </div>
-        <div className="brand-hero-text">
-          <h2>Supera tus límites,</h2>
-          <h2>define tu futuro.</h2>
-          <div className="hero-indicators">
-            <span className="active"></span>
-            <span></span>
-            <span></span>
-          </div>
-        </div>
-      </div>
-
-      {/* Lado derecho */}
-      <div className="login-right-side">
+        </motion.div>
         
-        {/* --- NUEVO: BOTÓN DE TEMA FLOTANTE --- */}
+        <div className="brand-hero-text">
+          <motion.h2
+            custom={0}
+            variants={heroTextVariants}
+            initial="hidden"
+            animate="visible"
+          >
+            Supera tus límites,
+          </motion.h2>
+          <motion.h2
+            custom={1}
+            variants={heroTextVariants}
+            initial="hidden"
+            animate="visible"
+          >
+            define tu futuro.
+          </motion.h2>
+        </div>
+
+        {/* Indicadores animados */}
+        <motion.div 
+          className="hero-indicators"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1, duration: 0.5 }}
+        >
+          <motion.span 
+            className="active"
+            animate={{ width: [10, 30, 10, 30] }}
+            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+          />
+          <span></span>
+          <span></span>
+        </motion.div>
+      </motion.div>
+
+      {/* Lado derecho - Formulario con animación */}
+      <motion.div 
+        className="login-right-side"
+        initial={{ opacity: 0, x: 100 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+      >
+        {/* Botón de temas con animación */}
         <div className="login-theme-wrapper" ref={menuRef}>
-          <button 
+          <motion.button 
             className={`theme-toggle-btn login-variant ${showThemeMenu ? 'active' : ''}`}
             onClick={() => setShowThemeMenu(!showThemeMenu)}
-            type="button" // Importante para que no envíe el formulario
+            type="button"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
           >
-             <span className="theme-toggle-icon">{currentTheme?.icon}</span>
-             <span className="theme-btn-text" style={{marginLeft: '8px', fontSize: '13px'}}>Tema</span>
-          </button>
+            <span className="theme-toggle-icon">{currentTheme?.icon}</span>
+            <span className="theme-btn-text" style={{marginLeft: '8px', fontSize: '13px'}}>Tema</span>
+          </motion.button>
 
-          {showThemeMenu && (
-            <div className="theme-dropdown login-dropdown-pos">
-              {themeOptions.map(t => (
-                <button
-                  key={t.id}
-                  className={`theme-option ${theme === t.id ? "active" : ""}`}
-                  onClick={() => {
-                    changeTheme(t.id);
-                    setShowThemeMenu(false);
-                  }}
-                  type="button"
-                >
-                  <span className="theme-icon">{t.icon}</span>
-                  <span>{t.label}</span>
-                </button>
-              ))}
-            </div>
-          )}
+          <AnimatePresence>
+            {showThemeMenu && (
+              <motion.div 
+                className="theme-dropdown login-dropdown-pos"
+                initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+              >
+                {themeOptions.map((t, idx) => (
+                  <motion.button
+                    key={t.id}
+                    className={`theme-option ${theme === t.id ? "active" : ""}`}
+                    onClick={() => { changeTheme(t.id); setShowThemeMenu(false); }}
+                    type="button"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                    whileHover={{ x: 5 }}
+                  >
+                    <span className="theme-icon">{t.icon}</span>
+                    <span>{t.label}</span>
+                  </motion.button>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
-        {/* ------------------------------------- */}
 
-        <div className="login-card">
-          <div className="login-header">
+        <motion.div 
+          className="login-card"
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+        >
+          <motion.div className="login-header" variants={itemVariants}>
             <h2>Iniciar Sesión</h2>
-            <p className="login-subtitle">Bienvenido de nuevo, ingresa tus credenciales.</p>
-          </div>
+            <p className="login-subtitle">Bienvenido de nuevo.</p>
+          </motion.div>
 
           <form onSubmit={handleSubmit} className="login-form">
-            <div className="form-group">
+            <motion.div className="form-group" variants={itemVariants}>
               <label htmlFor="email">Correo electrónico</label>
               <div className="input-dark-container">
-                <input
-                  id="email"
-                  type="email"
+                <motion.input
+                  id="email" 
+                  type="email" 
                   placeholder="ejemplo@correo.com"
-                  value={email}
+                  value={email} 
                   onChange={(e) => setEmail(e.target.value)}
-                  required
+                  required 
                   disabled={loading}
+                  whileFocus={{ scale: 1.01 }}
+                  transition={{ duration: 0.2 }}
                 />
               </div>
-            </div>
+            </motion.div>
 
-            <div className="form-group">
-              <div className="label-container">
-                <label htmlFor="password">Contraseña</label>
-              </div>
-              <div className="input-dark-container">
-                <input
-                  id="password"
-                  type="password"
-                  placeholder="Ingresa tu contraseña"
-                  value={password}
+            <motion.div className="form-group" variants={itemVariants}>
+              <label htmlFor="password">Contraseña</label>
+              <div className="input-dark-container password-input-wrapper">
+                <motion.input
+                  id="password" 
+                  type={showPassword ? "text" : "password"}
+                  placeholder="******"
+                  value={password} 
                   onChange={(e) => setPassword(e.target.value)}
-                  required
+                  required 
                   disabled={loading}
+                  whileFocus={{ scale: 1.01 }}
+                  transition={{ duration: 0.2 }}
                 />
+                <motion.button
+                  type="button"
+                  className="password-toggle-btn"
+                  onClick={() => setShowPassword(!showPassword)}
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                >
+                  {showPassword ? <FiEye /> : <FiEyeOff />}
+                </motion.button>
               </div>
-            </div>
+            </motion.div>
 
-            <div className="form-options">
-                <div className="remember-me">
-                <input type="checkbox" id="remember" className="custom-checkbox" />
-                <label htmlFor="remember">Recordar mi cuenta</label>
-                </div>
-                <a href="/forgot-password" className="forgot-password">¿Olvidaste tu contraseña?</a>
-            </div>
+            <AnimatePresence mode="wait">
+              {error && (
+                <motion.div 
+                  className="error-message"
+                  initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+                  animate={{ opacity: 1, height: "auto", marginBottom: 25 }}
+                  exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <motion.span
+                    initial={{ x: -10 }}
+                    animate={{ x: 0 }}
+                    transition={{ delay: 0.1 }}
+                  >
+                    <FiAlertTriangle style={{ marginRight: 6 }} />
+{error}
 
-            {error && (
-              <div className="error-message">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span>{error}</span>
-              </div>
-            )}
+                  </motion.span>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-            <button type="submit" className="login-button" disabled={loading}>
+            <motion.button 
+              type="submit" 
+              className="login-button" 
+              disabled={loading}
+              variants={itemVariants}
+              whileHover={{ scale: loading ? 1 : 1.02, y: loading ? 0 : -2 }}
+              whileTap={{ scale: loading ? 1 : 0.98 }}
+            >
               {loading ? (
-                <>
-                  <span className="spinner"></span>
-                  Procesando...
-                </>
+                <motion.span 
+                  className="spinner"
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                />
               ) : (
                 "Ingresar al sistema"
               )}
-            </button>
+            </motion.button>
 
-            <p className="register-link">
-              ¿No tienes una cuenta? <a href="/register">Regístrate aquí</a>
-            </p>
+            <motion.p className="register-link" variants={itemVariants}>
+              ¿No tienes una cuenta? <Link to="/register">Regístrate aquí</Link>
+            </motion.p>
           </form>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
     </div>
   );
 }

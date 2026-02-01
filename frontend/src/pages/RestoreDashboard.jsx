@@ -8,30 +8,36 @@ const RestoreDashboard = () => {
   const [isRestoring, setIsRestoring] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Paginación
+  // ===============================
+  // ESTADOS DE PAGINACIÓN
+  // ===============================
+  
+  // 1. Paginación para Respaldos Disponibles
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
+
+  // 2. Paginación para Historial de Restauraciones (NUEVO)
+  const [restorePage, setRestorePage] = useState(1);
+  const restoreItemsPerPage = 5;
 
   // ===============================
   // CONFIGURACIÓN DE ALERTAS (ESTILO PRO)
   // ===============================
   
-  // 1. Toast: Para notificaciones pequeñas en la esquina (Éxito/Error)
   const Toast = Swal.mixin({
     toast: true,
     position: 'top-end',
     showConfirmButton: false,
     timer: 3000,
     timerProgressBar: true,
-    background: 'var(--bg-card-dark)', // Usa tu variable de fondo
-    color: 'var(--text-primary)',      // Usa tu variable de texto
+    background: 'var(--bg-card-dark)',
+    color: 'var(--text-primary)',
     didOpen: (toast) => {
       toast.addEventListener('mouseenter', Swal.stopTimer)
       toast.addEventListener('mouseleave', Swal.resumeTimer)
     }
   });
 
-  // 2. Modal Estilizado: Para confirmaciones peligrosas
   const showConfirmModal = async (filename) => {
     return Swal.fire({
       title: '¿Estás seguro?',
@@ -39,14 +45,14 @@ const RestoreDashboard = () => {
              <span style="color: var(--danger-color)">⚠ Esta acción sobrescribirá TODA la base de datos actual.</span>`,
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonColor: 'var(--accent-color)', // Tu amarillo/verde
+      confirmButtonColor: 'var(--accent-color)',
       cancelButtonColor: '#d33',
       confirmButtonText: '<span style="color: var(--text-on-accent)">Sí, restaurar</span>',
       cancelButtonText: 'Cancelar',
       background: 'var(--bg-card-dark)',
       color: 'var(--text-primary)',
       focusConfirm: false,
-      backdrop: `rgba(0,0,0,0.6)` // Fondo oscurecido
+      backdrop: `rgba(0,0,0,0.6)`
     });
   };
 
@@ -60,7 +66,6 @@ const RestoreDashboard = () => {
       setBackups(res.data || []);
     } catch (error) {
       console.error("Error cargando backups", error);
-      // Reemplazo de alert con Toast de error
       Toast.fire({
         icon: 'error',
         title: 'Error al cargar historial'
@@ -79,8 +84,6 @@ const RestoreDashboard = () => {
   // ===============================
   const handleRestore = async (fullPath) => {
     const filename = getCleanFilename(fullPath);
-
-    // 1. Usar el nuevo Modal Pro en lugar de window.confirm
     const result = await showConfirmModal(filename);
 
     if (!result.isConfirmed) return;
@@ -88,7 +91,6 @@ const RestoreDashboard = () => {
     try {
       setIsRestoring(true);
       
-      // Mostrar loading modal bloqueante mientras restaura
       Swal.fire({
         title: 'Restaurando...',
         html: 'Por favor no cierres la ventana.',
@@ -102,7 +104,6 @@ const RestoreDashboard = () => {
 
       await restoreBackup(fullPath);
       
-      // Cerrar loading y mostrar éxito
       Swal.close(); 
       
       await Swal.fire({
@@ -119,7 +120,7 @@ const RestoreDashboard = () => {
 
     } catch (error) {
       console.error(error);
-      Swal.close(); // Asegurar que se cierre el loading
+      Swal.close();
       
       Swal.fire({
         icon: 'error',
@@ -151,7 +152,7 @@ const RestoreDashboard = () => {
   const availableBackups = backups.filter(b => b.type !== "restore");
 
   // ===============================
-  // Paginación
+  // LÓGICA DE PAGINACIÓN 1: Respaldos Disponibles
   // ===============================
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -162,11 +163,21 @@ const RestoreDashboard = () => {
   const totalPages = Math.ceil(availableBackups.length / itemsPerPage);
 
   // ===============================
+  // LÓGICA DE PAGINACIÓN 2: Historial de Restauraciones (NUEVA)
+  // ===============================
+  const indexOfLastRestore = restorePage * restoreItemsPerPage;
+  const indexOfFirstRestore = indexOfLastRestore - restoreItemsPerPage;
+  const currentRestoreLogs = restoreLogs.slice(
+    indexOfFirstRestore,
+    indexOfLastRestore
+  );
+  const totalRestorePages = Math.ceil(restoreLogs.length / restoreItemsPerPage);
+
+  // ===============================
   // Render
   // ===============================
   return (
     <>
-      {/* HEADER */}
       <header className="top-header">
         <h2 className="page-title">Gestión y Restauración de Respaldos</h2>
       </header>
@@ -194,14 +205,13 @@ const RestoreDashboard = () => {
           </div>
         </div>
 
-        {/* ALERTA VISUAL EN UI (Mantén esta, es útil visualmente) */}
+        {/* ALERTA VISUAL EN UI */}
         {isRestoring && (
           <div
             className="welcome-section pulse-animation"
             style={{ borderColor: "var(--warning-color)", marginBottom: '20px' }}
           >
             <div className="welcome-content" style={{justifyContent: 'flex-start', gap: '15px'}}>
-               {/* Un pequeño spinner inline */}
                <div className="spinner-small" style={{borderColor: 'var(--warning-color)', borderLeftColor: 'transparent'}}></div>
                <div>
                 <h3 style={{ color: "var(--warning-color)", fontSize: '18px' }}>
@@ -214,7 +224,7 @@ const RestoreDashboard = () => {
         )}
 
         {/* ============================= */}
-        {/* TABLA: RESPALDOS DISPONIBLES */}
+        {/* TABLA 1: RESPALDOS DISPONIBLES */}
         {/* ============================= */}
         <div className="table-section">
           <div className="section-header">
@@ -274,7 +284,6 @@ const RestoreDashboard = () => {
                           {isSQL ? (
                             <button
                               className="btn-download pdf"
-                              // Usamos estilos inline para override específico o clase de tu CSS
                               style={{ 
                                 backgroundColor: "rgba(255, 77, 77, 0.1)", 
                                 color: "var(--danger-color)",
@@ -298,7 +307,7 @@ const RestoreDashboard = () => {
             </table>
           </div>
 
-          {/* PAGINACIÓN */}
+          {/* PAGINACIÓN TABLA 1 */}
           {availableBackups.length > itemsPerPage && (
             <div className="pagination-controls">
               <button
@@ -323,12 +332,15 @@ const RestoreDashboard = () => {
         </div>
 
         {/* ============================= */}
-        {/* HISTORIAL DE RESTAURACIONES */}
+        {/* TABLA 2: HISTORIAL DE RESTAURACIONES (CON PAGINACIÓN) */}
         {/* ============================= */}
         {restoreLogs.length > 0 && (
           <div className="table-section" style={{ opacity: 0.85, marginTop: '40px' }}>
             <div className="section-header">
               <h3>Historial de Restauraciones</h3>
+              <span style={{ fontSize: "0.85em", color: "#666" }}>
+                Página {restorePage} de {totalRestorePages || 1}
+              </span>
             </div>
 
             <div className="custom-table-container">
@@ -341,7 +353,8 @@ const RestoreDashboard = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {restoreLogs.map((log, index) => (
+                  {/* AQUÍ: Mapeamos currentRestoreLogs en lugar de restoreLogs completo */}
+                  {currentRestoreLogs.map((log, index) => (
                     <tr key={index}>
                       <td>{getCleanFilename(log.url)}</td>
                       <td>{formatDate(log.date)}</td>
@@ -355,6 +368,29 @@ const RestoreDashboard = () => {
                 </tbody>
               </table>
             </div>
+
+            {/* AQUÍ: Controles de Paginación para Historial */}
+            {restoreLogs.length > restoreItemsPerPage && (
+              <div className="pagination-controls">
+                <button
+                  className="btn-download"
+                  disabled={restorePage === 1}
+                  onClick={() => setRestorePage(restorePage - 1)}
+                  style={{opacity: restorePage === 1 ? 0.5 : 1}}
+                >
+                  Anterior
+                </button>
+                <span className="page-info">Página {restorePage}</span>
+                <button
+                  className="btn-download"
+                  disabled={restorePage === totalRestorePages}
+                  onClick={() => setRestorePage(restorePage + 1)}
+                  style={{opacity: restorePage === totalRestorePages ? 0.5 : 1}}
+                >
+                  Siguiente
+                </button>
+              </div>
+            )}
           </div>
         )}
 
