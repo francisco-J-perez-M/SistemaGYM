@@ -1,291 +1,225 @@
-# Gym Management API
+# Sistema de Gestión de Gimnasio
 
-Backend oficial para el **Sistema de Gestión de Gimnasio**, diseñado para administrar usuarios, miembros, pagos y respaldos de la base de datos de forma segura y escalable.
+Este proyecto es una solución integral para la administración de gimnasios, que abarca desde el control de socios y pagos hasta un robusto sistema de copias de seguridad. Es una aplicación **Full Stack** moderna construida con tecnologías de vanguardia.
 
----
+### Vistas Previas del Sistema
 
-##  Descripción General
-
-Esta API REST proporciona los servicios necesarios para la operación administrativa de un gimnasio, incluyendo:
-
-* Autenticación y control de acceso mediante JWT
-* Gestión de miembros
-* Registro y consulta de pagos
-* Sistema de copias de seguridad (backups) con monitoreo de estado
-
-El backend está construido siguiendo buenas prácticas de diseño, seguridad y mantenibilidad.
+| Inicio de Sesión | Panel Administrativo |
+| :---: | :---: |
+| ![Login](screenshots/login_preview.png) | ![Dashboard](screenshots/dashboard_preview.png) |
 
 ---
 
-##  Stack Tecnológico
+## Arquitectura del Proyecto
 
-* **Lenguaje:** Python 3.10+
-* **Framework:** Flask 2.0+
-* **Autenticación:** JSON Web Tokens (JWT)
-* **ORM:** SQLAlchemy
-* **Formato de intercambio:** JSON
+El sistema está dividido en tres capas principales:
 
----
-
-##  Configuración General
-
-* **Base URL:** `http://localhost:5000`
-* **Autenticación:** JWT (Bearer Token)
-* **Headers requeridos:**
-
-```http
-Content-Type: application/json
-Authorization: Bearer <access_token>
-```
+1.  **Backend (API):** Servidor RESTful encargado de la lógica de negocio y persistencia.
+2.  **Frontend (UI):** Interfaz de usuario interactiva y responsiva.
+3.  **Base de Datos:** Estructura relacional para el almacenamiento seguro de la información.
 
 ---
 
-##  Autenticación
+## Backend: Gym Management API
 
-Todos los endpoints marcados como **protegidos** requieren un token JWT válido en el header `Authorization`.
+Ubicado en la carpeta `gym_api/`, es el núcleo del sistema.
 
-### Iniciar Sesión
+### Stack Tecnológico
+*   **Lenguaje:** Python 3.10+
+*   **Framework:** Flask
+*   **ORM:** SQLAlchemy (para manejo de base de datos)
+*   **Seguridad:** JSON Web Tokens (JWT) para autenticación y autorización por roles.
 
-Genera un token de acceso para consumir la API.
-
-* **Endpoint:** `POST /api/auth/login`
-
-**Body:**
-
-```json
-{
-  "email": "admin@gym.com",
-  "password": "password123"
-}
-```
-
-**Respuesta exitosa (200 OK):**
-
-```json
-{
-  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "user": {
-    "id": 1,
-    "nombre": "Administrador",
-    "role": "admin"
-  }
-}
-```
-
-**Posibles errores:**
-
-| Código | Descripción           |
-| ------ | --------------------- |
-| 401    | Contraseña incorrecta |
-| 404    | Usuario no encontrado |
+### Módulos Principales
+*   **Autenticación (`/api/auth`):** Inicio de sesión seguro con protección de rutas.
+*   **Miembros (`/api/miembros`):** Gestión completa de socios, incluyendo seguimiento de peso, estatura y estado físico.
+*   **Pagos (`/api/pagos`):** Registro de ingresos, métodos de pago y consulta de historial.
+*   **Sistema de Backups (`/api/backups`):** Sistema experto para la creación de copias de seguridad (Full, Incremental, Diferencial) con monitoreo de progreso y notificaciones SMTP.
 
 ---
 
-##  System Health
+## Frontend: Interfaz de Usuario
 
-### Verificar estado del sistema
+Ubicado en la carpeta `frontend/`, ofrece una experiencia de usuario fluida y moderna.
 
-Comprueba si la API se encuentra operativa.
+### Stack Tecnológico
+*   **Framework:** React 19
+*   **Navegación:** React Router 7
+*   **Estilos:** CSS Vanilla (enfocado en alto rendimiento y diseño personalizado).
+*   **Feedback Visual:** SweetAlert2 para alertas interactivas.
 
-* **Endpoint:** `GET /api/health`
-
-**Respuesta:**
-
-```json
-{ "status": "ok" }
-```
+### Características
+*   **Dashboard Administrativo:** Visualización rápida de métricas clave.
+*   **Gestión de Socios:** Interfaz para administrar la lista de miembros de forma intuitiva.
+*   **Control de Pagos:** Formulario dedicado para el registro de transacciones.
+*   **Configuración de Sistema:** Panel administrativo para gestionar respaldos y salud del sistema.
 
 ---
 
-## Gestión de Miembros
+## Base de Datos
 
-* **Base:** `/api/miembros`
-* **Autenticación:** Requiere JWT
+El sistema utiliza un esquema relacional optimizado.
+*   **Esquema:** El archivo `db.sql` contiene la estructura de tablas para usuarios, miembros, pagos, planes y roles.
+*   **Población de datos:** Dispones de `poblar_gym.py` para generar datos de prueba automáticamente y facilitar el desarrollo.
 
-### Listar miembros
+---
 
-* **Endpoint:** `GET /api/miembros`
-Parámetros (Query Params):
+## Referencia de la API
 
-page: Número de página (default: 1).
+Todos los endpoints (excepto health y login) requieren el encabezado:
+`Authorization: Bearer <access_token>`
 
-inactivos: true para ver papelera, false para ver activos (default: false).
-GET /api/miembros?page=1&inactivos=false
+### Autenticación
+Ubicación: `app/auth/routes.py`
 
-```json
-{
-  "miembros": [
+#### Iniciar Sesión
+*   **Endpoint:** `POST /api/auth/login`
+*   **Cuerpo (JSON):**
+    ```json
     {
-      "id": 10,
-      "nombre": "Juan Pérez",
-      "email": "juan@example.com",
-      "telefono": "555-1234",
-      "sexo": "M",
-      "peso_inicial": 75.5,
-      "estatura": 1.75,
-      "activo": true
+      "email": "admin@gym.com",
+      "password": "password123"
     }
-  ],
-  "total": 15,
-  "pages": 3,
-  "current_page": 1
-}
-```
+    ```
+*   **Respuesta (200 OK):**
+    ```json
+    {
+      "access_token": "eyJhbGci...",
+      "user": {
+        "id": 1,
+        "nombre": "Administrador",
+        "email": "admin@gym.com",
+        "role": "admin"
+      }
+    }
+    ```
 
-### Crear miembro
+### Gestión de Miembros
+Ubicación: `app/routes/miembros.py`
 
-* **Endpoint:** `POST /api/miembros`
+#### Listar Miembros
+*   **Endpoint:** `GET /api/miembros`
+*   **Query Params:** `page` (int, default: 1), `inactivos` (bool, default: false).
+*   **Respuesta (200 OK):**
+    ```json
+    {
+      "miembros": [
+        {
+          "id_miembro": 1,
+          "id_usuario": 5,
+          "telefono": "555-1234",
+          "sexo": "M",
+          "peso_inicial": 75.0,
+          "estatura": 1.70,
+          "estado": "Activo",
+          "fecha_registro": "2024-01-31"
+        }
+      ],
+      "total": 50,
+      "pages": 9,
+      "current_page": 1
+    }
+    ```
 
-```json
-{
-  "id_usuario": 5,
-  "telefono": "555-9876",
-  "fecha_nacimiento": "1998-05-20",
-  "sexo": "M",
-  "peso_inicial": 80.0,
-  "estatura": 1.80,
-  "fecha_registro": "2024-01-27"
-}
-```
+#### Crear Miembro
+*   **Endpoint:** `POST /api/miembros`
+*   **Cuerpo (JSON):**
+    ```json
+    {
+      "id_usuario": 10,
+      "telefono": "555-9876",
+      "fecha_nacimiento": "1995-05-20",
+      "sexo": "F",
+      "peso_inicial": 60.5,
+      "estatura": 1.65,
+      "fecha_registro": "2024-01-31"
+    }
+    ```
 
-### Actualizar miembro
+#### Reactivar Miembro
+*   **Endpoint:** `PUT /api/miembros/<id>/reactivar`
+*   **Respuesta:** `{"message": "Miembro reactivado exitosamente"}`
 
-* **Endpoint:** `PUT /api/miembros/<id>`
+#### Eliminar Miembro (Lógico)
+*   **Endpoint:** `DELETE /api/miembros/<id>`
+*   **Respuesta:** `{"message": "Miembro desactivado"}`
 
-```json
-{
-  "telefono": "555-0000",
-  "peso_inicial": 78.5
-}
-```
+### Gestión de Pagos
+Ubicación: `app/routes/pagos.py`
 
-### Eliminar miembro
+#### Registrar Pago
+*   **Endpoint:** `POST /api/pagos`
+*   **Cuerpo (JSON):**
+    ```json
+    {
+      "id_miembro": 1,
+      "id_membresia": 2,
+      "metodo_pago": "Tarjeta",
+      "numero_tarjeta": "4532..." 
+    }
+    ```
+*   **Nota:** Si el método es "Tarjeta", se valida mediante el algoritmo de Luhn.
 
-* **Endpoint:** `DELETE /api/miembros/<id>`
+#### Listar Pagos
+*   **Endpoint:** `GET /api/pagos`
+*   **Query Params:** `page` (int, default: 1).
 
-```json
-{ "msg": "Miembro eliminado correctamente" }
-```
+### Sistema de Backups
+Ubicación: `app/backups/routes.py`
+
+#### Estado del Backup
+*   **Endpoint:** `GET /api/backups/status`
+*   **Respuesta (200 OK):**
+    ```json
+    {
+      "is_running": false,
+      "progress_percentage": 100,
+      "current_step": "Finalizado",
+      "last_backup": "2024-01-31T15:00:00",
+      "files": {
+        "full": "/api/backups/download/backup_full_..."
+      }
+    }
+    ```
+
+#### Iniciar Backup Manual
+*   **Endpoint:** `POST /api/backups/trigger`
+*   **Cuerpo (JSON):** `{"type": "full"}` (Opciones: `full`, `incremental`, `differential`)
+
+#### Restaurar Backup
+*   **Endpoint:** `POST /api/backups/restore`
+*   **Cuerpo (JSON):** `{"filename": "nombre_archivo.sql"}`
 
 ---
 
-##  Gestión de Pagos
+## Instalación y Configuración
 
-* **Base:** `/api/pagos`
-* **Autenticación:** Requiere JWT
+### Requisitos Previos
+*   Python 3.10+
+*   Node.js & npm
+*   Servidor MySQL / MariaDB
 
-### Registrar pago
+### Configuración del Backend
+1. Ir a la carpeta `gym_api`.
+2. Crear un entorno virtual: `python -m venv venv`.
+3. Activar el entorno: `.\venv\Scripts\activate` (Windows).
+4. Instalar dependencias: `pip install -r requirements.txt`.
+5. Configurar el archivo `.env` con tus credenciales de base de datos y SMTP.
+6. Ejecutar: `python run.py`.
 
-* **Endpoint:** `POST /api/pagos`
-
-```json
-{
-  "id_miembro": 1,
-  "monto": 50,
-  "metodo": "Efectivo"
-}
-```
-
-**Respuesta (201 Created):**
-
-```json
-{ "msg": "Pago registrado correctamente" }
-```
-
-### Historial de pagos
-
-* **Endpoint:** `GET /api/pagos`
-
-```json
-[
-  {
-    "id": 10,
-    "miembro": "Juan Pérez",
-    "monto": 50,
-    "fecha": "2026-01-23",
-    "metodo": "Efectivo"
-  }
-]
-```
+### Configuración del Frontend
+1. Ir a la carpeta `frontend`.
+2. Instalar dependencias: `npm install`.
+3. Iniciar el servidor de desarrollo: `npm start`.
 
 ---
 
-##  Sistema de Backups
-
-* **Base:** `/api/backups`
-* **Autenticación:** JWT (Rol **Admin**)
-
-Este módulo gestiona copias de seguridad de la base de datos de forma asíncrona, permitiendo seguimiento del progreso y descarga de archivos.
-
-### Dashboard de Backups
-
-* **Endpoint:** `GET /api/backups/dashboard-summary`
-
-```json
-{
-  "system_status": "OK",
-  "last_backup": "2026-01-22T03:00:00",
-  "config": {
-    "frequency": "Diaria",
-    "next_scheduled": "2026-01-24T03:00:00"
-  },
-  "recent_history": []
-}
-```
-
-### Ejecutar backup manual
-
-* **Endpoint:** `POST /api/backups/trigger`
-
-```json
-{
-  "type": "full"
-}
-```
-
-**Tipos válidos:** `full`, `incremental`, `differential`
-
-```json
-{
-  "message": "Backup full iniciado",
-  "job_id": "job_a1b2c3d4",
-  "status": "running"
-}
-```
-
-### Estado del backup
-
-* **Endpoint:** `GET /api/backups/status`
-
-```json
-{
-  "is_running": true,
-  "progress_percentage": 60,
-  "current_step": "Comprimiendo archivos",
-  "last_backup": null
-}
-```
-
-### Historial de backups
-
-* **Endpoint:** `GET /api/backups/history`
-
-### Descargar backup
-
-* **Endpoint:** `GET /api/backups/download/<filename>`
-
-### Prueba de correo
-
-Verifica la configuración SMTP para notificaciones.
-
-* **Endpoint:** `GET /api/backups/test-email`
-
-```json
-{ "message": "Correo enviado con éxito" }
-```
+## Herramientas de Desarrollo
+*   **Diagrama Relacional:** Consulta `Diagrama Relacional.png` para entender los vínculos entre tablas.
+*   **Diagrama Entidad-Relación:** Localizado en `Diagrama entidad relacion.png`.
 
 ---
 
 ## Licencia
+Proyecto de uso académico / interno. Adaptable para entornos de producción bajo configuración adecuada.
 
-Proyecto de uso académico / interno. Adaptable a producción bajo configuración adecuada de seguridad y despliegue.
