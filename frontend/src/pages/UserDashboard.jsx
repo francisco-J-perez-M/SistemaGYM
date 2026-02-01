@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import Sidebar from "../components/Sidebar";
 import "../css/CSSUnificado.css";
 
 export default function UserDashboard() {
@@ -67,12 +66,6 @@ export default function UserDashboard() {
 
   return (
     <div className="dashboard-layout">
-      <Sidebar 
-        role="user"
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        onLogout={handleLogout}
-      />
 
       <div className="main-wrapper">
         <header className="top-header">

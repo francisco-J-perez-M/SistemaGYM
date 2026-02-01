@@ -7,7 +7,6 @@ import "../css/CSSUnificado.css";
 import { FiSun, FiMoon, FiStar, FiEye, FiEyeOff, FiAlertTriangle } from "react-icons/fi";
 import { GiPineTree } from "react-icons/gi";
 
-
 export default function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -21,12 +20,11 @@ export default function LoginForm() {
   const navigate = useNavigate();
 
   const themeOptions = [
-  { id: "light", label: "Claro", icon: <FiSun /> },
-  { id: "dark", label: "Oscuro", icon: <FiMoon /> },
-  { id: "forest", label: "Bosque", icon: <GiPineTree /> },
-  { id: "nebula", label: "Nebulosa", icon: <FiStar /> },
-];
-
+    { id: "light", label: "Claro", icon: <FiSun /> },
+    { id: "dark", label: "Oscuro", icon: <FiMoon /> },
+    { id: "forest", label: "Bosque", icon: <GiPineTree /> },
+    { id: "nebula", label: "Nebulosa", icon: <FiStar /> },
+  ];
 
   const currentTheme = themeOptions.find(t => t.id === theme);
 
@@ -50,10 +48,19 @@ export default function LoginForm() {
       localStorage.setItem("token", result.access_token);
       localStorage.setItem("user", JSON.stringify(result.user));
 
-      if (result.user.role === "Administrador") {
+      // Redirección según el rol del usuario
+      const userRole = result.user.role;
+      
+      if (userRole === "Administrador") {
         navigate("/dashboard");
+      } else if (userRole === "Entrenador") {
+        navigate("/trainer-dashboard");
+      } else if (userRole === "Recepcionista") {
+        navigate("/receptionist-dashboard");
+      } else if (userRole === "Miembro") {
+        navigate("/user/dashboard");
       } else {
-        navigate("/user-dashboard");
+        navigate("/user/dashboard");
       }
     } catch (err) {
       setError(err.message);
@@ -284,8 +291,7 @@ export default function LoginForm() {
                     transition={{ delay: 0.1 }}
                   >
                     <FiAlertTriangle style={{ marginRight: 6 }} />
-{error}
-
+                    {error}
                   </motion.span>
                 </motion.div>
               )}

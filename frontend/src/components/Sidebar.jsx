@@ -1,5 +1,33 @@
 import { useState, useRef, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import useTheme from "../hooks/ThemeContext";
+import { 
+  FiSun, 
+  FiMoon, 
+  FiStar,
+  FiBarChart2,
+  FiUsers,
+  FiDollarSign,
+  FiSettings,
+  FiUpload,
+  FiDownload,
+  FiClipboard,
+  FiTrendingUp,
+  FiRefreshCw,
+  FiUser,
+  FiUserCheck,
+  FiCalendar,
+  FiClock,
+  FiFileText,
+  FiMail,
+  FiLogOut,
+  FiActivity,
+  FiHeart,
+  FiTarget,
+  FiAward,
+  FiCreditCard
+} from "react-icons/fi";
+import { GiPineTree, GiMuscleUp, GiFruitBowl, GiBodyHeight } from "react-icons/gi";
 
 export default function Sidebar({ role = "admin", activeTab = "overview", onTabChange = () => {}, onLogout = () => {} }) {
   const { theme, changeTheme } = useTheme();
@@ -10,50 +38,10 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
   const menuRef = useRef(null);
 
   const themeOptions = [
-    { 
-      id: "light", 
-      label: "Claro", 
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="5" />
-          <line x1="12" y1="1" x2="12" y2="3" />
-          <line x1="12" y1="21" x2="12" y2="23" />
-          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-          <line x1="1" y1="12" x2="3" y2="12" />
-          <line x1="21" y1="12" x2="23" y2="12" />
-          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-        </svg>
-      ) 
-    },
-    { 
-      id: "dark", 
-      label: "Oscuro", 
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-        </svg>
-      ) 
-    },
-    { 
-      id: "forest", 
-      label: "Bosque", 
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 2L4 13h5l-2 9h10l-2-9h5z" />
-        </svg>
-      ) 
-    },
-    { 
-      id: "nebula", 
-      label: "Nebulosa", 
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
-        </svg>
-      ) 
-    },
+    { id: "light", label: "Claro", icon: <FiSun /> },
+    { id: "dark", label: "Oscuro", icon: <FiMoon /> },
+    { id: "forest", label: "Bosque", icon: <GiPineTree /> },
+    { id: "nebula", label: "Nebulosa", icon: <FiStar /> },
   ];
 
   const currentTheme = themeOptions.find(t => t.id === theme);
@@ -73,66 +61,33 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
       { 
         id: "overview", 
         label: "Resumen KPIs", 
-        icon: (
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" 
-            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" 
-          />
-        ) 
+        icon: <FiBarChart2 />
       },
-      
       { 
         id: "miembros", 
         label: "Miembros", 
-        icon: (
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-            d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-          />
-        ) 
+        icon: <FiUsers />
       },
-
       { 
         id: "pagos", 
         label: "Pagos", 
-        icon: (
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-            d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
-          />
-        ) 
+        icon: <FiDollarSign />
       },
-
       { type: "divider" },
-      
       {
         id: "settings",
         label: "Configuración",
-        icon: (
-          <>
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-            />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-            />
-          </>
-        ),
+        icon: <FiSettings />,
         children: [
           {
             id: "backups",
             label: "Copias de seguridad",
-            icon: (
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
-              />
-            )
+            icon: <FiUpload />
           },
           {
             id: "restore",
             label: "Restaurar respaldo",
-            icon: (
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-              />
-            )
+            icon: <FiDownload />
           }
         ]
       }
@@ -140,201 +95,394 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
 
     user: [
       { 
-        id: "payments", 
-        label: "Historial de Pagos", 
-        icon: (
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" 
-            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" 
-          />
-        ) 
-      },
-      { 
-        id: "progress", 
-        label: "Mi Progreso", 
-        icon: (
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" 
-            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" 
-          />
-        ) 
-      },
-      { 
-        id: "renew", 
-        label: "Renovar Membresía", 
-        icon: (
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" 
-            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" 
-          />
-        ) 
+        id: "dashboard", 
+        label: "Mi Dashboard", 
+        icon: <FiActivity />
       },
       { type: "divider" },
+      {
+        id: "training",
+        label: "Entrenamiento",
+        icon: <GiMuscleUp />,
+        children: [
+          {
+            id: "routine",
+            label: "Mi Rutina",
+            icon: <FiFileText />
+          },
+          {
+            id: "progress",
+            label: "Progreso Físico",
+            icon: <FiTrendingUp />
+          },
+          {
+            id: "body-metrics",
+            label: "Métricas Corporales",
+            icon: <GiBodyHeight />
+          }
+        ]
+      },
+      {
+        id: "nutrition",
+        label: "Nutrición",
+        icon: <GiFruitBowl />,
+        children: [
+          {
+            id: "meal-plan",
+            label: "Plan Alimenticio",
+            icon: <FiCalendar />
+          },
+          {
+            id: "health",
+            label: "Salud y Bienestar",
+            icon: <FiHeart />
+          }
+        ]
+      },
+      { type: "divider" },
+      {
+        id: "membership",
+        label: "Mi Membresía",
+        icon: <FiCreditCard />,
+        children: [
+          {
+            id: "payments",
+            label: "Historial de Pagos",
+            icon: <FiClipboard />
+          },
+          {
+            id: "renew",
+            label: "Renovar Membresía",
+            icon: <FiRefreshCw />
+          }
+        ]
+      },
       { 
         id: "profile", 
         label: "Mi Perfil", 
-        icon: (
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" 
-            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" 
-          />
-        ) 
+        icon: <FiUser />
+      }
+    ],
+
+    trainer: [
+      { 
+        id: "clients", 
+        label: "Mis Clientes", 
+        icon: <FiUsers />
+      },
+      { 
+        id: "schedule", 
+        label: "Agenda", 
+        icon: <FiCalendar />
+      },
+      { 
+        id: "sessions", 
+        label: "Sesiones", 
+        icon: <FiClock />
+      },
+      { 
+        id: "routines", 
+        label: "Rutinas", 
+        icon: <FiFileText />
+      },
+      { type: "divider" },
+      { 
+        id: "reports", 
+        label: "Reportes", 
+        icon: <FiBarChart2 />
+      },
+      { 
+        id: "profile", 
+        label: "Mi Perfil", 
+        icon: <FiUser />
+      }
+    ],
+
+    receptionist: [
+      { 
+        id: "checkins", 
+        label: "Check-ins", 
+        icon: <FiUserCheck />
+      },
+      { 
+        id: "appointments", 
+        label: "Citas", 
+        icon: <FiCalendar />
+      },
+      { 
+        id: "payments", 
+        label: "Pagos", 
+        icon: <FiDollarSign />
+      },
+      { 
+        id: "members", 
+        label: "Miembros", 
+        icon: <FiUsers />
+      },
+      { type: "divider" },
+      { 
+        id: "messages", 
+        label: "Mensajes", 
+        icon: <FiMail />
+      },
+      { 
+        id: "tasks", 
+        label: "Tareas", 
+        icon: <FiClipboard />
       }
     ]
   };
 
   const currentMenu = menus[role] || menus.user;
 
+  const getRoleName = () => {
+    const roleNames = {
+      admin: "ADMIN",
+      user: "MIEMBRO",
+      trainer: "ENTRENADOR",
+      receptionist: "RECEPCIÓN"
+    };
+    return roleNames[role] || "USER";
+  };
+
+  const getUserName = () => {
+    const user = localStorage.getItem("user");
+    if (user) {
+      const userData = JSON.parse(user);
+      const initials = userData.nombre?.split(" ").map(n => n[0]).join("") || "US";
+      return {
+        initials,
+        name: userData.nombre || "Usuario",
+        role: userData.role || "Miembro"
+      };
+    }
+    return { initials: "US", name: "Usuario", role: "Miembro" };
+  };
+
+  const userData = getUserName();
+
   return (
-    <aside className={`sidebar ${collapsed ? "collapsed" : ""}`}>
+    <motion.aside 
+      className={`sidebar ${collapsed ? "collapsed" : ""}`}
+      initial={{ x: -300 }}
+      animate={{ x: 0 }}
+      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+    >
       {/* Botón de colapsar */}
-      <button 
+      <motion.button 
         className="collapse-btn" 
         onClick={() => setCollapsed(!collapsed)}
         aria-label="Colapsar menú"
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.9 }}
       >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <motion.svg 
+          viewBox="0 0 24 24" 
+          fill="none" 
+          stroke="currentColor" 
+          strokeWidth="2"
+          animate={{ rotate: collapsed ? 180 : 0 }}
+          transition={{ duration: 0.3 }}
+        >
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-        </svg>
-      </button>
+        </motion.svg>
+      </motion.button>
 
-      <div className="sidebar-header">
+      <motion.div 
+        className="sidebar-header"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+      >
         <span className="brand-name">GYM PRO</span>
-        <span className="admin-badge">ADMIN</span>
-      </div>
+        <motion.span 
+          className="admin-badge"
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ delay: 0.3, type: "spring" }}
+        >
+          {getRoleName()}
+        </motion.span>
+      </motion.div>
 
       <ul className="sidebar-menu">
-        {currentMenu.map((item, i) => {
-          if (item.type === "divider") return <li key={i} className="divider" />;
+        <AnimatePresence>
+          {currentMenu.map((item, i) => {
+            if (item.type === "divider") {
+              return (
+                <motion.li 
+                  key={i} 
+                  className="divider"
+                  initial={{ opacity: 0, scaleX: 0 }}
+                  animate={{ opacity: 1, scaleX: 1 }}
+                  transition={{ delay: i * 0.05 }}
+                />
+              );
+            }
 
-          const hasChildren = item.children && item.children.length > 0;
-          const isChildActive = hasChildren && item.children.some(child => child.id === activeTab);
-          const isOpen = openSubmenu === item.id || isChildActive;
-          const isParentActive = activeTab === item.id && !hasChildren;
+            const hasChildren = item.children && item.children.length > 0;
+            const isChildActive = hasChildren && item.children.some(child => child.id === activeTab);
+            const isOpen = openSubmenu === item.id || isChildActive;
+            const isParentActive = activeTab === item.id && !hasChildren;
 
-          return (
-            <li 
-              key={item.id}
-              className={isParentActive || isChildActive ? "active" : ""}
-              onClick={() => {
-                if (hasChildren) {
-                  setOpenSubmenu(openSubmenu === item.id ? null : item.id);
-                } else {
-                  onTabChange(item.id);
-                }
-              }}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                {item.icon}
-              </svg>
-              <span>{item.label}</span>
-              
-              {hasChildren && (
-                <svg 
-                  viewBox="0 0 24 24" 
-                  width="16" 
-                  height="16" 
-                  style={{
-                    marginLeft: 'auto', 
-                    transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', 
-                    transition: 'transform 0.3s ease'
-                  }}
-                  fill="none" 
-                  stroke="currentColor" 
-                  strokeWidth="2"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                </svg>
-              )}
-
-              {/* SUBMENÚ */}
-              {hasChildren && (
-                <div className={`submenu-wrapper ${isOpen ? "open" : ""}`}>
-                  <div className="submenu-inner">
-                    <ul className="submenu">
-                      {item.children.map(sub => (
-                        <li
-                          key={sub.id}
-                          className={activeTab === sub.id ? "active" : ""}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onTabChange(sub.id);
-                          }}
-                        >
-                          <svg 
-                            viewBox="0 0 24 24" 
-                            fill="none" 
-                            stroke="currentColor" 
-                            strokeWidth="2" 
-                            style={{ width: '18px', height: '18px' }} 
-                          >
-                            {sub.icon}
-                          </svg>
-                          <span>{sub.label}</span>
-                        </li>
-                      ))}
-                    </ul>
+            return (
+              <motion.li 
+                key={item.id}
+                className={isParentActive || isChildActive ? "active" : ""}
+                onClick={() => {
+                  if (hasChildren) {
+                    setOpenSubmenu(openSubmenu === item.id ? null : item.id);
+                  } else {
+                    onTabChange(item.id);
+                  }
+                }}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.05 }}
+                whileHover={{ x: 5 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
+                  <div style={{ width: '20px', height: '20px', display: 'flex', alignItems: 'center' }}>
+                    {item.icon}
                   </div>
+                  <span>{item.label}</span>
                 </div>
-              )}
-            </li>
-          );
-        })}
+                
+                {hasChildren && (
+                  <motion.div
+                    animate={{ rotate: isOpen ? 180 : 0 }}
+                    transition={{ duration: 0.3 }}
+                    style={{ width: '16px', height: '16px', display: 'flex', alignItems: 'center' }}
+                  >
+                    <FiBarChart2 style={{ transform: 'rotate(90deg)' }} size={14} />
+                  </motion.div>
+                )}
+
+                {/* SUBMENÚ */}
+                <AnimatePresence>
+                  {hasChildren && isOpen && (
+                    <motion.div 
+                      className="submenu-wrapper open"
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <div className="submenu-inner">
+                        <ul className="submenu">
+                          {item.children.map((sub, idx) => (
+                            <motion.li
+                              key={sub.id}
+                              className={activeTab === sub.id ? "active" : ""}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onTabChange(sub.id);
+                              }}
+                              initial={{ opacity: 0, x: -10 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: idx * 0.05 }}
+                              whileHover={{ x: 5 }}
+                            >
+                              <div style={{ width: '18px', height: '18px', display: 'flex', alignItems: 'center' }}>
+                                {sub.icon}
+                              </div>
+                              <span>{sub.label}</span>
+                            </motion.li>
+                          ))}
+                        </ul>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.li>
+            );
+          })}
+        </AnimatePresence>
       </ul>
 
       <div className="sidebar-footer">
         {/* SELECTOR DE TEMA */}
         <div className="theme-menu-container" ref={menuRef}>
-          {showThemeMenu && (
-            <div className="theme-dropdown">
-              {themeOptions.map(t => (
-                <button
-                  key={t.id}
-                  className={`theme-option ${theme === t.id ? "active" : ""}`}
-                  onClick={() => {
-                    changeTheme(t.id);
-                    setShowThemeMenu(false);
-                  }}
-                >
-                  <span className="theme-icon">{t.icon}</span>
-                  <span>{t.label}</span>
-                </button>
-              ))}
-            </div>
-          )}
+          <AnimatePresence>
+            {showThemeMenu && (
+              <motion.div 
+                className="theme-dropdown"
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                transition={{ duration: 0.2 }}
+              >
+                {themeOptions.map((t, idx) => (
+                  <motion.button
+                    key={t.id}
+                    className={`theme-option ${theme === t.id ? "active" : ""}`}
+                    onClick={() => {
+                      changeTheme(t.id);
+                      setShowThemeMenu(false);
+                    }}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                    whileHover={{ x: 5 }}
+                  >
+                    <span className="theme-icon">{t.icon}</span>
+                    <span>{t.label}</span>
+                  </motion.button>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-          <button
+          <motion.button
             className={`theme-toggle-btn ${showThemeMenu ? "active" : ""}`}
             onClick={() => setShowThemeMenu(!showThemeMenu)}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
           >
             <div className="theme-btn-left">
               <span className="theme-toggle-icon">
-                {currentTheme?.icon || "🎨"}
+                {currentTheme?.icon || <FiStar />}
               </span>
               <span className="theme-btn-text">Temas</span>
             </div>
 
-            <svg className="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" />
-            </svg>
-          </button>
+            <motion.div
+              animate={{ rotate: showThemeMenu ? 180 : 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <svg className="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" />
+              </svg>
+            </motion.div>
+          </motion.button>
         </div>
 
         {/* BOTÓN LOGOUT */}
-        <button onClick={onLogout} className="logout-btn-sidebar">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path strokeLinecap="round" strokeLinejoin="round" 
-              d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" 
-            />
-          </svg>
+        <motion.button 
+          onClick={onLogout} 
+          className="logout-btn-sidebar"
+          whileHover={{ scale: 1.02, x: 5 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          <FiLogOut />
           <span>Salir</span>
-        </button>
+        </motion.button>
       </div>
 
       {/* INFO DE USUARIO AL FINAL */}
-      <div className="user-info-section">
-        <div className="avatar">AD</div>
+      <motion.div 
+        className="user-info-section"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+      >
+        <div className="avatar">{userData.initials}</div>
         <div className="user-info">
-          <span className="name">Admin</span>
-          <span className="role">Administrador</span>
+          <span className="name">{userData.name}</span>
+          <span className="role">{userData.role}</span>
         </div>
-      </div>
-    </aside>
+      </motion.div>
+    </motion.aside>
   );
 }

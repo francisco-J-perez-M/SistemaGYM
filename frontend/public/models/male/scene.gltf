@@ -1,0 +1,331 @@
+{
+  "accessors": [
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 6531,
+      "max": [
+        99.44281005859375,
+        199.97909545898438,
+        23.970447540283203
+      ],
+      "min": [
+        -99.44281005859375,
+        -0.35917073488235474,
+        -15.565696716308594
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 78372,
+      "componentType": 5126,
+      "count": 6531,
+      "max": [
+        0.999976396560669,
+        0.9997427463531494,
+        0.9999997615814209
+      ],
+      "min": [
+        -0.999976396560669,
+        -0.9999992251396179,
+        -0.9999030232429504
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 6531,
+      "max": [
+        0.8750001192092896,
+        1.0
+      ],
+      "min": [
+        0.0,
+        0.0
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 0,
+      "componentType": 5125,
+      "count": 37146,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 156744,
+      "componentType": 5126,
+      "count": 250,
+      "max": [
+        154.09014892578125,
+        69.71424102783203,
+        80.42372131347656
+      ],
+      "min": [
+        -154.09014892578125,
+        -46.89183807373047,
+        -36.18235778808594
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 159744,
+      "componentType": 5126,
+      "count": 250,
+      "max": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "min": [
+        -1.0,
+        -1.0,
+        -1.0
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 52248,
+      "componentType": 5126,
+      "count": 250,
+      "max": [
+        0.875,
+        1.0
+      ],
+      "min": [
+        0.125,
+        0.0
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 0,
+      "byteOffset": 148584,
+      "componentType": 5125,
+      "count": 1152,
+      "type": "SCALAR"
+    }
+  ],
+  "asset": {
+    "extras": {
+      "author": "ferrumiron6 (https://sketchfab.com/ferrumiron6)",
+      "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+      "source": "https://sketchfab.com/3d-models/human-body-base-mesh-male-3678451d8ccb435e833f8a10729c09f5",
+      "title": "Human Body Base Mesh Male"
+    },
+    "generator": "Sketchfab-16.72.0",
+    "version": "2.0"
+  },
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 153192,
+      "name": "floatBufferViews",
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteLength": 54248,
+      "byteOffset": 153192,
+      "byteStride": 8,
+      "name": "floatBufferViews",
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 162744,
+      "byteOffset": 207440,
+      "byteStride": 12,
+      "name": "floatBufferViews",
+      "target": 34962
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 370184,
+      "uri": "scene.bin"
+    }
+  ],
+  "materials": [
+    {
+      "doubleSided": true,
+      "name": "Eyes__0",
+      "pbrMetallicRoughness": {
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.6
+      }
+    },
+    {
+      "doubleSided": true,
+      "name": "Material.001",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.544293,
+          0.324353,
+          0.202571,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.9189828781490982
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Body_Material.001_0",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 1,
+            "POSITION": 0,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "material": 1,
+          "mode": 4
+        }
+      ]
+    },
+    {
+      "name": "Eyes__0",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 5,
+            "POSITION": 4,
+            "TEXCOORD_0": 6
+          },
+          "indices": 7,
+          "material": 0,
+          "mode": 4
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "children": [
+        1
+      ],
+      "matrix": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        2.220446049250313e-16,
+        -1.0,
+        0.0,
+        0.0,
+        1.0,
+        2.220446049250313e-16,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "name": "Sketchfab_model"
+    },
+    {
+      "children": [
+        2
+      ],
+      "matrix": [
+        0.009999999776482582,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.009999999776482582,
+        0.0,
+        0.0,
+        -0.009999999776482582,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "name": "Human_Body_Base_Mesh_Male.fbx"
+    },
+    {
+      "children": [
+        3,
+        5
+      ],
+      "name": "RootNode"
+    },
+    {
+      "children": [
+        4
+      ],
+      "matrix": [
+        0.8999999761581421,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.8999999761581421,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.8999999761581421,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "name": "Body"
+    },
+    {
+      "mesh": 0,
+      "name": "Body_Material.001_0"
+    },
+    {
+      "children": [
+        6
+      ],
+      "matrix": [
+        0.03485569357872009,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.03485569357872009,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.03485569357872009,
+        0.0,
+        0.0,
+        167.66586303710938,
+        8.692170143127441,
+        1.0
+      ],
+      "name": "Eyes"
+    },
+    {
+      "mesh": 1,
+      "name": "Eyes__0"
+    }
+  ],
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "Sketchfab_Scene",
+      "nodes": [
+        0
+      ]
+    }
+  ]
+}

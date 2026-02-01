@@ -2400,3 +2400,342 @@ button.swal2-cancel:focus {
 [data-theme="light"] .theme-toggle-btn.login-variant {
   background-color: rgba(247, 249, 250, 0.9);
 }
+/* ============================================
+   MEJORAS PARA ANIMACIONES Y TRANSICIONES
+   ============================================ */
+
+/* Spinner de carga mejorado */
+.spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: white;
+}
+
+/* Botones con hover mejorado */
+.btn-outline-small {
+  transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.btn-outline-small:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(251, 227, 121, 0.3);
+}
+
+/* Tarjetas con animación de entrada */
+.stat-card,
+.chart-card {
+  transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+/* Exercise items mejorados */
+.exercise-item {
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.exercise-item:hover {
+  background: var(--bg-hover);
+  transform: translateX(5px);
+}
+
+.exercise-item.completed {
+  opacity: 0.7;
+}
+
+.exercise-item.completed .exercise-name {
+  text-decoration: line-through;
+  color: var(--text-secondary);
+}
+
+/* Checkbox animado */
+.exercise-checkbox .checkbox {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--border-dark);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.exercise-checkbox .checkbox.checked {
+  background: var(--success-color);
+  border-color: var(--success-color);
+  color: white;
+  font-weight: bold;
+}
+
+/* Sidebar hover effects */
+.sidebar-menu li {
+  transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  cursor: pointer;
+}
+
+.sidebar-menu li:hover {
+  background: var(--bg-hover);
+}
+
+.sidebar-menu li.active {
+  background: var(--accent-color);
+  color: var(--bg-dark);
+}
+
+/* Theme dropdown mejorado */
+.theme-dropdown {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(10px);
+}
+
+.theme-option {
+  transition: all 0.2s ease;
+}
+
+.theme-option:hover {
+  background: var(--bg-hover);
+  padding-left: 20px;
+}
+
+/* Welcome section con gradiente animado */
+.welcome-section {
+  background: linear-gradient(135deg, var(--accent-color)20, transparent);
+  border-left: 4px solid var(--accent-color);
+  position: relative;
+  overflow: hidden;
+}
+
+.welcome-section::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.05), transparent);
+  animation: shimmer 3s infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+  100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+}
+
+/* Progress bars animadas */
+.stat-card .stat-value {
+  animation: countUp 1s ease-out;
+}
+
+@keyframes countUp {
+  from { opacity: 0; transform: scale(0.5); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Trends badges */
+.trend {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.trend.positive {
+  background: rgba(76, 217, 100, 0.15);
+  color: var(--success-color);
+}
+
+.trend.warning {
+  background: rgba(255, 189, 46, 0.15);
+  color: var(--warning-color);
+}
+
+.trend.negative {
+  background: rgba(255, 59, 48, 0.15);
+  color: var(--error-color);
+}
+
+/* Circular progress mejorado */
+.circular-progress {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.circular-progress .inner-circle {
+  width: calc(100% - 10px);
+  height: calc(100% - 10px);
+  border-radius: 50%;
+  background: var(--bg-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+}
+
+.circular-progress .percentage {
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--accent-color);
+}
+
+/* Avatar mejorado */
+.avatar {
+  background: linear-gradient(135deg, var(--accent-color), var(--success-color));
+  box-shadow: 0 0 20px rgba(251, 227, 121, 0.3);
+  transition: all 0.3s ease;
+}
+
+.avatar:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 30px rgba(251, 227, 121, 0.5);
+}
+
+/* Action links con animación */
+.action-link {
+  color: var(--accent-color);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  background: none;
+  padding: 0;
+}
+
+.action-link:hover {
+  color: var(--success-color);
+  text-decoration: underline;
+}
+
+/* Submenu animations */
+.submenu-wrapper {
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.submenu li {
+  padding-left: 50px;
+  font-size: 14px;
+}
+
+.submenu li:hover {
+  background: var(--bg-hover);
+}
+
+.submenu li.active {
+  background: rgba(251, 227, 121, 0.2);
+  border-left: 3px solid var(--accent-color);
+  color: var(--accent-color);
+}
+
+/* Responsive animations */
+@media (max-width: 768px) {
+  .stat-card:hover {
+    transform: none;
+  }
+  
+  .exercise-item:hover {
+    transform: none;
+  }
+}
+
+/* Loading state */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.loading-spinner {
+  width: 60px;
+  height: 60px;
+  border: 4px solid rgba(251, 227, 121, 0.3);
+  border-top-color: var(--accent-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Highlight borders para cards importantes */
+.highlight-border {
+  border: 2px solid var(--accent-color);
+  box-shadow: 0 0 20px rgba(251, 227, 121, 0.2);
+}
+
+/* Success, warning, error colors */
+:root {
+  --success-color: #4CD964;
+  --warning-color: #FFBD2E;
+  --error-color: #FF3B30;
+}
+
+/* Dark theme adjustments */
+[data-theme="dark"] {
+  --bg-hover: rgba(255, 255, 255, 0.05);
+}
+
+/* Light theme adjustments */
+[data-theme="light"] {
+  --bg-hover: rgba(0, 0, 0, 0.05);
+}
+
+/* Forest theme adjustments */
+[data-theme="forest"] {
+  --bg-hover: rgba(76, 175, 80, 0.1);
+}
+
+/* Nebula theme adjustments */
+[data-theme="nebula"] {
+  --bg-hover: rgba(138, 43, 226, 0.1);
+}
+/* Modelo corporal hover */
+.body-model-area:hover {
+  filter: brightness(1.2);
+  transform: scale(1.05);
+  transition: all 0.3s ease;
+}
+
+/* Cards de planes de membresía */
+.membership-plan {
+  transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.membership-plan:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 12px 32px rgba(251, 227, 121, 0.3);
+}
+
+/* Progress bars animadas */
+@keyframes fillProgress {
+  from { width: 0%; }
+  to { width: var(--target-width); }
+}
+
+.animated-progress {
+  animation: fillProgress 1s ease-out forwards;
+}
+canvas {
+  background: radial-gradient(circle at top, #1e1e2f, #0b0b12);
+  border-radius: 12px;
+}
