@@ -8,6 +8,7 @@ from app.routes.pagos import pagos_bp
 from app.routes.membresias import membresias_bp
 from app.routes.miembro_membresias import miembro_membresias_bp
 from app.routes.dashboard_routes import dashboard_bp
+from app.routes.user_dashboard import user_dashboard_bp
 
 
 def create_app():
@@ -28,6 +29,7 @@ def create_app():
     app.register_blueprint(miembros_bp)
     app.register_blueprint(dashboard_bp, url_prefix="/api") 
     app.register_blueprint(pagos_bp)
+    app.register_blueprint(user_dashboard_bp)
     app.register_blueprint(miembro_membresias_bp, url_prefix="/api")
 
     return app

@@ -123,21 +123,9 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
         ]
       },
       {
-        id: "nutrition",
-        label: "Nutrición",
+        id: "Salud y Bienestar",
+        label: "Salud y Bienestar",
         icon: <GiFruitBowl />,
-        children: [
-          {
-            id: "meal-plan",
-            label: "Plan Alimenticio",
-            icon: <FiCalendar />
-          },
-          {
-            id: "health",
-            label: "Salud y Bienestar",
-            icon: <FiHeart />
-          }
-        ]
       },
       { type: "divider" },
       {
