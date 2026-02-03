@@ -1,8 +1,8 @@
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, useGLTF } from "@react-three/drei";
 
-// Si usas el BodyModel interno que pegaste al principio:
-function BodyModel({ gender }) {
+// Componente del modelo 3D
+function BodyModel({ gender, metrics }) {
   const modelPath =
     gender === "male"
       ? "/models/male/scene.gltf"
@@ -10,40 +10,84 @@ function BodyModel({ gender }) {
 
   const { scene } = useGLTF(modelPath);
 
+  // Calcular escala basada en métricas (opcional)
+  const baseScale = 2.2;
+  
+  // Si quieres que el modelo cambie según las métricas:
+  // const fatScale = metrics ? 1 + (metrics.grasaCorporal.actual * 0.003) : 1;
+  // const muscleScale = metrics ? 1 + (metrics.musculo.actual * 0.002) : 1;
+  // const scale = baseScale * fatScale * muscleScale;
+  
+  const scale = baseScale; // Usar escala fija por ahora
+
+  // Configurar sombras
+  scene.traverse((obj) => {
+    if (obj.isMesh) {
+      obj.castShadow = true;
+      obj.receiveShadow = true;
+    }
+  });
+
   return (
     <primitive 
       object={scene} 
-      // 1. Aumentamos la escala base
-      scale={2.2} 
-      // 2. Bajamos un poco más la posición Y para centrar el cuerpo al crecer
+      scale={scale} 
       position={[0, -2.0, 0]} 
+      rotation={[0, Math.PI, 0]}
     />
   );
 }
 
-export default function BodyViewer({ gender }) {
+export default function BodyViewer({ gender, metrics }) {
   return (
     <Canvas 
-      // 3. CAMBIOS CLAVE AQUÍ:
-      // - position: [0, 0.5, 2.5] -> Acercamos la cámara en Z (de 4 a 2.5) y bajamos Y
-      // - fov: 50 -> Un campo de visión un poco más estrecho ayuda a llenar la pantalla
-      camera={{ position: [0, 0.5, 2.5], fov: 50 }}
+      camera={{ 
+        position: [0, 0.5, 2.5], 
+        fov: 50 
+      }}
+      style={{ 
+        width: '100%', 
+        height: '100%' 
+      }}
     >
-      {/* LUCES */}
+      {/* LUCES MEJORADAS */}
       <ambientLight intensity={0.7} />
-      <directionalLight position={[5, 5, 5]} intensity={1.2} />
-      <directionalLight position={[-5, 5, -5]} intensity={0.6} />
+      <directionalLight 
+        position={[5, 5, 5]} 
+        intensity={1.2}
+        castShadow
+      />
+      <directionalLight 
+        position={[-5, 5, -5]} 
+        intensity={0.6} 
+      />
+      <spotLight
+        position={[0, 10, 0]}
+        angle={0.3}
+        penumbra={1}
+        intensity={0.5}
+        castShadow
+      />
 
-      <BodyModel gender={gender} />
+      {/* MODELO 3D */}
+      <BodyModel gender={gender} metrics={metrics} />
 
+      {/* CONTROLES DE CÁMARA */}
       <OrbitControls
         enablePan={false}
-        // 4. Permitimos que el usuario se acerque más (antes estaba en 2.5)
         minDistance={1.5}
         maxDistance={6}
-        // Opcional: Centrar el punto de pivote de la rotación en el pecho/cintura
         target={[0, 0, 0]}
+        enableDamping
+        dampingFactor={0.05}
+        rotateSpeed={0.5}
+        minPolarAngle={Math.PI / 4}
+        maxPolarAngle={Math.PI / 1.5}
       />
     </Canvas>
   );
 }
+
+// Precargar modelos para mejor rendimiento
+useGLTF.preload("/models/male/scene.gltf");
+useGLTF.preload("/models/female/scene.gltf");

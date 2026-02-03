@@ -115,15 +115,10 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
             label: "Progreso Físico",
             icon: <FiTrendingUp />
           },
-          {
-            id: "body-metrics",
-            label: "Métricas Corporales",
-            icon: <GiBodyHeight />
-          }
         ]
       },
       {
-        id: "Salud y Bienestar",
+        id: "health",
         label: "Salud y Bienestar",
         icon: <GiFruitBowl />,
       },

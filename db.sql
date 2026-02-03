@@ -137,6 +137,122 @@ CREATE TABLE gastos (
 
 ALTER TABLE miembros 
 ADD COLUMN foto_perfil VARCHAR(255) DEFAULT NULL AFTER estado;
+USE gym_db;
+
+-- Tabla de rutinas
+CREATE TABLE IF NOT EXISTS rutinas (
+    id_rutina INT AUTO_INCREMENT PRIMARY KEY,
+    id_miembro INT NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+    activa BOOLEAN DEFAULT TRUE,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_miembro) REFERENCES miembros(id_miembro) ON DELETE CASCADE
+);
+
+-- Tabla de días de la rutina
+CREATE TABLE IF NOT EXISTS rutina_dias (
+    id_rutina_dia INT AUTO_INCREMENT PRIMARY KEY,
+    id_rutina INT NOT NULL,
+    dia_semana ENUM('Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'),
+    grupo_muscular VARCHAR(100),
+    orden INT DEFAULT 0,
+    FOREIGN KEY (id_rutina) REFERENCES rutinas(id_rutina) ON DELETE CASCADE
+);
+
+-- Tabla de ejercicios de la rutina
+CREATE TABLE IF NOT EXISTS rutina_ejercicios (
+    id_rutina_ejercicio INT AUTO_INCREMENT PRIMARY KEY,
+    id_rutina_dia INT NOT NULL,
+    nombre_ejercicio VARCHAR(150) NOT NULL,
+    series VARCHAR(10) DEFAULT '3',
+    repeticiones VARCHAR(10) DEFAULT '12',
+    peso VARCHAR(20),
+    notas TEXT,
+    orden INT DEFAULT 0,
+    FOREIGN KEY (id_rutina_dia) REFERENCES rutina_dias(id_rutina_dia) ON DELETE CASCADE
+);
+
+-- Índices para mejor rendimiento
+CREATE INDEX idx_rutinas_miembro ON rutinas(id_miembro);
+CREATE INDEX idx_rutina_dias_rutina ON rutina_dias(id_rutina);
+CREATE INDEX idx_rutina_ejercicios_dia ON rutina_ejercicios(id_rutina_dia);
+
+-- ============================================
+-- DATOS DE EJEMPLO (OPCIONAL)
+-- ============================================
+
+-- Insertar rutina de ejemplo para el primer miembro
+INSERT INTO rutinas (id_miembro, nombre, activa) VALUES
+(1, 'Rutina de Fuerza', TRUE);
+
+-- Obtener el ID de la rutina recién creada
+SET @rutina_id = LAST_INSERT_ID();
+
+-- Insertar días de la rutina
+INSERT INTO rutina_dias (id_rutina, dia_semana, grupo_muscular, orden) VALUES
+(@rutina_id, 'Lunes', 'Pecho y Tríceps', 1),
+(@rutina_id, 'Martes', 'Espalda y Bíceps', 2),
+(@rutina_id, 'Miércoles', 'Pierna', 3),
+(@rutina_id, 'Jueves', 'Hombro', 4);
+
+-- Obtener IDs de los días
+SET @dia_lunes = (SELECT id_rutina_dia FROM rutina_dias WHERE id_rutina = @rutina_id AND dia_semana = 'Lunes');
+SET @dia_martes = (SELECT id_rutina_dia FROM rutina_dias WHERE id_rutina = @rutina_id AND dia_semana = 'Martes');
+SET @dia_miercoles = (SELECT id_rutina_dia FROM rutina_dias WHERE id_rutina = @rutina_id AND dia_semana = 'Miércoles');
+SET @dia_jueves = (SELECT id_rutina_dia FROM rutina_dias WHERE id_rutina = @rutina_id AND dia_semana = 'Jueves');
+
+-- Insertar ejercicios para Lunes (Pecho y Tríceps)
+INSERT INTO rutina_ejercicios (id_rutina_dia, nombre_ejercicio, series, repeticiones, orden) VALUES
+(@dia_lunes, 'Press Banca', '4', '12', 1),
+(@dia_lunes, 'Press Inclinado', '3', '12', 2),
+(@dia_lunes, 'Aperturas con Mancuernas', '3', '15', 3),
+(@dia_lunes, 'Fondos en Paralelas', '3', '12', 4),
+(@dia_lunes, 'Extensiones de Tríceps', '4', '12', 5);
+
+-- Insertar ejercicios para Martes (Espalda y Bíceps)
+INSERT INTO rutina_ejercicios (id_rutina_dia, nombre_ejercicio, series, repeticiones, orden) VALUES
+(@dia_martes, 'Dominadas', '3', '10', 1),
+(@dia_martes, 'Remo con Barra', '4', '12', 2),
+(@dia_martes, 'Jalones al Pecho', '3', '12', 3),
+(@dia_martes, 'Curl con Barra', '4', '12', 4),
+(@dia_martes, 'Curl Martillo', '3', '12', 5);
+
+-- Insertar ejercicios para Miércoles (Pierna)
+INSERT INTO rutina_ejercicios (id_rutina_dia, nombre_ejercicio, series, repeticiones, orden) VALUES
+(@dia_miercoles, 'Sentadillas', '4', '12', 1),
+(@dia_miercoles, 'Prensa de Pierna', '3', '15', 2),
+(@dia_miercoles, 'Extensiones de Cuádriceps', '3', '12', 3),
+(@dia_miercoles, 'Curl Femoral', '4', '10', 4),
+(@dia_miercoles, 'Elevación de Talones', '5', '20', 5);
+
+-- Insertar ejercicios para Jueves (Hombro)
+INSERT INTO rutina_ejercicios (id_rutina_dia, nombre_ejercicio, series, repeticiones, orden) VALUES
+(@dia_jueves, 'Press Militar', '4', '10', 1),
+(@dia_jueves, 'Elevaciones Laterales', '4', '12', 2),
+(@dia_jueves, 'Elevaciones Frontales', '3', '12', 3),
+(@dia_jueves, 'Pájaros', '3', '15', 4),
+(@dia_jueves, 'Encogimientos de Hombros', '4', '12', 5);
+
+-- ============================================
+-- VERIFICAR INSTALACIÓN
+-- ============================================
+
+-- Mostrar estadísticas de las tablas creadas
+SELECT 
+    'rutinas' as tabla,
+    COUNT(*) as total_registros
+FROM rutinas
+UNION ALL
+SELECT 
+    'rutina_dias' as tabla,
+    COUNT(*) as total_registros
+FROM rutina_dias
+UNION ALL
+SELECT 
+    'rutina_ejercicios' as tabla,
+    COUNT(*) as total_registros
+FROM rutina_ejercicios;
 
 -- ============================================
 -- 2. INSERCIÓN DE DATOS GENÉRICOS
