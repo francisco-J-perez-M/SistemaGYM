@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime, timedelta
-from sqlalchemy import desc, extract
+from sqlalchemy import desc
 from app.extensions import db
 from app.models.miembro import Miembro
 from app.models.progreso_fisico import ProgresoFisico
@@ -13,7 +13,7 @@ user_body_progress_bp = Blueprint('user_body_progress', __name__)
 @jwt_required()
 def get_body_progress():
     """
-    Obtiene el progreso corporal del usuario
+    Obtiene el progreso corporal del usuario con datos reales
     """
     try:
         user_id = int(get_jwt_identity())
@@ -22,56 +22,76 @@ def get_body_progress():
         if not miembro:
             return jsonify({"error": "Miembro no encontrado"}), 404
         
-        # Obtener progreso histórico
+        # Obtener progreso histórico ordenado por fecha
         progresos = ProgresoFisico.query.filter_by(
             id_miembro=miembro.id_miembro
-        ).order_by(desc(ProgresoFisico.fecha_registro)).all()
+        ).order_by(ProgresoFisico.fecha_registro.desc()).all()
         
-        # Obtener primer y último registro
-        progreso_actual = progresos[0] if progresos else None
-        progreso_inicial = progresos[-1] if progresos else None
+        # Determinar valores actuales e iniciales
+        if progresos:
+            progreso_actual = progresos[0]
+            progreso_inicial = progresos[-1]
+            
+            peso_actual = float(progreso_actual.peso) if progreso_actual.peso else float(miembro.peso_inicial or 0)
+            peso_inicial = float(progreso_inicial.peso) if progreso_inicial.peso else float(miembro.peso_inicial or 0)
+        else:
+            # Si no hay registros de progreso, usar datos del miembro
+            peso_actual = float(miembro.peso_inicial or 0)
+            peso_inicial = peso_actual
         
-        # Calcular métricas
-        peso_actual = float(progreso_actual.peso) if progreso_actual and progreso_actual.peso else float(miembro.peso_inicial or 65)
-        peso_inicial = float(progreso_inicial.peso) if progreso_inicial and progreso_inicial.peso else float(miembro.peso_inicial or 70)
+        # Validar estatura
+        estatura = float(miembro.estatura or 1.7)
+        if estatura == 0:
+            estatura = 1.7
         
         # Calcular IMC
-        imc = _calcular_imc(peso_actual, float(miembro.estatura or 1.7))
+        imc = _calcular_imc(peso_actual, estatura)
         
-        # Estimar grasa corporal y músculo (fórmulas simplificadas)
-        # En producción, estos datos deberían venir de mediciones reales
-        grasa_corporal_actual = _estimar_grasa_corporal(peso_actual, imc, miembro.sexo)
-        grasa_corporal_inicial = _estimar_grasa_corporal(peso_inicial, _calcular_imc(peso_inicial, float(miembro.estatura or 1.7)), miembro.sexo)
+        # Calcular grasa corporal y músculo usando fórmulas estándar
+        sexo = miembro.sexo
+        grasa_corporal_actual = _calcular_grasa_corporal(peso_actual, imc, sexo)
+        grasa_corporal_inicial = _calcular_grasa_corporal(peso_inicial, _calcular_imc(peso_inicial, estatura), sexo)
         
-        musculo_actual = 100 - grasa_corporal_actual
-        musculo_inicial = 100 - grasa_corporal_inicial
+        # Músculo es aproximadamente 100 - grasa - huesos (asumiendo ~15% huesos)
+        musculo_actual = round(100 - grasa_corporal_actual - 15, 1)
+        musculo_inicial = round(100 - grasa_corporal_inicial - 15, 1)
+        
+        # Establecer metas realistas
+        peso_meta = _calcular_peso_meta(peso_inicial, imc, sexo)
+        grasa_meta = _calcular_grasa_meta(sexo)
+        musculo_meta = round(100 - grasa_meta - 15, 1)
         
         body_metrics = {
             "peso": {
-                "actual": peso_actual,
-                "inicial": peso_inicial,
-                "meta": peso_inicial - 8  # Meta estimada
+                "actual": round(peso_actual, 1),
+                "inicial": round(peso_inicial, 1),
+                "meta": round(peso_meta, 1)
             },
             "grasaCorporal": {
-                "actual": grasa_corporal_actual,
-                "inicial": grasa_corporal_inicial,
-                "meta": grasa_corporal_actual - 4
+                "actual": round(grasa_corporal_actual, 1),
+                "inicial": round(grasa_corporal_inicial, 1),
+                "meta": round(grasa_meta, 1)
             },
             "musculo": {
-                "actual": musculo_actual,
-                "inicial": musculo_inicial,
-                "meta": musculo_actual + 4
+                "actual": round(musculo_actual, 1),
+                "inicial": round(musculo_inicial, 1),
+                "meta": round(musculo_meta, 1)
             },
-            "imc": round(imc, 1)
+            "imc": round(imc, 1),
+            "estatura": round(estatura, 2)
         }
         
-        # Obtener progreso mensual
-        progreso_mensual = _obtener_progreso_mensual(miembro.id_miembro)
+        # Obtener progreso mensual real
+        progreso_mensual = _obtener_progreso_mensual_real(miembro.id_miembro, peso_inicial, peso_meta)
+        
+        # Determinar género automáticamente
+        gender = "male" if sexo == "M" else "female"
         
         return jsonify({
             "bodyMetrics": body_metrics,
             "progressHistory": progreso_mensual,
-            "gender": "female" if miembro.sexo == "F" else "male"
+            "gender": gender,
+            "hasDatos": len(progresos) > 0
         }), 200
         
     except Exception as e:
@@ -96,6 +116,10 @@ def add_body_progress():
         
         data = request.json
         
+        # Validar datos requeridos
+        if not data.get('peso'):
+            return jsonify({"error": "El peso es requerido"}), 400
+        
         # Crear nuevo registro
         nuevo_progreso = ProgresoFisico(
             id_miembro=miembro.id_miembro,
@@ -108,7 +132,8 @@ def add_body_progress():
         # Calcular BMI automáticamente
         if miembro.estatura and nuevo_progreso.peso:
             estatura_metros = float(miembro.estatura)
-            nuevo_progreso.bmi = _calcular_imc(float(nuevo_progreso.peso), estatura_metros)
+            if estatura_metros > 0:
+                nuevo_progreso.bmi = round(_calcular_imc(float(nuevo_progreso.peso), estatura_metros), 2)
         
         db.session.add(nuevo_progreso)
         db.session.commit()
@@ -118,6 +143,8 @@ def add_body_progress():
             "progreso": {
                 "peso": float(nuevo_progreso.peso) if nuevo_progreso.peso else None,
                 "bmi": float(nuevo_progreso.bmi) if nuevo_progreso.bmi else None,
+                "cintura": float(nuevo_progreso.cintura) if nuevo_progreso.cintura else None,
+                "cadera": float(nuevo_progreso.cadera) if nuevo_progreso.cadera else None,
                 "fecha": nuevo_progreso.fecha_registro.strftime('%Y-%m-%d')
             }
         }), 201
@@ -125,41 +152,76 @@ def add_body_progress():
     except Exception as e:
         db.session.rollback()
         print(f"Error en add_body_progress: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
 
+# ============================================
+# FUNCIONES AUXILIARES
+# ============================================
+
 def _calcular_imc(peso, estatura):
-    """Calcula el IMC"""
+    """Calcula el IMC (peso / estatura²)"""
     try:
-        if estatura > 0:
+        if estatura > 0 and peso > 0:
             return peso / (estatura ** 2)
         return 0
     except:
         return 0
 
 
-def _estimar_grasa_corporal(peso, imc, sexo):
+def _calcular_grasa_corporal(peso, imc, sexo):
     """
-    Estima el porcentaje de grasa corporal usando IMC
-    Fórmula simplificada - en producción usar mediciones reales
+    Calcula el porcentaje de grasa corporal usando la fórmula de Deurenberg
+    %Grasa = (1.20 × IMC) + (0.23 × edad) - (10.8 × sexo) - 5.4
+    donde sexo = 1 para hombres, 0 para mujeres
     """
     try:
-        if sexo == "M":
-            # Hombres
-            grasa = (1.20 * imc) + (0.23 * 30) - 16.2
-        else:
-            # Mujeres
-            grasa = (1.20 * imc) + (0.23 * 30) - 5.4
+        # Asumimos edad promedio de 30 años si no está disponible
+        edad = 30
+        sexo_valor = 1 if sexo == "M" else 0
         
-        # Limitar entre 5% y 50%
-        return max(5, min(50, round(grasa, 1)))
+        grasa = (1.20 * imc) + (0.23 * edad) - (10.8 * sexo_valor) - 5.4
+        
+        # Limitar entre rangos realistas
+        if sexo == "M":
+            return max(5, min(35, round(grasa, 1)))
+        else:
+            return max(10, min(45, round(grasa, 1)))
     except:
-        return 22  # Valor por defecto
+        return 22 if sexo == "F" else 18
 
 
-def _obtener_progreso_mensual(id_miembro):
+def _calcular_peso_meta(peso_inicial, imc_actual, sexo):
     """
-    Obtiene el progreso de los últimos 6 meses
+    Calcula un peso meta saludable basado en IMC ideal (21-24)
+    """
+    if imc_actual >= 18.5 and imc_actual <= 24.9:
+        # Ya está en rango saludable
+        return peso_inicial
+    elif imc_actual > 24.9:
+        # Sobrepeso, meta es reducir al límite superior saludable
+        return peso_inicial * 0.90  # Reducir 10%
+    else:
+        # Bajo peso, meta es aumentar
+        return peso_inicial * 1.10  # Aumentar 10%
+
+
+def _calcular_grasa_meta(sexo):
+    """
+    Retorna el porcentaje de grasa corporal meta según género
+    Hombres: 10-20%, Mujeres: 18-28%
+    """
+    if sexo == "M":
+        return 15  # Meta para hombres
+    else:
+        return 23  # Meta para mujeres
+
+
+def _obtener_progreso_mensual_real(id_miembro, peso_inicial, peso_meta):
+    """
+    Obtiene el progreso mensual real basado en los registros de la BD
     """
     try:
         now = datetime.now()
@@ -174,63 +236,38 @@ def _obtener_progreso_mensual(id_miembro):
         ).order_by(ProgresoFisico.fecha_registro.asc()).all()
         
         if not progresos:
-            # Retornar datos simulados si no hay registros
-            return [
-                {"mes": "Ene", "porcentaje": 45},
-                {"mes": "Feb", "porcentaje": 52},
-                {"mes": "Mar", "porcentaje": 58},
-                {"mes": "Abr", "porcentaje": 65},
-                {"mes": "May", "porcentaje": 70},
-                {"mes": "Jun", "porcentaje": 78}
-            ]
+            # No hay datos, retornar array vacío
+            return []
         
-        # Agrupar por mes
+        # Agrupar por mes y calcular progreso
         progreso_por_mes = {}
-        peso_inicial = float(progresos[0].peso) if progresos[0].peso else 70
-        peso_meta = peso_inicial - 8  # Meta estimada
+        diferencia_total = abs(peso_inicial - peso_meta) if peso_inicial != peso_meta else 1
         
         for progreso in progresos:
             mes_num = progreso.fecha_registro.month - 1
             mes_nombre = meses[mes_num]
             
-            if mes_nombre not in progreso_por_mes:
-                # Calcular porcentaje de progreso hacia la meta
-                peso_actual = float(progreso.peso) if progreso.peso else peso_inicial
-                diferencia_total = abs(peso_inicial - peso_meta)
-                diferencia_actual = abs(peso_inicial - peso_actual)
-                porcentaje = min(100, (diferencia_actual / diferencia_total * 100)) if diferencia_total > 0 else 0
-                
-                progreso_por_mes[mes_nombre] = {
-                    "mes": mes_nombre,
-                    "porcentaje": round(porcentaje)
-                }
+            peso_actual = float(progreso.peso) if progreso.peso else peso_inicial
+            diferencia_actual = abs(peso_inicial - peso_actual)
+            porcentaje = min(100, (diferencia_actual / diferencia_total * 100))
+            
+            # Solo guardar el último registro de cada mes
+            progreso_por_mes[mes_nombre] = {
+                "mes": mes_nombre,
+                "porcentaje": max(0, round(porcentaje))
+            }
         
-        # Completar meses faltantes con interpolación
+        # Convertir a lista ordenada
         resultado = []
         for i in range(6):
-            mes_actual = (now.month - 6 + i) % 12
-            mes_nombre = meses[mes_actual]
+            mes_idx = (now.month - 6 + i) % 12
+            mes_nombre = meses[mes_idx]
             
             if mes_nombre in progreso_por_mes:
                 resultado.append(progreso_por_mes[mes_nombre])
-            elif resultado:
-                # Interpolar
-                resultado.append({
-                    "mes": mes_nombre,
-                    "porcentaje": resultado[-1]["porcentaje"]
-                })
-            else:
-                resultado.append({"mes": mes_nombre, "porcentaje": 45})
         
         return resultado
         
     except Exception as e:
-        print(f"Error en _obtener_progreso_mensual: {e}")
-        return [
-            {"mes": "Ene", "porcentaje": 45},
-            {"mes": "Feb", "porcentaje": 52},
-            {"mes": "Mar", "porcentaje": 58},
-            {"mes": "Abr", "porcentaje": 65},
-            {"mes": "May", "porcentaje": 70},
-            {"mes": "Jun", "porcentaje": 78}
-        ]
+        print(f"Error en _obtener_progreso_mensual_real: {e}")
+        return []

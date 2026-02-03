@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { FiTrendingUp, FiActivity, FiTarget, FiAlertCircle } from "react-icons/fi";
-import { GiBodyHeight, GiMuscleUp } from "react-icons/gi";
+// CORRECCIÓN: Usamos GiBodyHeight (para estatura) y GiWeightScale (para peso)
+// Ambos aparecen en tu lista de iconos disponibles.
+import { GiBodyHeight, GiMuscleUp, GiWeightScale } from "react-icons/gi"; 
 import BodyViewer from "../components/BodyViewer";
 import "../css/CSSUnificado.css";
 
@@ -13,10 +15,12 @@ export default function UserBodyProgress() {
     grasaCorporal: { actual: 0, inicial: 0, meta: 0 },
     musculo: { actual: 0, inicial: 0, meta: 0 },
     imc: 0,
+    estatura: 0
   });
   const [progressHistory, setProgressHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [hasDatos, setHasDatos] = useState(false);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -45,7 +49,8 @@ export default function UserBodyProgress() {
       const data = await response.json();
       setBodyMetrics(data.bodyMetrics);
       setProgressHistory(data.progressHistory);
-      setSelectedGender(data.gender || "female");
+      setSelectedGender(data.gender);
+      setHasDatos(data.hasDatos);
       setError(null);
     } catch (err) {
       console.error("Error:", err);
@@ -53,6 +58,13 @@ export default function UserBodyProgress() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const calcularProgreso = (actual, inicial, meta) => {
+    const diferenciaPeso = Math.abs(inicial - meta);
+    if (diferenciaPeso === 0) return 0;
+    const progresoActual = Math.abs(inicial - actual);
+    return Math.min(100, Math.round((progresoActual / diferenciaPeso) * 100));
   };
 
   if (!user) return null;
@@ -99,31 +111,54 @@ export default function UserBodyProgress() {
             </div>
           )}
 
+          {!hasDatos && !error && (
+            <div style={{ 
+              padding: '20px', 
+              background: 'rgba(74, 144, 226, 0.1)', 
+              borderRadius: '8px', 
+              marginBottom: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              color: 'var(--accent-color)'
+            }}>
+              <FiActivity />
+              <span>No hay registros de progreso. Comienza a registrar tus mediciones para ver tu evolución.</span>
+            </div>
+          )}
+
           {/* KPIs */}
           <div className="kpi-grid">
             {[
               {
-                label: "Peso Actual",
-                value: `${bodyMetrics.peso.actual} kg`,
-                change: `-${(bodyMetrics.peso.inicial - bodyMetrics.peso.actual).toFixed(1)} kg`,
-                icon: <GiBodyHeight />,
+                label: "Estatura",
+                value: `${bodyMetrics.estatura} m`,
+                change: selectedGender === "male" ? "Hombre" : "Mujer",
+                // CORRECCIÓN: Usamos GiBodyHeight aquí (es más lógico)
+                icon: <GiBodyHeight />, 
               },
               {
-                label: "Grasa Corporal",
-                value: `${bodyMetrics.grasaCorporal.actual}%`,
-                change: `-${(bodyMetrics.grasaCorporal.inicial - bodyMetrics.grasaCorporal.actual).toFixed(1)}%`,
-                icon: <FiActivity />,
+                label: "Peso Actual",
+                value: `${bodyMetrics.peso.actual} kg`,
+                change: bodyMetrics.peso.inicial > 0 
+                  ? `${(bodyMetrics.peso.inicial - bodyMetrics.peso.actual) >= 0 ? '-' : '+'}${Math.abs(bodyMetrics.peso.inicial - bodyMetrics.peso.actual).toFixed(1)} kg`
+                  : 'Sin cambios',
+                // CORRECCIÓN: Usamos GiWeightScale aquí
+                icon: <GiWeightScale />,
               },
               {
                 label: "Masa Muscular",
                 value: `${bodyMetrics.musculo.actual}%`,
-                change: `+${(bodyMetrics.musculo.actual - bodyMetrics.musculo.inicial).toFixed(1)}%`,
+                change: bodyMetrics.musculo.inicial > 0
+                  ? `${(bodyMetrics.musculo.actual - bodyMetrics.musculo.inicial) >= 0 ? '+' : '-'}${Math.abs(bodyMetrics.musculo.actual - bodyMetrics.musculo.inicial).toFixed(1)}%`
+                  : 'Sin cambios',
                 icon: <GiMuscleUp />,
               },
               {
                 label: "IMC",
-                value: bodyMetrics.imc,
-                change: bodyMetrics.imc >= 18.5 && bodyMetrics.imc <= 24.9 ? "Saludable" : "Revisar",
+                value: bodyMetrics.imc.toFixed(1),
+                change: bodyMetrics.imc >= 18.5 && bodyMetrics.imc <= 24.9 ? "Saludable" : 
+                        bodyMetrics.imc < 18.5 ? "Bajo peso" : "Sobrepeso",
                 icon: <FiTarget />,
               },
             ].map((metric, idx) => (
@@ -139,7 +174,13 @@ export default function UserBodyProgress() {
                     {metric.icon}
                     {metric.label}
                   </h3>
-                  <span className="trend positive">{metric.change}</span>
+                  <span className={`trend ${
+                    metric.change.includes('-') || metric.change === 'Saludable' ? 'positive' : 
+                    metric.change.includes('+') && idx === 3 ? 'positive' : 
+                    metric.change.includes('+') ? 'negative' : ''
+                  }`}>
+                    {metric.change}
+                  </span>
                 </div>
                 <div className="stat-value">{metric.value}</div>
               </motion.div>
@@ -154,34 +195,11 @@ export default function UserBodyProgress() {
               animate={{ opacity: 1 }}
             >
               <div className="chart-header">
-                <h3>Modelo Corporal</h3>
-                <div style={{ display: "flex", gap: "10px" }}>
-                  <button
-                    onClick={() => setSelectedGender("female")}
-                    style={{
-                      padding: "6px 12px",
-                      background: selectedGender === "female" ? "var(--accent-color)" : "transparent",
-                      border: "1px solid var(--border-dark)",
-                      borderRadius: "6px",
-                      cursor: "pointer",
-                      color: "#fff"
-                    }}
-                  >
-                    Femenino
-                  </button>
-                  <button
-                    onClick={() => setSelectedGender("male")}
-                    style={{
-                      padding: "6px 12px",
-                      background: selectedGender === "male" ? "var(--accent-color)" : "transparent",
-                      border: "1px solid var(--border-dark)",
-                      borderRadius: "6px",
-                      cursor: "pointer",
-                      color: "#fff"
-                    }}
-                  >
-                    Masculino
-                  </button>
+                <h3>Modelo Corporal 3D</h3>
+                <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                  <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
+                    {selectedGender === "female" ? "Femenino" : "Masculino"}
+                  </span>
                 </div>
               </div>
 
@@ -194,13 +212,30 @@ export default function UserBodyProgress() {
                   justifyContent: "center",
                   alignItems: "center",
                   overflow: "hidden",
-                  borderRadius: "0 0 12px 12px"
+                  borderRadius: "0 0 12px 12px",
+                  position: "relative"
                 }}
               >
                 <BodyViewer
                   gender={selectedGender}
                   metrics={bodyMetrics}
                 />
+                
+                {/* Indicador de métricas en tiempo real */}
+                <div style={{
+                  position: "absolute",
+                  top: "15px",
+                  right: "15px",
+                  background: "rgba(0,0,0,0.7)",
+                  padding: "12px",
+                  borderRadius: "8px",
+                  fontSize: "11px",
+                  color: "#fff"
+                }}>
+                  <div><strong>IMC:</strong> {bodyMetrics.imc.toFixed(1)}</div>
+                  <div><strong>Grasa:</strong> {bodyMetrics.grasaCorporal.actual}%</div>
+                  <div><strong>Músculo:</strong> {bodyMetrics.musculo.actual}%</div>
+                </div>
               </div>
 
               {/* Áreas de enfoque */}
@@ -208,18 +243,30 @@ export default function UserBodyProgress() {
                 <h4 style={{ marginBottom: "15px" }}>Áreas de Enfoque</h4>
                 {[
                   { 
-                    area: "Abdomen", 
-                    progress: Math.min(100, Math.round((bodyMetrics.grasaCorporal.inicial - bodyMetrics.grasaCorporal.actual) / (bodyMetrics.grasaCorporal.inicial - bodyMetrics.grasaCorporal.meta) * 100)), 
+                    area: "Reducción Grasa", 
+                    progress: calcularProgreso(
+                      bodyMetrics.grasaCorporal.actual,
+                      bodyMetrics.grasaCorporal.inicial,
+                      bodyMetrics.grasaCorporal.meta
+                    ), 
                     color: "var(--accent-color)" 
                   },
                   { 
-                    area: "Piernas", 
-                    progress: Math.min(100, Math.round((bodyMetrics.peso.inicial - bodyMetrics.peso.actual) / (bodyMetrics.peso.inicial - bodyMetrics.peso.meta) * 100)), 
+                    area: "Pérdida Peso", 
+                    progress: calcularProgreso(
+                      bodyMetrics.peso.actual,
+                      bodyMetrics.peso.inicial,
+                      bodyMetrics.peso.meta
+                    ), 
                     color: "var(--success-color)" 
                   },
                   { 
-                    area: "Brazos", 
-                    progress: Math.min(100, Math.round((bodyMetrics.musculo.actual - bodyMetrics.musculo.inicial) / (bodyMetrics.musculo.meta - bodyMetrics.musculo.inicial) * 100)), 
+                    area: "Ganancia Muscular", 
+                    progress: calcularProgreso(
+                      bodyMetrics.musculo.actual,
+                      bodyMetrics.musculo.inicial,
+                      bodyMetrics.musculo.meta
+                    ), 
                     color: "var(--warning-color)" 
                   },
                 ].map((area, idx) => (
@@ -227,7 +274,7 @@ export default function UserBodyProgress() {
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
                       <span>{area.area}</span>
                       <span style={{ fontWeight: 600, color: area.color }}>
-                        {isNaN(area.progress) ? 0 : area.progress}%
+                        {area.progress}%
                       </span>
                     </div>
                     <div
@@ -240,7 +287,7 @@ export default function UserBodyProgress() {
                     >
                       <motion.div
                         initial={{ width: 0 }}
-                        animate={{ width: `${isNaN(area.progress) ? 0 : area.progress}%` }}
+                        animate={{ width: `${area.progress}%` }}
                         transition={{ duration: 1, delay: idx * 0.2 }}
                         style={{ height: "100%", background: area.color }}
                       />
@@ -257,7 +304,7 @@ export default function UserBodyProgress() {
               animate={{ opacity: 1 }}
             >
               <div className="chart-header">
-                <h3>Progreso Histórico</h3>
+                <h3>Progreso Histórico (6 meses)</h3>
               </div>
 
               <div style={{ padding: "20px" }}>
@@ -284,7 +331,11 @@ export default function UserBodyProgress() {
                     padding: '40px',
                     color: 'var(--text-secondary)'
                   }}>
+                    <FiActivity size={48} style={{ marginBottom: '15px', opacity: 0.3 }} />
                     <p>No hay datos históricos disponibles</p>
+                    <p style={{ fontSize: '13px', marginTop: '8px' }}>
+                      Los datos aparecerán cuando registres tu progreso mensual
+                    </p>
                   </div>
                 )}
               </div>
