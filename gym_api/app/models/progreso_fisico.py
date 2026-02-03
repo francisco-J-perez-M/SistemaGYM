@@ -3,17 +3,39 @@ from datetime import datetime
 
 class ProgresoFisico(db.Model):
     __tablename__ = 'progreso_fisico'
-    
+
     id_progreso = db.Column(db.Integer, primary_key=True)
     id_miembro = db.Column(db.Integer, db.ForeignKey('miembros.id_miembro'), nullable=False)
+
     peso = db.Column(db.Numeric(5, 2))
     bmi = db.Column(db.Numeric(5, 2))
+
+    grasa_corporal = db.Column(db.Numeric(5, 2))
+    masa_muscular = db.Column(db.Numeric(5, 2))
+    agua_corporal = db.Column(db.Numeric(5, 2))
+    masa_osea = db.Column(db.Numeric(5, 2))
+
     cintura = db.Column(db.Numeric(5, 2))
     cadera = db.Column(db.Numeric(5, 2))
+    pecho = db.Column(db.Numeric(5, 2))
+
+    brazo_derecho = db.Column(db.Numeric(5, 2))
+    brazo_izquierdo = db.Column(db.Numeric(5, 2))
+
+    muslo_derecho = db.Column(db.Numeric(5, 2))
+    muslo_izquierdo = db.Column(db.Numeric(5, 2))
+
+    pantorrilla = db.Column(db.Numeric(5, 2))
+
+    notas = db.Column(db.Text)
+
     fecha_registro = db.Column(db.Date, default=datetime.now().date)
-    
-    # Relación con Miembro
+
     miembro = db.relationship('Miembro', backref='progresos')
+
+    def __repr__(self):
+        return f'<ProgresoFisico {self.id_progreso} - Peso: {self.peso}kg - BMI: {self.bmi}>'
+
     
     def to_dict(self):
         """Convierte el progreso a diccionario"""

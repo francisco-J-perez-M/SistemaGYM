@@ -234,6 +234,37 @@ INSERT INTO rutina_ejercicios (id_rutina_dia, nombre_ejercicio, series, repetici
 (@dia_jueves, 'Pájaros', '3', '15', 4),
 (@dia_jueves, 'Encogimientos de Hombros', '4', '12', 5);
 
+-- Insertar membresías
+INSERT INTO membresias (nombre, duracion_meses, precio) VALUES
+('Básica Mensual', 1, 30.00),
+('Premium Mensual', 1, 50.00),
+('Básica Anual', 12, 300.00),
+('Premium Anual', 12, 550.00),
+('Estudiante', 1, 25.00),
+('Familiar', 1, 80.00),
+('VIP', 1, 100.00);
+
+-- Agregar campos de composición corporal (opcional)
+ALTER TABLE progreso_fisico 
+ADD COLUMN grasa_corporal DECIMAL(5,2) COMMENT 'Porcentaje de grasa corporal' AFTER bmi,
+ADD COLUMN masa_muscular DECIMAL(5,2) COMMENT 'Porcentaje de masa muscular' AFTER grasa_corporal,
+ADD COLUMN agua_corporal DECIMAL(5,2) COMMENT 'Porcentaje de agua corporal' AFTER masa_muscular,
+ADD COLUMN masa_osea DECIMAL(5,2) COMMENT 'Kilogramos de masa ósea' AFTER agua_corporal;
+
+-- Agregar campos de mediciones corporales detalladas (opcional)
+ALTER TABLE progreso_fisico
+ADD COLUMN pecho DECIMAL(5,2) COMMENT 'Circunferencia de pecho en cm' AFTER cadera,
+ADD COLUMN brazo_derecho DECIMAL(5,2) COMMENT 'Circunferencia brazo derecho en cm' AFTER pecho,
+ADD COLUMN brazo_izquierdo DECIMAL(5,2) COMMENT 'Circunferencia brazo izquierdo en cm' AFTER brazo_derecho,
+ADD COLUMN muslo_derecho DECIMAL(5,2) COMMENT 'Circunferencia muslo derecho en cm' AFTER brazo_izquierdo,
+ADD COLUMN muslo_izquierdo DECIMAL(5,2) COMMENT 'Circunferencia muslo izquierdo en cm' AFTER muslo_derecho,
+ADD COLUMN pantorrilla DECIMAL(5,2) COMMENT 'Circunferencia pantorrilla en cm' AFTER muslo_izquierdo;
+
+-- Agregar notas para cada registro
+ALTER TABLE progreso_fisico
+ADD COLUMN notas TEXT COMMENT 'Notas adicionales del progreso' AFTER fecha_registro;
+
+
 -- ============================================
 -- VERIFICAR INSTALACIÓN
 -- ============================================
@@ -291,15 +322,6 @@ INSERT INTO miembros (id_usuario, telefono, fecha_nacimiento, sexo, peso_inicial
 (NULL, '555-0109', '1989-06-30', 'M', 95.5, 1.85, '2023-09-22', 'Activo'),
 (NULL, '555-0110', '1996-02-14', 'F', 55.8, 1.62, '2023-10-30', 'Activo');
 
--- Insertar membresías
-INSERT INTO membresias (nombre, duracion_meses, precio) VALUES
-('Básica Mensual', 1, 30.00),
-('Premium Mensual', 1, 50.00),
-('Básica Anual', 12, 300.00),
-('Premium Anual', 12, 550.00),
-('Estudiante', 1, 25.00),
-('Familiar', 1, 80.00),
-('VIP', 1, 100.00);
 
 -- Insertar relaciones miembro-membresía
 INSERT INTO miembro_membresia (id_miembro, id_membresia, fecha_inicio, fecha_fin, estado) VALUES

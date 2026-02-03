@@ -8,69 +8,139 @@ from app.models.progreso_fisico import ProgresoFisico
 
 user_health_bp = Blueprint('user_health', __name__)
 
+# =========================
+# UTILIDADES
+# =========================
+
+def _normalizar_estatura(estatura):
+    estatura = float(estatura)
+    if estatura > 3:  # viene en cm
+        return estatura / 100
+    return estatura  # ya está en metros
+
+def _calcular_bmi(peso, estatura):
+    try:
+        peso = float(peso)
+        estatura = _normalizar_estatura(estatura)
+        if peso <= 0 or estatura <= 0:
+            return 0
+        return round(peso / (estatura ** 2), 2)
+    except Exception:
+        return 0
+
+def _calcular_imc(peso, estatura):
+    try:
+        if estatura > 0 and peso > 0:
+            return peso / (estatura ** 2)
+        return 0
+    except:
+        return 0
+
+
+# =========================
+# GET HEALTH
+# =========================
 
 @user_health_bp.route('/api/user/health', methods=['GET'])
 @jwt_required()
 def get_user_health():
-    """
-    Obtiene los datos de salud del usuario
-    """
     try:
         user_id = int(get_jwt_identity())
         miembro = Miembro.query.filter_by(id_usuario=user_id).first()
-        
+
         if not miembro:
             return jsonify({"error": "Miembro no encontrado"}), 404
-        
-        # Obtener último progreso físico
+
         ultimo_progreso = ProgresoFisico.query.filter_by(
             id_miembro=miembro.id_miembro
-        ).order_by(desc(ProgresoFisico.fecha_registro)).first()
-        
-        # Calcular métricas de salud
-        peso_actual = float(ultimo_progreso.peso) if ultimo_progreso and ultimo_progreso.peso else float(miembro.peso_inicial or 0)
-        bmi_actual = float(ultimo_progreso.bmi) if ultimo_progreso and ultimo_progreso.bmi else _calcular_bmi(peso_actual, float(miembro.estatura or 1.7))
-        
-        # Simular condiciones (en producción, esto vendría de una tabla médica)
-        condiciones = [
-            {
-                "nombre": "Presión Arterial",
-                "valor": "120/80",
-                "estado": "normal",
-                "icon": "FiHeart"
-            },
-            {
-                "nombre": "Glucosa",
-                "valor": "95 mg/dL",
+        ).order_by(ProgresoFisico.fecha_registro.desc()).first()
+
+        # PESO
+        if ultimo_progreso and ultimo_progreso.peso:
+            peso_actual = float(ultimo_progreso.peso)
+        else:
+            peso_actual = float(miembro.peso_inicial or 0)
+
+        # ESTATURA (IGUAL QUE body-progress)
+        estatura = float(miembro.estatura or 1.7)
+        if estatura <= 0:
+            estatura = 1.7
+
+        # IMC (MISMA FUNCIÓN QUE YA FUNCIONA)
+        imc = _calcular_imc(peso_actual, estatura)
+
+        condiciones = []
+
+        # ESTATURA
+        condiciones.append({
+            "nombre": "Estatura",
+            "valor": f"{estatura:.2f} m",
+            "estado": "normal",
+            "icon": "FiMaximize2"
+        })
+
+        # IMC
+        if imc < 18.5:
+            estado = "bajo"
+            icon = "FiAlertCircle"
+        elif imc < 25:
+            estado = "normal"
+            icon = "FiCheckCircle"
+        elif imc < 30:
+            estado = "alto"
+            icon = "FiAlertCircle"
+        else:
+            estado = "muy_alto"
+            icon = "FiAlertCircle"
+
+        condiciones.append({
+            "nombre": "IMC (Índice de Masa Corporal)",
+            "valor": f"{round(imc, 1)}",
+            "estado": estado,
+            "icon": icon
+        })
+
+        # PESO
+        if peso_actual > 0:
+            condiciones.append({
+                "nombre": "Peso Actual",
+                "valor": f"{peso_actual:.1f} kg",
                 "estado": "normal",
                 "icon": "FiActivity"
-            },
-            {
-                "nombre": "Colesterol",
-                "valor": "180 mg/dL",
-                "estado": "normal",
-                "icon": "FiCheckCircle"
-            }
-        ]
-        
-        # Si el BMI está fuera de rango, agregarlo como condición
-        if bmi_actual > 25 or bmi_actual < 18.5:
-            estado_bmi = "alto" if bmi_actual > 25 else "bajo"
-            condiciones.append({
-                "nombre": "IMC",
-                "valor": f"{bmi_actual:.1f}",
-                "estado": estado_bmi,
-                "icon": "FiAlertCircle"
             })
-        
+
+        # MEDIDAS
+        if ultimo_progreso:
+            medidas = {
+                "cintura": "Circunferencia de Cintura",
+                "cadera": "Circunferencia de Cadera",
+                "pecho": "Circunferencia de Pecho",
+                "brazo_derecho": "Brazo Derecho",
+                "brazo_izquierdo": "Brazo Izquierdo",
+                "muslo_derecho": "Muslo Derecho",
+                "muslo_izquierdo": "Muslo Izquierdo",
+                "pantorrilla": "Pantorrilla"
+            }
+
+            for campo, nombre in medidas.items():
+                valor = getattr(ultimo_progreso, campo, None)
+                if valor:
+                    condiciones.append({
+                        "nombre": nombre,
+                        "valor": f"{float(valor):.1f} cm",
+                        "estado": "normal",
+                        "icon": "FiActivity"
+                    })
+
         return jsonify({
             "condiciones": condiciones,
-            "alergias": ["Ninguna"],  # Agregar tabla si es necesario
-            "medicamentos": ["Ninguno"],  # Agregar tabla si es necesario
-            "lesiones": [],  # Agregar tabla si es necesario
+            "alergias": [],
+            "medicamentos": [],
+            "lesiones": [],
+            "notas": ultimo_progreso.notas if ultimo_progreso else None,
             "ultimaActualizacion": ultimo_progreso.fecha_registro.strftime('%Y-%m-%d') if ultimo_progreso else None
         }), 200
-        
+
     except Exception as e:
         print(f"Error en get_user_health: {e}")
         import traceback
@@ -78,59 +148,52 @@ def get_user_health():
         return jsonify({"error": str(e)}), 500
 
 
+# =========================
+# POST HEALTH
+# =========================
+
 @user_health_bp.route('/api/user/health', methods=['POST'])
 @jwt_required()
 def update_user_health():
-    """
-    Actualiza datos de salud del usuario
-    """
     try:
         user_id = int(get_jwt_identity())
         miembro = Miembro.query.filter_by(id_usuario=user_id).first()
-        
         if not miembro:
             return jsonify({"error": "Miembro no encontrado"}), 404
-        
+
         data = request.json
-        
-        # Crear nuevo registro de progreso físico
+
         nuevo_progreso = ProgresoFisico(
             id_miembro=miembro.id_miembro,
             peso=data.get('peso'),
-            bmi=data.get('bmi'),
             cintura=data.get('cintura'),
             cadera=data.get('cadera'),
             fecha_registro=datetime.now().date()
         )
-        
-        # Calcular BMI si no viene en el request
-        if not nuevo_progreso.bmi and miembro.estatura and nuevo_progreso.peso:
-            estatura_metros = float(miembro.estatura)
-            nuevo_progreso.bmi = _calcular_bmi(float(nuevo_progreso.peso), estatura_metros)
-        
+
+        # 🔴 IMC SIEMPRE CALCULADO CORRECTAMENTE
+        if nuevo_progreso.peso and miembro.estatura:
+            nuevo_progreso.bmi = _calcular_bmi(
+                nuevo_progreso.peso,
+                miembro.estatura
+            )
+
+        campos_extra = [
+            'pecho', 'brazo_derecho', 'brazo_izquierdo',
+            'muslo_derecho', 'muslo_izquierdo', 'pantorrilla', 'notas'
+        ]
+
+        for campo in campos_extra:
+            if campo in data:
+                setattr(nuevo_progreso, campo, data.get(campo))
+
         db.session.add(nuevo_progreso)
         db.session.commit()
-        
+
         return jsonify({
-            "message": "Datos de salud actualizados correctamente",
-            "progreso": {
-                "peso": float(nuevo_progreso.peso) if nuevo_progreso.peso else None,
-                "bmi": float(nuevo_progreso.bmi) if nuevo_progreso.bmi else None,
-                "fecha": nuevo_progreso.fecha_registro.strftime('%Y-%m-%d')
-            }
+            "message": "Datos de salud actualizados correctamente"
         }), 201
-        
+
     except Exception as e:
         db.session.rollback()
-        print(f"Error en update_user_health: {e}")
         return jsonify({"error": str(e)}), 500
-
-
-def _calcular_bmi(peso, estatura):
-    """Calcula el BMI (Body Mass Index)"""
-    try:
-        if estatura > 0:
-            return peso / (estatura ** 2)
-        return 0
-    except:
-        return 0

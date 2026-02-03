@@ -111,9 +111,15 @@ def renew_membership():
         
         data = request.json
         id_membresia = data.get('id_membresia')
+        metodo_pago = data.get('metodo_pago', 'Tarjeta')  # Obtener del request
         
         if not id_membresia:
             return jsonify({"error": "ID de membresía requerido"}), 400
+        
+        # Validar método de pago
+        metodos_validos = ['Efectivo', 'Tarjeta', 'Transferencia']
+        if metodo_pago not in metodos_validos:
+            return jsonify({"error": f"Método de pago inválido. Usar: {', '.join(metodos_validos)}"}), 400
         
         membresia = Membresia.query.get(id_membresia)
         
@@ -150,11 +156,11 @@ def renew_membership():
         
         db.session.add(nueva_membresia)
         
-        # Registrar pago
+        # Registrar pago con el método seleccionado
         nuevo_pago = Pago(
             id_miembro=miembro.id_miembro,
             monto=membresia.precio,
-            metodo_pago='Tarjeta',  # Por defecto, se puede cambiar
+            metodo_pago=metodo_pago,
             concepto=f"Renovación {membresia.nombre}",
             fecha_pago=datetime.now()
         )
@@ -187,18 +193,48 @@ def get_payment_methods():
     Obtiene los métodos de pago guardados del usuario
     """
     try:
-        # Simulado - en producción, obtener de tabla de métodos de pago
-        return jsonify({
-            "metodos": [
-                {
-                    "id": 1,
-                    "tipo": "Tarjeta",
-                    "numero": "**** **** **** 4242",
-                    "principal": True
-                }
-            ]
-        }), 200
+        user_id = int(get_jwt_identity())
+        miembro = Miembro.query.filter_by(id_usuario=user_id).first()
+        
+        if not miembro:
+            return jsonify({"error": "Miembro no encontrado"}), 404
+        
+        # Obtener los últimos métodos de pago utilizados
+        pagos_recientes = Pago.query.filter_by(
+            id_miembro=miembro.id_miembro
+        ).order_by(Pago.fecha_pago.desc()).limit(5).all()
+        
+        # Extraer métodos únicos
+        metodos_vistos = set()
+        metodos = []
+        
+        for idx, pago in enumerate(pagos_recientes):
+            if pago.metodo_pago not in metodos_vistos:
+                metodos_vistos.add(pago.metodo_pago)
+                
+                # Formatear según el tipo
+                if pago.metodo_pago == 'Tarjeta':
+                    numero_display = "**** **** **** 4242"  # En producción, guardar últimos 4 dígitos
+                elif pago.metodo_pago == 'Transferencia':
+                    numero_display = "Cuenta bancaria"
+                else:
+                    numero_display = pago.metodo_pago
+                
+                metodos.append({
+                    "id": idx + 1,
+                    "tipo": pago.metodo_pago,
+                    "numero": numero_display,
+                    "principal": idx == 0
+                })
+        
+        # Si no tiene métodos, retornar lista vacía
+        if not metodos:
+            return jsonify({"metodos": []}), 200
+        
+        return jsonify({"metodos": metodos}), 200
         
     except Exception as e:
         print(f"Error en get_payment_methods: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500

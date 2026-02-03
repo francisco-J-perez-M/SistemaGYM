@@ -84,9 +84,8 @@ def _format_payment_method(metodo):
     """Formatea el método de pago para mostrar en el frontend"""
     metodos = {
         "Efectivo": "Efectivo",
-        "Tarjeta": "Tarjeta **** 4242",
-        "Transferencia": "Transferencia bancaria",
-        "Simulado": "Pago simulado"
+        "Tarjeta": "Tarjeta de crédito/débito",
+        "Transferencia": "Transferencia bancaria"
     }
     return metodos.get(metodo, metodo)
 
