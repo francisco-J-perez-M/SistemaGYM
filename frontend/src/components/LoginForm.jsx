@@ -44,12 +44,49 @@ export default function LoginForm() {
     setLoading(true);
 
     try {
+      console.log("🔐 [LOGIN] Intentando login...");
       const result = await login(email, password);
+      
+      console.log("✅ [LOGIN] Respuesta del servidor:", result);
+      
+      // 1️⃣ Guardar token
       localStorage.setItem("token", result.access_token);
-      localStorage.setItem("user", JSON.stringify(result.user));
+      console.log("✅ [LOGIN] Token guardado");
 
-      // Redirección según el rol del usuario
+      // 2️⃣ Verificar que los datos importantes están presentes
+      if (!result.user.access_level) {
+        console.warn("⚠️ [LOGIN] ADVERTENCIA: access_level no está presente en la respuesta");
+      }
+      if (!result.user.membership_plan) {
+        console.warn("⚠️ [LOGIN] ADVERTENCIA: membership_plan no está presente en la respuesta");
+      }
+
+      // 3️⃣ Guardar usuario CON TODOS LOS CAMPOS
+      const userData = {
+        id: result.user.id,
+        nombre: result.user.nombre,
+        email: result.user.email,
+        role: result.user.role,
+        // ⚠️ CRÍTICO: Estos campos deben guardarse
+        access_level: result.user.access_level || "basico",
+        membership_plan: result.user.membership_plan || "Sin Plan"
+      };
+
+      localStorage.setItem("user", JSON.stringify(userData));
+      console.log("✅ [LOGIN] Usuario guardado:", userData);
+
+      // 4️⃣ Verificar que se guardó correctamente
+      const savedUser = JSON.parse(localStorage.getItem("user"));
+      console.log("🔍 [LOGIN] Verificación de guardado:", savedUser);
+      
+      if (savedUser.access_level !== userData.access_level) {
+        console.error("❌ [LOGIN] ERROR: access_level no se guardó correctamente");
+      }
+
+      // 5️⃣ Redirección según el rol del usuario
       const userRole = result.user.role;
+      
+      console.log("🚀 [LOGIN] Redirigiendo usuario con rol:", userRole);
       
       if (userRole === "Administrador") {
         navigate("/dashboard");
@@ -63,6 +100,7 @@ export default function LoginForm() {
         navigate("/user/dashboard");
       }
     } catch (err) {
+      console.error("❌ [LOGIN] Error:", err);
       setError(err.message);
     } finally {
       setLoading(false);

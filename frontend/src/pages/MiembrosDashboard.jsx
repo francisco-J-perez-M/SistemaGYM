@@ -386,18 +386,42 @@ export default function MiembrosDashboard() {
                   </div>
                 </div>
                 <div style={{ 
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
-                  marginTop: '10px', paddingTop: '15px', borderTop: '1px solid rgba(255,255,255,0.1)' 
-                }}>
-                  <div>
-                    <h4 style={{ margin: 0, fontSize: '16px', fontWeight: '600' }}>
-                      {m.nombre || "Usuario Anónimo"}
-                    </h4>
-                  </div>
-                  <span className={`status-badge ${!verInactivos ? "normal" : "urgent"}`}>
-                    {verInactivos ? "Inactivo" : "Activo"}
-                  </span>
-                </div>
+  display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
+  marginTop: '10px', paddingTop: '15px', borderTop: '1px solid rgba(255,255,255,0.1)' 
+}}>
+  <div>
+    <h4 style={{ margin: 0, fontSize: '16px', fontWeight: '600' }}>
+      {m.nombre || "Usuario Anónimo"}
+    </h4>
+
+    {/* ✅ MEMBRESÍA */}
+    <div style={{ marginTop: "6px" }}>
+      <span
+        style={{
+          padding: "4px 10px",
+          borderRadius: "999px",
+          fontSize: "12px",
+          backgroundColor: m.membresia ? "#22c55e" : "#475569",
+          color: "white",
+          display: "inline-block"
+        }}
+      >
+        {m.membresia ? m.membresia.nombre : "Sin membresía"}
+      </span>
+    </div>
+
+    {/* ✅ FECHA DE VENCIMIENTO (opcional pero útil) */}
+    {m.membresia && (
+      <div style={{ fontSize: "12px", color: "#94a3b8", marginTop: "4px" }}>
+        Vence: {m.membresia.fecha_fin}
+      </div>
+    )}
+  </div>
+
+  <span className={`status-badge ${!verInactivos ? "normal" : "urgent"}`}>
+    {verInactivos ? "Inactivo" : "Activo"}
+  </span>
+</div>
                 <div className="metrics-grid" style={{ marginTop: '15px' }}>
                   <div className="metric">
                     <WeightIcon />

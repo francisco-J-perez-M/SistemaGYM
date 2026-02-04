@@ -23,6 +23,10 @@ export default function UserPaymentsHistory() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Estados de Paginación (Copiado de RestoreDashboard)
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (!storedUser) {
@@ -32,6 +36,11 @@ export default function UserPaymentsHistory() {
     setUser(JSON.parse(storedUser));
     fetchPayments();
   }, []);
+
+  // Resetear a página 1 cuando se busca algo
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   const fetchPayments = async () => {
     try {
@@ -65,9 +74,14 @@ export default function UserPaymentsHistory() {
   );
 
   const downloadReceipt = (payment) => {
-    // Simular descarga de recibo
     alert(`Descargando recibo ${payment.id}...`);
   };
+
+  // Lógica de Paginación
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentPayments = filteredPayments.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredPayments.length / itemsPerPage);
 
   if (!user) return null;
 
@@ -79,9 +93,9 @@ export default function UserPaymentsHistory() {
             <h2 className="page-title">Historial de Pagos</h2>
           </header>
           <main className="dashboard-content">
-            <div style={{ textAlign: 'center', padding: '40px' }}>
-              <div className="spinner" style={{ margin: '0 auto 20px' }}></div>
-              <p>Cargando historial...</p>
+            <div className="loading-spinner">
+                <div className="dashboard-spinner"></div>
+                <p>Cargando historial...</p>
             </div>
           </main>
         </div>
@@ -113,7 +127,7 @@ export default function UserPaymentsHistory() {
             </div>
           )}
 
-          {/* KPIs */}
+          {/* KPIs (Mantenemos tu diseño original que ya se veía bien) */}
           <div className="kpi-grid">
             <motion.div 
               className="stat-card highlight-border"
@@ -121,10 +135,7 @@ export default function UserPaymentsHistory() {
               animate={{ opacity: 1, y: 0 }}
             >
               <div className="stat-header">
-                <h3>
-                  <FiDollarSign style={{ marginRight: 8 }} />
-                  Total Pagado
-                </h3>
+                <h3><FiDollarSign style={{ marginRight: 8 }} /> Total Pagado</h3>
               </div>
               <div className="stat-value">
                 ${paymentsData.totalPaid.toLocaleString()} MXN
@@ -138,10 +149,7 @@ export default function UserPaymentsHistory() {
               transition={{ delay: 0.1 }}
             >
               <div className="stat-header">
-                <h3>
-                  <FiCalendar style={{ marginRight: 8 }} />
-                  Último Pago
-                </h3>
+                <h3><FiCalendar style={{ marginRight: 8 }} /> Último Pago</h3>
               </div>
               <div className="stat-value" style={{ fontSize: '22px' }}>
                 {paymentsData.lastPayment}
@@ -155,10 +163,7 @@ export default function UserPaymentsHistory() {
               transition={{ delay: 0.2 }}
             >
               <div className="stat-header">
-                <h3>
-                  <FiCheckCircle style={{ marginRight: 8 }} />
-                  Estado
-                </h3>
+                <h3><FiCheckCircle style={{ marginRight: 8 }} /> Estado</h3>
               </div>
               <div className="stat-value" style={{ fontSize: '22px', color: 'var(--success-color)' }}>
                 {paymentsData.status}
@@ -172,10 +177,7 @@ export default function UserPaymentsHistory() {
               transition={{ delay: 0.3 }}
             >
               <div className="stat-header">
-                <h3>
-                  <FiCalendar style={{ marginRight: 8 }} />
-                  Próximo Pago
-                </h3>
+                <h3><FiCalendar style={{ marginRight: 8 }} /> Próximo Pago</h3>
               </div>
               <div className="stat-value" style={{ fontSize: '22px' }}>
                 {paymentsData.nextPayment}
@@ -183,7 +185,7 @@ export default function UserPaymentsHistory() {
             </motion.div>
           </div>
 
-          {/* Tabla de pagos */}
+          {/* TABLA CON NUEVO DISEÑO */}
           <motion.div 
             className="table-section" 
             style={{ marginTop: '25px' }}
@@ -191,8 +193,16 @@ export default function UserPaymentsHistory() {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.4 }}
           >
-            <div style={{ padding: '20px', borderBottom: '1px solid var(--border-dark)' }}>
-              <div style={{ position: 'relative' }}>
+            {/* Header de la sección y Paginación Info */}
+            <div className="section-header" style={{ marginBottom: '15px' }}>
+              <h3>Detalle de Transacciones</h3>
+              <span style={{ fontSize: "0.85em", color: "#666" }}>
+                Página {currentPage} de {totalPages || 1}
+              </span>
+            </div>
+
+            {/* Barra de Búsqueda Integrada */}
+            <div style={{ marginBottom: '20px', position: 'relative' }}>
                 <FiSearch style={{ 
                   position: 'absolute', 
                   left: '12px', 
@@ -207,107 +217,92 @@ export default function UserPaymentsHistory() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                   style={{
                     width: '100%',
-                    padding: '12px 12px 12px 40px',
+                    padding: '10px 10px 10px 35px',
                     background: 'var(--bg-input-dark)',
                     border: '1px solid var(--border-dark)',
-                    borderRadius: '8px',
+                    borderRadius: '6px',
                     color: 'var(--text-primary)'
                   }}
                 />
-              </div>
             </div>
 
-            {filteredPayments.length === 0 ? (
-              <div style={{ 
-                textAlign: 'center', 
-                padding: '40px',
-                color: 'var(--text-secondary)'
-              }}>
-                <FiAlertCircle size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
-                <p>No se encontraron pagos</p>
-              </div>
-            ) : (
-              <div style={{ overflowX: 'auto' }}>
-                <table className="custom-table">
-                  <thead>
-                    <tr>
-                      <th>ID</th>
-                      <th>Fecha</th>
-                      <th>Concepto</th>
-                      <th>Método</th>
-                      <th>Monto</th>
-                      <th>Estado</th>
-                      <th>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredPayments.map((p, idx) => (
-                      <motion.tr 
-                        key={p.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: idx * 0.05 }}
-                      >
-                        <td>
-                          <span style={{ 
-                            fontFamily: 'monospace', 
-                            color: 'var(--accent-color)',
-                            fontWeight: '600'
-                          }}>
+            <div className="custom-table-container">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Fecha</th>
+                    <th>Concepto</th>
+                    <th>Método</th>
+                    <th>Monto</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredPayments.length === 0 ? (
+                     <tr>
+                       <td colSpan="7" className="text-center" style={{padding: '30px', color: 'var(--text-secondary)'}}>
+                         <div style={{display:'flex', flexDirection:'column', alignItems:'center', gap:'10px'}}>
+                            <FiAlertCircle size={24} style={{ opacity: 0.5 }} />
+                            No se encontraron pagos
+                         </div>
+                       </td>
+                     </tr>
+                  ) : (
+                    currentPayments.map((p) => (
+                      <tr key={p.id}>
+                        <td style={{ fontWeight: '600', color: 'var(--accent-color)' }}>
                             {p.id}
-                          </span>
                         </td>
                         <td>{p.date}</td>
-                        <td>{p.concept}</td>
-                        <td>
-                          <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                            {p.method}
-                          </span>
+                        <td style={{ color: 'var(--text-primary)' }}>{p.concept}</td>
+                        <td style={{ color: 'var(--text-secondary)', fontSize: '0.9em' }}>{p.method}</td>
+                        <td style={{ fontWeight: '600' }}>
+                          ${p.amount.toLocaleString()} MXN
                         </td>
                         <td>
-                          <span style={{ fontWeight: '600', color: 'var(--success-color)' }}>
-                            ${p.amount.toLocaleString()} MXN
-                          </span>
-                        </td>
-                        <td>
-                          <span style={{
-                            padding: '4px 12px',
-                            background: 'rgba(76, 217, 100, 0.15)',
-                            borderRadius: '12px',
-                            fontSize: '12px',
-                            color: 'var(--success-color)',
-                            fontWeight: '600'
-                          }}>
-                            <FiCheckCircle size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+                          {/* Mapeo del estilo status-badge */}
+                          <span className={`status-badge ${p.status === 'Pagado' || p.status === 'Completado' ? 'success' : 'normal'}`}>
                             {p.status}
                           </span>
                         </td>
                         <td>
-                          <motion.button
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
+                          <button
+                            className="btn-download"
                             onClick={() => downloadReceipt(p)}
-                            style={{
-                              padding: '6px 12px',
-                              background: 'transparent',
-                              border: '1px solid var(--border-dark)',
-                              borderRadius: '6px',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '6px',
-                              color: 'var(--text-primary)',
-                              fontSize: '13px'
-                            }}
+                            style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
                           >
-                            <FiDownload size={14} />
-                            Recibo
-                          </motion.button>
+                            <FiDownload size={14} /> Recibo
+                          </button>
                         </td>
-                      </motion.tr>
-                    ))}
-                  </tbody>
-                </table>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Controles de Paginación */}
+            {filteredPayments.length > itemsPerPage && (
+              <div className="pagination-controls">
+                <button
+                  className="btn-download"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(currentPage - 1)}
+                  style={{ opacity: currentPage === 1 ? 0.5 : 1 }}
+                >
+                  Anterior
+                </button>
+                <span className="page-info">Página {currentPage}</span>
+                <button
+                  className="btn-download"
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage(currentPage + 1)}
+                  style={{ opacity: currentPage === totalPages ? 0.5 : 1 }}
+                >
+                  Siguiente
+                </button>
               </div>
             )}
           </motion.div>

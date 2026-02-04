@@ -4,7 +4,7 @@ from app.models.user import User
 from app.models.role import Role
 from app.extensions import db
 from app.models.miembro import Miembro
-
+from app.models.miembro_membresia import MiembroMembresia
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -25,12 +25,59 @@ def login():
 
     role = Role.query.get(user.id_role)
 
-    # ✅ JWT CORRECTO
+    # ---------------------------------------------------------
+    # 🔍 LÓGICA DE NIVEL DE ACCESO (MEMBRESÍA)
+    # ---------------------------------------------------------
+    nombre_membresia = "Sin Plan"
+    access_level = "premium"  # Por defecto, admins y empleados tienen acceso total
+
+    # Si el usuario es un 'Miembro' (o rol ID 4, ajusta según tu DB)
+    if role.nombre == "Miembro" or user.id_role == 4:
+        # Buscar el perfil de miembro
+        miembro = Miembro.query.filter_by(id_usuario=user.id_usuario).first()
+        
+        if miembro:
+            # Buscar membresía activa más reciente
+            membresia_activa = (
+                MiembroMembresia.query
+                .filter(
+                    MiembroMembresia.id_miembro == miembro.id_miembro,
+                    MiembroMembresia.estado == 'Activa' 
+                )
+                .order_by(MiembroMembresia.fecha_fin.desc())
+                .first()
+            )
+
+            if membresia_activa and membresia_activa.membresia:
+                nombre_membresia = membresia_activa.membresia.nombre
+                
+                # ✅ DETERMINAR TIPO SEGÚN TU TABLA DE MEMBRESÍAS:
+                # Premium → "Premium Mensual", "Premium Anual", "VIP"
+                # Básico → "Básica Mensual", "Básica Anual", "Estudiante", "Familiar"
+                
+                planes_premium = ["Premium", "VIP"]
+                
+                if any(p in nombre_membresia for p in planes_premium):
+                    access_level = "premium"
+                else:
+                    access_level = "basico"
+            else:
+                # Si es miembro pero no tiene membresía activa
+                access_level = "basico"
+        else:
+            # Si el usuario tiene rol de miembro pero no existe el perfil
+            access_level = "basico"
+
+    # ---------------------------------------------------------
+    # ✅ CREACIÓN DEL TOKEN Y RESPUESTA
+    # ---------------------------------------------------------
     access_token = create_access_token(
-        identity=str(user.id_usuario),   # ← SIEMPRE STRING
+        identity=str(user.id_usuario),
         additional_claims={
             "email": user.email,
-            "role": role.nombre
+            "role": role.nombre,
+            "plan": nombre_membresia,
+            "access_level": access_level
         }
     )
 
@@ -40,7 +87,9 @@ def login():
             "id": user.id_usuario,
             "nombre": user.nombre,
             "email": user.email,
-            "role": role.nombre
+            "role": role.nombre,
+            "membership_plan": nombre_membresia, 
+            "access_level": access_level 
         }
     }), 200
 
@@ -48,23 +97,20 @@ def login():
 def register():
     data = request.get_json()
     
-    # 1. Validaciones básicas
     if User.query.filter_by(email=data.get("email")).first():
         return jsonify({"msg": "El correo ya está registrado"}), 400
 
     try:
-        # 2. Crear el Usuario
         nuevo_usuario = User(
             nombre=data.get("nombre"),
             email=data.get("email"),
-            id_role=4,
+            id_role=4,  # Asumiendo 4 es Miembro
             activo=True
         )
         nuevo_usuario.set_password(data.get("password"))
         db.session.add(nuevo_usuario)
-        db.session.flush() # Para obtener el id_usuario antes del commit
+        db.session.flush() 
 
-        # 3. Crear el Perfil de Miembro
         nuevo_miembro = Miembro(
             id_usuario=nuevo_usuario.id_usuario,
             telefono=data.get("telefono"),

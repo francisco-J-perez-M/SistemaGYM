@@ -9,7 +9,8 @@ import Register from "./pages/Register";
 // --- PÁGINAS DE DASHBOARD (ADMIN) ---
 import Dashboard from "./pages/Dashboard";         
 import MiembrosDashboard from "./pages/MiembrosDashboard"; 
-import PagosDashboard from "./pages/PagosDashboard";       
+import PagosDashboard from "./pages/PagosDashboard";
+import PointOfSale from "./pages/PointOfSale";
 import BackupsDashboard from "./pages/BackupsDashboard"; 
 import RestoreDashboard from "./pages/RestoreDashboard"; 
 
@@ -20,6 +21,7 @@ import UserProfile from "./pages/UserProfile";
 import UserRoutineCreator from "./pages/UserRoutineCreator";
 import UserBodyProgress from "./pages/UserBodyProgress";
 import UserMealPlan from "./pages/UserMealPlan";
+import UserRecipes from "./pages/UserRecipes";
 import UserHealth from "./pages/UserHealth";
 import UserMembershipRenewal from "./pages/UserMembershipRenewal";
 
@@ -43,28 +45,37 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/dashboard/members" element={<MiembrosDashboard />} />
             <Route path="/dashboard/payments" element={<PagosDashboard />} />
+            <Route path="/dashboard/pos" element={<PointOfSale />} />
             <Route path="/dashboard/backups" element={<BackupsDashboard />} />
             <Route path="/dashboard/restore" element={<RestoreDashboard />} />
           </Route>
 
-          {/* 3. RUTAS USUARIO (MIEMBRO) - CON LAYOUT */}
+          {/* 3. RUTAS USUARIO (MIEMBRO) */}
           <Route element={<Layout role="user" />}>
             <Route path="/user/dashboard" element={<UserDashboard />} />
             <Route path="/user/routine" element={<UserRoutineCreator />} />
             <Route path="/user/progress" element={<UserBodyProgress />} />
             <Route path="/user/body-metrics" element={<UserBodyProgress />} />
             <Route path="/user/meal-plan" element={<UserMealPlan />} />
+            <Route path="/user/recipes" element={<UserRecipes />} />
             <Route path="/user/health" element={<UserHealth />} />
             <Route path="/user/payments" element={<UserPayments />} />
             <Route path="/user/renew" element={<UserMembershipRenewal />} />
             <Route path="/user/profile" element={<UserProfile />} />
+            <Route path="/user/pos" element={<PointOfSale />} />
           </Route>
 
           {/* 4. RUTAS ENTRENADOR */}
-          <Route path="/trainer-dashboard" element={<TrainerDashboard />} />
+          <Route element={<Layout role="trainer" />}>
+            <Route path="/trainer-dashboard" element={<TrainerDashboard />} />
+            <Route path="/trainer/pos" element={<PointOfSale />} />
+          </Route>
 
           {/* 5. RUTAS RECEPCIONISTA */}
-          <Route path="/receptionist-dashboard" element={<ReceptionistDashboard />} />
+          <Route element={<Layout role="receptionist" />}>
+            <Route path="/receptionist-dashboard" element={<ReceptionistDashboard />} />
+            <Route path="/receptionist/pos" element={<PointOfSale />} />
+          </Route>
 
           {/* 6. RUTA 404 */}
           <Route path="*" element={

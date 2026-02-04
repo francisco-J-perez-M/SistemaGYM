@@ -1,33 +1,16 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import useTheme from "../hooks/ThemeContext";
+import Swal from "sweetalert2";
+import axios from "axios";
 import { 
-  FiSun, 
-  FiMoon, 
-  FiStar,
-  FiBarChart2,
-  FiUsers,
-  FiDollarSign,
-  FiSettings,
-  FiUpload,
-  FiDownload,
-  FiClipboard,
-  FiTrendingUp,
-  FiRefreshCw,
-  FiUser,
-  FiUserCheck,
-  FiCalendar,
-  FiClock,
-  FiFileText,
-  FiMail,
-  FiLogOut,
-  FiActivity,
-  FiHeart,
-  FiTarget,
-  FiAward,
-  FiCreditCard
+  FiSun, FiMoon, FiStar, FiBarChart2, FiUsers, FiDollarSign,
+  FiSettings, FiUpload, FiDownload, FiClipboard, FiTrendingUp,
+  FiRefreshCw, FiUser, FiUserCheck, FiCalendar, FiClock,
+  FiFileText, FiMail, FiLogOut, FiActivity, FiLock, FiCreditCard,
+  FiShoppingCart
 } from "react-icons/fi";
-import { GiPineTree, GiMuscleUp, GiFruitBowl, GiBodyHeight } from "react-icons/gi";
+import { GiMuscleUp, GiFruitBowl, GiPineTree, GiMeal } from "react-icons/gi";
 
 export default function Sidebar({ role = "admin", activeTab = "overview", onTabChange = () => {}, onLogout = () => {} }) {
   const { theme, changeTheme } = useTheme();
@@ -35,7 +18,142 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
   const [collapsed, setCollapsed] = useState(false);
   const [showThemeMenu, setShowThemeMenu] = useState(false);
   const [openSubmenu, setOpenSubmenu] = useState(null);
+  const [isLoadingAccess, setIsLoadingAccess] = useState(true);
+  
+  const [accessLevel, setAccessLevel] = useState(() => {
+    try {
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      const initialLevel = user.access_level || "basico";
+      console.log("🎯 [SIDEBAR] Access level inicial desde localStorage:", initialLevel);
+      return initialLevel;
+    } catch {
+      console.warn("⚠️ [SIDEBAR] Error al leer localStorage, usando 'basico'");
+      return "basico";
+    }
+  });
+  
   const menuRef = useRef(null);
+
+  useEffect(() => {
+    const verificarMembresia = async () => {
+      console.log("🔍 [SIDEBAR] Iniciando verificación de membresía");
+      console.log("🔍 [SIDEBAR] Role:", role);
+      
+      if (role !== "user" && role !== "miembro") {
+        console.log("✅ [SIDEBAR] Usuario no es miembro, acceso premium automático");
+        setAccessLevel("premium");
+        setIsLoadingAccess(false);
+        return;
+      }
+
+      try {
+        const token = localStorage.getItem("token");
+        console.log("🔍 [SIDEBAR] Token presente:", !!token);
+        
+        if (!token) {
+          console.warn("⚠️ [SIDEBAR] No hay token, usando access_level del localStorage");
+          setIsLoadingAccess(false);
+          return;
+        }
+
+        const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+        const endpoint = `${API_URL}/miembro/membresia-activa`;
+        
+        console.log("🔍 [SIDEBAR] Llamando a:", endpoint);
+        
+        const response = await axios.get(endpoint, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        console.log("✅ [SIDEBAR] Respuesta recibida:", response.data);
+
+        if (response.data.tiene_membresia) {
+          const tipo = response.data.membresia.tipo;
+          console.log("✅ [SIDEBAR] Membresía activa detectada:", {
+            nombre: response.data.membresia.nombre,
+            tipo: tipo,
+            fecha_fin: response.data.membresia.fecha_fin
+          });
+          
+          setAccessLevel(tipo);
+          console.log("✅ [SIDEBAR] AccessLevel actualizado a:", tipo);
+          
+          const user = JSON.parse(localStorage.getItem("user") || "{}");
+          user.access_level = tipo;
+          user.membership_plan = response.data.membresia.nombre;
+          localStorage.setItem("user", JSON.stringify(user));
+          console.log("✅ [SIDEBAR] localStorage actualizado");
+        } else {
+          console.warn("⚠️ [SIDEBAR] No tiene membresía activa");
+          setAccessLevel("basico");
+        }
+      } catch (error) {
+        console.error("❌ [SIDEBAR] Error verificando membresía:", error);
+        console.error("❌ [SIDEBAR] Error details:", {
+          message: error.message,
+          response: error.response?.data,
+          status: error.response?.status
+        });
+        
+        console.log("⚠️ [SIDEBAR] Manteniendo access_level actual:", accessLevel);
+      } finally {
+        setIsLoadingAccess(false);
+        console.log("🏁 [SIDEBAR] Verificación completada");
+      }
+    };
+
+    verificarMembresia();
+  }, [role, activeTab]);
+
+  const getUserData = () => {
+    try {
+      const userStr = localStorage.getItem("user");
+      if (!userStr) return { role: "miembro", nombre: "Usuario" };
+      return JSON.parse(userStr);
+    } catch (error) {
+      console.error("Error parsing user data:", error);
+      return { role: "miembro", nombre: "Usuario" };
+    }
+  };
+
+  const userDataRaw = getUserData();
+  const isRestricted = accessLevel === "basico";
+  
+  // IDs de menús bloqueados para usuarios básicos
+  const blockedMenuIds = ["training", "health", "nutrition"];
+
+  console.log("🔍 [SIDEBAR RENDER] Estado actual:", {
+    accessLevel,
+    isRestricted,
+    isLoadingAccess,
+    blockedMenuIds
+  });
+
+  const handleRestrictedAccess = (itemName = "esta sección") => {
+    Swal.fire({
+      icon: "warning",
+      title: "Acceso Restringido",
+      html: `
+        <div style="text-align: left;">
+          <p>La sección <strong>${itemName}</strong> requiere una membresía <span style="color: #eab308; font-weight: bold;">Premium</span>.</p>
+          <p style="font-size: 0.9em; color: var(--text-secondary); margin-top: 10px;">
+            Tu plan actual: <b>${userDataRaw.membership_plan || "Básico"}</b>
+          </p>
+        </div>
+      `,
+      confirmButtonText: "Renovar Membresía",
+      confirmButtonColor: "#eab308",
+      cancelButtonText: "Cancelar",
+      showCancelButton: true,
+      background: 'var(--bg-card-dark, #1f2937)',
+      color: 'var(--text-primary, #fff)',
+    }).then((result) => {
+      if (result.isConfirmed) {
+        setOpenSubmenu("membership");
+        onTabChange("renew");
+      }
+    });
+  };
 
   const themeOptions = [
     { id: "light", label: "Claro", icon: <FiSun /> },
@@ -58,63 +176,42 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
 
   const menus = {
     admin: [
-      { 
-        id: "overview", 
-        label: "Resumen KPIs", 
-        icon: <FiBarChart2 />
-      },
-      { 
-        id: "miembros", 
-        label: "Miembros", 
-        icon: <FiUsers />
-      },
-      { 
-        id: "pagos", 
-        label: "Pagos", 
-        icon: <FiDollarSign />
-      },
+      { id: "overview", label: "Resumen KPIs", icon: <FiBarChart2 /> },
+      { id: "miembros", label: "Miembros", icon: <FiUsers /> },
+      { id: "pagos", label: "Pagos", icon: <FiDollarSign /> },
+      { id: "pos", label: "Punto de Venta", icon: <FiShoppingCart /> },
       { type: "divider" },
       {
         id: "settings",
         label: "Configuración",
         icon: <FiSettings />,
         children: [
-          {
-            id: "backups",
-            label: "Copias de seguridad",
-            icon: <FiUpload />
-          },
-          {
-            id: "restore",
-            label: "Restaurar respaldo",
-            icon: <FiDownload />
-          }
+          { id: "backups", label: "Copias de seguridad", icon: <FiUpload /> },
+          { id: "restore", label: "Restaurar respaldo", icon: <FiDownload /> }
         ]
       }
     ],
 
     user: [
-      { 
-        id: "dashboard", 
-        label: "Mi Dashboard", 
-        icon: <FiActivity />
-      },
+      { id: "dashboard", label: "Mi Dashboard", icon: <FiActivity /> },
+      { id: "pos", label: "Punto de Venta", icon: <FiShoppingCart /> },
       { type: "divider" },
       {
         id: "training",
         label: "Entrenamiento",
         icon: <GiMuscleUp />,
         children: [
-          {
-            id: "routine",
-            label: "Mi Rutina",
-            icon: <FiFileText />
-          },
-          {
-            id: "progress",
-            label: "Progreso Físico",
-            icon: <FiTrendingUp />
-          },
+          { id: "routine", label: "Mi Rutina", icon: <FiFileText /> },
+          { id: "progress", label: "Progreso Físico", icon: <FiTrendingUp /> },
+        ]
+      },
+      {
+        id: "nutrition",
+        label: "Nutrición",
+        icon: <GiMeal />,
+        children: [
+          { id: "meal-plan", label: "Plan de Comidas", icon: <GiFruitBowl /> },
+          { id: "recipes", label: "Recetas Saludables", icon: <FiFileText /> },
         ]
       },
       {
@@ -128,91 +225,33 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
         label: "Mi Membresía",
         icon: <FiCreditCard />,
         children: [
-          {
-            id: "payments",
-            label: "Historial de Pagos",
-            icon: <FiClipboard />
-          },
-          {
-            id: "renew",
-            label: "Renovar Membresía",
-            icon: <FiRefreshCw />
-          }
+          { id: "payments", label: "Historial de Pagos", icon: <FiClipboard /> },
+          { id: "renew", label: "Renovar Membresía", icon: <FiRefreshCw /> }
         ]
       },
-      { 
-        id: "profile", 
-        label: "Mi Perfil", 
-        icon: <FiUser />
-      }
+      { id: "profile", label: "Mi Perfil", icon: <FiUser /> }
     ],
 
     trainer: [
-      { 
-        id: "clients", 
-        label: "Mis Clientes", 
-        icon: <FiUsers />
-      },
-      { 
-        id: "schedule", 
-        label: "Agenda", 
-        icon: <FiCalendar />
-      },
-      { 
-        id: "sessions", 
-        label: "Sesiones", 
-        icon: <FiClock />
-      },
-      { 
-        id: "routines", 
-        label: "Rutinas", 
-        icon: <FiFileText />
-      },
+      { id: "clients", label: "Mis Clientes", icon: <FiUsers /> },
+      { id: "schedule", label: "Agenda", icon: <FiCalendar /> },
+      { id: "sessions", label: "Sesiones", icon: <FiClock /> },
+      { id: "routines", label: "Rutinas", icon: <FiFileText /> },
+      { id: "pos", label: "Punto de Venta", icon: <FiShoppingCart /> },
       { type: "divider" },
-      { 
-        id: "reports", 
-        label: "Reportes", 
-        icon: <FiBarChart2 />
-      },
-      { 
-        id: "profile", 
-        label: "Mi Perfil", 
-        icon: <FiUser />
-      }
+      { id: "reports", label: "Reportes", icon: <FiBarChart2 /> },
+      { id: "profile", label: "Mi Perfil", icon: <FiUser /> }
     ],
 
     receptionist: [
-      { 
-        id: "checkins", 
-        label: "Check-ins", 
-        icon: <FiUserCheck />
-      },
-      { 
-        id: "appointments", 
-        label: "Citas", 
-        icon: <FiCalendar />
-      },
-      { 
-        id: "payments", 
-        label: "Pagos", 
-        icon: <FiDollarSign />
-      },
-      { 
-        id: "members", 
-        label: "Miembros", 
-        icon: <FiUsers />
-      },
+      { id: "checkins", label: "Check-ins", icon: <FiUserCheck /> },
+      { id: "appointments", label: "Citas", icon: <FiCalendar /> },
+      { id: "payments", label: "Pagos", icon: <FiDollarSign /> },
+      { id: "members", label: "Miembros", icon: <FiUsers /> },
+      { id: "pos", label: "Punto de Venta", icon: <FiShoppingCart /> },
       { type: "divider" },
-      { 
-        id: "messages", 
-        label: "Mensajes", 
-        icon: <FiMail />
-      },
-      { 
-        id: "tasks", 
-        label: "Tareas", 
-        icon: <FiClipboard />
-      }
+      { id: "messages", label: "Mensajes", icon: <FiMail /> },
+      { id: "tasks", label: "Tareas", icon: <FiClipboard /> }
     ]
   };
 
@@ -228,21 +267,25 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
     return roleNames[role] || "USER";
   };
 
-  const getUserName = () => {
-    const user = localStorage.getItem("user");
-    if (user) {
-      const userData = JSON.parse(user);
-      const initials = userData.nombre?.split(" ").map(n => n[0]).join("") || "US";
-      return {
-        initials,
-        name: userData.nombre || "Usuario",
-        role: userData.role || "Miembro"
-      };
+  const getDisplayUser = () => {
+    try {
+      const userStr = localStorage.getItem("user");
+      if (userStr) {
+        const u = JSON.parse(userStr);
+        const initials = u.nombre?.split(" ").map(n => n[0]).join("") || "US";
+        return {
+          initials,
+          name: u.nombre || "Usuario",
+          role: u.role || "Miembro"
+        };
+      }
+    } catch (e) {
+      console.error("Error al obtener datos del usuario:", e);
     }
-    return { initials: "US", name: "Usuario", role: "Miembro" };
+    return { initials: "US", name: "Usuario", role: "Invitado" };
   };
 
-  const userData = getUserName();
+  const displayUser = getDisplayUser();
 
   return (
     <motion.aside 
@@ -251,7 +294,6 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
       animate={{ x: 0 }}
       transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
     >
-      {/* Botón de colapsar */}
       <motion.button 
         className="collapse-btn" 
         onClick={() => setCollapsed(!collapsed)}
@@ -307,12 +349,20 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
             const isChildActive = hasChildren && item.children.some(child => child.id === activeTab);
             const isOpen = openSubmenu === item.id || isChildActive;
             const isParentActive = activeTab === item.id && !hasChildren;
+            const isItemRestricted = !isLoadingAccess && isRestricted && blockedMenuIds.includes(item.id);
 
             return (
               <motion.li 
                 key={item.id}
-                className={isParentActive || isChildActive ? "active" : ""}
+                className={`${isParentActive || isChildActive ? "active" : ""} ${isItemRestricted ? "restricted-item" : ""}`}
+                style={isItemRestricted ? { opacity: 0.7, filter: 'grayscale(0.8)' } : {}}
+                
                 onClick={() => {
+                  if (isItemRestricted) {
+                    handleRestrictedAccess(item.label);
+                    return;
+                  }
+
                   if (hasChildren) {
                     setOpenSubmenu(openSubmenu === item.id ? null : item.id);
                   } else {
@@ -330,6 +380,16 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
                     {item.icon}
                   </div>
                   <span>{item.label}</span>
+                  
+                  {isItemRestricted && !collapsed && (
+                    <motion.div
+                      initial={{ scale: 0, rotate: -180 }}
+                      animate={{ scale: 1, rotate: 0 }}
+                      transition={{ type: "spring", stiffness: 200 }}
+                    >
+                      <FiLock size={14} style={{ marginLeft: 'auto', color: '#999' }} />
+                    </motion.div>
+                  )}
                 </div>
                 
                 {hasChildren && (
@@ -342,9 +402,8 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
                   </motion.div>
                 )}
 
-                {/* SUBMENÚ */}
                 <AnimatePresence>
-                  {hasChildren && isOpen && (
+                  {hasChildren && isOpen && !isItemRestricted && (
                     <motion.div 
                       className="submenu-wrapper open"
                       initial={{ height: 0, opacity: 0 }}
@@ -360,6 +419,10 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
                               className={activeTab === sub.id ? "active" : ""}
                               onClick={(e) => {
                                 e.stopPropagation();
+                                if (isRestricted && blockedMenuIds.includes(item.id)) {
+                                  handleRestrictedAccess(item.label);
+                                  return;
+                                }
                                 onTabChange(sub.id);
                               }}
                               initial={{ opacity: 0, x: -10 }}
@@ -385,7 +448,6 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
       </ul>
 
       <div className="sidebar-footer">
-        {/* SELECTOR DE TEMA */}
         <div className="theme-menu-container" ref={menuRef}>
           <AnimatePresence>
             {showThemeMenu && (
@@ -441,7 +503,6 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
           </motion.button>
         </div>
 
-        {/* BOTÓN LOGOUT */}
         <motion.button 
           onClick={onLogout} 
           className="logout-btn-sidebar"
@@ -453,17 +514,16 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
         </motion.button>
       </div>
 
-      {/* INFO DE USUARIO AL FINAL */}
       <motion.div 
         className="user-info-section"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
       >
-        <div className="avatar">{userData.initials}</div>
+        <div className="avatar">{displayUser.initials}</div>
         <div className="user-info">
-          <span className="name">{userData.name}</span>
-          <span className="role">{userData.role}</span>
+          <span className="name">{displayUser.name}</span>
+          <span className="role">{displayUser.role}</span>
         </div>
       </motion.div>
     </motion.aside>

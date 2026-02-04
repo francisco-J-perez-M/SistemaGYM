@@ -14,6 +14,7 @@ export default function Layout({ role = "admin" }) {
     if (path === "/dashboard") return "overview";
     if (path === "/dashboard/members") return "miembros";
     if (path === "/dashboard/payments") return "pagos";
+    if (path === "/dashboard/pos") return "pos";
     if (path === "/dashboard/backups") return "backups";
     if (path === "/dashboard/restore") return "restore";
 
@@ -22,6 +23,7 @@ export default function Layout({ role = "admin" }) {
     if (path === "/trainer/schedule") return "schedule";
     if (path === "/trainer/sessions") return "sessions";
     if (path === "/trainer/routines") return "routines";
+    if (path === "/trainer/pos") return "pos";
     if (path === "/trainer/reports") return "reports";
     if (path === "/trainer/profile") return "profile";
 
@@ -30,6 +32,7 @@ export default function Layout({ role = "admin" }) {
     if (path === "/receptionist/appointments") return "appointments";
     if (path === "/receptionist/payments") return "payments";
     if (path === "/receptionist/members") return "members";
+    if (path === "/receptionist/pos") return "pos";
     if (path === "/receptionist/messages") return "messages";
     if (path === "/receptionist/tasks") return "tasks";
 
@@ -39,10 +42,12 @@ export default function Layout({ role = "admin" }) {
     if (path === "/user/progress") return "progress";
     if (path === "/user/body-metrics") return "body-metrics";
     if (path === "/user/meal-plan") return "meal-plan";
+    if (path === "/user/recipes") return "recipes";
     if (path === "/user/health") return "health";
     if (path === "/user/payments") return "payments";
     if (path === "/user/renew") return "renew";
     if (path === "/user/profile") return "profile";
+    if (path === "/user/pos") return "pos";
 
     return "";
   };
@@ -54,6 +59,7 @@ export default function Layout({ role = "admin" }) {
         overview: "/dashboard",
         miembros: "/dashboard/members",
         pagos: "/dashboard/payments",
+        pos: "/dashboard/pos",
         backups: "/dashboard/backups",
         restore: "/dashboard/restore"
       };
@@ -67,6 +73,7 @@ export default function Layout({ role = "admin" }) {
         schedule: "/trainer/schedule",
         sessions: "/trainer/sessions",
         routines: "/trainer/routines",
+        pos: "/trainer/pos",
         reports: "/trainer/reports",
         profile: "/trainer/profile"
       };
@@ -80,6 +87,7 @@ export default function Layout({ role = "admin" }) {
         appointments: "/receptionist/appointments",
         payments: "/receptionist/payments",
         members: "/receptionist/members",
+        pos: "/receptionist/pos",
         messages: "/receptionist/messages",
         tasks: "/receptionist/tasks"
       };
@@ -94,10 +102,12 @@ export default function Layout({ role = "admin" }) {
         progress: "/user/progress",
         "body-metrics": "/user/body-metrics",
         "meal-plan": "/user/meal-plan",
+        recipes: "/user/recipes",
         health: "/user/health",
         payments: "/user/payments",
         renew: "/user/renew",
-        profile: "/user/profile"
+        profile: "/user/profile",
+        pos: "/user/pos"
       };
       if (userRoutes[tabId]) navigate(userRoutes[tabId]);
     }
