@@ -31,9 +31,10 @@ Ubicado en la carpeta `gym_api/`, es el núcleo del sistema.
 *   **Seguridad:** JSON Web Tokens (JWT) para autenticación y autorización por roles.
 
 ### Módulos Principales
-*   **Autenticación (`/api/auth`):** Inicio de sesión seguro con protección de rutas.
+*   **Autenticación (`/api/auth`):** Inicio de sesión y registro seguro.
 *   **Miembros (`/api/miembros`):** Gestión completa de socios, incluyendo seguimiento de peso, estatura y estado físico.
 *   **Pagos (`/api/pagos`):** Registro de ingresos, métodos de pago y consulta de historial.
+*   **Dashboards de Usuario:** Endpoints específicos para estadísticas, rutinas y progreso físico.
 *   **Sistema de Backups (`/api/backups`):** Sistema experto para la creación de copias de seguridad (Full, Incremental, Diferencial) con monitoreo de progreso y notificaciones SMTP.
 
 ---
@@ -43,152 +44,131 @@ Ubicado en la carpeta `gym_api/`, es el núcleo del sistema.
 Ubicado en la carpeta `frontend/`, ofrece una experiencia de usuario fluida y moderna.
 
 ### Stack Tecnológico
-*   **Framework:** React 19
+*   **Framework:** React 19 (Vite)
 *   **Navegación:** React Router 7
-*   **Estilos:** CSS Vanilla (enfocado en alto rendimiento y diseño personalizado).
+*   **Animaciones:** Framer Motion para transiciones suaves y efectos visuales premium.
+*   **Estilos:** CSS Vanilla con sistema de diseño unificado (`CSSUnificado.css`).
+*   **Gestión de Estado:** React Context para temas y autenticación.
 *   **Feedback Visual:** SweetAlert2 para alertas interactivas.
 
-### Características
-*   **Dashboard Administrativo:** Visualización rápida de métricas clave.
-*   **Gestión de Socios:** Interfaz para administrar la lista de miembros de forma intuitiva.
-*   **Control de Pagos:** Formulario dedicado para el registro de transacciones.
-*   **Configuración de Sistema:** Panel administrativo para gestionar respaldos y salud del sistema.
+### Características y Roles
+*   **Dashboard Administrativo:** Gestión total de miembros, pagos, planes y sistema de respaldos.
+*   **Dashboard de Entrenador:** Seguimiento de clientes asignados, agenda diaria y métricas de rendimiento.
+*   **Dashboard de Recepcionista:** Optimizado para el registro rápido de asistencia y punto de venta.
+*   **Panel de Miembro (Usuario):**
+    *   **Mi Progreso:** Visualización gráfica de evolución de peso y métricas corporales.
+    *   **Creador de Rutinas:** Herramienta interactiva para diseñar y personalizar planes de entrenamiento.
+    *   **Planes de Alimentación:** Acceso a dietas sugeridas y recetas saludables.
+    *   **Estado de Salud:** Monitoreo de IMC y condiciones físicas.
+*   **Punto de Venta (POS):** Sistema integrado para transacciones rápidas y venta de membresías.
+*   **Registro Público:** Página dedicada para que nuevos socios se unan al gimnasio.
 
 ---
 
 ## Base de Datos
 
 El sistema utiliza un esquema relacional optimizado.
-*   **Esquema:** El archivo `db.sql` contiene la estructura de tablas para usuarios, miembros, pagos, planes y roles.
+*   **Esquema:** El archivo `db.sql` contiene la estructura de tablas para usuarios, miembros, pagos, planes, roles, asistencias, rutinas y progreso físico.
 *   **Población de datos:** Dispones de `poblar_gym.py` para generar datos de prueba automáticamente y facilitar el desarrollo.
 
 ---
 
-## Referencia de la API
+## Referencia Completa de la API
 
-Todos los endpoints (excepto health y login) requieren el encabezado:
+Todos los endpoints (excepto `/health`, `/api/auth/login` y `/api/auth/register`) requieren el encabezado:
 `Authorization: Bearer <access_token>`
 
-### Autenticación
-Ubicación: `app/auth/routes.py`
+### 1. Autenticación (`/api/auth`)
 
 #### Iniciar Sesión
 *   **Endpoint:** `POST /api/auth/login`
-*   **Cuerpo (JSON):**
-    ```json
-    {
-      "email": "admin@gym.com",
-      "password": "password123"
-    }
-    ```
-*   **Respuesta (200 OK):**
-    ```json
-    {
-      "access_token": "eyJhbGci...",
-      "user": {
-        "id": 1,
-        "nombre": "Administrador",
-        "email": "admin@gym.com",
-        "role": "admin"
-      }
-    }
-    ```
+*   **Request:** `{"email": "admin@gym.com", "password": "..."}`
+*   **Response (200 OK):** `{"access_token": "...", "user": {"id": 1, "nombre": "...", "role": "admin", ...}}`
 
-### Gestión de Miembros
-Ubicación: `app/routes/miembros.py`
+#### Registro de Miembro
+*   **Endpoint:** `POST /api/auth/register`
+*   **Request:** `{"nombre": "...", "email": "...", "password": "...", "telefono": "...", "sexo": "M/F"}`
+*   **Response (201 Created):** `{"msg": "Usuario registrado exitosamente"}`
+
+### 2. Gestión de Miembros (`/api/miembros`)
 
 #### Listar Miembros
 *   **Endpoint:** `GET /api/miembros`
-*   **Query Params:** `page` (int, default: 1), `inactivos` (bool, default: false).
-*   **Respuesta (200 OK):**
-    ```json
-    {
-      "miembros": [
-        {
-          "id_miembro": 1,
-          "id_usuario": 5,
-          "telefono": "555-1234",
-          "sexo": "M",
-          "peso_inicial": 75.0,
-          "estatura": 1.70,
-          "estado": "Activo",
-          "fecha_registro": "2024-01-31"
-        }
-      ],
-      "total": 50,
-      "pages": 9,
-      "current_page": 1
-    }
-    ```
+*   **Query Params:** `page`, `search`, `inactivos` (bool)
+*   **Response:** `{"miembros": [...], "total": 50, "pages": 5, "current_page": 1}`
 
 #### Crear Miembro
-*   **Endpoint:** `POST /api/miembros`
-*   **Cuerpo (JSON):**
-    ```json
-    {
-      "id_usuario": 10,
-      "telefono": "555-9876",
-      "fecha_nacimiento": "1995-05-20",
-      "sexo": "F",
-      "peso_inicial": 60.5,
-      "estatura": 1.65,
-      "fecha_registro": "2024-01-31"
-    }
-    ```
+*   **Endpoint:** `POST /api/miembros` (FormData)
+*   **Campos:** `nombre`, `email`, `password`, `telefono`, `sexo`, `peso_inicial`, `estatura`, `foto` (file)
+*   **Response:** Objeto del miembro creado con su ID y datos.
 
-#### Reactivar Miembro
-*   **Endpoint:** `PUT /api/miembros/<id>/reactivar`
-*   **Respuesta:** `{"message": "Miembro reactivado exitosamente"}`
+#### Actualizar Miembro
+*   **Endpoint:** `PUT /api/miembros/<id>` (FormData)
+*   **Campos:** Cualquiera de los de creación para actualizar.
 
 #### Eliminar Miembro (Lógico)
 *   **Endpoint:** `DELETE /api/miembros/<id>`
-*   **Respuesta:** `{"message": "Miembro desactivado"}`
+*   **Response:** `{"message": "Miembro desactivado correctamente"}`
 
-### Gestión de Pagos
-Ubicación: `app/routes/pagos.py`
+#### Reactivar Miembro
+*   **Endpoint:** `PUT /api/miembros/<id>/reactivar`
+*   **Response:** `{"message": "Miembro reactivado correctamente"}`
+
+### 3. Gestión de Pagos (`/api/pagos`)
 
 #### Registrar Pago
 *   **Endpoint:** `POST /api/pagos`
-*   **Cuerpo (JSON):**
-    ```json
-    {
-      "id_miembro": 1,
-      "id_membresia": 2,
-      "metodo_pago": "Tarjeta",
-      "numero_tarjeta": "4532..." 
-    }
-    ```
-*   **Nota:** Si el método es "Tarjeta", se valida mediante el algoritmo de Luhn.
+*   **Request:** `{"id_miembro": 1, "id_membresia": 2, "metodo_pago": "Tarjeta", "numero_tarjeta": "4532..."}`
+*   **Response:** Datos del pago registrado.
 
 #### Listar Pagos
 *   **Endpoint:** `GET /api/pagos`
-*   **Query Params:** `page` (int, default: 1).
+*   **Query Params:** `page`
+*   **Response:** `{"pagos": [...], "total": 100}`
 
-### Sistema de Backups
-Ubicación: `app/backups/routes.py`
+### 4. Dashboards de Usuario (`/api/user`)
 
-#### Estado del Backup
-*   **Endpoint:** `GET /api/backups/status`
-*   **Respuesta (200 OK):**
-    ```json
-    {
-      "is_running": false,
-      "progress_percentage": 100,
-      "current_step": "Finalizado",
-      "last_backup": "2024-01-31T15:00:00",
-      "files": {
-        "full": "/api/backups/download/backup_full_..."
-      }
-    }
-    ```
+#### Resumen de Dashboard
+*   **Endpoint:** `GET /api/user/dashboard`
+*   **Response:** Datos del usuario, estadísticas de workout, rutina de hoy, progreso semanal y estado de membresía.
 
-#### Iniciar Backup Manual
-*   **Endpoint:** `POST /api/backups/trigger`
-*   **Cuerpo (JSON):** `{"type": "full"}` (Opciones: `full`, `incremental`, `differential`)
+#### Registrar Asistencia (Check-in)
+*   **Endpoint:** `POST /api/user/checkin`
+*   **Response:** `{"message": "Asistencia registrada exitosamente", "fecha": "2024-02-05"}`
 
-#### Restaurar Backup
-*   **Endpoint:** `POST /api/backups/restore`
-*   **Cuerpo (JSON):** `{"filename": "nombre_archivo.sql"}`
+#### Progreso Corporal (Métricas)
+*   **Endpoint:** `GET /api/user/body-progress`
+*   **Response:** `{"bodyMetrics": {"peso": {...}, "grasaCorporal": {...}, "imc": 24.5}, "progressHistory": [...]}`
+*   **Endpoint:** `POST /api/user/body-progress`
+*   **Request:** `{"peso": 75.5, "cintura": 85, "cadera": 95}`
+
+#### Gestión de Rutinas
+*   **Listar Rutinas:** `GET /api/user/routines`
+*   **Obtener Detalle:** `GET /api/user/routines/<id>`
+*   **Crear Rutina:** `POST /api/user/routines` (Estructura compleja de días y ejercicios)
+*   **Actualizar Rutina:** `PUT /api/user/routines/<id>`
+*   **Duplicar Rutina:** `POST /api/user/routines/<id>/duplicate`
+
+#### Salud y Condiciones
+*   **Endpoint:** `GET /api/user/health`
+*   **Response:** Lista de condiciones físicas calculadas (estatura, IMC, perímetros).
+
+#### Membresía y Renovación
+*   **Estado Actual:** `GET /api/user/membership`
+*   **Planes Disponibles:** `GET /api/user/membership/plans`
+*   **Renovar:** `POST /api/user/membership/renew` (`{"id_membresia": 1, "metodo_pago": "Tarjeta"}`)
+
+### 5. Sistema de Backups (`/api/backups`)
+
+#### Resumen y Estado
+*   **Endpoint:** `GET /api/backups/dashboard-summary`
+*   **Status Actual:** `GET /api/backups/status`
+*   **Historial:** `GET /api/backups/history`
+
+#### Ejecución de Tareas
+*   **Trigger Backup:** `POST /api/backups/trigger` (`{"type": "full/incremental/differential"}`)
+*   **Descargar:** `GET /api/backups/download/<filename>`
+*   **Restaurar:** `POST /api/backups/restore` (`{"filename": "..."}`)
 
 ---
 
@@ -196,7 +176,7 @@ Ubicación: `app/backups/routes.py`
 
 ### Requisitos Previos
 *   Python 3.10+
-*   Node.js & npm
+*   Node.js & npm (v18+)
 *   Servidor MySQL / MariaDB
 
 ### Configuración del Backend
@@ -210,7 +190,7 @@ Ubicación: `app/backups/routes.py`
 ### Configuración del Frontend
 1. Ir a la carpeta `frontend`.
 2. Instalar dependencias: `npm install`.
-3. Iniciar el servidor de desarrollo: `npm start`.
+3. Iniciar el servidor de desarrollo: `npm run dev` (o `npm start`).
 
 ---
 

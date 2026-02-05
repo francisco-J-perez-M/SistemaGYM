@@ -20,12 +20,13 @@ export default function Layout({ role = "admin" }) {
 
     // RUTAS ENTRENADOR
     if (path === "/trainer-dashboard") return "clients";
+    if (path === "/trainer/clients") return "clients";
     if (path === "/trainer/schedule") return "schedule";
     if (path === "/trainer/sessions") return "sessions";
     if (path === "/trainer/routines") return "routines";
-    if (path === "/trainer/pos") return "pos";
     if (path === "/trainer/reports") return "reports";
     if (path === "/trainer/profile") return "profile";
+    if (path === "/trainer/pos") return "pos";
 
     // RUTAS RECEPCIONISTA
     if (path === "/receptionist-dashboard") return "checkins";
@@ -69,13 +70,13 @@ export default function Layout({ role = "admin" }) {
     // NAVEGACIÓN ENTRENADOR
     if (role === "trainer") {
       const trainerRoutes = {
-        clients: "/trainer-dashboard",
+        clients: "/trainer/clients",
         schedule: "/trainer/schedule",
         sessions: "/trainer/sessions",
         routines: "/trainer/routines",
-        pos: "/trainer/pos",
         reports: "/trainer/reports",
-        profile: "/trainer/profile"
+        profile: "/trainer/profile",
+        pos: "/trainer/pos"
       };
       if (trainerRoutes[tabId]) navigate(trainerRoutes[tabId]);
     }

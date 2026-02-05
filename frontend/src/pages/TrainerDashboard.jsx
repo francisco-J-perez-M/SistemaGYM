@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import Sidebar from "../components/Sidebar";
 import { 
   FiUsers, 
   FiCalendar, 
@@ -89,12 +88,6 @@ export default function TrainerDashboard() {
 
   return (
     <div className="dashboard-layout">
-      <Sidebar 
-        role="trainer"
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        onLogout={handleLogout}
-      />
 
       <div className="main-wrapper">
         <motion.header 
@@ -135,7 +128,7 @@ export default function TrainerDashboard() {
           >
             <div className="welcome-content">
               <div className="welcome-text">
-                <h2>¡Buenos días, {user.nombre?.split(" ")[0] || "Entrenador"}! 👋</h2>
+                <h2>¡Buenos días, {user.nombre?.split(" ")[0] || "Entrenador"}! </h2>
                 <p>Tienes 6 sesiones programadas para hoy. ¡Excelente trabajo!</p>
               </div>
               <FiAward size={50} style={{ color: 'var(--accent-color)', opacity: 0.8 }} />
@@ -180,7 +173,7 @@ export default function TrainerDashboard() {
             <motion.div className="stat-card" variants={itemVariants}>
               <div className="stat-header">
                 <h3><FiAward style={{ marginRight: 8 }} />Calificación</h3>
-                <span className="trend positive">⭐ Top Trainer</span>
+                <span className="trend positive"> Top Trainer</span>
               </div>
               <div className="stat-value">{stats.avgRating}/5</div>
               <div className="stat-detail">Promedio de evaluaciones</div>
@@ -275,7 +268,7 @@ export default function TrainerDashboard() {
                       <div>
                         <span style={{ fontWeight: '600', display: 'block' }}>{client.name}</span>
                         <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                          Última sesión: {client.lastSession} • 🔥 {client.streak} días
+                          Última sesión: {client.lastSession} •  {client.streak} días
                         </span>
                       </div>
                       <span style={{ 
@@ -328,10 +321,10 @@ export default function TrainerDashboard() {
                 gap: '15px' 
               }}>
                 {[
-                  { icon: "📝", title: "Nueva Rutina", desc: "Crear plan" },
-                  { icon: "📊", title: "Reportes", desc: "Ver estadísticas" },
-                  { icon: "💬", title: "Mensajes", desc: "3 sin leer" },
-                  { icon: "🎯", title: "Objetivos", desc: "Seguimiento" }
+                  { icon: "", title: "Nueva Rutina", desc: "Crear plan" },
+                  { icon: "", title: "Reportes", desc: "Ver estadísticas" },
+                  { icon: "", title: "Mensajes", desc: "3 sin leer" },
+                  { icon: "", title: "Objetivos", desc: "Seguimiento" }
                 ].map((action, idx) => (
                   <motion.button
                     key={idx}

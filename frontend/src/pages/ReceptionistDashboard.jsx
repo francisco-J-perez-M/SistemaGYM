@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import Sidebar from "../components/Sidebar";
 import { 
   FiUserCheck, 
   FiDollarSign, 
@@ -97,13 +96,6 @@ export default function ReceptionistDashboard() {
 
   return (
     <div className="dashboard-layout">
-      <Sidebar 
-        role="receptionist"
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        onLogout={handleLogout}
-      />
-
       <div className="main-wrapper">
         <motion.header 
           className="top-header"

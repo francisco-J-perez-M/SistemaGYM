@@ -27,6 +27,12 @@ import UserMembershipRenewal from "./pages/UserMembershipRenewal";
 
 // --- PÁGINAS DE ENTRENADOR ---
 import TrainerDashboard from "./pages/TrainerDashboard";
+import TrainerClients from "./pages/TrainerClients";
+import TrainerSchedule from "./pages/TrainerSchedule";
+import TrainerSessions from "./pages/TrainerSessions";
+import TrainerRoutines from "./pages/TrainerRoutines";
+import TrainerReports from "./pages/TrainerReports";
+import TrainerProfile from "./pages/TrainerProfile";
 
 // --- PÁGINAS DE RECEPCIONISTA ---
 import ReceptionistDashboard from "./pages/ReceptionistDashboard";
@@ -68,6 +74,12 @@ function App() {
           {/* 4. RUTAS ENTRENADOR */}
           <Route element={<Layout role="trainer" />}>
             <Route path="/trainer-dashboard" element={<TrainerDashboard />} />
+            <Route path="/trainer/clients" element={<TrainerClients />} />
+            <Route path="/trainer/schedule" element={<TrainerSchedule />} />
+            <Route path="/trainer/sessions" element={<TrainerSessions />} />
+            <Route path="/trainer/routines" element={<TrainerRoutines />} />
+            <Route path="/trainer/reports" element={<TrainerReports />} />
+            <Route path="/trainer/profile" element={<TrainerProfile />} />
             <Route path="/trainer/pos" element={<PointOfSale />} />
           </Route>
 

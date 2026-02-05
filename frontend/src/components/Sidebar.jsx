@@ -179,7 +179,7 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
       { id: "overview", label: "Resumen KPIs", icon: <FiBarChart2 /> },
       { id: "miembros", label: "Miembros", icon: <FiUsers /> },
       { id: "pagos", label: "Pagos", icon: <FiDollarSign /> },
-      { id: "pos", label: "Punto de Venta", icon: <FiShoppingCart /> },
+      // REMOVER POS de admin
       { type: "divider" },
       {
         id: "settings",
@@ -194,7 +194,7 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
 
     user: [
       { id: "dashboard", label: "Mi Dashboard", icon: <FiActivity /> },
-      { id: "pos", label: "Punto de Venta", icon: <FiShoppingCart /> },
+      { id: "pos", label: "Punto de Venta", icon: <FiShoppingCart /> }, // ✅ SOLO AQUÍ se mantiene POS
       { type: "divider" },
       {
         id: "training",
@@ -237,7 +237,7 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
       { id: "schedule", label: "Agenda", icon: <FiCalendar /> },
       { id: "sessions", label: "Sesiones", icon: <FiClock /> },
       { id: "routines", label: "Rutinas", icon: <FiFileText /> },
-      { id: "pos", label: "Punto de Venta", icon: <FiShoppingCart /> },
+      // REMOVER POS de trainer
       { type: "divider" },
       { id: "reports", label: "Reportes", icon: <FiBarChart2 /> },
       { id: "profile", label: "Mi Perfil", icon: <FiUser /> }
@@ -248,7 +248,7 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
       { id: "appointments", label: "Citas", icon: <FiCalendar /> },
       { id: "payments", label: "Pagos", icon: <FiDollarSign /> },
       { id: "members", label: "Miembros", icon: <FiUsers /> },
-      { id: "pos", label: "Punto de Venta", icon: <FiShoppingCart /> },
+      // REMOVER POS de receptionist
       { type: "divider" },
       { id: "messages", label: "Mensajes", icon: <FiMail /> },
       { id: "tasks", label: "Tareas", icon: <FiClipboard /> }
