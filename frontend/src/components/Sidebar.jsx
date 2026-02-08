@@ -214,11 +214,6 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
           { id: "recipes", label: "Recetas Saludables", icon: <FiFileText /> },
         ]
       },
-      {
-        id: "health",
-        label: "Salud y Bienestar",
-        icon: <GiFruitBowl />,
-      },
       { type: "divider" },
       {
         id: "membership",
