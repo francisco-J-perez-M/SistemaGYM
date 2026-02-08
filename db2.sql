@@ -34,15 +34,16 @@ CREATE TABLE `usuarios` (
   UNIQUE KEY `email` (`email`),
   KEY `id_role` (`id_role`),
   CONSTRAINT `usuarios_ibfk_1` FOREIGN KEY (`id_role`) REFERENCES `roles` (`id_role`)
-) ENGINE=InnoDB AUTO_INCREMENT=1515 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- -----------------------------------------------------
--- 3. Tabla: miembros (Depende de usuarios)
+-- 3. Tabla: miembros (Depende de usuarios y usuarios(entrenadores))
 -- -----------------------------------------------------
 DROP TABLE IF EXISTS `miembros`;
 CREATE TABLE `miembros` (
   `id_miembro` int(11) NOT NULL AUTO_INCREMENT,
   `id_usuario` int(11) DEFAULT NULL,
+  `id_entrenador` int(11) DEFAULT NULL, -- CAMPO NUEVO
   `telefono` varchar(20) DEFAULT NULL,
   `fecha_nacimiento` date DEFAULT NULL,
   `sexo` enum('M','F','Otro') DEFAULT NULL,
@@ -53,8 +54,10 @@ CREATE TABLE `miembros` (
   `foto_perfil` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id_miembro`),
   KEY `id_usuario` (`id_usuario`),
-  CONSTRAINT `miembros_ibfk_1` FOREIGN KEY (`id_usuario`) REFERENCES `usuarios` (`id_usuario`)
-) ENGINE=InnoDB AUTO_INCREMENT=1515 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+  KEY `id_entrenador` (`id_entrenador`), -- INDEX NUEVO
+  CONSTRAINT `miembros_ibfk_1` FOREIGN KEY (`id_usuario`) REFERENCES `usuarios` (`id_usuario`),
+  CONSTRAINT `miembros_ibfk_2` FOREIGN KEY (`id_entrenador`) REFERENCES `usuarios` (`id_usuario`) -- RELACIÓN NUEVA
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- -----------------------------------------------------
 -- 4. Tabla: membresias (Sin dependencias)
@@ -66,7 +69,7 @@ CREATE TABLE `membresias` (
   `duracion_meses` int(11) DEFAULT NULL,
   `precio` decimal(10,2) DEFAULT NULL,
   PRIMARY KEY (`id_membresia`)
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- -----------------------------------------------------
 -- 5. Tabla: productos (Sin dependencias)
@@ -78,7 +81,7 @@ CREATE TABLE `productos` (
   `precio` decimal(10,2) DEFAULT NULL,
   `stock` int(11) DEFAULT NULL,
   PRIMARY KEY (`id_producto`)
-) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- -----------------------------------------------------
 -- 6. Tabla: ventas (Sin dependencias)
@@ -89,7 +92,7 @@ CREATE TABLE `ventas` (
   `fecha` timestamp NOT NULL DEFAULT current_timestamp(),
   `total` decimal(10,2) DEFAULT NULL,
   PRIMARY KEY (`id_venta`)
-) ENGINE=InnoDB AUTO_INCREMENT=2193 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- -----------------------------------------------------
 -- 7. Tabla: correos_enviados (Sin dependencias)
@@ -102,19 +105,7 @@ CREATE TABLE `correos_enviados` (
   `fecha_envio` timestamp NOT NULL DEFAULT current_timestamp(),
   `tipo` enum('Individual','Masivo') DEFAULT NULL,
   PRIMARY KEY (`id_correo`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
--- -----------------------------------------------------
--- 8. Tabla: gastos (Sin dependencias)
--- -----------------------------------------------------
-DROP TABLE IF EXISTS `gastos`;
-CREATE TABLE `gastos` (
-  `id_gasto` int(11) NOT NULL AUTO_INCREMENT,
-  `descripcion` varchar(100) DEFAULT NULL,
-  `monto` decimal(10,2) DEFAULT NULL,
-  `fecha` date DEFAULT NULL,
-  PRIMARY KEY (`id_gasto`)
-) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- -----------------------------------------------------
 -- 9. Tabla: asistencias (Depende de miembros)
@@ -129,7 +120,7 @@ CREATE TABLE `asistencias` (
   PRIMARY KEY (`id_asistencia`),
   KEY `id_miembro` (`id_miembro`),
   CONSTRAINT `asistencias_ibfk_1` FOREIGN KEY (`id_miembro`) REFERENCES `miembros` (`id_miembro`)
-) ENGINE=InnoDB AUTO_INCREMENT=64426 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- -----------------------------------------------------
 -- 10. Tabla: pagos (Depende de miembros)
@@ -145,7 +136,7 @@ CREATE TABLE `pagos` (
   PRIMARY KEY (`id_pago`),
   KEY `id_miembro` (`id_miembro`),
   CONSTRAINT `pagos_ibfk_1` FOREIGN KEY (`id_miembro`) REFERENCES `miembros` (`id_miembro`)
-) ENGINE=InnoDB AUTO_INCREMENT=1520 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- -----------------------------------------------------
 -- 11. Tabla: progreso_fisico (Depende de miembros)
@@ -173,7 +164,7 @@ CREATE TABLE `progreso_fisico` (
   PRIMARY KEY (`id_progreso`),
   KEY `id_miembro` (`id_miembro`),
   CONSTRAINT `progreso_fisico_ibfk_1` FOREIGN KEY (`id_miembro`) REFERENCES `miembros` (`id_miembro`)
-) ENGINE=InnoDB AUTO_INCREMENT=12091 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- -----------------------------------------------------
 -- 12. Tabla: rutinas (Depende de miembros)
@@ -189,7 +180,7 @@ CREATE TABLE `rutinas` (
   PRIMARY KEY (`id_rutina`),
   KEY `idx_rutinas_miembro` (`id_miembro`),
   CONSTRAINT `rutinas_ibfk_1` FOREIGN KEY (`id_miembro`) REFERENCES `miembros` (`id_miembro`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- -----------------------------------------------------
 -- 13. Tabla: rutina_dias (Depende de rutinas)
@@ -204,7 +195,7 @@ CREATE TABLE `rutina_dias` (
   PRIMARY KEY (`id_rutina_dia`),
   KEY `idx_rutina_dias_rutina` (`id_rutina`),
   CONSTRAINT `rutina_dias_ibfk_1` FOREIGN KEY (`id_rutina`) REFERENCES `rutinas` (`id_rutina`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- -----------------------------------------------------
 -- 14. Tabla: rutina_ejercicios (Depende de rutina_dias)
@@ -222,7 +213,7 @@ CREATE TABLE `rutina_ejercicios` (
   PRIMARY KEY (`id_rutina_ejercicio`),
   KEY `idx_rutina_ejercicios_dia` (`id_rutina_dia`),
   CONSTRAINT `rutina_ejercicios_ibfk_1` FOREIGN KEY (`id_rutina_dia`) REFERENCES `rutina_dias` (`id_rutina_dia`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- -----------------------------------------------------
 -- 15. Tabla: miembro_membresia (Depende de miembros y membresias)
@@ -240,7 +231,7 @@ CREATE TABLE `miembro_membresia` (
   KEY `id_membresia` (`id_membresia`),
   CONSTRAINT `miembro_membresia_ibfk_1` FOREIGN KEY (`id_miembro`) REFERENCES `miembros` (`id_miembro`),
   CONSTRAINT `miembro_membresia_ibfk_2` FOREIGN KEY (`id_membresia`) REFERENCES `membresias` (`id_membresia`)
-) ENGINE=InnoDB AUTO_INCREMENT=1520 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- -----------------------------------------------------
 -- 16. Tabla: correo_miembro (Depende de correos_enviados y miembros)
@@ -255,7 +246,7 @@ CREATE TABLE `correo_miembro` (
   KEY `id_miembro` (`id_miembro`),
   CONSTRAINT `correo_miembro_ibfk_1` FOREIGN KEY (`id_correo`) REFERENCES `correos_enviados` (`id_correo`),
   CONSTRAINT `correo_miembro_ibfk_2` FOREIGN KEY (`id_miembro`) REFERENCES `miembros` (`id_miembro`)
-) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- -----------------------------------------------------
 -- 17. Tabla: detalle_venta (Depende de ventas y productos)
@@ -272,7 +263,7 @@ CREATE TABLE `detalle_venta` (
   KEY `id_producto` (`id_producto`),
   CONSTRAINT `detalle_venta_ibfk_1` FOREIGN KEY (`id_venta`) REFERENCES `ventas` (`id_venta`),
   CONSTRAINT `detalle_venta_ibfk_2` FOREIGN KEY (`id_producto`) REFERENCES `productos` (`id_producto`)
-) ENGINE=InnoDB AUTO_INCREMENT=4401 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 /* FINALIZACIÓN */
 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
