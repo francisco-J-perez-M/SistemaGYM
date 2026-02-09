@@ -38,6 +38,7 @@ def get_body_progress():
             # Si no hay registros de progreso, usar datos del miembro
             peso_actual = float(miembro.peso_inicial or 0)
             peso_inicial = peso_actual
+            progreso_actual = None
         
         # Validar estatura
         estatura = float(miembro.estatura or 1.7)
@@ -61,6 +62,14 @@ def get_body_progress():
         grasa_meta = _calcular_grasa_meta(sexo)
         musculo_meta = round(100 - grasa_meta - 15, 1)
         
+        # 🆕 EXTRAER MEDIDAS CORPORALES DEL ÚLTIMO PROGRESO
+        def _get_medida(progreso, campo):
+            """Extrae una medida del progreso, retorna 0 si no existe"""
+            if not progreso:
+                return 0
+            valor = getattr(progreso, campo, None)
+            return float(valor) if valor else 0
+        
         body_metrics = {
             "peso": {
                 "actual": round(peso_actual, 1),
@@ -78,7 +87,17 @@ def get_body_progress():
                 "meta": round(musculo_meta, 1)
             },
             "imc": round(imc, 1),
-            "estatura": round(estatura, 2)
+            "estatura": round(estatura, 2),
+            
+            # 🆕 AGREGAR TODAS LAS MEDIDAS CORPORALES
+            "pecho": round(_get_medida(progreso_actual, 'pecho'), 1),
+            "cintura": round(_get_medida(progreso_actual, 'cintura'), 1),
+            "cadera": round(_get_medida(progreso_actual, 'cadera'), 1),
+            "brazoDerecho": round(_get_medida(progreso_actual, 'brazo_derecho'), 1),
+            "brazoIzquierdo": round(_get_medida(progreso_actual, 'brazo_izquierdo'), 1),
+            "musloDerecho": round(_get_medida(progreso_actual, 'muslo_derecho'), 1),
+            "musloIzquierdo": round(_get_medida(progreso_actual, 'muslo_izquierdo'), 1),
+            "pantorrilla": round(_get_medida(progreso_actual, 'pantorrilla'), 1)
         }
         
         # Obtener progreso mensual real
@@ -128,6 +147,16 @@ def add_body_progress():
             cadera=data.get('cadera'),
             fecha_registro=datetime.now().date()
         )
+        
+        # 🆕 AGREGAR CAMPOS ADICIONALES
+        campos_opcionales = [
+            'pecho', 'brazo_derecho', 'brazo_izquierdo',
+            'muslo_derecho', 'muslo_izquierdo', 'pantorrilla'
+        ]
+        
+        for campo in campos_opcionales:
+            if campo in data and data[campo]:
+                setattr(nuevo_progreso, campo, data[campo])
         
         # Calcular BMI automáticamente
         if miembro.estatura and nuevo_progreso.peso:

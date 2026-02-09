@@ -35,16 +35,21 @@ def limpiar_base_datos(cursor, conn):
     """Limpia todos los datos existentes"""
     print("🧹 Limpiando base de datos...")
     
+    # SE ELIMINÓ 'gastos' DE ESTA LISTA
     tablas = [
         'rutina_ejercicios', 'rutina_dias', 'rutinas', 'correo_miembro',
         'detalle_venta', 'progreso_fisico', 'asistencias', 'pagos',
-        'miembro_membresia', 'correos_enviados', 'ventas', 'gastos',
+        'miembro_membresia', 'correos_enviados', 'ventas', 
         'miembros', 'usuarios', 'productos', 'membresias', 'roles'
     ]
     
     cursor.execute("SET FOREIGN_KEY_CHECKS=0")
     for tabla in tablas:
-        cursor.execute(f"TRUNCATE TABLE {tabla}")
+        try:
+            cursor.execute(f"TRUNCATE TABLE {tabla}")
+        except mysql.connector.Error as err:
+            print(f"⚠️ Advertencia: No se pudo limpiar la tabla {tabla} ({err})")
+            
     cursor.execute("SET FOREIGN_KEY_CHECKS=1")
     conn.commit()
     print("   ✅ Base de datos limpia")
@@ -92,7 +97,6 @@ def obtener_ids_referencia(cursor):
     cursor.execute("SELECT id_role FROM roles WHERE nombre = 'Miembro'")
     id_miembro = cursor.fetchone()[0]
     
-    # MODIFICADO: Ahora traemos también el 'nombre' para filtrar VIP/Premium
     cursor.execute("SELECT id_membresia, precio, duracion_meses, nombre FROM membresias")
     membresias = cursor.fetchall()
     
@@ -149,7 +153,6 @@ def crear_miembros_y_datos(cursor, conn, id_role_miembro, membresias, productos,
     
     sql_user = "INSERT INTO usuarios (id_role, nombre, email, PASSWORD, activo, fecha_creacion) VALUES (%s, %s, %s, %s, %s, %s)"
     
-    # MODIFICADO: Incluye id_entrenador
     sql_miembro = """
         INSERT INTO miembros (id_usuario, id_entrenador, telefono, fecha_nacimiento, sexo, peso_inicial, 
                              estatura, fecha_registro, estado, foto_perfil) 
@@ -256,6 +259,98 @@ def crear_miembros_y_datos(cursor, conn, id_role_miembro, membresias, productos,
     conn.commit()
     print("   ✅ Miembros insertados y vinculados a entrenadores (si aplica)")
 
+def crear_usuarios_especificos(cursor, conn, id_role_miembro, membresias, ids_entrenadores):
+    """Crea los dos usuarios específicos solicitados con Membresía VIP"""
+    print("🧪 Creando usuarios de prueba (Obeso vs Fit) con VIP...")
+
+    membresia_vip = next((m for m in membresias if 'VIP' in m[3]), None)
+    
+    if not membresia_vip:
+        print("⚠️ No se encontró membresía VIP explícita, usando la última de la lista.")
+        membresia_vip = membresias[-1]
+    
+    id_memb_vip = membresia_vip[0]
+    duracion_vip = membresia_vip[2]
+
+    # Datos de los dos perfiles (Ambos VIP)
+    perfiles = [
+        {
+            'nombre': 'Juan Obeso VIP',
+            'email': 'juan.obeso@gym.com',
+            'peso': 140.0, 'estatura': 1.70, # BMI: ~48 (Obesidad mórbida)
+            'tipo': 'Malo',
+            'grasa': 45.0, 'musculo': 22.0, 'cintura': 135.0, 'pecho': 125.0
+        },
+        {
+            'nombre': 'Pedro Fit VIP',
+            'email': 'pedro.fit@gym.com',
+            'peso': 82.0, 'estatura': 1.82, # BMI: ~24.7 (Atlético)
+            'tipo': 'Bueno',
+            'grasa': 11.5, 'musculo': 48.0, 'cintura': 80.0, 'pecho': 110.0
+        }
+    ]
+
+    fecha_hoy = datetime.now()
+
+    for p in perfiles:
+        # A. Crear Usuario
+        cursor.execute("""
+            INSERT INTO usuarios (id_role, nombre, email, PASSWORD, activo, fecha_creacion) 
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (id_role_miembro, p['nombre'], p['email'], DEFAULT_PASSWORD, 1, fecha_hoy))
+        id_usuario = cursor.lastrowid
+
+        # B. Asignar Entrenador (Obligatorio para prueba VIP)
+        id_entrenador = random.choice(ids_entrenadores)
+
+        # C. Crear Miembro
+        cursor.execute("""
+            INSERT INTO miembros (id_usuario, id_entrenador, telefono, fecha_nacimiento, sexo, 
+                                 peso_inicial, estatura, fecha_registro, estado, foto_perfil) 
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (
+            id_usuario, id_entrenador, '555-TEST-VIP', 
+            fake.date_of_birth(minimum_age=25, maximum_age=40), 
+            'M', p['peso'], p['estatura'], fecha_hoy.date(), 'Activo', 'male.jpg'
+        ))
+        id_miembro = cursor.lastrowid
+
+        # D. Asignar Membresía VIP
+        fecha_fin = fecha_hoy + timedelta(days=duracion_vip * 30)
+        cursor.execute("""
+            INSERT INTO miembro_membresia (id_miembro, id_membresia, fecha_inicio, fecha_fin, estado) 
+            VALUES (%s, %s, %s, %s, %s)
+        """, (id_miembro, id_memb_vip, fecha_hoy.date(), fecha_fin.date(), 'Activa'))
+
+        # E. Registrar Progreso Físico
+        bmi = p['peso'] / (p['estatura'] ** 2)
+        
+        if p['tipo'] == 'Malo':
+            brazo = 42.0 # Grasa
+            pierna = 75.0
+            cadera = 140.0
+        else:
+            brazo = 41.0 # Músculo
+            pierna = 62.0
+            cadera = 95.0
+
+        cursor.execute("""
+            INSERT INTO progreso_fisico (id_miembro, peso, bmi, grasa_corporal, masa_muscular, 
+            agua_corporal, masa_osea, cintura, cadera, pecho, brazo_derecho, brazo_izquierdo,
+            muslo_derecho, muslo_izquierdo, pantorrilla, fecha_registro) 
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (
+            id_miembro, p['peso'], bmi, p['grasa'], p['musculo'], 
+            (100 - p['grasa'] - p['musculo']), # Agua aprox
+            random.uniform(2.5, 3.5), # Hueso
+            p['cintura'], cadera, p['pecho'], 
+            brazo, brazo, pierna, pierna, pierna * 0.6, 
+            fecha_hoy.date()
+        ))
+
+    conn.commit()
+    print("   ✅ Usuarios VIP de prueba creados: juan.obeso@gym.com y pedro.fit@gym.com")
+
 def generar_ventas(cursor, conn, productos):
     print("💰 Generando ventas...")
     ventas_data, detalles_data, updates = [], [], []
@@ -283,18 +378,6 @@ def generar_ventas(cursor, conn, productos):
     conn.commit()
     print("   ✅ Ventas generadas")
 
-def generar_gastos(cursor, conn):
-    print("📉 Generando gastos...")
-    gastos = [('Renta', 15000), ('Luz', 3500), ('Agua', 800), ('Sueldos', 45000)]
-    gastos_data = []
-    for i in range(3):
-        fecha = datetime.now() - timedelta(days=30*i)
-        for desc, monto in gastos:
-            gastos_data.append((desc, round(monto * random.uniform(0.9, 1.1), 2), fecha.date()))
-    cursor.executemany("INSERT INTO gastos (descripcion, monto, fecha) VALUES (%s, %s, %s)", gastos_data)
-    conn.commit()
-    print("   ✅ Gastos generados")
-
 def mostrar_estadisticas(cursor):
     print("\n" + "="*60 + "\n📊 ESTADÍSTICAS FINALES\n" + "="*60)
     cursor.execute("SELECT COUNT(*) FROM usuarios")
@@ -313,15 +396,21 @@ def main():
         limpiar_base_datos(cursor, conn)
         insertar_datos_estaticos(cursor, conn)
         refs = obtener_ids_referencia(cursor)
+        
         crear_administrador(cursor, conn, refs['roles']['admin'])
         crear_personal(cursor, conn, refs['roles']['entrenador'], refs['roles']['recepcionista'])
         
-        # OBTENER LISTA DE ENTRENADORES CREADOS
         ids_entrenadores = obtener_ids_entrenadores(cursor)
         
+        # 1. Población Masiva
         crear_miembros_y_datos(cursor, conn, refs['roles']['miembro'], refs['membresias'], refs['productos'], ids_entrenadores)
+        
+        # 2. Población Específica (VIP)
+        crear_usuarios_especificos(cursor, conn, refs['roles']['miembro'], refs['membresias'], ids_entrenadores)
+        
         generar_ventas(cursor, conn, refs['productos'])
-        generar_gastos(cursor, conn)
+        # SE ELIMINÓ generar_gastos
+        
         mostrar_estadisticas(cursor)
         print("✅ ¡POBLACIÓN EXITOSA!")
     except Exception as e:

@@ -23,6 +23,7 @@ import UserBodyProgress from "./pages/UserBodyProgress";
 import UserMealPlan from "./pages/UserMealPlan";
 import UserRecipes from "./pages/UserRecipes";
 import UserHealth from "./pages/UserHealth";
+import UserHealthUpdate from "./pages/UserHealthUpdate";
 import UserMembershipRenewal from "./pages/UserMembershipRenewal";
 
 // --- PÁGINAS DE ENTRENADOR ---
@@ -65,6 +66,7 @@ function App() {
             <Route path="/user/meal-plan" element={<UserMealPlan />} />
             <Route path="/user/recipes" element={<UserRecipes />} />
             <Route path="/user/health" element={<UserHealth />} />
+            <Route path="/user-health-update" element={<UserHealthUpdate />} />
             <Route path="/user/payments" element={<UserPayments />} />
             <Route path="/user/renew" element={<UserMembershipRenewal />} />
             <Route path="/user/profile" element={<UserProfile />} />
