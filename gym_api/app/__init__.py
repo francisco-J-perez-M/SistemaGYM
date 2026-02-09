@@ -15,7 +15,7 @@ from app.routes.user_health import user_health_bp
 from app.routes.user_body_progress import user_body_progress_bp
 from app.routes.user_membership import user_membership_bp
 from app.routes.user_routine import user_routines_bp
-
+from app.routes.trainer_routes import trainer_bp
 
 def create_app():
     app = Flask(__name__)
@@ -37,6 +37,7 @@ def create_app():
     app.register_blueprint(pagos_bp)
     app.register_blueprint(user_payments_bp)
     app.register_blueprint(user_profile_bp)
+    app.register_blueprint(trainer_bp)
     app.register_blueprint(user_health_bp)
     app.register_blueprint(user_body_progress_bp)
     app.register_blueprint(user_membership_bp)

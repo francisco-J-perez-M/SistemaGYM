@@ -265,6 +265,43 @@ CREATE TABLE `detalle_venta` (
   CONSTRAINT `detalle_venta_ibfk_2` FOREIGN KEY (`id_producto`) REFERENCES `productos` (`id_producto`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+USE `gym_db`;
+
+-- Tabla: sesiones
+DROP TABLE IF EXISTS `sesiones`;
+CREATE TABLE `sesiones` (
+  `id_sesion` int(11) NOT NULL AUTO_INCREMENT,
+  `id_entrenador` int(11) NOT NULL,
+  `id_miembro` int(11) DEFAULT NULL COMMENT 'NULL para sesiones grupales',
+  
+  -- Información de la sesión
+  `fecha` date NOT NULL,
+  `hora_inicio` time NOT NULL,
+  `duracion_minutos` int(11) DEFAULT 60,
+  `tipo` enum('Personal','Grupal','Consulta') DEFAULT 'Personal',
+  `ubicacion` varchar(100) DEFAULT NULL,
+  `estado` enum('scheduled','in-progress','completed','cancelled') DEFAULT 'scheduled',
+  
+  -- Detalles
+  `nombre_sesion` varchar(150) DEFAULT NULL COMMENT 'Para clases grupales',
+  `notas` text DEFAULT NULL,
+  `num_ejercicios` int(11) DEFAULT 0,
+  `asistencia` tinyint(1) DEFAULT 0,
+  
+  -- Timestamps
+  `fecha_creacion` timestamp NOT NULL DEFAULT current_timestamp(),
+  `fecha_actualizacion` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  
+  PRIMARY KEY (`id_sesion`),
+  KEY `idx_sesiones_entrenador` (`id_entrenador`),
+  KEY `idx_sesiones_miembro` (`id_miembro`),
+  KEY `idx_sesiones_fecha` (`fecha`),
+  KEY `idx_sesiones_estado` (`estado`),
+  
+  CONSTRAINT `sesiones_ibfk_1` FOREIGN KEY (`id_entrenador`) REFERENCES `usuarios` (`id_usuario`) ON DELETE CASCADE,
+  CONSTRAINT `sesiones_ibfk_2` FOREIGN KEY (`id_miembro`) REFERENCES `miembros` (`id_miembro`) ON DELETE SET NULL
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 /* FINALIZACIÓN */
 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;

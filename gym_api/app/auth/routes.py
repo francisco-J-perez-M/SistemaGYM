@@ -26,23 +26,30 @@ def login():
     role = Role.query.get(user.id_role)
 
     # ---------------------------------------------------------
-    # 🔍 LÓGICA DE NIVEL DE ACCESO (MEMBRESÍA)
+    # VARIABLES DE PERFIL
     # ---------------------------------------------------------
     nombre_membresia = "Sin Plan"
-    access_level = "premium"  # Por defecto, admins y empleados tienen acceso total
+    access_level = "premium"
+    perfil_completo = True
+    peso_inicial = None
 
-    # Si el usuario es un 'Miembro' (o rol ID 4, ajusta según tu DB)
+    # ---------------------------------------------------------
+    # LÓGICA PARA MIEMBRO
+    # ---------------------------------------------------------
     if role.nombre == "Miembro" or user.id_role == 4:
-        # Buscar el perfil de miembro
+        access_level = "basico"
+
         miembro = Miembro.query.filter_by(id_usuario=user.id_usuario).first()
-        
+
         if miembro:
-            # Buscar membresía activa más reciente
+            peso_inicial = float(miembro.peso_inicial) if miembro.peso_inicial else None
+            perfil_completo = peso_inicial is not None
+
             membresia_activa = (
                 MiembroMembresia.query
                 .filter(
                     MiembroMembresia.id_miembro == miembro.id_miembro,
-                    MiembroMembresia.estado == 'Activa' 
+                    MiembroMembresia.estado == "Activa"
                 )
                 .order_by(MiembroMembresia.fecha_fin.desc())
                 .first()
@@ -50,26 +57,13 @@ def login():
 
             if membresia_activa and membresia_activa.membresia:
                 nombre_membresia = membresia_activa.membresia.nombre
-                
-                # ✅ DETERMINAR TIPO SEGÚN TU TABLA DE MEMBRESÍAS:
-                # Premium → "Premium Mensual", "Premium Anual", "VIP"
-                # Básico → "Básica Mensual", "Básica Anual", "Estudiante", "Familiar"
-                
+
                 planes_premium = ["Premium", "VIP"]
-                
                 if any(p in nombre_membresia for p in planes_premium):
                     access_level = "premium"
-                else:
-                    access_level = "basico"
-            else:
-                # Si es miembro pero no tiene membresía activa
-                access_level = "basico"
-        else:
-            # Si el usuario tiene rol de miembro pero no existe el perfil
-            access_level = "basico"
 
     # ---------------------------------------------------------
-    # ✅ CREACIÓN DEL TOKEN Y RESPUESTA
+    # CREAR TOKEN
     # ---------------------------------------------------------
     access_token = create_access_token(
         identity=str(user.id_usuario),
@@ -77,7 +71,9 @@ def login():
             "email": user.email,
             "role": role.nombre,
             "plan": nombre_membresia,
-            "access_level": access_level
+            "access_level": access_level,
+            "perfil_completo": perfil_completo,
+            "peso_inicial": peso_inicial
         }
     )
 
@@ -88,8 +84,10 @@ def login():
             "nombre": user.nombre,
             "email": user.email,
             "role": role.nombre,
-            "membership_plan": nombre_membresia, 
-            "access_level": access_level 
+            "membership_plan": nombre_membresia,
+            "access_level": access_level,
+            "perfil_completo": perfil_completo,
+            "peso_inicial": peso_inicial
         }
     }), 200
 

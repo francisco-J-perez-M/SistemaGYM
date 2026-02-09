@@ -7,6 +7,11 @@ export default function Layout({ role = "admin" }) {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // --- CONFIGURACIÓN: Ocultar Sidebar ---
+  // Agrega aquí la ruta EXACTA donde quieres ocultar la barra lateral
+  const rutasSinSidebar = ["/user/complete-profile", "/complete-profile"];
+  const mostrarSidebar = !rutasSinSidebar.includes(location.pathname);
+
   const getActiveTab = () => {
     const path = location.pathname;
     
@@ -126,13 +131,19 @@ export default function Layout({ role = "admin" }) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
+      // Si ocultamos sidebar, forzamos display block para evitar huecos del grid
+      style={!mostrarSidebar ? { display: 'block', paddingLeft: 0 } : {}}
     >
-      <Sidebar 
-        role={role}
-        activeTab={getActiveTab()} 
-        onTabChange={handleTabChange} 
-        onLogout={handleLogout} 
-      />
+      {/* RENDER CONDICIONAL DEL SIDEBAR */}
+      {mostrarSidebar && (
+        <Sidebar 
+          role={role}
+          activeTab={getActiveTab()} 
+          onTabChange={handleTabChange} 
+          onLogout={handleLogout} 
+        />
+      )}
+
       <motion.div 
         className="main-wrapper" 
         style={{ width: '100%' }}

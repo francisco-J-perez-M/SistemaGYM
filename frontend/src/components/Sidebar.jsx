@@ -8,7 +8,7 @@ import {
   FiSettings, FiUpload, FiDownload, FiClipboard, FiTrendingUp,
   FiRefreshCw, FiUser, FiUserCheck, FiCalendar, FiClock,
   FiFileText, FiMail, FiLogOut, FiActivity, FiLock, FiCreditCard,
-  FiShoppingCart
+  FiShoppingCart, FiBookOpen // <--- 1. Agregamos el icono del libro
 } from "react-icons/fi";
 import { GiMuscleUp, GiFruitBowl, GiPineTree, GiMeal } from "react-icons/gi";
 
@@ -20,6 +20,22 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
   const [openSubmenu, setOpenSubmenu] = useState(null);
   const [isLoadingAccess, setIsLoadingAccess] = useState(true);
   
+  // --- LÓGICA PARA EL MANUAL DE USUARIO ---
+  const getManualUrl = () => {
+    switch (role) {
+      case "admin":
+        return "/Manual de Administrador.pdf";
+      case "trainer":
+        return "/Manual de Entrenador.pdf";
+      default:
+        // Cubre: 'user', 'miembro', 'receptionist' y cualquier otro
+        return "/Manual de Usuario.pdf";
+    }
+  };
+  
+  const manualUrl = getManualUrl();
+  // ----------------------------------------
+
   const [accessLevel, setAccessLevel] = useState(() => {
     try {
       const user = JSON.parse(localStorage.getItem("user") || "{}");
@@ -179,7 +195,6 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
       { id: "overview", label: "Resumen KPIs", icon: <FiBarChart2 /> },
       { id: "miembros", label: "Miembros", icon: <FiUsers /> },
       { id: "pagos", label: "Pagos", icon: <FiDollarSign /> },
-      // REMOVER POS de admin
       { type: "divider" },
       {
         id: "settings",
@@ -194,7 +209,7 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
 
     user: [
       { id: "dashboard", label: "Mi Dashboard", icon: <FiActivity /> },
-      { id: "pos", label: "Punto de Venta", icon: <FiShoppingCart /> }, // ✅ SOLO AQUÍ se mantiene POS
+      { id: "pos", label: "Punto de Venta", icon: <FiShoppingCart /> },
       { type: "divider" },
       {
         id: "training",
@@ -232,7 +247,6 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
       { id: "schedule", label: "Agenda", icon: <FiCalendar /> },
       { id: "sessions", label: "Sesiones", icon: <FiClock /> },
       { id: "routines", label: "Rutinas", icon: <FiFileText /> },
-      // REMOVER POS de trainer
       { type: "divider" },
       { id: "reports", label: "Reportes", icon: <FiBarChart2 /> },
       { id: "profile", label: "Mi Perfil", icon: <FiUser /> }
@@ -243,7 +257,6 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
       { id: "appointments", label: "Citas", icon: <FiCalendar /> },
       { id: "payments", label: "Pagos", icon: <FiDollarSign /> },
       { id: "members", label: "Miembros", icon: <FiUsers /> },
-      // REMOVER POS de receptionist
       { type: "divider" },
       { id: "messages", label: "Mensajes", icon: <FiMail /> },
       { id: "tasks", label: "Tareas", icon: <FiClipboard /> }
@@ -497,6 +510,47 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
             </motion.div>
           </motion.button>
         </div>
+
+        {/* --- ENLACE A TÉRMINOS Y CONDICIONES --- */}
+        <motion.a
+          href="/Terminos y Condiciones.pdf"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="logout-btn-sidebar"
+          style={{ 
+            textDecoration: 'none', 
+            marginBottom: '5px', // Reduje un poco el margen para que quepan ambos
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: collapsed ? 'center' : 'flex-start'
+          }} 
+          whileHover={{ scale: 1.02, x: 5 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          <FiFileText /> 
+          {!collapsed && <span style={{ marginLeft: '10px' }}>Términos y Cond.</span>}
+        </motion.a>
+
+        {/* --- NUEVO: ENLACE AL MANUAL DINÁMICO --- */}
+        <motion.a
+          href={manualUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="logout-btn-sidebar"
+          style={{ 
+            textDecoration: 'none', 
+            marginBottom: '10px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: collapsed ? 'center' : 'flex-start'
+          }} 
+          whileHover={{ scale: 1.02, x: 5 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          <FiBookOpen /> 
+          {!collapsed && <span style={{ marginLeft: '10px' }}>Manual de Ayuda</span>}
+        </motion.a>
+        {/* ----------------------------------------------- */}
 
         <motion.button 
           onClick={onLogout} 

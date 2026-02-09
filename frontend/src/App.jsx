@@ -25,6 +25,7 @@ import UserRecipes from "./pages/UserRecipes";
 import UserHealth from "./pages/UserHealth";
 import UserHealthUpdate from "./pages/UserHealthUpdate";
 import UserMembershipRenewal from "./pages/UserMembershipRenewal";
+import CompleteProfile from "./pages/CompleteProfile";
 
 // --- PÁGINAS DE ENTRENADOR ---
 import TrainerDashboard from "./pages/TrainerDashboard";
@@ -71,6 +72,7 @@ function App() {
             <Route path="/user/renew" element={<UserMembershipRenewal />} />
             <Route path="/user/profile" element={<UserProfile />} />
             <Route path="/user/pos" element={<PointOfSale />} />
+            <Route path="/complete-profile" element={<CompleteProfile />} />
           </Route>
 
           {/* 4. RUTAS ENTRENADOR */}
