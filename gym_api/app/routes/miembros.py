@@ -210,3 +210,171 @@ def reactivar_miembro(id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
+
+def to_client_card(self):
+    """Convierte miembro a tarjeta de cliente para el dashboard del entrenador"""
+    from app.models.sesion_model import Sesion
+    from app.models.progreso_fisico import ProgresoFisico
+    
+    # Calcular progreso (comparar peso actual vs inicial)
+    progreso_reciente = ProgresoFisico.query.filter_by(
+        id_miembro=self.id_miembro
+    ).order_by(ProgresoFisico.fecha_registro.desc()).first()
+    
+    if progreso_reciente and self.peso_inicial:
+        diferencia = abs(self.peso_inicial - progreso_reciente.peso)
+        progreso_porcentaje = min(int((diferencia / self.peso_inicial) * 100), 100)
+    else:
+        progreso_porcentaje = 0
+    
+    # Calcular racha (días consecutivos con asistencia)
+    from app.models.asistencia import Asistencia
+    fecha_actual = date.today()
+    racha = 0
+    
+    for i in range(30):  # Revisar últimos 30 días
+        fecha_check = fecha_actual - timedelta(days=i)
+        asistencia = Asistencia.query.filter(
+            Asistencia.id_miembro == self.id_miembro,
+            Asistencia.fecha == fecha_check
+        ).first()
+        
+        if asistencia:
+            racha += 1
+        elif i > 0:  # Si no hay asistencia y no es el día actual, rompe la racha
+            break
+    
+    # Total de sesiones
+    sesiones_total = Sesion.query.filter(
+        Sesion.id_miembro == self.id_miembro,
+        Sesion.estado == 'completed'
+    ).count()
+    
+    # Última sesión
+    ultima_sesion = Sesion.query.filter(
+        Sesion.id_miembro == self.id_miembro
+    ).order_by(Sesion.fecha.desc()).first()
+    
+    if ultima_sesion:
+        if ultima_sesion.fecha == fecha_actual:
+            last_session = "Hoy"
+        elif ultima_sesion.fecha == fecha_actual - timedelta(days=1):
+            last_session = "Ayer"
+        elif ultima_sesion.estado == 'in-progress':
+            last_session = "En curso"
+        else:
+            dias = (fecha_actual - ultima_sesion.fecha).days
+            last_session = f"Hace {dias} días"
+    else:
+        last_session = "Nunca"
+    
+    # Calcular asistencia (últimos 30 días)
+    sesiones_programadas = Sesion.query.filter(
+        Sesion.id_miembro == self.id_miembro,
+        Sesion.fecha >= fecha_actual - timedelta(days=30),
+        Sesion.estado.in_(['completed', 'cancelled'])
+    ).count()
+    
+    sesiones_asistidas = Sesion.query.filter(
+        Sesion.id_miembro == self.id_miembro,
+        Sesion.fecha >= fecha_actual - timedelta(days=30),
+        Sesion.estado == 'completed'
+    ).count()
+    
+    attendance = int((sesiones_asistidas / sesiones_programadas * 100)) if sesiones_programadas > 0 else 0
+    
+    # Determinar estado y tendencia
+    status = 'active' if attendance >= 75 else 'warning'
+    trend = 'up' if attendance >= 80 else ('down' if attendance < 60 else 'stable')
+    
+    # Calcular edad
+    from datetime import date
+    edad = (date.today() - self.fecha_nacimiento).days // 365 if self.fecha_nacimiento else 0
+    
+    # Determinar objetivo (basado en progreso físico)
+    objetivo = "Pérdida de peso"  # Default
+    if progreso_reciente:
+        if progreso_reciente.grasa_corporal and progreso_reciente.grasa_corporal < 15:
+            objetivo = "Ganancia muscular"
+        elif progreso_reciente.masa_muscular and progreso_reciente.masa_muscular > 40:
+            objetivo = "Definición"
+        elif progreso_reciente.grasa_corporal and progreso_reciente.grasa_corporal > 30:
+            objetivo = "Pérdida de peso"
+        else:
+            objetivo = "Acondicionamiento"
+    
+    # Estadísticas de progreso
+    stats = {}
+    if progreso_reciente and self.peso_inicial:
+        # Obtener el progreso más antiguo para comparación
+        progreso_inicial = ProgresoFisico.query.filter_by(
+            id_miembro=self.id_miembro
+        ).order_by(ProgresoFisico.fecha_registro.asc()).first()
+        
+        if progreso_inicial:
+            stats = {
+                'weight': {
+                    'initial': float(progreso_inicial.peso),
+                    'current': float(progreso_reciente.peso),
+                    'goal': float(progreso_inicial.peso) * 0.9  # Meta: -10%
+                },
+                'muscle': {
+                    'initial': float(progreso_inicial.masa_muscular or 30),
+                    'current': float(progreso_reciente.masa_muscular or 30),
+                    'goal': float(progreso_inicial.masa_muscular or 30) * 1.2  # Meta: +20%
+                },
+                'fat': {
+                    'initial': float(progreso_inicial.grasa_corporal or 25),
+                    'current': float(progreso_reciente.grasa_corporal or 25),
+                    'goal': float(progreso_inicial.grasa_corporal or 25) * 0.7  # Meta: -30%
+                }
+            }
+    
+    return {
+        'id': self.id_miembro,
+        'name': self.usuario.nombre,
+        'age': edad,
+        'goal': objetivo,
+        'progress': progreso_porcentaje,
+        'lastSession': last_session,
+        'streak': racha,
+        'sessionsTotal': sesiones_total,
+        'attendance': attendance,
+        'status': status,
+        'trend': trend,
+        'stats': stats if stats else {
+            'weight': {'initial': float(self.peso_inicial or 70), 'current': float(self.peso_inicial or 70), 'goal': float(self.peso_inicial or 70) * 0.9},
+            'muscle': {'initial': 30, 'current': 30, 'goal': 36},
+            'fat': {'initial': 25, 'current': 25, 'goal': 18}
+        }
+    }
+
+def to_dict(self, include_stats=False):
+    """Convierte miembro a diccionario con información completa"""
+    base_dict = {
+        'id': self.id_miembro,
+        'name': self.usuario.nombre,
+        'email': self.usuario.email,
+        'phone': self.telefono,
+        'birthDate': str(self.fecha_nacimiento) if self.fecha_nacimiento else None,
+        'sex': self.sexo,
+        'initialWeight': float(self.peso_inicial) if self.peso_inicial else None,
+        'height': float(self.estatura) if self.estatura else None,
+        'registrationDate': str(self.fecha_registro) if self.fecha_registro else None,
+        'status': self.estado,
+        'profilePhoto': self.foto_perfil
+    }
+    
+    if include_stats:
+        # Incluir tarjeta de cliente con estadísticas
+        client_card = self.to_client_card()
+        base_dict.update({
+            'progress': client_card['progress'],
+            'streak': client_card['streak'],
+            'sessionsTotal': client_card['sessionsTotal'],
+            'attendance': client_card['attendance'],
+            'goal': client_card['goal'],
+            'stats': client_card['stats']
+        })
+    
+    return base_dict

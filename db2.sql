@@ -43,7 +43,7 @@ DROP TABLE IF EXISTS `miembros`;
 CREATE TABLE `miembros` (
   `id_miembro` int(11) NOT NULL AUTO_INCREMENT,
   `id_usuario` int(11) DEFAULT NULL,
-  `id_entrenador` int(11) DEFAULT NULL, -- CAMPO NUEVO
+  `id_entrenador` int(11) DEFAULT NULL,
   `telefono` varchar(20) DEFAULT NULL,
   `fecha_nacimiento` date DEFAULT NULL,
   `sexo` enum('M','F','Otro') DEFAULT NULL,
@@ -54,9 +54,9 @@ CREATE TABLE `miembros` (
   `foto_perfil` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id_miembro`),
   KEY `id_usuario` (`id_usuario`),
-  KEY `id_entrenador` (`id_entrenador`), -- INDEX NUEVO
+  KEY `id_entrenador` (`id_entrenador`),
   CONSTRAINT `miembros_ibfk_1` FOREIGN KEY (`id_usuario`) REFERENCES `usuarios` (`id_usuario`),
-  CONSTRAINT `miembros_ibfk_2` FOREIGN KEY (`id_entrenador`) REFERENCES `usuarios` (`id_usuario`) -- RELACIÓN NUEVA
+  CONSTRAINT `miembros_ibfk_2` FOREIGN KEY (`id_entrenador`) REFERENCES `usuarios` (`id_usuario`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- -----------------------------------------------------
@@ -174,6 +174,7 @@ CREATE TABLE `rutinas` (
   `id_rutina` int(11) NOT NULL AUTO_INCREMENT,
   `id_miembro` int(11) NOT NULL,
   `nombre` varchar(100) NOT NULL,
+  `objetivo` varchar(200) DEFAULT NULL COMMENT 'Objetivo de la rutina',
   `activa` tinyint(1) DEFAULT 1,
   `fecha_creacion` timestamp NOT NULL DEFAULT current_timestamp(),
   `fecha_actualizacion` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
@@ -265,43 +266,117 @@ CREATE TABLE `detalle_venta` (
   CONSTRAINT `detalle_venta_ibfk_2` FOREIGN KEY (`id_producto`) REFERENCES `productos` (`id_producto`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
-USE `gym_db`;
-
--- Tabla: sesiones
+-- -----------------------------------------------------
+-- 18. Tabla: sesiones (Depende de usuarios y miembros)
+-- -----------------------------------------------------
 DROP TABLE IF EXISTS `sesiones`;
 CREATE TABLE `sesiones` (
   `id_sesion` int(11) NOT NULL AUTO_INCREMENT,
   `id_entrenador` int(11) NOT NULL,
   `id_miembro` int(11) DEFAULT NULL COMMENT 'NULL para sesiones grupales',
-  
-  -- Información de la sesión
   `fecha` date NOT NULL,
   `hora_inicio` time NOT NULL,
   `duracion_minutos` int(11) DEFAULT 60,
   `tipo` enum('Personal','Grupal','Consulta') DEFAULT 'Personal',
   `ubicacion` varchar(100) DEFAULT NULL,
   `estado` enum('scheduled','in-progress','completed','cancelled') DEFAULT 'scheduled',
-  
-  -- Detalles
   `nombre_sesion` varchar(150) DEFAULT NULL COMMENT 'Para clases grupales',
   `notas` text DEFAULT NULL,
   `num_ejercicios` int(11) DEFAULT 0,
   `asistencia` tinyint(1) DEFAULT 0,
-  
-  -- Timestamps
   `fecha_creacion` timestamp NOT NULL DEFAULT current_timestamp(),
   `fecha_actualizacion` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
-  
   PRIMARY KEY (`id_sesion`),
   KEY `idx_sesiones_entrenador` (`id_entrenador`),
   KEY `idx_sesiones_miembro` (`id_miembro`),
   KEY `idx_sesiones_fecha` (`fecha`),
   KEY `idx_sesiones_estado` (`estado`),
-  
   CONSTRAINT `sesiones_ibfk_1` FOREIGN KEY (`id_entrenador`) REFERENCES `usuarios` (`id_usuario`) ON DELETE CASCADE,
   CONSTRAINT `sesiones_ibfk_2` FOREIGN KEY (`id_miembro`) REFERENCES `miembros` (`id_miembro`) ON DELETE SET NULL
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- =====================================================
+-- NUEVAS TABLAS PARA PLANES ALIMENTICIOS
+-- =====================================================
+
+-- -----------------------------------------------------
+-- 19. Tabla: tipos_dieta (Catálogo de tipos de dieta)
+-- -----------------------------------------------------
+DROP TABLE IF EXISTS `tipos_dieta`;
+CREATE TABLE `tipos_dieta` (
+  `id_tipo_dieta` int(11) NOT NULL AUTO_INCREMENT,
+  `nombre` varchar(50) NOT NULL COMMENT 'Ej: Hipercalórica, Déficit, Vegana, etc.',
+  `descripcion` text DEFAULT NULL,
+  `calorias_objetivo` varchar(50) DEFAULT NULL COMMENT 'Ej: 2500-3000 kcal',
+  PRIMARY KEY (`id_tipo_dieta`),
+  UNIQUE KEY `nombre` (`nombre`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- -----------------------------------------------------
+-- 20. Tabla: recetas (Catálogo de recetas por tipo de dieta)
+-- -----------------------------------------------------
+DROP TABLE IF EXISTS `recetas`;
+CREATE TABLE `recetas` (
+  `id_receta` int(11) NOT NULL AUTO_INCREMENT,
+  `id_tipo_dieta` int(11) NOT NULL,
+  `nombre` varchar(150) NOT NULL,
+  `tipo_comida` enum('Desayuno','Media Mañana','Almuerzo','Merienda','Cena','Post-Entreno') NOT NULL,
+  `ingredientes` text NOT NULL,
+  `preparacion` text NOT NULL,
+  `calorias` decimal(6,2) DEFAULT NULL,
+  `proteinas` decimal(5,2) DEFAULT NULL COMMENT 'Gramos',
+  `carbohidratos` decimal(5,2) DEFAULT NULL COMMENT 'Gramos',
+  `grasas` decimal(5,2) DEFAULT NULL COMMENT 'Gramos',
+  `tiempo_preparacion` int(11) DEFAULT NULL COMMENT 'Minutos',
+  PRIMARY KEY (`id_receta`),
+  KEY `idx_recetas_tipo_dieta` (`id_tipo_dieta`),
+  KEY `idx_recetas_tipo_comida` (`tipo_comida`),
+  CONSTRAINT `recetas_ibfk_1` FOREIGN KEY (`id_tipo_dieta`) REFERENCES `tipos_dieta` (`id_tipo_dieta`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- -----------------------------------------------------
+-- 21. Tabla: planes_alimenticios (Plan asignado a cada miembro)
+-- -----------------------------------------------------
+DROP TABLE IF EXISTS `planes_alimenticios`;
+CREATE TABLE `planes_alimenticios` (
+  `id_plan` int(11) NOT NULL AUTO_INCREMENT,
+  `id_miembro` int(11) NOT NULL,
+  `id_tipo_dieta` int(11) NOT NULL,
+  `nombre_plan` varchar(150) NOT NULL,
+  `objetivo` text DEFAULT NULL COMMENT 'Objetivo del plan alimenticio',
+  `calorias_diarias` int(11) DEFAULT NULL,
+  `proteinas_diarias` decimal(5,2) DEFAULT NULL COMMENT 'Gramos',
+  `carbohidratos_diarios` decimal(5,2) DEFAULT NULL COMMENT 'Gramos',
+  `grasas_diarias` decimal(5,2) DEFAULT NULL COMMENT 'Gramos',
+  `notas` text DEFAULT NULL,
+  `activo` tinyint(1) DEFAULT 1,
+  `fecha_creacion` timestamp NOT NULL DEFAULT current_timestamp(),
+  `fecha_actualizacion` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id_plan`),
+  KEY `idx_planes_miembro` (`id_miembro`),
+  KEY `idx_planes_tipo_dieta` (`id_tipo_dieta`),
+  CONSTRAINT `planes_alimenticios_ibfk_1` FOREIGN KEY (`id_miembro`) REFERENCES `miembros` (`id_miembro`) ON DELETE CASCADE,
+  CONSTRAINT `planes_alimenticios_ibfk_2` FOREIGN KEY (`id_tipo_dieta`) REFERENCES `tipos_dieta` (`id_tipo_dieta`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- -----------------------------------------------------
+-- 22. Tabla: plan_recetas (Relación entre planes y recetas)
+-- -----------------------------------------------------
+DROP TABLE IF EXISTS `plan_recetas`;
+CREATE TABLE `plan_recetas` (
+  `id_plan_receta` int(11) NOT NULL AUTO_INCREMENT,
+  `id_plan` int(11) NOT NULL,
+  `id_receta` int(11) NOT NULL,
+  `dia_semana` enum('Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo') NOT NULL,
+  `orden` int(11) DEFAULT 0,
+  PRIMARY KEY (`id_plan_receta`),
+  KEY `idx_plan_recetas_plan` (`id_plan`),
+  KEY `idx_plan_recetas_receta` (`id_receta`),
+  CONSTRAINT `plan_recetas_ibfk_1` FOREIGN KEY (`id_plan`) REFERENCES `planes_alimenticios` (`id_plan`) ON DELETE CASCADE,
+  CONSTRAINT `plan_recetas_ibfk_2` FOREIGN KEY (`id_receta`) REFERENCES `recetas` (`id_receta`) ON DELETE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 /* FINALIZACIÓN */
 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;
+SET SQL_MODE=@OLD_SQL_MODE;

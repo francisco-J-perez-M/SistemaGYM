@@ -14,8 +14,8 @@ DB_CONFIG = {
 }
 
 # Configuración de cantidades
-CANTIDAD_MIEMBROS = 500  
-CANTIDAD_ENTRENADORES = 10
+CANTIDAD_MIEMBROS = 5  
+CANTIDAD_ENTRENADORES = 1
 CANTIDAD_RECEPCIONISTAS = 1
 
 # Contraseña por defecto
@@ -35,9 +35,8 @@ def limpiar_base_datos(cursor, conn):
     """Limpia todos los datos existentes"""
     print("🧹 Limpiando base de datos...")
     
-    # SE ELIMINÓ 'gastos' DE ESTA LISTA
     tablas = [
-        'rutina_ejercicios', 'rutina_dias', 'rutinas', 'correo_miembro',
+        'sesiones', 'rutina_ejercicios', 'rutina_dias', 'rutinas', 'correo_miembro',
         'detalle_venta', 'progreso_fisico', 'asistencias', 'pagos',
         'miembro_membresia', 'correos_enviados', 'ventas', 
         'miembros', 'usuarios', 'productos', 'membresias', 'roles'
@@ -217,7 +216,7 @@ def crear_miembros_y_datos(cursor, conn, id_role_miembro, membresias, productos,
             
             for dia in range(min(dias_activo, 60)):
                 fecha_dia = fecha_actual.date() - timedelta(days=dia)
-                if random.random() < (0.5 * (freq / 5)): # Simplificado para brevedad
+                if random.random() < (0.5 * (freq / 5)):
                     hora = random.randint(6, 21)
                     hora_ent = f"{hora:02d}:{random.choice([0,15,30,45]):02d}:00"
                     duracion = random.randint(45, 120)
@@ -277,14 +276,14 @@ def crear_usuarios_especificos(cursor, conn, id_role_miembro, membresias, ids_en
         {
             'nombre': 'Juan Obeso VIP',
             'email': 'juan.obeso@gym.com',
-            'peso': 140.0, 'estatura': 1.70, # BMI: ~48 (Obesidad mórbida)
+            'peso': 140.0, 'estatura': 1.70,
             'tipo': 'Malo',
             'grasa': 45.0, 'musculo': 22.0, 'cintura': 135.0, 'pecho': 125.0
         },
         {
             'nombre': 'Pedro Fit VIP',
             'email': 'pedro.fit@gym.com',
-            'peso': 82.0, 'estatura': 1.82, # BMI: ~24.7 (Atlético)
+            'peso': 82.0, 'estatura': 1.82,
             'tipo': 'Bueno',
             'grasa': 11.5, 'musculo': 48.0, 'cintura': 80.0, 'pecho': 110.0
         }
@@ -293,17 +292,14 @@ def crear_usuarios_especificos(cursor, conn, id_role_miembro, membresias, ids_en
     fecha_hoy = datetime.now()
 
     for p in perfiles:
-        # A. Crear Usuario
         cursor.execute("""
             INSERT INTO usuarios (id_role, nombre, email, PASSWORD, activo, fecha_creacion) 
             VALUES (%s, %s, %s, %s, %s, %s)
         """, (id_role_miembro, p['nombre'], p['email'], DEFAULT_PASSWORD, 1, fecha_hoy))
         id_usuario = cursor.lastrowid
 
-        # B. Asignar Entrenador (Obligatorio para prueba VIP)
         id_entrenador = random.choice(ids_entrenadores)
 
-        # C. Crear Miembro
         cursor.execute("""
             INSERT INTO miembros (id_usuario, id_entrenador, telefono, fecha_nacimiento, sexo, 
                                  peso_inicial, estatura, fecha_registro, estado, foto_perfil) 
@@ -315,22 +311,20 @@ def crear_usuarios_especificos(cursor, conn, id_role_miembro, membresias, ids_en
         ))
         id_miembro = cursor.lastrowid
 
-        # D. Asignar Membresía VIP
         fecha_fin = fecha_hoy + timedelta(days=duracion_vip * 30)
         cursor.execute("""
             INSERT INTO miembro_membresia (id_miembro, id_membresia, fecha_inicio, fecha_fin, estado) 
             VALUES (%s, %s, %s, %s, %s)
         """, (id_miembro, id_memb_vip, fecha_hoy.date(), fecha_fin.date(), 'Activa'))
 
-        # E. Registrar Progreso Físico
         bmi = p['peso'] / (p['estatura'] ** 2)
         
         if p['tipo'] == 'Malo':
-            brazo = 42.0 # Grasa
+            brazo = 42.0
             pierna = 75.0
             cadera = 140.0
         else:
-            brazo = 41.0 # Músculo
+            brazo = 41.0
             pierna = 62.0
             cadera = 95.0
 
@@ -341,8 +335,8 @@ def crear_usuarios_especificos(cursor, conn, id_role_miembro, membresias, ids_en
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (
             id_miembro, p['peso'], bmi, p['grasa'], p['musculo'], 
-            (100 - p['grasa'] - p['musculo']), # Agua aprox
-            random.uniform(2.5, 3.5), # Hueso
+            (100 - p['grasa'] - p['musculo']),
+            random.uniform(2.5, 3.5),
             p['cintura'], cadera, p['pecho'], 
             brazo, brazo, pierna, pierna, pierna * 0.6, 
             fecha_hoy.date()
@@ -350,6 +344,158 @@ def crear_usuarios_especificos(cursor, conn, id_role_miembro, membresias, ids_en
 
     conn.commit()
     print("   ✅ Usuarios VIP de prueba creados: juan.obeso@gym.com y pedro.fit@gym.com")
+
+def generar_sesiones_entrenamiento(cursor, conn, ids_entrenadores):
+    """Genera sesiones de entrenamiento para los últimos 7 días y próximos 7 días"""
+    print("📅 Generando sesiones de entrenamiento...")
+    
+    # Obtener miembros con entrenador asignado
+    cursor.execute("""
+        SELECT m.id_miembro, m.id_entrenador
+        FROM miembros m
+        WHERE m.id_entrenador IS NOT NULL AND m.estado = 'Activo'
+    """)
+    miembros_con_entrenador = cursor.fetchall()
+    
+    if not miembros_con_entrenador:
+        print("   ⚠️ No hay miembros con entrenador asignado")
+        return
+    
+    sesiones_data = []
+    fecha_actual = datetime.now()
+    
+    # Tipos de sesión y ubicaciones
+    tipos_sesion = ['Personal', 'Grupal', 'Consulta']
+    ubicaciones = ['Sala 1', 'Sala 2', 'Sala Principal', 'Online', 'Box', 'Sala Cycling', 'Exterior']
+    estados = ['scheduled', 'completed', 'in-progress', 'cancelled']
+    
+    # Generar sesiones para cada entrenador
+    for id_entrenador in ids_entrenadores:
+        # Filtrar miembros de este entrenador
+        miembros_entrenador = [m[0] for m in miembros_con_entrenador if m[1] == id_entrenador]
+        
+        if not miembros_entrenador:
+            continue
+        
+        # Generar sesiones para los últimos 7 días
+        for dias_atras in range(7, 0, -1):
+            fecha_sesion = (fecha_actual - timedelta(days=dias_atras)).date()
+            
+            # 2-4 sesiones por día
+            num_sesiones = random.randint(2, 4)
+            
+            for _ in range(num_sesiones):
+                tipo = random.choice(tipos_sesion)
+                hora_inicio = f"{random.randint(7, 19):02d}:{random.choice([0, 30]):02d}:00"
+                duracion = random.choice([45, 60, 90])
+                ubicacion = random.choice(ubicaciones)
+                
+                # Sesiones pasadas están completadas o canceladas
+                if dias_atras > 1:
+                    estado = random.choices(estados[:2] + [estados[3]], weights=[0.85, 0.1, 0.05])[0]
+                else:  # Ayer: algunas completadas, otras en progreso
+                    estado = random.choices(estados[:3], weights=[0.7, 0.2, 0.1])[0]
+                
+                # Asignar miembro para sesiones personales
+                id_miembro = random.choice(miembros_entrenador) if tipo == 'Personal' else None
+                nombre_sesion = None if tipo == 'Personal' else f"{random.choice(['Grupo Funcional', 'Spinning Matutino', 'CrossFit', 'Yoga & Fuerza', 'HIIT Avanzado'])}"
+                
+                # Generar notas para sesiones completadas
+                notas = None
+                num_ejercicios = 0
+                asistencia = 0
+                
+                if estado == 'completed':
+                    notas = random.choice([
+                        'Excelente progreso. Cliente muy motivado.',
+                        'Trabajó fuerza de tren superior. Gran esfuerzo.',
+                        'Sesión intensa. Mejoró técnica en sentadillas.',
+                        'Cliente reporta menos fatiga. Buen avance.',
+                        'Completó todos los ejercicios sin problemas.'
+                    ])
+                    num_ejercicios = random.randint(6, 12)
+                    asistencia = 1
+                elif estado == 'cancelled':
+                    notas = random.choice([
+                        'Cliente canceló por enfermedad',
+                        'Emergencia personal',
+                        'Cancelado por el entrenador'
+                    ])
+                
+                sesiones_data.append((
+                    id_entrenador, id_miembro, fecha_sesion, hora_inicio,
+                    duracion, tipo, ubicacion, estado, nombre_sesion,
+                    notas, num_ejercicios, asistencia
+                ))
+        
+        # Generar sesiones para hoy
+        fecha_hoy = fecha_actual.date()
+        num_sesiones_hoy = random.randint(3, 6)
+        
+        for i in range(num_sesiones_hoy):
+            tipo = random.choice(tipos_sesion)
+            hora_inicio = f"{random.randint(8, 18):02d}:{random.choice([0, 30]):02d}:00"
+            duracion = random.choice([45, 60, 90])
+            ubicacion = random.choice(ubicaciones)
+            
+            # Sesiones de hoy: algunas completadas, algunas en progreso, resto programadas
+            if i < num_sesiones_hoy // 3:
+                estado = 'completed'
+                notas = 'Sesión matutina completada exitosamente'
+                num_ejercicios = random.randint(6, 10)
+                asistencia = 1
+            elif i < num_sesiones_hoy // 2:
+                estado = 'in-progress'
+                notas = None
+                num_ejercicios = 0
+                asistencia = 1
+            else:
+                estado = 'scheduled'
+                notas = None
+                num_ejercicios = 0
+                asistencia = 0
+            
+            id_miembro = random.choice(miembros_entrenador) if tipo == 'Personal' else None
+            nombre_sesion = None if tipo == 'Personal' else f"{random.choice(['Grupo Funcional', 'Spinning', 'HIIT', 'Yoga'])}"
+            
+            sesiones_data.append((
+                id_entrenador, id_miembro, fecha_hoy, hora_inicio,
+                duracion, tipo, ubicacion, estado, nombre_sesion,
+                notas, num_ejercicios, asistencia
+            ))
+        
+        # Generar sesiones futuras (próximos 7 días)
+        for dias_adelante in range(1, 8):
+            fecha_futura = (fecha_actual + timedelta(days=dias_adelante)).date()
+            
+            # 3-5 sesiones por día futuro
+            num_sesiones = random.randint(3, 5)
+            
+            for _ in range(num_sesiones):
+                tipo = random.choice(tipos_sesion)
+                hora_inicio = f"{random.randint(7, 19):02d}:{random.choice([0, 30]):02d}:00"
+                duracion = random.choice([45, 60, 90])
+                ubicacion = random.choice(ubicaciones)
+                estado = 'scheduled'
+                
+                id_miembro = random.choice(miembros_entrenador) if tipo == 'Personal' else None
+                nombre_sesion = None if tipo == 'Personal' else f"{random.choice(['Grupo Funcional', 'Spinning', 'CrossFit', 'Yoga', 'HIIT'])}"
+                
+                sesiones_data.append((
+                    id_entrenador, id_miembro, fecha_futura, hora_inicio,
+                    duracion, tipo, ubicacion, estado, nombre_sesion,
+                    None, 0, 0
+                ))
+    
+    # Insertar sesiones
+    cursor.executemany("""
+        INSERT INTO sesiones (id_entrenador, id_miembro, fecha, hora_inicio, duracion_minutos,
+                            tipo, ubicacion, estado, nombre_sesion, notas, num_ejercicios, asistencia)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+    """, sesiones_data)
+    conn.commit()
+    
+    print(f"   ✅ {len(sesiones_data)} sesiones generadas")
 
 def generar_ventas(cursor, conn, productos):
     print("💰 Generando ventas...")
@@ -386,6 +532,12 @@ def mostrar_estadisticas(cursor):
     print(f"🏋️ Miembros con Entrenador (VIP/Premium): {cursor.fetchone()[0]}")
     cursor.execute("SELECT COUNT(*) FROM asistencias")
     print(f"📍 Total asistencias: {cursor.fetchone()[0]}")
+    cursor.execute("SELECT COUNT(*) FROM sesiones")
+    print(f"📅 Total sesiones: {cursor.fetchone()[0]}")
+    cursor.execute("SELECT COUNT(*) FROM sesiones WHERE estado = 'completed'")
+    print(f"✅ Sesiones completadas: {cursor.fetchone()[0]}")
+    cursor.execute("SELECT COUNT(*) FROM sesiones WHERE fecha = CURDATE()")
+    print(f"📆 Sesiones hoy: {cursor.fetchone()[0]}")
     print("="*60 + "\n")
 
 def main():
@@ -402,14 +554,13 @@ def main():
         
         ids_entrenadores = obtener_ids_entrenadores(cursor)
         
-        # 1. Población Masiva
         crear_miembros_y_datos(cursor, conn, refs['roles']['miembro'], refs['membresias'], refs['productos'], ids_entrenadores)
-        
-        # 2. Población Específica (VIP)
         crear_usuarios_especificos(cursor, conn, refs['roles']['miembro'], refs['membresias'], ids_entrenadores)
         
+        # Generar sesiones de entrenamiento
+        generar_sesiones_entrenamiento(cursor, conn, ids_entrenadores)
+        
         generar_ventas(cursor, conn, refs['productos'])
-        # SE ELIMINÓ generar_gastos
         
         mostrar_estadisticas(cursor)
         print("✅ ¡POBLACIÓN EXITOSA!")
