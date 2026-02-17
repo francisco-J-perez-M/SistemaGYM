@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   FiUsers, 
@@ -11,125 +11,38 @@ import {
   FiAward,
   FiTarget,
   FiActivity,
-  FiX
+  FiX,
+  FiAlertCircle
 } from "react-icons/fi";
+import trainerService from "../services/trainerService";
 import "../css/CSSUnificado.css";
 
 export default function TrainerClients() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedClient, setSelectedClient] = useState(null);
   const [filterStatus, setFilterStatus] = useState("all");
+  const [clients, setClients] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const clients = [
-    { 
-      id: 1, 
-      name: "María González", 
-      age: 28, 
-      goal: "Pérdida de peso",
-      progress: 85, 
-      lastSession: "Hoy",
-      streak: 12,
-      sessionsTotal: 48,
-      attendance: 96,
-      status: "active",
-      trend: "up",
-      stats: {
-        weight: { initial: 75, current: 68, goal: 65 },
-        muscle: { initial: 32, current: 35, goal: 38 },
-        fat: { initial: 30, current: 24, goal: 20 }
-      }
-    },
-    { 
-      id: 2, 
-      name: "Carlos Ruiz", 
-      age: 35, 
-      goal: "Ganancia muscular",
-      progress: 72, 
-      lastSession: "Hoy",
-      streak: 8,
-      sessionsTotal: 32,
-      attendance: 88,
-      status: "active",
-      trend: "up",
-      stats: {
-        weight: { initial: 70, current: 76, goal: 80 },
-        muscle: { initial: 35, current: 42, goal: 45 },
-        fat: { initial: 18, current: 16, goal: 14 }
-      }
-    },
-    { 
-      id: 3, 
-      name: "Ana Martínez", 
-      age: 42, 
-      goal: "Acondicionamiento",
-      progress: 91, 
-      lastSession: "Ayer",
-      streak: 15,
-      sessionsTotal: 64,
-      attendance: 94,
-      status: "active",
-      trend: "up",
-      stats: {
-        weight: { initial: 65, current: 63, goal: 62 },
-        muscle: { initial: 28, current: 32, goal: 34 },
-        fat: { initial: 28, current: 22, goal: 20 }
-      }
-    },
-    { 
-      id: 4, 
-      name: "Luis Hernández", 
-      age: 31, 
-      goal: "Fuerza funcional",
-      progress: 68, 
-      lastSession: "Hace 2 días",
-      streak: 5,
-      sessionsTotal: 28,
-      attendance: 82,
-      status: "active",
-      trend: "stable",
-      stats: {
-        weight: { initial: 85, current: 82, goal: 78 },
-        muscle: { initial: 40, current: 43, goal: 46 },
-        fat: { initial: 25, current: 22, goal: 18 }
-      }
-    },
-    { 
-      id: 5, 
-      name: "Pedro Sánchez", 
-      age: 29, 
-      goal: "Resistencia",
-      progress: 79, 
-      lastSession: "Hace 3 días",
-      streak: 10,
-      sessionsTotal: 40,
-      attendance: 90,
-      status: "active",
-      trend: "up",
-      stats: {
-        weight: { initial: 72, current: 70, goal: 68 },
-        muscle: { initial: 33, current: 36, goal: 38 },
-        fat: { initial: 22, current: 19, goal: 16 }
-      }
-    },
-    { 
-      id: 6, 
-      name: "Sofía Torres", 
-      age: 26, 
-      goal: "Tonificación",
-      progress: 55, 
-      lastSession: "Hace 5 días",
-      streak: 3,
-      sessionsTotal: 20,
-      attendance: 75,
-      status: "warning",
-      trend: "down",
-      stats: {
-        weight: { initial: 60, current: 59, goal: 57 },
-        muscle: { initial: 25, current: 27, goal: 30 },
-        fat: { initial: 26, current: 24, goal: 20 }
-      }
+  // Cargar clientes al montar el componente
+  useEffect(() => {
+    loadClients();
+  }, []);
+
+  const loadClients = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const clientsData = await trainerService.getClients();
+      setClients(clientsData);
+    } catch (err) {
+      setError(err.message || 'Error al cargar clientes');
+      console.error('Error loading clients:', err);
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
 
   const filteredClients = clients.filter(client => {
     const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -157,6 +70,62 @@ export default function TrainerClients() {
       default: return <FiActivity style={{ color: 'var(--text-secondary)' }} />;
     }
   };
+
+  // Calcular KPIs desde los datos reales
+  const totalClients = clients.length;
+  const averageProgress = clients.length > 0 
+    ? Math.round(clients.reduce((acc, c) => acc + c.progress, 0) / clients.length)
+    : 0;
+  const averageAttendance = clients.length > 0
+    ? Math.round(clients.reduce((acc, c) => acc + c.attendance, 0) / clients.length)
+    : 0;
+  const totalSessions = clients.reduce((acc, c) => acc + c.sessionsTotal, 0);
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="dashboard-content">
+        <div className="loading-container">
+          <motion.div 
+            className="spinner"
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+          />
+          <p style={{ marginTop: '20px', color: 'var(--text-secondary)' }}>
+            Cargando clientes...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="dashboard-content">
+        <motion.div 
+          className="chart-card"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <div className="empty-state">
+            <FiAlertCircle size={48} style={{ color: 'var(--error-color)', marginBottom: '15px' }} />
+            <h3>Error al cargar los datos</h3>
+            <p>{error}</p>
+            <motion.button
+              className="btn-compact-primary"
+              onClick={loadClients}
+              style={{ marginTop: '20px' }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              Reintentar
+            </motion.button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="dashboard-content">
@@ -187,7 +156,7 @@ export default function TrainerClients() {
           <div className="stat-header">
             <h3>Total Clientes</h3>
           </div>
-          <div className="stat-value highlight">{clients.length}</div>
+          <div className="stat-value highlight">{totalClients}</div>
           <div className="stat-detail">Activos en el programa</div>
         </motion.div>
 
@@ -195,9 +164,7 @@ export default function TrainerClients() {
           <div className="stat-header">
             <h3>Progreso Promedio</h3>
           </div>
-          <div className="stat-value">
-            {Math.round(clients.reduce((acc, c) => acc + c.progress, 0) / clients.length)}%
-          </div>
+          <div className="stat-value">{averageProgress}%</div>
           <div className="stat-detail">Hacia sus objetivos</div>
         </motion.div>
 
@@ -205,9 +172,7 @@ export default function TrainerClients() {
           <div className="stat-header">
             <h3>Asistencia</h3>
           </div>
-          <div className="stat-value">
-            {Math.round(clients.reduce((acc, c) => acc + c.attendance, 0) / clients.length)}%
-          </div>
+          <div className="stat-value">{averageAttendance}%</div>
           <div className="stat-detail">Tasa de asistencia</div>
         </motion.div>
 
@@ -215,9 +180,7 @@ export default function TrainerClients() {
           <div className="stat-header">
             <h3>Sesiones Totales</h3>
           </div>
-          <div className="stat-value highlight">
-            {clients.reduce((acc, c) => acc + c.sessionsTotal, 0)}
-          </div>
+          <div className="stat-value highlight">{totalSessions}</div>
           <div className="stat-detail">Este mes</div>
         </motion.div>
       </motion.div>
@@ -479,43 +442,50 @@ export default function TrainerClients() {
                 </h4>
                 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                  {Object.entries(selectedClient.stats).map(([key, values]) => (
-                    <div key={key}>
-                      <div style={{ 
-                        display: 'flex', 
-                        justifyContent: 'space-between',
-                        marginBottom: '10px',
-                        fontSize: '14px'
-                      }}>
-                        <span style={{ textTransform: 'capitalize', fontWeight: '600' }}>
-                          {key === 'weight' ? 'Peso (kg)' : key === 'muscle' ? 'Masa Muscular (%)' : 'Grasa Corporal (%)'}
-                        </span>
-                        <span style={{ color: 'var(--text-secondary)' }}>
-                          {values.initial} → {values.current} / {values.goal}
-                        </span>
+                  {Object.entries(selectedClient.stats).map(([key, values]) => {
+                    // Solo mostrar si hay datos válidos
+                    if (values.initial === 0 && values.current === 0 && values.goal === 0) {
+                      return null;
+                    }
+                    
+                    return (
+                      <div key={key}>
+                        <div style={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between',
+                          marginBottom: '10px',
+                          fontSize: '14px'
+                        }}>
+                          <span style={{ textTransform: 'capitalize', fontWeight: '600' }}>
+                            {key === 'weight' ? 'Peso (kg)' : key === 'muscle' ? 'Masa Muscular (%)' : 'Grasa Corporal (%)'}
+                          </span>
+                          <span style={{ color: 'var(--text-secondary)' }}>
+                            {values.initial} → {values.current} / {values.goal}
+                          </span>
+                        </div>
+                        <div style={{ 
+                          height: '8px', 
+                          background: 'var(--bg-main-dark)', 
+                          borderRadius: '4px',
+                          position: 'relative'
+                        }}>
+                          <motion.div 
+                            style={{ 
+                              height: '100%',
+                              background: 'var(--accent-color)',
+                              borderRadius: '4px',
+                              position: 'absolute'
+                            }}
+                            initial={{ width: 0 }}
+                            animate={{ 
+                              width: `${Math.min(((values.current - values.initial) / (values.goal - values.initial)) * 100, 100)}%` 
+                            }}
+                            transition={{ delay: 0.2, duration: 0.8 }}
+                          />
+                        </div>
                       </div>
-                      <div style={{ 
-                        height: '8px', 
-                        background: 'var(--bg-main-dark)', 
-                        borderRadius: '4px',
-                        position: 'relative'
-                      }}>
-                        <motion.div 
-                          style={{ 
-                            height: '100%',
-                            background: 'var(--accent-color)',
-                            borderRadius: '4px',
-                            position: 'absolute'
-                          }}
-                          initial={{ width: 0 }}
-                          animate={{ 
-                            width: `${((values.current - values.initial) / (values.goal - values.initial)) * 100}%` 
-                          }}
-                          transition={{ delay: 0.2, duration: 0.8 }}
-                        />
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 <div style={{ 

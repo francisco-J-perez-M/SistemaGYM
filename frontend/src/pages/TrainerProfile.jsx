@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { 
   FiUser, 
@@ -10,38 +10,83 @@ import {
   FiX,
   FiAward,
   FiCalendar,
-  FiDollarSign
+  FiDollarSign,
+  FiAlertCircle
 } from "react-icons/fi";
+import trainerService from "../services/trainerService";
 import "../css/CSSUnificado.css";
 
 export default function TrainerProfile() {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
-    name: "Carlos Martínez",
-    email: "carlos.martinez@gym.com",
-    phone: "+52 555 123 4567",
-    address: "Ciudad de México, México",
-    specialization: "Fuerza y Acondicionamiento",
-    experience: "8 años",
-    certifications: "NSCA-CPT, CrossFit Level 2",
-    bio: "Entrenador certificado especializado en entrenamiento de fuerza y acondicionamiento físico. Más de 8 años de experiencia ayudando a clientes a alcanzar sus objetivos de fitness."
+    name: "",
+    email: "",
+    phone: "",
+    address: "",
+    specialization: "",
+    experience: "",
+    certifications: "",
+    bio: ""
   });
+  const [stats, setStats] = useState({
+    totalClients: 0,
+    totalSessions: 0,
+    totalEarnings: 0,
+    avgRating: 0,
+    yearsActive: 0,
+    certifications: 0
+  });
+  const [achievements, setAchievements] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [saving, setSaving] = useState(false);
 
-  const stats = {
-    totalClients: 24,
-    totalSessions: 856,
-    totalEarnings: 125000,
-    avgRating: 4.8,
-    yearsActive: 3,
-    certifications: 5
+  // Cargar perfil al montar el componente
+  useEffect(() => {
+    loadProfile();
+  }, []);
+
+  const loadProfile = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const profileData = await trainerService.getProfile();
+      
+      setFormData({
+        name: profileData.name || "",
+        email: profileData.email || "",
+        phone: profileData.phone || "",
+        address: profileData.address || "",
+        specialization: profileData.specialization || "",
+        experience: profileData.experience || "",
+        certifications: profileData.certifications || "",
+        bio: profileData.bio || ""
+      });
+      
+      setStats(profileData.stats || {
+        totalClients: 0,
+        totalSessions: 0,
+        totalEarnings: 0,
+        avgRating: 0,
+        yearsActive: 0,
+        certifications: 0
+      });
+      
+      // Convertir achievements al formato esperado con iconos
+      const achievementsWithIcons = (profileData.achievements || []).map(achievement => ({
+        title: achievement.title,
+        date: achievement.date,
+        icon: <FiAward />
+      }));
+      setAchievements(achievementsWithIcons);
+      
+    } catch (err) {
+      setError(err.message || 'Error al cargar el perfil');
+      console.error('Error loading profile:', err);
+    } finally {
+      setLoading(false);
+    }
   };
-
-  const achievements = [
-    { title: "Top Trainer 2024", icon: <FiAward />, date: "Febrero 2024" },
-    { title: "100 Sesiones Completadas", icon: <FiCalendar />, date: "Enero 2024" },
-    { title: "Certificación Avanzada", icon: <FiAward />, date: "Diciembre 2023" },
-    { title: "Cliente del Mes x5", icon: <FiAward />, date: "2023" }
-  ];
 
   const handleChange = (e) => {
     setFormData({
@@ -50,8 +95,28 @@ export default function TrainerProfile() {
     });
   };
 
-  const handleSave = () => {
-    // Aquí iría la lógica para guardar los cambios
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      setError(null);
+      
+      await trainerService.updateProfile(formData);
+      
+      // Recargar el perfil para obtener los datos actualizados
+      await loadProfile();
+      
+      setIsEditing(false);
+    } catch (err) {
+      setError(err.message || 'Error al guardar el perfil');
+      console.error('Error saving profile:', err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCancel = () => {
+    // Recargar datos originales
+    loadProfile();
     setIsEditing(false);
   };
 
@@ -67,6 +132,24 @@ export default function TrainerProfile() {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0 }
   };
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="dashboard-content">
+        <div className="loading-container">
+          <motion.div 
+            className="spinner"
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+          />
+          <p style={{ marginTop: '20px', color: 'var(--text-secondary)' }}>
+            Cargando perfil...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="dashboard-content">
@@ -84,6 +167,41 @@ export default function TrainerProfile() {
           <FiUser size={50} style={{ color: 'var(--accent-color)', opacity: 0.8 }} />
         </div>
       </motion.div>
+
+      {/* Mensaje de error */}
+      {error && (
+        <motion.div 
+          className="alert-error"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          style={{ 
+            marginTop: '20px',
+            padding: '15px',
+            background: 'rgba(239, 68, 68, 0.1)',
+            border: '1px solid rgba(239, 68, 68, 0.3)',
+            borderRadius: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            color: 'var(--error-color)'
+          }}
+        >
+          <FiAlertCircle size={20} />
+          <span>{error}</span>
+          <button 
+            onClick={() => setError(null)}
+            style={{
+              marginLeft: 'auto',
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--error-color)',
+              cursor: 'pointer'
+            }}
+          >
+            <FiX size={18} />
+          </button>
+        </motion.div>
+      )}
 
       {/* Estadísticas del Perfil */}
       <motion.div 
@@ -167,17 +285,19 @@ export default function TrainerProfile() {
                 <motion.button
                   className="btn-compact-primary"
                   onClick={handleSave}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+                  disabled={saving}
+                  whileHover={{ scale: saving ? 1 : 1.05 }}
+                  whileTap={{ scale: saving ? 1 : 0.95 }}
                 >
                   <FiSave size={16} />
-                  Guardar
+                  {saving ? 'Guardando...' : 'Guardar'}
                 </motion.button>
                 <motion.button
                   className="btn-outline-small"
-                  onClick={() => setIsEditing(false)}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+                  onClick={handleCancel}
+                  disabled={saving}
+                  whileHover={{ scale: saving ? 1 : 1.05 }}
+                  whileTap={{ scale: saving ? 1 : 0.95 }}
                 >
                   <FiX size={16} />
                   Cancelar
@@ -250,7 +370,7 @@ export default function TrainerProfile() {
                     borderRadius: '8px',
                     marginTop: '6px'
                   }}>
-                    {formData.name}
+                    {formData.name || '-'}
                   </div>
                 )}
               </div>
@@ -275,7 +395,7 @@ export default function TrainerProfile() {
                     borderRadius: '8px',
                     marginTop: '6px'
                   }}>
-                    {formData.email}
+                    {formData.email || '-'}
                   </div>
                 )}
               </div>
@@ -300,7 +420,7 @@ export default function TrainerProfile() {
                     borderRadius: '8px',
                     marginTop: '6px'
                   }}>
-                    {formData.phone}
+                    {formData.phone || '-'}
                   </div>
                 )}
               </div>
@@ -325,7 +445,7 @@ export default function TrainerProfile() {
                     borderRadius: '8px',
                     marginTop: '6px'
                   }}>
-                    {formData.address}
+                    {formData.address || '-'}
                   </div>
                 )}
               </div>
@@ -362,53 +482,33 @@ export default function TrainerProfile() {
                   borderRadius: '8px',
                   marginTop: '6px'
                 }}>
-                  {formData.specialization}
+                  {formData.specialization || '-'}
                 </div>
               )}
             </div>
 
             <div>
               <label className="form-label-compact">Experiencia</label>
-              {isEditing ? (
-                <input
-                  type="text"
-                  name="experience"
-                  value={formData.experience}
-                  onChange={handleChange}
-                  className="input-compact"
-                />
-              ) : (
-                <div style={{ 
-                  padding: '12px',
-                  background: 'var(--input-bg-dark)',
-                  borderRadius: '8px',
-                  marginTop: '6px'
-                }}>
-                  {formData.experience}
-                </div>
-              )}
+              <div style={{ 
+                padding: '12px',
+                background: 'var(--input-bg-dark)',
+                borderRadius: '8px',
+                marginTop: '6px'
+              }}>
+                {formData.experience || '-'}
+              </div>
             </div>
 
             <div>
               <label className="form-label-compact">Certificaciones</label>
-              {isEditing ? (
-                <input
-                  type="text"
-                  name="certifications"
-                  value={formData.certifications}
-                  onChange={handleChange}
-                  className="input-compact"
-                />
-              ) : (
-                <div style={{ 
-                  padding: '12px',
-                  background: 'var(--input-bg-dark)',
-                  borderRadius: '8px',
-                  marginTop: '6px'
-                }}>
-                  {formData.certifications}
-                </div>
-              )}
+              <div style={{ 
+                padding: '12px',
+                background: 'var(--input-bg-dark)',
+                borderRadius: '8px',
+                marginTop: '6px'
+              }}>
+                {formData.certifications || '-'}
+              </div>
             </div>
 
             <div>
@@ -430,7 +530,7 @@ export default function TrainerProfile() {
                   marginTop: '6px',
                   lineHeight: '1.6'
                 }}>
-                  {formData.bio}
+                  {formData.bio || '-'}
                 </div>
               )}
             </div>
@@ -439,72 +539,74 @@ export default function TrainerProfile() {
       </div>
 
       {/* Logros y Reconocimientos */}
-      <motion.div 
-        className="chart-card"
-        style={{ marginTop: '20px' }}
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.5 }}
-      >
-        <div className="chart-header">
-          <h3><FiAward style={{ marginRight: 8 }} />Logros y Reconocimientos</h3>
-        </div>
-
+      {achievements.length > 0 && (
         <motion.div 
-          style={{ 
-            marginTop: '20px',
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
-            gap: '15px'
-          }}
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
+          className="chart-card"
+          style={{ marginTop: '20px' }}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
         >
-          {achievements.map((achievement, idx) => (
-            <motion.div
-              key={idx}
-              variants={itemVariants}
-              style={{
-                background: 'var(--input-bg-dark)',
-                padding: '20px',
-                borderRadius: '12px',
-                border: '1px solid var(--border-dark)',
-                display: 'flex',
-                gap: '15px',
-                alignItems: 'center'
-              }}
-              whileHover={{ 
-                borderColor: 'var(--accent-color)',
-                transform: 'translateY(-3px)'
-              }}
-            >
-              <div style={{
-                width: '50px',
-                height: '50px',
-                background: 'var(--accent-color)',
-                color: 'var(--text-on-accent)',
-                borderRadius: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '24px',
-                flexShrink: 0
-              }}>
-                {achievement.icon}
-              </div>
-              <div>
-                <h4 style={{ fontSize: '15px', fontWeight: '600', marginBottom: '4px' }}>
-                  {achievement.title}
-                </h4>
-                <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                  {achievement.date}
-                </p>
-              </div>
-            </motion.div>
-          ))}
+          <div className="chart-header">
+            <h3><FiAward style={{ marginRight: 8 }} />Logros y Reconocimientos</h3>
+          </div>
+
+          <motion.div 
+            style={{ 
+              marginTop: '20px',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
+              gap: '15px'
+            }}
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+          >
+            {achievements.map((achievement, idx) => (
+              <motion.div
+                key={idx}
+                variants={itemVariants}
+                style={{
+                  background: 'var(--input-bg-dark)',
+                  padding: '20px',
+                  borderRadius: '12px',
+                  border: '1px solid var(--border-dark)',
+                  display: 'flex',
+                  gap: '15px',
+                  alignItems: 'center'
+                }}
+                whileHover={{ 
+                  borderColor: 'var(--accent-color)',
+                  transform: 'translateY(-3px)'
+                }}
+              >
+                <div style={{
+                  width: '50px',
+                  height: '50px',
+                  background: 'var(--accent-color)',
+                  color: 'var(--text-on-accent)',
+                  borderRadius: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '24px',
+                  flexShrink: 0
+                }}>
+                  {achievement.icon}
+                </div>
+                <div>
+                  <h4 style={{ fontSize: '15px', fontWeight: '600', marginBottom: '4px' }}>
+                    {achievement.title}
+                  </h4>
+                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                    {achievement.date}
+                  </p>
+                </div>
+              </motion.div>
+            ))}
+          </motion.div>
         </motion.div>
-      </motion.div>
+      )}
     </div>
   );
 }

@@ -383,14 +383,14 @@ def crear_miembros_premium(cursor, conn, id_role_miembro, id_entrenador, membres
     
     # Perfiles de miembros con diferentes objetivos
     perfiles_miembros = [
-        ('Juan Pérez', 'M', 75.0, 1.75, 'Hipercalórica'),
-        ('María García', 'F', 62.0, 1.65, 'Déficit Calórico'),
-        ('Pedro López', 'M', 82.0, 1.80, 'Vegana'),
-        ('Ana Martínez', 'F', 58.0, 1.60, 'Mediterránea'),
-        ('Carlos Rodríguez', 'M', 78.0, 1.77, 'Flexible')
+        ('Juan Pérez', 'M', 75.0, 1.75, 'Hipercalórica', 'Aumento de masa muscular', 82.0, 12.0, 45.0),
+        ('María García', 'F', 62.0, 1.65, 'Déficit Calórico', 'Pérdida de grasa y tonificación', 55.0, 18.0, 38.0),
+        ('Pedro López', 'M', 82.0, 1.80, 'Vegana', 'Mantenimiento y fuerza', 82.0, 13.0, 42.0),
+        ('Ana Martínez', 'F', 58.0, 1.60, 'Mediterránea', 'Salud general y resistencia', 55.0, 20.0, 35.0),
+        ('Carlos Rodríguez', 'M', 78.0, 1.77, 'Flexible', 'Mejora general fitness', 76.0, 14.0, 42.0)
     ]
     
-    for i, (nombre, sexo, peso_inicial, estatura, tipo_dieta_nombre) in enumerate(perfiles_miembros, 1):
+    for i, (nombre, sexo, peso_inicial, estatura, tipo_dieta_nombre, objetivo, peso_obj, grasa_obj, musculo_obj) in enumerate(perfiles_miembros, 1):
         print(f"\n   📝 Creando miembro {i}: {nombre}...")
         
         # 1. Crear Usuario
@@ -403,17 +403,19 @@ def crear_miembros_premium(cursor, conn, id_role_miembro, id_entrenador, membres
         """, (id_role_miembro, nombre, email, DEFAULT_PASSWORD, 1, fecha_registro))
         id_usuario = cursor.lastrowid
         
-        # 2. Crear Miembro con entrenador
+        # 2. Crear Miembro con entrenador Y OBJETIVOS ⭐
         telefono = fake.phone_number()[:20]
         fecha_nacimiento = fake.date_of_birth(minimum_age=20, maximum_age=45)
         foto_perfil = 'male.jpg' if sexo == 'M' else 'female.jpg'
         
         cursor.execute("""
             INSERT INTO miembros (id_usuario, id_entrenador, telefono, fecha_nacimiento, sexo, 
-                                 peso_inicial, estatura, fecha_registro, estado, foto_perfil) 
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                 peso_inicial, estatura, fecha_registro, estado, foto_perfil,
+                                 objetivo, peso_objetivo, grasa_objetivo, masa_muscular_objetivo) 
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (id_usuario, id_entrenador, telefono, fecha_nacimiento, sexo, 
-              peso_inicial, estatura, fecha_registro.date(), 'Activo', foto_perfil))
+              peso_inicial, estatura, fecha_registro.date(), 'Activo', foto_perfil,
+              objetivo, peso_obj, grasa_obj, musculo_obj))
         id_miembro = cursor.lastrowid
         
         # 3. Registrar Membresía Premium Activa
@@ -448,12 +450,14 @@ def crear_miembros_premium(cursor, conn, id_role_miembro, id_entrenador, membres
         
         conn.commit()
         print(f"   ✅ Miembro {i} completado: {nombre} ({email})")
+        print(f"      Objetivo: {objetivo}")
     
     print(f"\n   🎯 Todos los {CANTIDAD_MIEMBROS} miembros están activos con:")
     print(f"      - Membresía Premium")
     print(f"      - {MESES_ACTIVIDAD} meses de historial")
     print(f"      - Rutina personalizada")
     print(f"      - Plan alimenticio")
+    print(f"      - Objetivos definidos")
 
 def generar_asistencias_miembro(cursor, conn, id_miembro, fecha_inicio, fecha_fin):
     """Genera asistencias realistas para un miembro (3-4 veces por semana)"""
@@ -1024,6 +1028,21 @@ def mostrar_estadisticas(cursor):
     for metodo, count in cursor.fetchall():
         print(f"      - {metodo}: {count} pagos")
     
+    # Mostrar objetivos de miembros
+    print("\n🎯 OBJETIVOS DE MIEMBROS:")
+    cursor.execute("""
+        SELECT u.nombre, m.objetivo, m.peso_objetivo, m.grasa_objetivo, m.masa_muscular_objetivo
+        FROM miembros m
+        JOIN usuarios u ON m.id_usuario = u.id_usuario
+        ORDER BY u.nombre
+    """)
+    for nombre, objetivo, peso_obj, grasa_obj, musculo_obj in cursor.fetchall():
+        print(f"   {nombre}:")
+        print(f"      Objetivo: {objetivo}")
+        print(f"      Peso objetivo: {peso_obj}kg")
+        print(f"      Grasa objetivo: {grasa_obj}%")
+        print(f"      Músculo objetivo: {musculo_obj}%")
+    
     print("\n" + "="*70)
     print("📧 CREDENCIALES DE ACCESO")
     print("="*70)
@@ -1051,6 +1070,7 @@ def main():
     print(f"   - {MESES_ACTIVIDAD} meses de historial de actividad")
     print(f"   - Rutinas personalizadas de entrenamiento")
     print(f"   - Planes alimenticios con recetas variadas")
+    print(f"   - Objetivos definidos para cada miembro")
     print("="*70 + "\n")
     
     conn = connect_db()
