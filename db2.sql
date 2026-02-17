@@ -376,6 +376,119 @@ CREATE TABLE `plan_recetas` (
   CONSTRAINT `plan_recetas_ibfk_2` FOREIGN KEY (`id_receta`) REFERENCES `recetas` (`id_receta`) ON DELETE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+USE `gym_db`;
+
+-- =====================================================
+-- 1. NUEVAS TABLAS (DASHBOARD ENTRENADOR)
+-- =====================================================
+
+-- Tabla: perfil_entrenador
+CREATE TABLE IF NOT EXISTS `perfil_entrenador` (
+  `id_perfil` int(11) NOT NULL AUTO_INCREMENT,
+  `id_entrenador` int(11) NOT NULL,
+  `telefono` varchar(20) DEFAULT NULL,
+  `direccion` varchar(200) DEFAULT NULL,
+  `especializacion` varchar(100) DEFAULT NULL,
+  `biografia` text DEFAULT NULL,
+  `redes_sociales` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`redes_sociales`)),
+  `fecha_creacion` timestamp NOT NULL DEFAULT current_timestamp(),
+  `fecha_actualizacion` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id_perfil`),
+  UNIQUE KEY `idx_perfil_entrenador` (`id_entrenador`),
+  CONSTRAINT `fk_perfil_usuario` FOREIGN KEY (`id_entrenador`) REFERENCES `usuarios` (`id_usuario`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- Tabla: certificaciones_entrenador
+CREATE TABLE IF NOT EXISTS `certificaciones_entrenador` (
+  `id_certificacion` int(11) NOT NULL AUTO_INCREMENT,
+  `id_entrenador` int(11) NOT NULL,
+  `nombre` varchar(150) NOT NULL,
+  `institucion` varchar(150) DEFAULT NULL,
+  `fecha_obtencion` date DEFAULT NULL,
+  `fecha_expiracion` date DEFAULT NULL,
+  `archivo_url` varchar(255) DEFAULT NULL,
+  `fecha_creacion` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id_certificacion`),
+  KEY `idx_certificaciones_entrenador` (`id_entrenador`),
+  CONSTRAINT `fk_certificaciones_usuario` FOREIGN KEY (`id_entrenador`) REFERENCES `usuarios` (`id_usuario`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- Tabla: logros_entrenador
+CREATE TABLE IF NOT EXISTS `logros_entrenador` (
+  `id_logro` int(11) NOT NULL AUTO_INCREMENT,
+  `id_entrenador` int(11) NOT NULL,
+  `titulo` varchar(150) NOT NULL,
+  `descripcion` text DEFAULT NULL,
+  `fecha` date DEFAULT NULL,
+  `tipo` varchar(50) DEFAULT NULL,
+  `fecha_creacion` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id_logro`),
+  KEY `idx_logros_entrenador` (`id_entrenador`),
+  CONSTRAINT `fk_logros_usuario` FOREIGN KEY (`id_entrenador`) REFERENCES `usuarios` (`id_usuario`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- Tabla: evaluaciones_entrenador
+CREATE TABLE IF NOT EXISTS `evaluaciones_entrenador` (
+  `id_evaluacion` int(11) NOT NULL AUTO_INCREMENT,
+  `id_entrenador` int(11) NOT NULL,
+  `id_miembro` int(11) NOT NULL,
+  `calificacion` int(11) NOT NULL,
+  `comentario` text DEFAULT NULL,
+  `fecha` date DEFAULT NULL,
+  `fecha_creacion` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id_evaluacion`),
+  KEY `idx_eval_entrenador` (`id_entrenador`),
+  KEY `idx_eval_miembro` (`id_miembro`),
+  CONSTRAINT `fk_eval_usuario` FOREIGN KEY (`id_entrenador`) REFERENCES `usuarios` (`id_usuario`) ON DELETE CASCADE,
+  CONSTRAINT `fk_eval_miembro` FOREIGN KEY (`id_miembro`) REFERENCES `miembros` (`id_miembro`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- Tabla: miembro_rutina (Asignación explicita de rutinas)
+CREATE TABLE IF NOT EXISTS `miembro_rutina` (
+  `id_asignacion` int(11) NOT NULL AUTO_INCREMENT,
+  `id_miembro` int(11) NOT NULL,
+  `id_rutina` int(11) NOT NULL,
+  `fecha_asignacion` date DEFAULT NULL,
+  `activa` tinyint(1) DEFAULT 1,
+  `fecha_fin` date DEFAULT NULL,
+  PRIMARY KEY (`id_asignacion`),
+  UNIQUE KEY `uq_miembro_rutina` (`id_miembro`,`id_rutina`),
+  KEY `idx_mr_rutina` (`id_rutina`),
+  CONSTRAINT `fk_mr_miembro` FOREIGN KEY (`id_miembro`) REFERENCES `miembros` (`id_miembro`) ON DELETE CASCADE,
+  CONSTRAINT `fk_mr_rutina` FOREIGN KEY (`id_rutina`) REFERENCES `rutinas` (`id_rutina`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- =====================================================
+-- 2. ACTUALIZACIÓN DE TABLAS EXISTENTES (ALTERS)
+-- =====================================================
+
+-- Actualizar MIEMBROS con objetivos y métricas
+ALTER TABLE `miembros` 
+ADD COLUMN `objetivo` varchar(150) DEFAULT NULL,
+ADD COLUMN `fecha_asignacion` date DEFAULT NULL,
+ADD COLUMN `ultima_sesion` date DEFAULT NULL,
+ADD COLUMN `peso_objetivo` decimal(5,2) DEFAULT NULL,
+ADD COLUMN `grasa_objetivo` decimal(5,2) DEFAULT NULL,
+ADD COLUMN `masa_muscular_objetivo` decimal(5,2) DEFAULT NULL;
+
+-- Actualizar RUTINAS con datos del entrenador
+ALTER TABLE `rutinas`
+ADD COLUMN `id_entrenador` int(11) DEFAULT NULL,
+ADD COLUMN `categoria` varchar(50) DEFAULT NULL,
+ADD COLUMN `dificultad` enum('Principiante','Intermedio','Avanzado') DEFAULT NULL,
+ADD COLUMN `duracion_minutos` int(11) DEFAULT 60,
+ADD COLUMN `descripcion` text DEFAULT NULL,
+ADD CONSTRAINT `fk_rutinas_entrenador` FOREIGN KEY (`id_entrenador`) REFERENCES `usuarios` (`id_usuario`) ON DELETE SET NULL;
+
+-- Actualizar SESIONES para vincular con Rutinas
+ALTER TABLE `sesiones`
+ADD COLUMN `id_rutina` int(11) DEFAULT NULL,
+ADD CONSTRAINT `fk_sesiones_rutina` FOREIGN KEY (`id_rutina`) REFERENCES `rutinas` (`id_rutina`) ON DELETE SET NULL;
+
+-- Actualizar PAGOS para comisiones de entrenador
+ALTER TABLE `pagos`
+ADD COLUMN `id_entrenador` int(11) DEFAULT NULL,
+ADD CONSTRAINT `fk_pagos_entrenador` FOREIGN KEY (`id_entrenador`) REFERENCES `usuarios` (`id_usuario`) ON DELETE SET NULL; 
 /* FINALIZACIÓN */
 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;
