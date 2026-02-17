@@ -1,6 +1,3 @@
-"""
-Rutas para el Dashboard del Entrenador
-"""
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models.miembro import Miembro
@@ -11,7 +8,7 @@ from app.models.asistencia import Asistencia
 from app.models.pago import Pago
 from app.extensions import db
 from sqlalchemy import func, desc
-from datetime import datetime, timedelta
+from datetime import datetime, date, timedelta
 import traceback
 
 trainer_bp = Blueprint('trainer', __name__, url_prefix='/api/trainer')
@@ -22,97 +19,68 @@ try:
     HAS_PERFIL_ENTRENADOR = True
 except ImportError:
     HAS_PERFIL_ENTRENADOR = False
-    print("⚠️  Modelo PerfilEntrenador no encontrado")
+    print("  Modelo PerfilEntrenador no encontrado")
 
 try:
     from app.models.certificacion_entrenador import CertificacionEntrenador
     HAS_CERTIFICACION = True
 except ImportError:
     HAS_CERTIFICACION = False
-    print("⚠️  Modelo CertificacionEntrenador no encontrado")
+    print("  Modelo CertificacionEntrenador no encontrado")
 
 try:
     from app.models.logro_entrenador import LogroEntrenador
     HAS_LOGRO = True
 except ImportError:
     HAS_LOGRO = False
-    print("⚠️  Modelo LogroEntrenador no encontrado")
+    print("  Modelo LogroEntrenador no encontrado")
 
 try:
     from app.models.evaluacion_entrenador import EvaluacionEntrenador
     HAS_EVALUACION = True
 except ImportError:
     HAS_EVALUACION = False
-    print("⚠️  Modelo EvaluacionEntrenador no encontrado")
+    print("  Modelo EvaluacionEntrenador no encontrado")
+
+
+# ═══════════════════════════════════════════════════════════════
+#  RUTAS EXISTENTES (sin cambios)
+# ═══════════════════════════════════════════════════════════════
 
 @trainer_bp.route('/clients', methods=['GET'])
 @jwt_required()
 def get_trainer_clients():
-    """
-    Obtiene todos los clientes asignados al entrenador con sus estadísticas
-    """
     try:
         current_user_id = get_jwt_identity()
-        print(f"📊 Obteniendo clientes para entrenador ID: {current_user_id}")
-        
-        # Obtener todos los miembros del entrenador
+        print(f" Obteniendo clientes para entrenador ID: {current_user_id}")
         miembros = Miembro.query.filter_by(id_entrenador=current_user_id).all()
-        print(f"✅ Encontrados {len(miembros)} miembros")
-        
+        print(f" Encontrados {len(miembros)} miembros")
         clients_data = []
-        
         for miembro in miembros:
             try:
-                # Obtener usuario asociado
                 usuario = User.query.get(miembro.id_usuario)
-                
-                # Calcular total de sesiones
                 total_sesiones = Sesion.query.filter_by(
-                    id_miembro=miembro.id_miembro,
-                    estado='completed'
+                    id_miembro=miembro.id_miembro, estado='completed'
                 ).count()
-                
-                # Calcular asistencias este mes
                 inicio_mes = datetime.now().replace(day=1)
                 asistencias_mes = Asistencia.query.filter(
                     Asistencia.id_miembro == miembro.id_miembro,
                     Asistencia.fecha >= inicio_mes
                 ).count()
-                
-                # Obtener última sesión
                 ultima_sesion = Sesion.query.filter_by(
                     id_miembro=miembro.id_miembro
                 ).order_by(desc(Sesion.fecha)).first()
-                
-                # Calcular racha de días
                 racha = calcular_racha_dias(miembro.id_miembro)
-                
-                # Obtener progreso físico (inicial y actual)
                 progreso_inicial = ProgresoFisico.query.filter_by(
                     id_miembro=miembro.id_miembro
                 ).order_by(ProgresoFisico.fecha_registro).first()
-                
                 progreso_actual = ProgresoFisico.query.filter_by(
                     id_miembro=miembro.id_miembro
                 ).order_by(desc(ProgresoFisico.fecha_registro)).first()
-                
-                # Calcular porcentaje de progreso hacia el objetivo
-                progreso_porcentaje = calcular_progreso_porcentaje(
-                    miembro, 
-                    progreso_inicial, 
-                    progreso_actual
-                )
-                
-                # Calcular tasa de asistencia (últimos 30 días)
+                progreso_porcentaje = calcular_progreso_porcentaje(miembro, progreso_inicial, progreso_actual)
                 tasa_asistencia = calcular_tasa_asistencia(miembro.id_miembro)
-                
-                # Determinar tendencia
                 tendencia = determinar_tendencia(progreso_inicial, progreso_actual)
-                
-                # Determinar estado del cliente
                 estado = determinar_estado_cliente(ultima_sesion, tasa_asistencia)
-                
-                # Formatear última sesión
                 if ultima_sesion:
                     dias_diferencia = (datetime.now().date() - ultima_sesion.fecha).days
                     if dias_diferencia == 0:
@@ -123,7 +91,6 @@ def get_trainer_clients():
                         ultima_sesion_texto = f"Hace {dias_diferencia} días"
                 else:
                     ultima_sesion_texto = "Nunca"
-                
                 client_data = {
                     'id': miembro.id_miembro,
                     'name': usuario.nombre if usuario else "Sin nombre",
@@ -154,61 +121,36 @@ def get_trainer_clients():
                         }
                     }
                 }
-                
                 clients_data.append(client_data)
-                
             except Exception as e:
-                print(f"⚠️  Error procesando miembro {miembro.id_miembro}: {str(e)}")
+                print(f"  Error procesando miembro {miembro.id_miembro}: {str(e)}")
                 continue
-        
-        print(f"✅ Clientes procesados correctamente: {len(clients_data)}")
-        return jsonify({
-            'success': True,
-            'clients': clients_data
-        }), 200
-        
+        return jsonify({'success': True, 'clients': clients_data}), 200
     except Exception as e:
-        print(f"❌ Error en get_trainer_clients: {str(e)}")
         print(traceback.format_exc())
-        return jsonify({
-            'success': False,
-            'message': f'Error al obtener clientes: {str(e)}'
-        }), 500
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
+
 
 @trainer_bp.route('/profile', methods=['GET'])
 @jwt_required()
 def get_trainer_profile():
-    """
-    Obtiene el perfil completo del entrenador
-    """
     try:
         current_user_id = get_jwt_identity()
-        print(f"👤 Obteniendo perfil para usuario ID: {current_user_id}")
-        
-        # Obtener usuario
         usuario = User.query.get(current_user_id)
         if not usuario:
             return jsonify({'success': False, 'message': 'Usuario no encontrado'}), 404
-        
-        # Obtener perfil del entrenador (si existe el modelo)
         perfil = None
         if HAS_PERFIL_ENTRENADOR:
             try:
                 perfil = PerfilEntrenador.query.filter_by(id_entrenador=current_user_id).first()
             except Exception as e:
-                print(f"⚠️  Error obteniendo perfil: {str(e)}")
-        
-        # Obtener certificaciones (si existe el modelo)
+                print(f"  Error obteniendo perfil: {str(e)}")
         certificaciones = []
         if HAS_CERTIFICACION:
             try:
-                certificaciones = CertificacionEntrenador.query.filter_by(
-                    id_entrenador=current_user_id
-                ).all()
+                certificaciones = CertificacionEntrenador.query.filter_by(id_entrenador=current_user_id).all()
             except Exception as e:
-                print(f"⚠️  Error obteniendo certificaciones: {str(e)}")
-        
-        # Obtener logros (si existe el modelo)
+                print(f"  Error obteniendo certificaciones: {str(e)}")
         logros = []
         if HAS_LOGRO:
             try:
@@ -216,17 +158,11 @@ def get_trainer_profile():
                     id_entrenador=current_user_id
                 ).order_by(desc(LogroEntrenador.fecha)).limit(4).all()
             except Exception as e:
-                print(f"⚠️  Error obteniendo logros: {str(e)}")
-        
-        # Calcular estadísticas
+                print(f"  Error obteniendo logros: {str(e)}")
         total_clientes = Miembro.query.filter_by(id_entrenador=current_user_id).count()
-        
         total_sesiones = Sesion.query.filter_by(
-            id_entrenador=current_user_id,
-            estado='completed'
+            id_entrenador=current_user_id, estado='completed'
         ).count()
-        
-        # Calcular ingresos totales
         total_ingresos = 0
         try:
             total_ingresos_query = db.session.query(func.sum(Pago.monto)).filter(
@@ -234,9 +170,7 @@ def get_trainer_profile():
             ).scalar()
             total_ingresos = float(total_ingresos_query) if total_ingresos_query else 0
         except Exception as e:
-            print(f"⚠️  Error calculando ingresos: {str(e)}")
-        
-        # Calcular calificación promedio
+            print(f"  Error calculando ingresos: {str(e)}")
         calificacion_promedio = 0
         if HAS_EVALUACION:
             try:
@@ -245,12 +179,9 @@ def get_trainer_profile():
                 ).scalar()
                 calificacion_promedio = float(calificacion_query) if calificacion_query else 0
             except Exception as e:
-                print(f"⚠️  Error calculando calificación: {str(e)}")
-        
-        # Calcular años activos
+                print(f"  Error calculando calificación: {str(e)}")
         fecha_creacion = perfil.fecha_creacion if perfil and hasattr(perfil, 'fecha_creacion') else usuario.fecha_creacion
         anos_activos = (datetime.now() - fecha_creacion).days // 365
-        
         profile_data = {
             'name': usuario.nombre or '',
             'email': usuario.email or '',
@@ -277,53 +208,31 @@ def get_trainer_profile():
                 for logro in logros
             ] if logros else []
         }
-        
-        print(f"✅ Perfil obtenido correctamente")
-        return jsonify({
-            'success': True,
-            'profile': profile_data
-        }), 200
-        
+        return jsonify({'success': True, 'profile': profile_data}), 200
     except Exception as e:
-        print(f"❌ Error en get_trainer_profile: {str(e)}")
         print(traceback.format_exc())
-        return jsonify({
-            'success': False,
-            'message': f'Error al obtener perfil: {str(e)}'
-        }), 500
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
+
 
 @trainer_bp.route('/profile', methods=['PUT'])
 @jwt_required()
 def update_trainer_profile():
-    """
-    Actualiza el perfil del entrenador
-    """
     try:
         current_user_id = get_jwt_identity()
         data = request.get_json()
-        
-        print(f"📝 Actualizando perfil para usuario ID: {current_user_id}")
-        print(f"Datos recibidos: {data}")
-        
-        # Actualizar usuario
         usuario = User.query.get(current_user_id)
         if not usuario:
             return jsonify({'success': False, 'message': 'Usuario no encontrado'}), 404
-        
         if 'name' in data:
             usuario.nombre = data['name']
         if 'email' in data:
             usuario.email = data['email']
-        
-        # Actualizar o crear perfil del entrenador (si existe el modelo)
         if HAS_PERFIL_ENTRENADOR:
             try:
                 perfil = PerfilEntrenador.query.filter_by(id_entrenador=current_user_id).first()
-                
                 if not perfil:
                     perfil = PerfilEntrenador(id_entrenador=current_user_id)
                     db.session.add(perfil)
-                
                 if 'phone' in data:
                     perfil.telefono = data['phone']
                 if 'address' in data:
@@ -333,155 +242,445 @@ def update_trainer_profile():
                 if 'bio' in data:
                     perfil.biografia = data['bio']
             except Exception as e:
-                print(f"⚠️  Error actualizando perfil: {str(e)}")
-        
+                print(f"  Error actualizando perfil: {str(e)}")
         db.session.commit()
-        
-        print(f"✅ Perfil actualizado correctamente")
-        return jsonify({
-            'success': True,
-            'message': 'Perfil actualizado correctamente'
-        }), 200
-        
+        return jsonify({'success': True, 'message': 'Perfil actualizado correctamente'}), 200
     except Exception as e:
         db.session.rollback()
-        print(f"❌ Error en update_trainer_profile: {str(e)}")
         print(traceback.format_exc())
-        return jsonify({
-            'success': False,
-            'message': f'Error al actualizar perfil: {str(e)}'
-        }), 500
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
 
-# Funciones auxiliares
+
+# ═══════════════════════════════════════════════════════════════
+#  NUEVAS RUTAS — AGENDA (SCHEDULE)
+# ═══════════════════════════════════════════════════════════════
+
+@trainer_bp.route('/schedule', methods=['GET'])
+@jwt_required()
+def get_schedule():
+    """
+    Devuelve las sesiones agrupadas por día para una semana dada.
+    Query param:  week_offset  (0 = semana actual, -1 = anterior, 1 = siguiente)
+    """
+    try:
+        trainer_id = get_jwt_identity()
+        week_offset = int(request.args.get('week_offset', 0))
+
+        today = date.today()
+        # Lunes de la semana objetivo
+        start_of_week = today - timedelta(days=today.weekday()) + timedelta(weeks=week_offset)
+        end_of_week   = start_of_week + timedelta(days=6)
+
+        sessions = Sesion.query.filter(
+            Sesion.id_entrenador == trainer_id,
+            Sesion.fecha >= start_of_week,
+            Sesion.fecha <= end_of_week
+        ).order_by(Sesion.fecha, Sesion.hora_inicio).all()
+
+        # Construir estructura día a día (0 = lunes … 6 = domingo)
+        schedule = {}
+        for i in range(7):
+            day = start_of_week + timedelta(days=i)
+            schedule[str(i)] = {
+                "date":       day.isoformat(),
+                "day_name":   _nombre_dia(day),
+                "day_number": day.day,
+                "is_today":   day == today,
+                "sessions":   []
+            }
+
+        for s in sessions:
+            day_index = (s.fecha - start_of_week).days
+            if 0 <= day_index <= 6:
+                schedule[str(day_index)]["sessions"].append(_sesion_to_dict(s))
+
+        return jsonify({
+            "week_start":     start_of_week.isoformat(),
+            "week_end":       end_of_week.isoformat(),
+            "schedule":       schedule,
+            "total_sessions": len(sessions)
+        }), 200
+
+    except Exception as e:
+        print(traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+
+
+# ═══════════════════════════════════════════════════════════════
+#  NUEVAS RUTAS — HISTORIAL DE SESIONES
+# ═══════════════════════════════════════════════════════════════
+
+@trainer_bp.route('/sessions', methods=['GET'])
+@jwt_required()
+def get_sessions():
+    """
+    Lista sesiones con filtros opcionales.
+    Query params:
+        status   : all | completed | in-progress | scheduled | cancelled
+        range    : today | week | month
+        page     : int  (default 1)
+        per_page : int  (default 20)
+    """
+    try:
+        trainer_id  = get_jwt_identity()
+        status_f    = request.args.get('status', 'all')
+        date_range  = request.args.get('range', 'week')
+        page        = int(request.args.get('page', 1))
+        per_page    = int(request.args.get('per_page', 20))
+
+        today = date.today()
+        query = Sesion.query.filter(Sesion.id_entrenador == trainer_id)
+
+        # ── Filtro de rango de fechas ──────────────────────────
+        if date_range == 'today':
+            query = query.filter(Sesion.fecha == today)
+        elif date_range == 'week':
+            start = today - timedelta(days=today.weekday())
+            end   = start + timedelta(days=6)
+            query = query.filter(Sesion.fecha >= start, Sesion.fecha <= end)
+        elif date_range == 'month':
+            start = today.replace(day=1)
+            query = query.filter(Sesion.fecha >= start)
+
+        # ── Filtro de estado ───────────────────────────────────
+        if status_f != 'all':
+            query = query.filter(Sesion.estado == status_f)
+
+        query = query.order_by(desc(Sesion.fecha), desc(Sesion.hora_inicio))
+
+        total    = query.count()
+        sessions = query.offset((page - 1) * per_page).limit(per_page).all()
+
+        # ── Stats globales del entrenador (sin filtros de rango) ─
+        all_sessions = Sesion.query.filter(Sesion.id_entrenador == trainer_id).all()
+        stats = _compute_stats(all_sessions)
+
+        return jsonify({
+            "sessions": [_sesion_to_dict(s) for s in sessions],
+            "total":    total,
+            "page":     page,
+            "per_page": per_page,
+            "stats":    stats
+        }), 200
+
+    except Exception as e:
+        print(traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+
+
+@trainer_bp.route('/sessions/<int:session_id>', methods=['GET'])
+@jwt_required()
+def get_session_detail(session_id):
+    try:
+        trainer_id = get_jwt_identity()
+        s = Sesion.query.filter_by(id_sesion=session_id, id_entrenador=trainer_id).first()
+        if not s:
+            return jsonify({"error": "Sesión no encontrada"}), 404
+        return jsonify(_sesion_to_dict(s)), 200
+    except Exception as e:
+        print(traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+
+
+@trainer_bp.route('/sessions', methods=['POST'])
+@jwt_required()
+def create_session():
+    try:
+        trainer_id = get_jwt_identity()
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No se recibieron datos"}), 400
+
+        for field in ['fecha', 'hora_inicio']:
+            if field not in data:
+                return jsonify({"error": f"Campo requerido: {field}"}), 400
+
+        nueva = Sesion(
+            id_entrenador    = trainer_id,
+            id_miembro       = data.get('id_miembro'),
+            fecha            = datetime.strptime(data['fecha'], '%Y-%m-%d').date(),
+            hora_inicio      = datetime.strptime(data['hora_inicio'], '%H:%M').time(),
+            duracion_minutos = int(data.get('duracion_minutos', 60)),
+            tipo             = data.get('tipo', 'Personal'),
+            ubicacion        = data.get('ubicacion', ''),
+            estado           = 'scheduled',
+            nombre_sesion    = data.get('nombre_sesion', ''),
+            notas            = data.get('notas', ''),
+            num_ejercicios   = int(data.get('num_ejercicios', 0)),
+            asistencia       = False,
+        )
+        db.session.add(nueva)
+        db.session.commit()
+
+        return jsonify({"message": "Sesión creada", "id_sesion": nueva.id_sesion}), 201
+
+    except Exception as e:
+        db.session.rollback()
+        print(traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+
+
+@trainer_bp.route('/sessions/<int:session_id>', methods=['PUT'])
+@jwt_required()
+def update_session(session_id):
+    try:
+        trainer_id = get_jwt_identity()
+        s = Sesion.query.filter_by(id_sesion=session_id, id_entrenador=trainer_id).first()
+        if not s:
+            return jsonify({"error": "Sesión no encontrada"}), 404
+
+        data = request.get_json() or {}
+        if 'fecha'            in data: s.fecha            = datetime.strptime(data['fecha'], '%Y-%m-%d').date()
+        if 'hora_inicio'      in data: s.hora_inicio      = datetime.strptime(data['hora_inicio'], '%H:%M').time()
+        if 'duracion_minutos' in data: s.duracion_minutos = int(data['duracion_minutos'])
+        if 'tipo'             in data: s.tipo             = data['tipo']
+        if 'ubicacion'        in data: s.ubicacion        = data['ubicacion']
+        if 'estado'           in data: s.estado           = data['estado']
+        if 'nombre_sesion'    in data: s.nombre_sesion    = data['nombre_sesion']
+        if 'notas'            in data: s.notas            = data['notas']
+        if 'asistencia'       in data: s.asistencia       = bool(data['asistencia'])
+        if 'num_ejercicios'   in data: s.num_ejercicios   = int(data['num_ejercicios'])
+
+        db.session.commit()
+        return jsonify({"message": "Sesión actualizada"}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        print(traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+
+
+@trainer_bp.route('/sessions/<int:session_id>/status', methods=['PATCH'])
+@jwt_required()
+def update_session_status(session_id):
+    try:
+        trainer_id = get_jwt_identity()
+        s = Sesion.query.filter_by(id_sesion=session_id, id_entrenador=trainer_id).first()
+        if not s:
+            return jsonify({"error": "Sesión no encontrada"}), 404
+
+        data       = request.get_json() or {}
+        new_status = data.get('status')
+        valid      = ['scheduled', 'in-progress', 'completed', 'cancelled']
+
+        if new_status not in valid:
+            return jsonify({"error": f"Estado inválido. Opciones: {valid}"}), 400
+
+        s.estado = new_status
+        if new_status == 'completed':
+            s.asistencia = True
+
+        db.session.commit()
+        return jsonify({"message": f"Estado actualizado a {new_status}"}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        print(traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+
+
+@trainer_bp.route('/sessions/<int:session_id>', methods=['DELETE'])
+@jwt_required()
+def delete_session(session_id):
+    try:
+        trainer_id = get_jwt_identity()
+        s = Sesion.query.filter_by(id_sesion=session_id, id_entrenador=trainer_id).first()
+        if not s:
+            return jsonify({"error": "Sesión no encontrada"}), 404
+
+        db.session.delete(s)
+        db.session.commit()
+        return jsonify({"message": "Sesión eliminada"}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        print(traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+
+
+@trainer_bp.route('/members', methods=['GET'])
+@jwt_required()
+def get_trainer_members():
+    """Lista de miembros activos asignados al entrenador (para selector en formularios)"""
+    try:
+        trainer_id = get_jwt_identity()
+        miembros   = Miembro.query.filter_by(id_entrenador=trainer_id, estado='Activo').all()
+        members    = []
+        for m in miembros:
+            user = User.query.get(m.id_usuario) if m.id_usuario else None
+            members.append({
+                "id_miembro": m.id_miembro,
+                "nombre":     user.nombre if user else f"Miembro {m.id_miembro}",
+                "email":      user.email  if user else "",
+            })
+        return jsonify({"members": members}), 200
+
+    except Exception as e:
+        print(traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+
+
+# ═══════════════════════════════════════════════════════════════
+#  HELPERS PRIVADOS
+# ═══════════════════════════════════════════════════════════════
+
+_DIAS_ES = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+
+def _nombre_dia(d: date) -> str:
+    return _DIAS_ES[d.weekday()]
+
+
+def _get_client_name(s: Sesion) -> str:
+    """Resuelve el nombre para mostrar de una sesión"""
+    if s.nombre_sesion:
+        return s.nombre_sesion
+    if s.id_miembro:
+        m = Miembro.query.get(s.id_miembro)
+        if m and m.id_usuario:
+            u = User.query.get(m.id_usuario)
+            if u:
+                return u.nombre
+    return "Cliente sin asignar"
+
+
+def _sesion_to_dict(s: Sesion) -> dict:
+    return {
+        "id_sesion":    s.id_sesion,
+        "date":         s.fecha.isoformat()            if s.fecha        else None,
+        "time":         s.hora_inicio.strftime('%H:%M') if s.hora_inicio  else "00:00",
+        "client":       _get_client_name(s),
+        "type":         s.tipo,
+        "duration":     f"{s.duracion_minutos} min",
+        "duracion_minutos": s.duracion_minutos,
+        "location":     s.ubicacion       or "Sin ubicación",
+        "status":       s.estado,
+        "notes":        s.notas           or "",
+        "exercises":    s.num_ejercicios  or 0,
+        "attendance":   bool(s.asistencia),
+        "nombre_sesion": s.nombre_sesion  or "",
+        "id_miembro":   s.id_miembro,
+    }
+
+
+def _compute_stats(sessions: list) -> dict:
+    total = len(sessions)
+    if total == 0:
+        return {"total": 0, "completed": 0, "scheduled": 0,
+                "cancelled": 0, "in_progress": 0, "attendance_rate": 0}
+    completed   = sum(1 for s in sessions if s.estado == 'completed')
+    scheduled   = sum(1 for s in sessions if s.estado == 'scheduled')
+    cancelled   = sum(1 for s in sessions if s.estado == 'cancelled')
+    in_progress = sum(1 for s in sessions if s.estado == 'in-progress')
+    attended    = sum(1 for s in sessions if s.asistencia)
+    return {
+        "total":           total,
+        "completed":       completed,
+        "scheduled":       scheduled,
+        "cancelled":       cancelled,
+        "in_progress":     in_progress,
+        "attendance_rate": round((attended / total) * 100) if total else 0,
+    }
+
+
+# ═══════════════════════════════════════════════════════════════
+#  HELPERS DE CÁLCULO (ya existentes, sin cambios)
+# ═══════════════════════════════════════════════════════════════
 
 def calcular_racha_dias(id_miembro):
-    """Calcula la racha consecutiva de días de asistencia"""
     try:
         asistencias = Asistencia.query.filter_by(
             id_miembro=id_miembro
         ).order_by(desc(Asistencia.fecha)).all()
-        
         if not asistencias:
             return 0
-        
         racha = 0
         fecha_actual = datetime.now().date()
-        
         for asistencia in asistencias:
             if asistencia.fecha == fecha_actual or asistencia.fecha == fecha_actual - timedelta(days=racha):
                 racha += 1
                 fecha_actual = asistencia.fecha
             else:
                 break
-        
         return racha
     except Exception as e:
-        print(f"⚠️  Error calculando racha: {str(e)}")
+        print(f"  Error calculando racha: {str(e)}")
         return 0
 
+
 def calcular_progreso_porcentaje(miembro, progreso_inicial, progreso_actual):
-    """Calcula el porcentaje de progreso hacia el objetivo"""
     try:
         if not progreso_inicial or not progreso_actual or not miembro.peso_objetivo:
             return 0
-        
         peso_inicial = float(progreso_inicial.peso) if progreso_inicial.peso else 0
-        peso_actual = float(progreso_actual.peso) if progreso_actual.peso else 0
+        peso_actual  = float(progreso_actual.peso)  if progreso_actual.peso  else 0
         peso_objetivo = float(miembro.peso_objetivo)
-        
         if peso_inicial == peso_objetivo:
             return 100
-        
-        progreso = abs(peso_inicial - peso_actual)
+        progreso      = abs(peso_inicial - peso_actual)
         objetivo_total = abs(peso_inicial - peso_objetivo)
-        
         if objetivo_total == 0:
             return 100
-        
-        porcentaje = (progreso / objetivo_total) * 100
-        return min(round(porcentaje), 100)
+        return min(round((progreso / objetivo_total) * 100), 100)
     except Exception as e:
-        print(f"⚠️  Error calculando progreso: {str(e)}")
+        print(f"  Error calculando progreso: {str(e)}")
         return 0
 
+
 def calcular_tasa_asistencia(id_miembro):
-    """Calcula la tasa de asistencia de los últimos 30 días"""
     try:
         fecha_inicio = datetime.now().date() - timedelta(days=30)
-        
-        # Total de sesiones programadas
-        sesiones_programadas = Sesion.query.filter(
+        programadas  = Sesion.query.filter(
             Sesion.id_miembro == id_miembro,
             Sesion.fecha >= fecha_inicio,
             Sesion.estado.in_(['completed', 'cancelled'])
         ).count()
-        
-        if sesiones_programadas == 0:
+        if programadas == 0:
             return 0
-        
-        # Sesiones completadas
-        sesiones_completadas = Sesion.query.filter(
+        completadas = Sesion.query.filter(
             Sesion.id_miembro == id_miembro,
             Sesion.fecha >= fecha_inicio,
             Sesion.estado == 'completed'
         ).count()
-        
-        return round((sesiones_completadas / sesiones_programadas) * 100)
+        return round((completadas / programadas) * 100)
     except Exception as e:
-        print(f"⚠️  Error calculando asistencia: {str(e)}")
+        print(f"  Error calculando asistencia: {str(e)}")
         return 0
 
+
 def determinar_tendencia(progreso_inicial, progreso_actual):
-    """Determina la tendencia del progreso (up, down, stable)"""
     try:
         if not progreso_inicial or not progreso_actual:
             return 'stable'
-        
-        # Comparar pesos
         peso_inicial = float(progreso_inicial.peso) if progreso_inicial.peso else 0
-        peso_actual = float(progreso_actual.peso) if progreso_actual.peso else 0
-        
-        diferencia = peso_inicial - peso_actual
-        
-        if abs(diferencia) < 1:  # Menos de 1kg de diferencia
+        peso_actual  = float(progreso_actual.peso)  if progreso_actual.peso  else 0
+        diferencia   = peso_inicial - peso_actual
+        if abs(diferencia) < 1:
             return 'stable'
-        elif diferencia > 0:
-            return 'down'  # Perdió peso
-        else:
-            return 'up'  # Ganó peso
-    except Exception as e:
-        print(f"⚠️  Error determinando tendencia: {str(e)}")
+        return 'down' if diferencia > 0 else 'up'
+    except Exception:
         return 'stable'
 
+
 def determinar_estado_cliente(ultima_sesion, tasa_asistencia):
-    """Determina el estado del cliente (active, warning)"""
     try:
         if not ultima_sesion:
             return 'warning'
-        
-        dias_desde_ultima = (datetime.now().date() - ultima_sesion.fecha).days
-        
-        if dias_desde_ultima > 7 or tasa_asistencia < 70:
-            return 'warning'
-        
-        return 'active'
-    except Exception as e:
-        print(f"⚠️  Error determinando estado: {str(e)}")
+        dias = (datetime.now().date() - ultima_sesion.fecha).days
+        return 'warning' if dias > 7 or tasa_asistencia < 70 else 'active'
+    except Exception:
         return 'active'
 
+
 def calcular_edad(fecha_nacimiento):
-    """Calcula la edad a partir de la fecha de nacimiento"""
     try:
         if not fecha_nacimiento:
             return 0
-        
-        hoy = datetime.now().date()
+        hoy  = datetime.now().date()
         edad = hoy.year - fecha_nacimiento.year
-        
-        if hoy.month < fecha_nacimiento.month or (hoy.month == fecha_nacimiento.month and hoy.day < fecha_nacimiento.day):
+        if hoy.month < fecha_nacimiento.month or (
+            hoy.month == fecha_nacimiento.month and hoy.day < fecha_nacimiento.day
+        ):
             edad -= 1
-        
         return edad
-    except Exception as e:
-        print(f"⚠️  Error calculando edad: {str(e)}")
+    except Exception:
         return 0

@@ -23,175 +23,136 @@ const getHeaders = () => {
 };
 
 /**
- * Manejo de errores de la API
+ * Fetch genérico con manejo de errores y detección de HTML
  */
-const handleApiError = (error) => {
-  if (error.response) {
-    // El servidor respondió con un código de estado fuera del rango 2xx
-    throw new Error(error.response.data.message || 'Error en la petición');
-  } else if (error.request) {
-    // La petición fue hecha pero no se recibió respuesta
-    throw new Error('No se pudo conectar con el servidor');
-  } else {
-    // Algo pasó al configurar la petición
-    throw new Error('Error al procesar la petición');
+const apiFetch = async (url, options = {}) => {
+  const response = await fetch(url, {
+    ...options,
+    headers: getHeaders(),
+  });
+
+  const contentType = response.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    const text = await response.text();
+    throw new Error(
+      `El servidor no devolvió JSON (HTTP ${response.status}). ` +
+      `Verifica el proxy en package.json → "proxy": "http://localhost:5000". ` +
+      `Respuesta: ${text.slice(0, 100)}`
+    );
   }
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || data.message || 'Error en la petición');
+  }
+  return data;
 };
 
 /**
  * Servicio del Entrenador
  */
 export const trainerService = {
-  
-  /**
-   * Obtiene todos los clientes del entrenador con sus estadísticas
-   * @returns {Promise} Lista de clientes
-   */
+
+  // ─── CLIENTES ──────────────────────────────────────────────────────────────
+
   getClients: async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/trainer/clients`, {
-        method: 'GET',
-        headers: getHeaders()
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Error al obtener clientes');
-      }
-
-      const data = await response.json();
-      return data.clients;
-    } catch (error) {
-      handleApiError(error);
-      throw error;
-    }
+    const data = await apiFetch(`${API_BASE_URL}/trainer/clients`);
+    return data.clients;
   },
 
-  /**
-   * Obtiene el perfil del entrenador
-   * @returns {Promise} Datos del perfil
-   */
-  getProfile: async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/trainer/profile`, {
-        method: 'GET',
-        headers: getHeaders()
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Error al obtener perfil');
-      }
-
-      const data = await response.json();
-      return data.profile;
-    } catch (error) {
-      handleApiError(error);
-      throw error;
-    }
-  },
-
-  /**
-   * Actualiza el perfil del entrenador
-   * @param {Object} profileData - Datos del perfil a actualizar
-   * @returns {Promise} Respuesta de la actualización
-   */
-  updateProfile: async (profileData) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/trainer/profile`, {
-        method: 'PUT',
-        headers: getHeaders(),
-        body: JSON.stringify(profileData)
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Error al actualizar perfil');
-      }
-
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      handleApiError(error);
-      throw error;
-    }
-  },
-
-  /**
-   * Obtiene el historial de un cliente específico
-   * @param {number} clientId - ID del cliente
-   * @returns {Promise} Historial del cliente
-   */
   getClientHistory: async (clientId) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/trainer/clients/${clientId}/history`, {
-        method: 'GET',
-        headers: getHeaders()
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Error al obtener historial');
-      }
-
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      handleApiError(error);
-      throw error;
-    }
+    return await apiFetch(`${API_BASE_URL}/trainer/clients/${clientId}/history`);
   },
 
-  /**
-   * Actualiza el objetivo de un cliente
-   * @param {number} clientId - ID del cliente
-   * @param {Object} goalData - Datos del objetivo
-   * @returns {Promise} Respuesta de la actualización
-   */
   updateClientGoal: async (clientId, goalData) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/trainer/clients/${clientId}/goal`, {
-        method: 'PUT',
-        headers: getHeaders(),
-        body: JSON.stringify(goalData)
-      });
+    return await apiFetch(`${API_BASE_URL}/trainer/clients/${clientId}/goal`, {
+      method: 'PUT',
+      body: JSON.stringify(goalData),
+    });
+  },
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Error al actualizar objetivo');
-      }
+  // ─── PERFIL ────────────────────────────────────────────────────────────────
 
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      handleApiError(error);
-      throw error;
-    }
+  getProfile: async () => {
+    const data = await apiFetch(`${API_BASE_URL}/trainer/profile`);
+    return data.profile;
+  },
+
+  updateProfile: async (profileData) => {
+    return await apiFetch(`${API_BASE_URL}/trainer/profile`, {
+      method: 'PUT',
+      body: JSON.stringify(profileData),
+    });
+  },
+
+  // ─── ESTADÍSTICAS ──────────────────────────────────────────────────────────
+
+  getDashboardStats: async () => {
+    return await apiFetch(`${API_BASE_URL}/trainer/stats`);
+  },
+
+  // ─── AGENDA (SCHEDULE) ─────────────────────────────────────────────────────
+
+  /**
+   * Obtiene la agenda semanal agrupada por día
+   * @param {number} weekOffset  0 = semana actual, -1 = anterior, 1 = siguiente
+   */
+  getSchedule: async (weekOffset = 0) => {
+    return await apiFetch(
+      `${API_BASE_URL}/trainer/schedule?week_offset=${weekOffset}`
+    );
   },
 
   /**
-   * Obtiene estadísticas del dashboard del entrenador
-   * @returns {Promise} Estadísticas generales
+   * Lista de miembros activos del entrenador (para selector en formularios)
    */
-  getDashboardStats: async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/trainer/stats`, {
-        method: 'GET',
-        headers: getHeaders()
-      });
+  getMembers: async () => {
+    const data = await apiFetch(`${API_BASE_URL}/trainer/members`);
+    return data.members;
+  },
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Error al obtener estadísticas');
-      }
+  // ─── SESIONES ──────────────────────────────────────────────────────────────
 
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      handleApiError(error);
-      throw error;
-    }
-  }
+  /**
+   * Historial de sesiones con filtros
+   * @param {Object} params  { status, range, page, per_page }
+   */
+  getSessions: async ({ status = 'all', range = 'week', page = 1, per_page = 20 } = {}) => {
+    return await apiFetch(
+      `${API_BASE_URL}/trainer/sessions?status=${status}&range=${range}&page=${page}&per_page=${per_page}`
+    );
+  },
+
+  getSessionDetail: async (sessionId) => {
+    return await apiFetch(`${API_BASE_URL}/trainer/sessions/${sessionId}`);
+  },
+
+  createSession: async (sessionData) => {
+    return await apiFetch(`${API_BASE_URL}/trainer/sessions`, {
+      method: 'POST',
+      body: JSON.stringify(sessionData),
+    });
+  },
+
+  updateSession: async (sessionId, sessionData) => {
+    return await apiFetch(`${API_BASE_URL}/trainer/sessions/${sessionId}`, {
+      method: 'PUT',
+      body: JSON.stringify(sessionData),
+    });
+  },
+
+  updateSessionStatus: async (sessionId, newStatus) => {
+    return await apiFetch(`${API_BASE_URL}/trainer/sessions/${sessionId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: newStatus }),
+    });
+  },
+
+  deleteSession: async (sessionId) => {
+    return await apiFetch(`${API_BASE_URL}/trainer/sessions/${sessionId}`, {
+      method: 'DELETE',
+    });
+  },
 };
 
 export default trainerService;

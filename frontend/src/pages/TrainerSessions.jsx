@@ -1,495 +1,293 @@
-import { useState } from "react";
-import { motion } from "framer-motion";
-import { 
-  FiClock, 
-  FiCheckCircle, 
-  FiXCircle,
-  FiPlay,
-  FiPause,
-  FiFilter,
-  FiCalendar,
-  FiUser,
-  FiMapPin,
-  FiFileText
+import { useState, useEffect, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  FiClock, FiCheckCircle, FiXCircle, FiPlay, FiFilter,
+  FiUser, FiMapPin, FiFileText, FiAlertCircle, FiRefreshCw,
+  FiEdit2, FiTrash2, FiCheck, FiX
 } from "react-icons/fi";
+import trainerService from "../services/trainerService";
 import "../css/CSSUnificado.css";
 
-export default function TrainerSessions() {
-  const [filterStatus, setFilterStatus] = useState("all");
-  const [dateRange, setDateRange] = useState("week");
+// ─── Notes Modal ──────────────────────────────────────────────────────────────
+function NotesModal({ session, onClose, onSaved }) {
+  const [notes, setNotes] = useState(session.notes || "");
+  const [saving, setSaving] = useState(false);
 
-  const sessions = [
-    { 
-      id: 1, 
-      date: "2024-02-05", 
-      time: "08:00", 
-      client: "María González", 
-      type: "Personal", 
-      duration: "60 min",
-      location: "Sala 1",
-      status: "completed",
-      notes: "Excelente progreso en sentadillas. Aumentar peso próxima sesión.",
-      exercises: 8,
-      attendance: true
-    },
-    { 
-      id: 2, 
-      date: "2024-02-05", 
-      time: "10:00", 
-      client: "Grupo Funcional", 
-      type: "Grupal", 
-      duration: "90 min",
-      location: "Sala Principal",
-      status: "completed",
-      notes: "12 participantes. Circuito HIIT muy intenso.",
-      exercises: 10,
-      attendance: true
-    },
-    { 
-      id: 3, 
-      date: "2024-02-05", 
-      time: "14:00", 
-      client: "Ana Martínez", 
-      type: "Personal", 
-      duration: "45 min",
-      location: "Online",
-      status: "in-progress",
-      notes: "",
-      exercises: 6,
-      attendance: true
-    },
-    { 
-      id: 4, 
-      date: "2024-02-05", 
-      time: "16:00", 
-      client: "Luis Hernández", 
-      type: "Personal", 
-      duration: "60 min",
-      location: "Sala 2",
-      status: "scheduled",
-      notes: "",
-      exercises: 7,
-      attendance: false
-    },
-    { 
-      id: 5, 
-      date: "2024-02-04", 
-      time: "09:00", 
-      client: "Carlos Ruiz", 
-      type: "Personal", 
-      duration: "60 min",
-      location: "Sala 1",
-      status: "completed",
-      notes: "Trabajó fuerza de tren superior. Gran esfuerzo.",
-      exercises: 9,
-      attendance: true
-    },
-    { 
-      id: 6, 
-      date: "2024-02-04", 
-      time: "11:00", 
-      client: "Spinning Matutino", 
-      type: "Grupal", 
-      duration: "60 min",
-      location: "Sala Cycling",
-      status: "completed",
-      notes: "15 participantes. Clase de resistencia.",
-      exercises: 5,
-      attendance: true
-    },
-    { 
-      id: 7, 
-      date: "2024-02-04", 
-      time: "18:00", 
-      client: "Pedro Sánchez", 
-      type: "Personal", 
-      duration: "45 min",
-      location: "Sala 2",
-      status: "cancelled",
-      notes: "Cliente canceló por enfermedad.",
-      exercises: 0,
-      attendance: false
-    },
-    { 
-      id: 8, 
-      date: "2024-02-03", 
-      time: "08:00", 
-      client: "Sofía Torres", 
-      type: "Personal", 
-      duration: "60 min",
-      location: "Sala 1",
-      status: "completed",
-      notes: "Primera sesión del mes. Evaluación de progreso.",
-      exercises: 8,
-      attendance: true
-    },
-  ];
-
-  const filteredSessions = sessions.filter(session => {
-    if (filterStatus === "all") return true;
-    return session.status === filterStatus;
-  });
-
-  const getStatusColor = (status) => {
-    switch(status) {
-      case 'completed': return 'var(--success-color)';
-      case 'in-progress': return 'var(--accent-color)';
-      case 'scheduled': return '#38bdf8';
-      case 'cancelled': return 'var(--error-color)';
-      default: return 'var(--text-secondary)';
-    }
-  };
-
-  const getStatusText = (status) => {
-    switch(status) {
-      case 'completed': return 'Completada';
-      case 'in-progress': return 'En Curso';
-      case 'scheduled': return 'Programada';
-      case 'cancelled': return 'Cancelada';
-      default: return status;
-    }
-  };
-
-  const getStatusIcon = (status) => {
-    switch(status) {
-      case 'completed': return <FiCheckCircle />;
-      case 'in-progress': return <FiPlay />;
-      case 'scheduled': return <FiClock />;
-      case 'cancelled': return <FiXCircle />;
-      default: return <FiClock />;
-    }
-  };
-
-  const stats = {
-    total: sessions.length,
-    completed: sessions.filter(s => s.status === 'completed').length,
-    scheduled: sessions.filter(s => s.status === 'scheduled').length,
-    cancelled: sessions.filter(s => s.status === 'cancelled').length,
-    attendanceRate: Math.round((sessions.filter(s => s.attendance).length / sessions.length) * 100)
-  };
-
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { staggerChildren: 0.05 }
-    }
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0 }
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await trainerService.updateSession(session.id_sesion, { notas: notes });
+      onSaved(); onClose();
+    } catch (e) { alert(`Error: ${e.message}`); }
+    finally { setSaving(false); }
   };
 
   return (
-    <div className="dashboard-content">
-      <motion.div 
-        className="welcome-section"
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5 }}
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.75)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <motion.div initial={{ opacity: 0, scale: 0.92, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.92 }}
+        style={{ background: "var(--bg-card-dark)", border: "1px solid var(--border-dark)", borderRadius: "18px", padding: "28px", width: "100%", maxWidth: "460px" }}
       >
+        <h3 style={{ marginBottom: "8px", fontSize: "18px", fontWeight: "700" }}>Editar Notas</h3>
+        <p style={{ fontSize: "13px", color: "var(--text-secondary)", marginBottom: "20px" }}>{session.client} — {session.time}</p>
+        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="form-input" rows={5} style={{ resize: "vertical", width: "100%" }} placeholder="Agregar notas de la sesión..." />
+        <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
+          <motion.button onClick={onClose} className="btn-outline-small" style={{ flex: 1, padding: "10px" }} whileTap={{ scale: 0.97 }}>Cancelar</motion.button>
+          <motion.button onClick={handleSave} className="btn-compact-primary" style={{ flex: 2, padding: "10px" }} disabled={saving} whileTap={{ scale: 0.97 }}>
+            <FiCheck size={14} /> {saving ? "Guardando..." : "Guardar Notas"}
+          </motion.button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ─── Delete Modal ─────────────────────────────────────────────────────────────
+function DeleteModal({ session, onClose, onDeleted }) {
+  const [deleting, setDeleting] = useState(false);
+  const handleDelete = async () => {
+    setDeleting(true);
+    try { await trainerService.deleteSession(session.id_sesion); onDeleted(); onClose(); }
+    catch (e) { alert(`Error: ${e.message}`); }
+    finally { setDeleting(false); }
+  };
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.75)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <motion.div initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.92 }}
+        style={{ background: "var(--bg-card-dark)", border: "1px solid var(--error-color)", borderRadius: "18px", padding: "28px", width: "100%", maxWidth: "400px", textAlign: "center" }}
+      >
+        <FiTrash2 size={40} style={{ color: "var(--error-color)", marginBottom: "16px" }} />
+        <h3 style={{ marginBottom: "8px", fontSize: "18px", fontWeight: "700" }}>Eliminar Sesión</h3>
+        <p style={{ fontSize: "13px", color: "var(--text-secondary)", marginBottom: "24px" }}>
+          ¿Eliminar la sesión de <strong>{session.client}</strong>? Esta acción no se puede deshacer.
+        </p>
+        <div style={{ display: "flex", gap: "10px" }}>
+          <motion.button onClick={onClose} className="btn-outline-small" style={{ flex: 1, padding: "10px" }} whileTap={{ scale: 0.97 }}>Cancelar</motion.button>
+          <motion.button onClick={handleDelete} disabled={deleting} whileTap={{ scale: 0.97 }}
+            style={{ flex: 1, padding: "10px", background: "var(--error-color)", color: "#fff", border: "none", borderRadius: "8px", cursor: deleting ? "not-allowed" : "pointer", fontWeight: "600", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", opacity: deleting ? 0.7 : 1 }}>
+            <FiTrash2 size={14} /> {deleting ? "Eliminando..." : "Eliminar"}
+          </motion.button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ─── Main ─────────────────────────────────────────────────────────────────────
+export default function TrainerSessions() {
+  const [filterStatus, setFilterStatus]       = useState("all");
+  const [dateRange, setDateRange]             = useState("week");
+  const [sessions, setSessions]               = useState([]);
+  const [stats, setStats]                     = useState({ total: 0, completed: 0, scheduled: 0, cancelled: 0, in_progress: 0, attendance_rate: 0 });
+  const [loading, setLoading]                 = useState(true);
+  const [error, setError]                     = useState("");
+  const [actionLoading, setActionLoading]     = useState(null);
+  const [editNotesSession, setEditNotesSession] = useState(null);
+  const [deleteSession, setDeleteSession]     = useState(null);
+  const [total, setTotal]                     = useState(0);
+  const [page, setPage]                       = useState(1);
+  const perPage = 20;
+
+  const fetchSessions = useCallback(async () => {
+    setLoading(true); setError("");
+    try {
+      const data = await trainerService.getSessions({ status: filterStatus, range: dateRange, page, per_page: perPage });
+      setSessions(data.sessions || []);
+      setStats(data.stats || {});
+      setTotal(data.total || 0);
+    } catch (e) { setError(e.message); }
+    finally { setLoading(false); }
+  }, [filterStatus, dateRange, page]);
+
+  useEffect(() => { setPage(1); }, [filterStatus, dateRange]);
+  useEffect(() => { fetchSessions(); }, [fetchSessions]);
+
+  const handleStatusUpdate = async (sessionId, newStatus) => {
+    setActionLoading(sessionId);
+    try { await trainerService.updateSessionStatus(sessionId, newStatus); fetchSessions(); }
+    catch (e) { alert(`Error: ${e.message}`); }
+    finally { setActionLoading(null); }
+  };
+
+  const statusColor = (s) => ({ completed: "var(--success-color)", "in-progress": "var(--accent-color)", scheduled: "#38bdf8", cancelled: "var(--error-color)" }[s] || "var(--text-secondary)");
+  const statusText  = (s) => ({ completed: "Completada", "in-progress": "En Curso", scheduled: "Programada", cancelled: "Cancelada" }[s] || s);
+  const statusIcon  = (s) => ({ completed: <FiCheckCircle />, "in-progress": <FiPlay />, scheduled: <FiClock />, cancelled: <FiXCircle /> }[s] || <FiClock />);
+
+  const cv = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.05 } } };
+  const iv = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } };
+
+  const filterBtns = [
+    { value: "all", label: "Todas" },
+    { value: "completed", label: "Completadas" },
+    { value: "in-progress", label: "En Curso" },
+    { value: "scheduled", label: "Programadas" },
+    { value: "cancelled", label: "Canceladas" },
+  ];
+  const rangeBtns = [
+    { value: "today", label: "Hoy" },
+    { value: "week", label: "Semana" },
+    { value: "month", label: "Mes" },
+  ];
+
+  return (
+    <div className="dashboard-content">
+      <motion.div className="welcome-section" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5 }}>
         <div className="welcome-content">
-          <div className="welcome-text">
-            <h2>Historial de Sesiones</h2>
-            <p>Monitorea y gestiona todas tus sesiones de entrenamiento</p>
-          </div>
-          <FiClock size={50} style={{ color: 'var(--accent-color)', opacity: 0.8 }} />
+          <div className="welcome-text"><h2>Historial de Sesiones</h2><p>Monitorea y gestiona todas tus sesiones de entrenamiento</p></div>
+          <FiClock size={50} style={{ color: "var(--accent-color)", opacity: 0.8 }} />
         </div>
       </motion.div>
 
-      {/* KPIs de Sesiones */}
-      <motion.div 
-        className="kpi-grid" 
-        style={{ marginTop: '25px', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-      >
-        <motion.div className="stat-card highlight-border" variants={itemVariants}>
-          <div className="stat-header">
-            <h3>Total Sesiones</h3>
-          </div>
-          <div className="stat-value highlight">{stats.total}</div>
-          <div className="stat-detail">Esta semana</div>
-        </motion.div>
-
-        <motion.div className="stat-card" variants={itemVariants}>
-          <div className="stat-header">
-            <h3>Completadas</h3>
-            <span className="trend positive">
-              <FiCheckCircle size={16} />
-            </span>
-          </div>
-          <div className="stat-value">{stats.completed}</div>
-          <div className="stat-detail">{Math.round((stats.completed / stats.total) * 100)}% del total</div>
-        </motion.div>
-
-        <motion.div className="stat-card" variants={itemVariants}>
-          <div className="stat-header">
-            <h3>Programadas</h3>
-            <span className="trend warning">
-              <FiClock size={16} />
-            </span>
-          </div>
-          <div className="stat-value">{stats.scheduled}</div>
-          <div className="stat-detail">Próximas sesiones</div>
-        </motion.div>
-
-        <motion.div className="stat-card" variants={itemVariants}>
-          <div className="stat-header">
-            <h3>Canceladas</h3>
-            <span className="trend" style={{ color: 'var(--error-color)' }}>
-              <FiXCircle size={16} />
-            </span>
-          </div>
-          <div className="stat-value">{stats.cancelled}</div>
-          <div className="stat-detail">{Math.round((stats.cancelled / stats.total) * 100)}% del total</div>
-        </motion.div>
-
-        <motion.div className="stat-card" variants={itemVariants}>
-          <div className="stat-header">
-            <h3>Asistencia</h3>
-            <span className="trend positive">+5%</span>
-          </div>
-          <div className="stat-value highlight">{stats.attendanceRate}%</div>
-          <div className="stat-detail">Tasa de asistencia</div>
-        </motion.div>
+      {/* KPIs */}
+      <motion.div className="kpi-grid" style={{ marginTop: "25px", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }} variants={cv} initial="hidden" animate="visible">
+        {[
+          { title: "Total Sesiones",  value: stats.total,           detail: "Periodo seleccionado", highlight: true },
+          { title: "Completadas",     value: stats.completed,       detail: `${stats.total ? Math.round((stats.completed/stats.total)*100) : 0}% del total`, icon: <FiCheckCircle size={16} />, trend: "positive" },
+          { title: "Programadas",     value: stats.scheduled,       detail: "Próximas sesiones",    icon: <FiClock size={16} />, trend: "warning" },
+          { title: "Canceladas",      value: stats.cancelled,       detail: `${stats.total ? Math.round((stats.cancelled/stats.total)*100) : 0}% del total` },
+          { title: "Asistencia",      value: `${stats.attendance_rate}%`, detail: "Tasa de asistencia", highlight: true },
+        ].map((kpi, i) => (
+          <motion.div key={i} className={`stat-card ${kpi.highlight ? "highlight-border" : ""}`} variants={iv}>
+            <div className="stat-header">
+              <h3>{kpi.title}</h3>
+              {kpi.icon && <span className={`trend ${kpi.trend || ""}`}>{kpi.icon}</span>}
+            </div>
+            <div className={`stat-value ${kpi.highlight ? "highlight" : ""}`}>{loading ? "—" : kpi.value}</div>
+            <div className="stat-detail">{kpi.detail}</div>
+          </motion.div>
+        ))}
       </motion.div>
 
-      {/* Filtros */}
-      <motion.div 
-        className="chart-card"
-        style={{ marginTop: '25px' }}
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-      >
-        <div style={{ display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <FiFilter size={18} style={{ color: 'var(--text-secondary)' }} />
-            <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-secondary)' }}>
-              Estado:
-            </span>
-          </div>
-          <div style={{ display: 'flex', gap: '8px', flex: 1, flexWrap: 'wrap' }}>
-            {[
-              { value: 'all', label: 'Todas', count: stats.total },
-              { value: 'completed', label: 'Completadas', count: stats.completed },
-              { value: 'in-progress', label: 'En Curso', count: sessions.filter(s => s.status === 'in-progress').length },
-              { value: 'scheduled', label: 'Programadas', count: stats.scheduled },
-              { value: 'cancelled', label: 'Canceladas', count: stats.cancelled }
-            ].map(filter => (
-              <motion.button
-                key={filter.value}
-                className={`btn-outline-small ${filterStatus === filter.value ? 'active' : ''}`}
-                onClick={() => setFilterStatus(filter.value)}
-                style={{
-                  background: filterStatus === filter.value ? 'var(--accent-color)' : 'transparent',
-                  color: filterStatus === filter.value ? 'var(--text-on-accent)' : 'var(--text-secondary)',
-                  borderColor: filterStatus === filter.value ? 'var(--accent-color)' : 'var(--border-dark)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                {filter.label}
-                <span style={{ 
-                  background: filterStatus === filter.value ? 'rgba(0,0,0,0.2)' : 'var(--input-bg-dark)',
-                  padding: '2px 6px',
-                  borderRadius: '4px',
-                  fontSize: '11px',
-                  fontWeight: '700'
-                }}>
-                  {filter.count}
-                </span>
+      {/* Filters */}
+      <motion.div className="chart-card" style={{ marginTop: "25px" }} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+        <div style={{ display: "flex", gap: "20px", flexWrap: "wrap", alignItems: "flex-start" }}>
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
+            <FiFilter size={16} style={{ color: "var(--text-secondary)" }} />
+            <span style={{ fontSize: "13px", fontWeight: "600", color: "var(--text-secondary)" }}>Estado:</span>
+            {filterBtns.map(f => (
+              <motion.button key={f.value} className="btn-outline-small" onClick={() => setFilterStatus(f.value)}
+                style={{ background: filterStatus === f.value ? "var(--accent-color)" : "transparent", color: filterStatus === f.value ? "var(--text-on-accent)" : "var(--text-secondary)", borderColor: filterStatus === f.value ? "var(--accent-color)" : "var(--border-dark)" }}
+                whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>{f.label}
               </motion.button>
             ))}
           </div>
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
+            <span style={{ fontSize: "13px", fontWeight: "600", color: "var(--text-secondary)" }}>Periodo:</span>
+            {rangeBtns.map(r => (
+              <motion.button key={r.value} className="btn-outline-small" onClick={() => setDateRange(r.value)}
+                style={{ background: dateRange === r.value ? "var(--accent-color)" : "transparent", color: dateRange === r.value ? "var(--text-on-accent)" : "var(--text-secondary)", borderColor: dateRange === r.value ? "var(--accent-color)" : "var(--border-dark)" }}
+                whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>{r.label}
+              </motion.button>
+            ))}
+          </div>
+          <motion.button className="icon-btn" onClick={fetchSessions} style={{ marginLeft: "auto" }} title="Actualizar" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+            <FiRefreshCw size={16} style={{ animation: loading ? "spin 1s linear infinite" : "none" }} />
+          </motion.button>
         </div>
       </motion.div>
 
-      {/* Lista de Sesiones */}
-      <motion.div 
-        className="chart-card"
-        style={{ marginTop: '20px' }}
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-      >
-        <div className="chart-header">
-          <h3>Sesiones ({filteredSessions.length})</h3>
+      {error && (
+        <div style={{ background: "rgba(255,59,48,0.1)", border: "1px solid var(--error-color)", borderRadius: "10px", padding: "14px 18px", marginTop: "16px", color: "var(--error-color)", fontSize: "13px", display: "flex", gap: "10px", alignItems: "center" }}>
+          <FiAlertCircle size={16} /> {error}
+          <button onClick={fetchSessions} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "var(--error-color)", textDecoration: "underline" }}>Reintentar</button>
         </div>
+      )}
 
-        <motion.div 
-          style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
-        >
-          {filteredSessions.map((session, idx) => (
-            <motion.div
-              key={session.id}
-              variants={itemVariants}
-              style={{
-                background: 'var(--input-bg-dark)',
-                border: `1px solid var(--border-dark)`,
-                borderLeft: `4px solid ${getStatusColor(session.status)}`,
-                borderRadius: '12px',
-                padding: '20px',
-                display: 'grid',
-                gridTemplateColumns: 'auto 1fr auto',
-                gap: '20px',
-                alignItems: 'center',
-                opacity: session.status === 'cancelled' ? 0.6 : 1
-              }}
-              whileHover={{ 
-                borderColor: 'var(--accent-color)',
-                transform: 'translateX(5px)'
-              }}
-            >
-              {/* Fecha y Hora */}
-              <div style={{ 
-                display: 'flex', 
-                flexDirection: 'column', 
-                alignItems: 'center',
-                gap: '8px',
-                minWidth: '80px'
-              }}>
-                <div style={{ 
-                  fontSize: '24px', 
-                  fontWeight: '700',
-                  color: 'var(--accent-color)'
-                }}>
-                  {session.time}
-                </div>
-                <div style={{ 
-                  fontSize: '11px', 
-                  color: 'var(--text-secondary)',
-                  textAlign: 'center'
-                }}>
-                  {new Date(session.date).toLocaleDateString('es-ES', { 
-                    day: 'numeric', 
-                    month: 'short' 
-                  })}
-                </div>
-                <div style={{
-                  width: '40px',
-                  height: '40px',
-                  borderRadius: '50%',
-                  background: `${getStatusColor(session.status)}20`,
-                  color: getStatusColor(session.status),
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '18px'
-                }}>
-                  {getStatusIcon(session.status)}
-                </div>
-              </div>
+      {/* Sessions List */}
+      <motion.div className="chart-card" style={{ marginTop: "20px" }} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+        <div className="chart-header"><h3>Sesiones ({total})</h3></div>
 
-              {/* Detalles */}
-              <div>
-                <h4 style={{ 
-                  fontSize: '16px', 
-                  fontWeight: '600',
-                  marginBottom: '8px',
-                  textDecoration: session.status === 'cancelled' ? 'line-through' : 'none'
-                }}>
-                  {session.client}
-                </h4>
-                <div style={{ 
-                  display: 'flex', 
-                  gap: '15px',
-                  fontSize: '13px',
-                  color: 'var(--text-secondary)',
-                  marginBottom: '10px',
-                  flexWrap: 'wrap'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <FiUser size={14} />
-                    {session.type}
+        {loading ? (
+          <div style={{ display: "flex", justifyContent: "center", padding: "50px" }}>
+            <motion.div className="spinner" animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }} />
+          </div>
+        ) : (
+          <motion.div style={{ marginTop: "20px", display: "flex", flexDirection: "column", gap: "12px" }} variants={cv} initial="hidden" animate="visible">
+            {sessions.map((session) => (
+              <motion.div key={session.id_sesion} variants={iv}
+                style={{ background: "var(--input-bg-dark)", border: "1px solid var(--border-dark)", borderLeft: `4px solid ${statusColor(session.status)}`, borderRadius: "12px", padding: "20px", display: "grid", gridTemplateColumns: "auto 1fr auto", gap: "20px", alignItems: "center", opacity: session.status === "cancelled" ? 0.6 : 1 }}
+                whileHover={{ borderColor: "var(--accent-color)", transform: "translateX(5px)" }}
+              >
+                {/* Date + icon */}
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", minWidth: "80px" }}>
+                  <div style={{ fontSize: "24px", fontWeight: "700", color: "var(--accent-color)" }}>{session.time}</div>
+                  <div style={{ fontSize: "11px", color: "var(--text-secondary)", textAlign: "center" }}>
+                    {new Date(session.date + "T00:00:00").toLocaleDateString("es-ES", { day: "numeric", month: "short" })}
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <FiClock size={14} />
-                    {session.duration}
+                  <div style={{ width: "38px", height: "38px", borderRadius: "50%", background: `${statusColor(session.status)}20`, color: statusColor(session.status), display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px" }}>
+                    {statusIcon(session.status)}
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <FiMapPin size={14} />
-                    {session.location}
+                </div>
+
+                {/* Details */}
+                <div>
+                  <h4 style={{ fontSize: "16px", fontWeight: "600", marginBottom: "8px", textDecoration: session.status === "cancelled" ? "line-through" : "none" }}>{session.client}</h4>
+                  <div style={{ display: "flex", gap: "14px", fontSize: "13px", color: "var(--text-secondary)", marginBottom: "8px", flexWrap: "wrap" }}>
+                    <span style={{ display: "flex", alignItems: "center", gap: "5px" }}><FiUser size={13} />{session.type}</span>
+                    <span style={{ display: "flex", alignItems: "center", gap: "5px" }}><FiClock size={13} />{session.duration}</span>
+                    <span style={{ display: "flex", alignItems: "center", gap: "5px" }}><FiMapPin size={13} />{session.location}</span>
+                    {session.exercises > 0 && <span style={{ display: "flex", alignItems: "center", gap: "5px" }}><FiFileText size={13} />{session.exercises} ejercicios</span>}
+                    {session.attendance && <span style={{ padding: "2px 8px", background: "rgba(76,217,100,0.1)", color: "var(--success-color)", borderRadius: "5px", fontSize: "11px", fontWeight: "600" }}>✓ Asistió</span>}
                   </div>
-                  {session.exercises > 0 && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <FiFileText size={14} />
-                      {session.exercises} ejercicios
-                    </div>
+                  {session.notes && (
+                    <div style={{ fontSize: "12px", color: "var(--text-secondary)", fontStyle: "italic", background: "var(--bg-card-dark)", padding: "8px 12px", borderRadius: "6px", borderLeft: "2px solid var(--accent-color)" }}>{session.notes}</div>
                   )}
                 </div>
-                {session.notes && (
-                  <div style={{ 
-                    fontSize: '12px',
-                    color: 'var(--text-secondary)',
-                    fontStyle: 'italic',
-                    background: 'var(--bg-card-dark)',
-                    padding: '8px 12px',
-                    borderRadius: '6px',
-                    borderLeft: '2px solid var(--accent-color)'
-                  }}>
-                    {session.notes}
+
+                {/* Status + actions */}
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", minWidth: "110px" }}>
+                  <div style={{ padding: "5px 12px", background: `${statusColor(session.status)}20`, color: statusColor(session.status), borderRadius: "8px", fontSize: "12px", fontWeight: "600" }}>{statusText(session.status)}</div>
+                  <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", justifyContent: "center" }}>
+                    {session.status === "scheduled" && (
+                      <motion.button className="btn-compact-primary" style={{ fontSize: "11px", padding: "5px 10px" }} onClick={() => handleStatusUpdate(session.id_sesion, "in-progress")} disabled={actionLoading === session.id_sesion} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                        <FiPlay size={11} /> Iniciar
+                      </motion.button>
+                    )}
+                    {session.status === "in-progress" && (
+                      <motion.button className="btn-compact-primary" style={{ fontSize: "11px", padding: "5px 10px" }} onClick={() => handleStatusUpdate(session.id_sesion, "completed")} disabled={actionLoading === session.id_sesion} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                        <FiCheckCircle size={11} /> Finalizar
+                      </motion.button>
+                    )}
+                    <motion.button className="icon-btn" onClick={() => setEditNotesSession(session)} title="Editar notas" style={{ width: "30px", height: "30px" }} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}><FiEdit2 size={13} /></motion.button>
+                    <motion.button className="icon-btn danger" onClick={() => setDeleteSession(session)} title="Eliminar" style={{ width: "30px", height: "30px" }} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}><FiTrash2 size={13} /></motion.button>
                   </div>
-                )}
-              </div>
-
-              {/* Estado */}
-              <div style={{ textAlign: 'center', minWidth: '100px' }}>
-                <div style={{ 
-                  padding: '6px 12px',
-                  background: `${getStatusColor(session.status)}20`,
-                  color: getStatusColor(session.status),
-                  borderRadius: '8px',
-                  fontSize: '12px',
-                  fontWeight: '600',
-                  marginBottom: '8px'
-                }}>
-                  {getStatusText(session.status)}
                 </div>
-                {session.status === 'scheduled' && (
-                  <motion.button
-                    className="btn-compact-primary"
-                    style={{ fontSize: '11px', padding: '6px 12px' }}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    <FiPlay size={12} />
-                    Iniciar
-                  </motion.button>
-                )}
-                {session.status === 'in-progress' && (
-                  <motion.button
-                    className="btn-compact-primary"
-                    style={{ fontSize: '11px', padding: '6px 12px' }}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    <FiPause size={12} />
-                    Pausar
-                  </motion.button>
-                )}
-              </div>
-            </motion.div>
-          ))}
-        </motion.div>
+              </motion.div>
+            ))}
+          </motion.div>
+        )}
 
-        {filteredSessions.length === 0 && (
+        {/* Pagination */}
+        {!loading && total > perPage && (
+          <div style={{ display: "flex", justifyContent: "center", gap: "10px", marginTop: "24px", alignItems: "center" }}>
+            <motion.button className="btn-outline-small" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} style={{ opacity: page === 1 ? 0.4 : 1 }} whileTap={{ scale: 0.95 }}>Anterior</motion.button>
+            <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>Página {page} de {Math.ceil(total / perPage)}</span>
+            <motion.button className="btn-outline-small" onClick={() => setPage(p => p + 1)} disabled={page >= Math.ceil(total / perPage)} style={{ opacity: page >= Math.ceil(total / perPage) ? 0.4 : 1 }} whileTap={{ scale: 0.95 }}>Siguiente</motion.button>
+          </div>
+        )}
+
+        {!loading && sessions.length === 0 && (
           <div className="empty-state">
-            <FiClock size={48} style={{ opacity: 0.3, marginBottom: '15px' }} />
+            <FiClock size={48} style={{ opacity: 0.3, marginBottom: "15px" }} />
             <h3>No hay sesiones</h3>
-            <p>No se encontraron sesiones con el filtro seleccionado</p>
+            <p>No se encontraron sesiones con los filtros seleccionados</p>
           </div>
         )}
       </motion.div>
+
+      <AnimatePresence>
+        {editNotesSession && <NotesModal session={editNotesSession} onClose={() => setEditNotesSession(null)} onSaved={fetchSessions} />}
+      </AnimatePresence>
+      <AnimatePresence>
+        {deleteSession && <DeleteModal session={deleteSession} onClose={() => setDeleteSession(null)} onDeleted={fetchSessions} />}
+      </AnimatePresence>
+
+      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
