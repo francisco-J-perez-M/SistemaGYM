@@ -1,19 +1,7 @@
-/**
- * Servicio de API para el Dashboard del Entrenador
- */
-
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
-/**
- * Obtiene el token de autenticación del localStorage
- */
-const getAuthToken = () => {
-  return localStorage.getItem('token');
-};
+const getAuthToken = () => localStorage.getItem('token');
 
-/**
- * Headers por defecto para las peticiones
- */
 const getHeaders = () => {
   const token = getAuthToken();
   return {
@@ -22,9 +10,6 @@ const getHeaders = () => {
   };
 };
 
-/**
- * Fetch genérico con manejo de errores y detección de HTML
- */
 const apiFetch = async (url, options = {}) => {
   const response = await fetch(url, {
     ...options,
@@ -48,9 +33,6 @@ const apiFetch = async (url, options = {}) => {
   return data;
 };
 
-/**
- * Servicio del Entrenador
- */
 export const trainerService = {
 
   // ─── CLIENTES ──────────────────────────────────────────────────────────────
@@ -85,7 +67,7 @@ export const trainerService = {
     });
   },
 
-  // ─── ESTADÍSTICAS ──────────────────────────────────────────────────────────
+  // ─── ESTADÍSTICAS GENERALES ────────────────────────────────────────────────
 
   getDashboardStats: async () => {
     return await apiFetch(`${API_BASE_URL}/trainer/stats`);
@@ -93,19 +75,12 @@ export const trainerService = {
 
   // ─── AGENDA (SCHEDULE) ─────────────────────────────────────────────────────
 
-  /**
-   * Obtiene la agenda semanal agrupada por día
-   * @param {number} weekOffset  0 = semana actual, -1 = anterior, 1 = siguiente
-   */
   getSchedule: async (weekOffset = 0) => {
     return await apiFetch(
       `${API_BASE_URL}/trainer/schedule?week_offset=${weekOffset}`
     );
   },
 
-  /**
-   * Lista de miembros activos del entrenador (para selector en formularios)
-   */
   getMembers: async () => {
     const data = await apiFetch(`${API_BASE_URL}/trainer/members`);
     return data.members;
@@ -113,10 +88,6 @@ export const trainerService = {
 
   // ─── SESIONES ──────────────────────────────────────────────────────────────
 
-  /**
-   * Historial de sesiones con filtros
-   * @param {Object} params  { status, range, page, per_page }
-   */
   getSessions: async ({ status = 'all', range = 'week', page = 1, per_page = 20 } = {}) => {
     return await apiFetch(
       `${API_BASE_URL}/trainer/sessions?status=${status}&range=${range}&page=${page}&per_page=${per_page}`
@@ -152,6 +123,68 @@ export const trainerService = {
     return await apiFetch(`${API_BASE_URL}/trainer/sessions/${sessionId}`, {
       method: 'DELETE',
     });
+  },
+
+  // ─── BIBLIOTECA DE RUTINAS ─────────────────────────────────────────────────
+
+  /**
+   * Lista todas las rutinas del entrenador.
+   * @param {Object} params  { category, search }
+   */
+  getRoutines: async ({ category = 'all', search = '' } = {}) => {
+    const params = new URLSearchParams({ category, search });
+    const data = await apiFetch(`${API_BASE_URL}/trainer/routines?${params}`);
+    return data;
+  },
+
+  getRoutineDetail: async (routineId) => {
+    const data = await apiFetch(`${API_BASE_URL}/trainer/routines/${routineId}`);
+    return data.routine;
+  },
+
+  /**
+   * Crea una rutina completa.
+   * @param {Object} routineData
+   * {
+   *   name, category, difficulty, duration_minutes, description,
+   *   days: [{ day, muscleGroup, exercises: [{ name, sets, reps, peso, notes }] }]
+   * }
+   */
+  createRoutine: async (routineData) => {
+    return await apiFetch(`${API_BASE_URL}/trainer/routines`, {
+      method: 'POST',
+      body: JSON.stringify(routineData),
+    });
+  },
+
+  updateRoutine: async (routineId, routineData) => {
+    return await apiFetch(`${API_BASE_URL}/trainer/routines/${routineId}`, {
+      method: 'PUT',
+      body: JSON.stringify(routineData),
+    });
+  },
+
+  deleteRoutine: async (routineId) => {
+    return await apiFetch(`${API_BASE_URL}/trainer/routines/${routineId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  duplicateRoutine: async (routineId) => {
+    return await apiFetch(`${API_BASE_URL}/trainer/routines/${routineId}/duplicate`, {
+      method: 'POST',
+    });
+  },
+
+  // ─── REPORTES Y ESTADÍSTICAS ───────────────────────────────────────────────
+
+  /**
+   * Obtiene todos los datos de reportes para el rango indicado.
+   * @param {string} range  week | month | quarter | year
+   */
+  getReports: async (range = 'month') => {
+    const data = await apiFetch(`${API_BASE_URL}/trainer/reports?range=${range}`);
+    return data;
   },
 };
 

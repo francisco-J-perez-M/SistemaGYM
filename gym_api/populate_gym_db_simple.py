@@ -442,7 +442,7 @@ def crear_miembros_premium(cursor, conn, id_role_miembro, id_entrenador, membres
         
         # 7. Crear Rutina de Entrenamiento
         print(f"      🏋️ Creando rutina de entrenamiento...")
-        crear_rutina_miembro(cursor, conn, id_miembro, sexo, tipo_dieta_nombre)
+        crear_rutina_miembro(cursor, conn, id_miembro, id_entrenador, sexo, tipo_dieta_nombre)
         
         # 8. Crear Plan Alimenticio
         print(f"      🥗 Creando plan alimenticio ({tipo_dieta_nombre})...")
@@ -585,8 +585,7 @@ def generar_progreso_fisico(cursor, conn, id_miembro, sexo, peso_inicial, estatu
         muslo_derecho, muslo_izquierdo, pantorrilla, fecha_registro) 
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """, progresos)
-
-def crear_rutina_miembro(cursor, conn, id_miembro, sexo, tipo_dieta):
+def crear_rutina_miembro(cursor, conn, id_miembro, id_entrenador, sexo, tipo_dieta):
     """Crea una rutina de entrenamiento personalizada para el miembro"""
     
     # Determinar objetivo según el tipo de dieta
@@ -603,13 +602,14 @@ def crear_rutina_miembro(cursor, conn, id_miembro, sexo, tipo_dieta):
     objetivo = objetivos.get(tipo_dieta, 'Mejora general fitness')
     nombre_rutina = f"Rutina {tipo_dieta.split()[0]}"
     
-    # Crear rutina
+    # Crear rutina - AHORA INCLUYE id_entrenador
     cursor.execute("""
-        INSERT INTO rutinas (id_miembro, nombre, objetivo, activa, fecha_creacion)
-        VALUES (%s, %s, %s, %s, %s)
-    """, (id_miembro, nombre_rutina, objetivo, 1, datetime.now() - timedelta(days=30)))
+        INSERT INTO rutinas (id_miembro, id_entrenador, nombre, objetivo, activa, fecha_creacion)
+        VALUES (%s, %s, %s, %s, %s, %s)
+    """, (id_miembro, id_entrenador, nombre_rutina, objetivo, 1, datetime.now() - timedelta(days=30)))
     id_rutina = cursor.lastrowid
     
+    # Resto del código igual...
     # Rutinas según objetivo
     if 'Hipercalórica' in tipo_dieta or 'masa' in objetivo.lower():
         # Rutina de volumen - 5 días
