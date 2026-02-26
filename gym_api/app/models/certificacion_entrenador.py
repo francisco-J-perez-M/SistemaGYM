@@ -1,26 +1,56 @@
-from app.extensions import db
-from datetime import datetime
+from datetime import datetime, timezone
+from bson.objectid import ObjectId
+from app.mongo import get_db
 
-class CertificacionEntrenador(db.Model):
-    __tablename__ = 'certificaciones_entrenador'
-    
-    id_certificacion = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    id_entrenador = db.Column(db.Integer, db.ForeignKey('usuarios.id_usuario'), nullable=False)
-    nombre = db.Column(db.String(150), nullable=False)
-    institucion = db.Column(db.String(150))
-    fecha_obtencion = db.Column(db.Date)
-    fecha_expiracion = db.Column(db.Date)
-    archivo_url = db.Column(db.String(255))
-    fecha_creacion = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    
+class CertificacionEntrenador:
+    collection = "certificaciones_entrenador"
+
+    def __init__(self, id_entrenador, nombre, institucion=None, fecha_obtencion=None, 
+                 fecha_expiracion=None, archivo_url=None, fecha_creacion=None, _id=None):
+        self._id = _id
+        self.id_entrenador = ObjectId(id_entrenador) if isinstance(id_entrenador, str) else id_entrenador
+        self.nombre = nombre
+        self.institucion = institucion
+        self.fecha_obtencion = fecha_obtencion
+        self.fecha_expiracion = fecha_expiracion
+        self.archivo_url = archivo_url
+        self.fecha_creacion = fecha_creacion or datetime.now(timezone.utc)
+
     def to_dict(self):
         return {
-            'id_certificacion': self.id_certificacion,
-            'id_entrenador': self.id_entrenador,
-            'nombre': self.nombre,
-            'institucion': self.institucion,
-            'fecha_obtencion': self.fecha_obtencion.isoformat() if self.fecha_obtencion else None,
-            'fecha_expiracion': self.fecha_expiracion.isoformat() if self.fecha_expiracion else None,
-            'archivo_url': self.archivo_url,
-            'fecha_creacion': self.fecha_creacion.isoformat() if self.fecha_creacion else None
+            "id_certificacion": self._id,
+            "id_entrenador": self.id_entrenador,
+            "nombre": self.nombre,
+            "institucion": self.institucion,
+            "fecha_obtencion": self.fecha_obtencion.isoformat() if isinstance(self.fecha_obtencion, datetime) else self.fecha_obtencion,
+            "fecha_expiracion": self.fecha_expiracion.isoformat() if isinstance(self.fecha_expiracion, datetime) else self.fecha_expiracion,
+            "archivo_url": self.archivo_url,
+            "fecha_creacion": self.fecha_creacion.isoformat() if isinstance(self.fecha_creacion, datetime) else self.fecha_creacion
         }
+
+    def save(self):
+        db = get_db()
+        data = {
+            "id_entrenador": self.id_entrenador,
+            "nombre": self.nombre,
+            "institucion": self.institucion,
+            "fecha_obtencion": self.fecha_obtencion,
+            "fecha_expiracion": self.fecha_expiracion,
+            "archivo_url": self.archivo_url,
+            "fecha_creacion": self.fecha_creacion
+        }
+        if self._id:
+            db[self.collection].update_one({"_id": self._id}, {"$set": data})
+        else:
+            result = db[self.collection].insert_one(data)
+            self._id = result.inserted_id
+        return self._id
+
+    @classmethod
+    def find_by_id(cls, cert_id):
+        try:
+            oid = ObjectId(cert_id) if isinstance(cert_id, str) else cert_id
+            data = get_db()[cls.collection].find_one({"_id": oid})
+            return cls(**data) if data else None
+        except Exception:
+            return None

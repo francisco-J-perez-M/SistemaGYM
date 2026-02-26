@@ -1,47 +1,67 @@
-from app.extensions import db
-from datetime import datetime
+from datetime import datetime, timezone
+from bson.objectid import ObjectId
+from app.mongo import get_db
 
-class Pago(db.Model):
-    __tablename__ = "pagos"
+class Pago:
+    collection = "pagos"
 
-    id_pago = db.Column(db.Integer, primary_key=True)
-    id_miembro = db.Column(db.Integer, db.ForeignKey("miembros.id_miembro"), nullable=False)
-    
-    # --- NUEVO CAMPO ---
-    # nullable=True porque un pago de una botella de agua no tiene entrenador
-    id_entrenador = db.Column(db.Integer, db.ForeignKey("usuarios.id_usuario"), nullable=True) 
-
-    monto = db.Column(db.Numeric(10, 2), nullable=False)
-    metodo_pago = db.Column(
-        db.Enum("Efectivo", "Tarjeta", "Transferencia", "Simulado"),
-        nullable=False
-    )
-    concepto = db.Column(db.String(100), nullable=False)
-    fecha_pago = db.Column(db.DateTime, default=datetime.utcnow)
-
-    # Relaciones
-    miembro = db.relationship("Miembro", backref="pagos")
-    
-    # Relación opcional para acceder a los datos del entrenador desde el pago
-    # Usamos string "User" para evitar problemas de importación circular si User está en otro archivo
-    entrenador = db.relationship("User", foreign_keys=[id_entrenador], backref="pagos_recibidos")
+    def __init__(self, id_miembro, monto, metodo_pago, concepto, id_entrenador=None, fecha_pago=None, _id=None):
+        self._id = _id
+        self.id_miembro = ObjectId(id_miembro) if isinstance(id_miembro, str) else id_miembro
+        self.id_entrenador = ObjectId(id_entrenador) if isinstance(id_entrenador, str) and id_entrenador else id_entrenador
+        self.monto = float(monto)
+        self.metodo_pago = metodo_pago
+        self.concepto = concepto
+        self.fecha_pago = fecha_pago or datetime.now(timezone.utc)
 
     def to_dict(self):
+        db = get_db()
         nombre_mostrar = "Desconocido"
 
-        if self.miembro:
-            if self.miembro.usuario: 
-                nombre_mostrar = self.miembro.usuario.nombre
-            else:
-                nombre_mostrar = "Miembro sin usuario"
-        
+        # Buscar el nombre del miembro simulando la relación SQLAlchemy
+        if self.id_miembro:
+            miembro_doc = db.miembros.find_one({"_id": self.id_miembro})
+            if miembro_doc and "id_usuario" in miembro_doc:
+                usuario_doc = db.usuarios.find_one({"_id": miembro_doc["id_usuario"]})
+                if usuario_doc and "nombre" in usuario_doc:
+                    nombre_mostrar = usuario_doc["nombre"]
+                else:
+                    nombre_mostrar = "Miembro sin usuario"
+
         return {
-            "id_pago": self.id_pago,
             "id_miembro": self.id_miembro,
-            "id_entrenador": self.id_entrenador,  # <--- Agregado al diccionario
+            "id_entrenador": self.id_entrenador,
             "nombre_miembro": nombre_mostrar,
-            "monto": float(self.monto),
+            "monto": self.monto,
             "metodo_pago": self.metodo_pago,
             "concepto": self.concepto,
-            "fecha_pago": self.fecha_pago.isoformat()
+            "fecha_pago": self.fecha_pago.isoformat() if isinstance(self.fecha_pago, datetime) else self.fecha_pago
         }
+
+    def save(self):
+        db = get_db()
+        # Guardamos en la BD los datos puros (sin el nombre calculado para no duplicar datos)
+        data = {
+            "id_miembro": self.id_miembro,
+            "id_entrenador": self.id_entrenador,
+            "monto": self.monto,
+            "metodo_pago": self.metodo_pago,
+            "concepto": self.concepto,
+            "fecha_pago": self.fecha_pago
+        }
+        
+        if self._id:
+            db[self.collection].update_one({"_id": self._id}, {"$set": data})
+        else:
+            result = db[self.collection].insert_one(data)
+            self._id = result.inserted_id
+        return self._id
+
+    @classmethod
+    def find_by_id(cls, pago_id):
+        try:
+            oid = ObjectId(pago_id) if isinstance(pago_id, str) else pago_id
+            data = get_db()[cls.collection].find_one({"_id": oid})
+            return cls(**data) if data else None
+        except Exception:
+            return None

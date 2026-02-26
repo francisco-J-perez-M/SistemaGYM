@@ -1,88 +1,107 @@
-from app.extensions import db
-from datetime import datetime
+from datetime import datetime, timezone
+from bson.objectid import ObjectId
+from app.mongo import get_db
 
-class ProgresoFisico(db.Model):
-    __tablename__ = 'progreso_fisico'
+class ProgresoFisico:
+    collection = "progreso_fisico"
 
-    id_progreso = db.Column(db.Integer, primary_key=True)
-    id_miembro = db.Column(db.Integer, db.ForeignKey('miembros.id_miembro'), nullable=False)
+    def __init__(self, id_miembro, peso=None, bmi=None, grasa_corporal=None, masa_muscular=None,
+                 agua_corporal=None, masa_osea=None, cintura=None, cadera=None, pecho=None,
+                 brazo_derecho=None, brazo_izquierdo=None, muslo_derecho=None, muslo_izquierdo=None,
+                 pantorrilla=None, notas=None, fecha_registro=None, _id=None):
+        
+        self._id = _id
+        self.id_miembro = ObjectId(id_miembro) if isinstance(id_miembro, str) else id_miembro
+        
+        self.peso = float(peso) if peso else None
+        self.bmi = float(bmi) if bmi else None
+        self.grasa_corporal = float(grasa_corporal) if grasa_corporal else None
+        self.masa_muscular = float(masa_muscular) if masa_muscular else None
+        self.agua_corporal = float(agua_corporal) if agua_corporal else None
+        self.masa_osea = float(masa_osea) if masa_osea else None
+        
+        self.cintura = float(cintura) if cintura else None
+        self.cadera = float(cadera) if cadera else None
+        self.pecho = float(pecho) if pecho else None
+        
+        self.brazo_derecho = float(brazo_derecho) if brazo_derecho else None
+        self.brazo_izquierdo = float(brazo_izquierdo) if brazo_izquierdo else None
+        self.muslo_derecho = float(muslo_derecho) if muslo_derecho else None
+        self.muslo_izquierdo = float(muslo_izquierdo) if muslo_izquierdo else None
+        self.pantorrilla = float(pantorrilla) if pantorrilla else None
+        
+        self.notas = notas
+        self.fecha_registro = fecha_registro or datetime.now(timezone.utc)
 
-    peso = db.Column(db.Numeric(5, 2))
-    bmi = db.Column(db.Numeric(5, 2))
-
-    grasa_corporal = db.Column(db.Numeric(5, 2))
-    masa_muscular = db.Column(db.Numeric(5, 2))
-    agua_corporal = db.Column(db.Numeric(5, 2))
-    masa_osea = db.Column(db.Numeric(5, 2))
-
-    cintura = db.Column(db.Numeric(5, 2))
-    cadera = db.Column(db.Numeric(5, 2))
-    pecho = db.Column(db.Numeric(5, 2))
-
-    brazo_derecho = db.Column(db.Numeric(5, 2))
-    brazo_izquierdo = db.Column(db.Numeric(5, 2))
-
-    muslo_derecho = db.Column(db.Numeric(5, 2))
-    muslo_izquierdo = db.Column(db.Numeric(5, 2))
-
-    pantorrilla = db.Column(db.Numeric(5, 2))
-
-    notas = db.Column(db.Text)
-
-    fecha_registro = db.Column(db.Date, default=datetime.now().date)
-
-    miembro = db.relationship('Miembro', backref='progresos')
-
-    def __repr__(self):
-        return f'<ProgresoFisico {self.id_progreso} - Peso: {self.peso}kg - BMI: {self.bmi}>'
-
-    
     def to_dict(self):
-        """Convierte el progreso a diccionario"""
         return {
-            'id_progreso': self.id_progreso,
-            'id_miembro': self.id_miembro,
-            'peso': float(self.peso) if self.peso else 0,
-            'bmi': float(self.bmi) if self.bmi else 0,
-            'cintura': float(self.cintura) if self.cintura else 0,
-            'cadera': float(self.cadera) if self.cadera else 0,
-            'fecha_registro': self.fecha_registro.strftime('%Y-%m-%d') if self.fecha_registro else None
+            "id_miembro": self.id_miembro,
+            "peso": self.peso or 0.0,
+            "bmi": self.bmi or 0.0,
+            "grasa_corporal": self.grasa_corporal,
+            "masa_muscular": self.masa_muscular,
+            "agua_corporal": self.agua_corporal,
+            "masa_osea": self.masa_osea,
+            "cintura": self.cintura or 0.0,
+            "cadera": self.cadera or 0.0,
+            "pecho": self.pecho,
+            "brazo_derecho": self.brazo_derecho,
+            "brazo_izquierdo": self.brazo_izquierdo,
+            "muslo_derecho": self.muslo_derecho,
+            "muslo_izquierdo": self.muslo_izquierdo,
+            "pantorrilla": self.pantorrilla,
+            "notas": self.notas,
+            "fecha_registro": self.fecha_registro.strftime('%Y-%m-%d') if isinstance(self.fecha_registro, datetime) else self.fecha_registro
         }
-    
+
+    def save(self):
+        db = get_db()
+        # Guardamos todos los atributos reales, no solo los del to_dict (que está formateado para la API)
+        data = self.__dict__.copy()
+        if "_id" in data and not data["_id"]:
+            del data["_id"]
+            
+        if self._id:
+            db[self.collection].update_one({"_id": self._id}, {"$set": data})
+        else:
+            result = db[self.collection].insert_one(data)
+            self._id = result.inserted_id
+        return self._id
+
     def calcular_bmi(self, estatura_metros):
-        """Calcula el BMI automáticamente"""
         if self.peso and estatura_metros and estatura_metros > 0:
-            self.bmi = round(float(self.peso) / (estatura_metros ** 2), 2)
+            self.bmi = round(self.peso / (estatura_metros ** 2), 2)
             return self.bmi
         return None
-    
+
     def calcular_relacion_cintura_cadera(self):
-        """Calcula la relación cintura/cadera (WHR)"""
         if self.cintura and self.cadera and self.cadera > 0:
-            return round(float(self.cintura) / float(self.cadera), 2)
+            return round(self.cintura / self.cadera, 2)
         return None
-    
+
     def es_imc_saludable(self):
-        """Verifica si el IMC está en rango saludable (18.5-24.9)"""
         if self.bmi:
-            bmi_val = float(self.bmi)
-            return 18.5 <= bmi_val <= 24.9
+            return 18.5 <= self.bmi <= 24.9
         return None
-    
+
     def categoria_imc(self):
-        """Retorna la categoría del IMC"""
         if not self.bmi:
             return "Desconocido"
         
-        bmi_val = float(self.bmi)
-        if bmi_val < 18.5:
+        if self.bmi < 18.5:
             return "Bajo peso"
-        elif 18.5 <= bmi_val < 25:
+        elif 18.5 <= self.bmi < 25:
             return "Peso normal"
-        elif 25 <= bmi_val < 30:
+        elif 25 <= self.bmi < 30:
             return "Sobrepeso"
         else:
             return "Obesidad"
-    
-    def __repr__(self):
-        return f'<ProgresoFisico {self.id_progreso} - Peso: {self.peso}kg - BMI: {self.bmi}>'
+
+    @classmethod
+    def find_by_id(cls, progreso_id):
+        try:
+            oid = ObjectId(progreso_id) if isinstance(progreso_id, str) else progreso_id
+            data = get_db()[cls.collection].find_one({"_id": oid})
+            return cls(**data) if data else None
+        except Exception:
+            return None

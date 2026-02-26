@@ -1,25 +1,38 @@
-# app/models/tipo_dieta.py
-from app.extensions import db
+from bson.objectid import ObjectId
+from app.mongo import get_db
 
-class TipoDieta(db.Model):
-    __tablename__ = 'tipos_dieta'
-    
-    id_tipo_dieta = db.Column(db.Integer, primary_key=True)
-    nombre = db.Column(db.String(50), unique=True, nullable=False)
-    descripcion = db.Column(db.Text)
-    calorias_objetivo = db.Column(db.String(50))
-    
-    # Relaciones
-    recetas = db.relationship('Receta', backref='tipo_dieta', cascade='all, delete-orphan')
-    planes = db.relationship('PlanAlimenticio', backref='tipo_dieta')
-    
+class TipoDieta:
+    collection = "tipos_dieta"
+
+    def __init__(self, nombre, descripcion=None, calorias_objetivo=None, _id=None):
+        self._id = _id
+        self.nombre = nombre
+        self.descripcion = descripcion
+        self.calorias_objetivo = calorias_objetivo
+
     def to_dict(self):
         return {
-            'id_tipo_dieta': self.id_tipo_dieta,
-            'nombre': self.nombre,
-            'descripcion': self.descripcion,
-            'calorias_objetivo': self.calorias_objetivo
+            "nombre": self.nombre,
+            "descripcion": self.descripcion,
+            "calorias_objetivo": self.calorias_objetivo
         }
-    
-    def __repr__(self):
-        return f'<TipoDieta {self.nombre}>'
+
+    def save(self):
+        db = get_db()
+        if self._id:
+            db[self.collection].update_one({"_id": self._id}, {"$set": self.to_dict()})
+        else:
+            result = db[self.collection].insert_one(self.to_dict())
+            self._id = result.inserted_id
+        return self._id
+
+    def get_recetas(self):
+        """Obtiene las recetas asociadas a este tipo de dieta"""
+        if not self._id: return []
+        return list(get_db().recetas.find({"id_tipo_dieta": self._id}))
+
+    @classmethod
+    def find_by_nombre(cls, nombre):
+        db = get_db()
+        data = db[cls.collection].find_one({"nombre": nombre})
+        return cls(**data) if data else None

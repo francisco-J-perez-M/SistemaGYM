@@ -1,27 +1,54 @@
-from app.extensions import db
+from bson.objectid import ObjectId
+from app.mongo import get_db
 
-class MiembroMembresia(db.Model):
-    __tablename__ = 'miembro_membresia'
+class MiembroMembresia:
+    collection = "miembro_membresia"
 
-    id_mm = db.Column(db.Integer, primary_key=True)
-    id_miembro = db.Column(db.Integer, db.ForeignKey('miembros.id_miembro'))
-    id_membresia = db.Column(db.Integer, db.ForeignKey('membresias.id_membresia'))
-    
-    fecha_inicio = db.Column(db.Date)
-    fecha_fin = db.Column(db.Date)
-    estado = db.Column(db.Enum('Activa', 'Vencida', 'Cancelada'))
-
-    miembro = db.relationship('Miembro', backref='historial_membresias')
-    membresia = db.relationship('Membresia', backref='historial_usuarios')
+    def __init__(self, id_miembro, id_membresia, fecha_inicio=None, fecha_fin=None, estado=None, _id=None):
+        self._id = _id
+        self.id_miembro = ObjectId(id_miembro) if isinstance(id_miembro, str) else id_miembro
+        self.id_membresia = ObjectId(id_membresia) if isinstance(id_membresia, str) else id_membresia
+        self.fecha_inicio = fecha_inicio
+        self.fecha_fin = fecha_fin
+        self.estado = estado
 
     def to_dict(self):
+        db = get_db()
+        # Buscar el nombre de la membresía
+        membresia_doc = db.membresias.find_one({"_id": self.id_membresia})
+        nombre_membresia = membresia_doc["nombre"] if membresia_doc else "N/A"
+
         return {
-            "id": self.id_mm,
+            "id": self._id,
             "id_miembro": self.id_miembro,
             "id_membresia": self.id_membresia,
-            # Gracias a las relaciones de arriba, ahora podemos hacer esto:
-            "nombre_membresia": self.membresia.nombre if self.membresia else "N/A",
-            "fecha_inicio": str(self.fecha_inicio),
-            "fecha_fin": str(self.fecha_fin),
+            "nombre_membresia": nombre_membresia,
+            "fecha_inicio": str(self.fecha_inicio) if self.fecha_inicio else None,
+            "fecha_fin": str(self.fecha_fin) if self.fecha_fin else None,
             "estado": self.estado
         }
+
+    def save(self):
+        db = get_db()
+        data = {
+            "id_miembro": self.id_miembro,
+            "id_membresia": self.id_membresia,
+            "fecha_inicio": self.fecha_inicio,
+            "fecha_fin": self.fecha_fin,
+            "estado": self.estado
+        }
+        if self._id:
+            db[self.collection].update_one({"_id": self._id}, {"$set": data})
+        else:
+            result = db[self.collection].insert_one(data)
+            self._id = result.inserted_id
+        return self._id
+
+    @classmethod
+    def find_by_id(cls, mm_id):
+        try:
+            oid = ObjectId(mm_id) if isinstance(mm_id, str) else mm_id
+            data = get_db()[cls.collection].find_one({"_id": oid})
+            return cls(**data) if data else None
+        except Exception:
+            return None
