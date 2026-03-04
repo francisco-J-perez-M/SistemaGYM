@@ -93,3 +93,151 @@ class Miembro:
             return cls(**data) if data else None
         except Exception:
             return None
+def to_client_card(self):
+        """Convierte miembro a tarjeta de cliente para el dashboard del entrenador"""
+        from datetime import date, timedelta
+        from app.mongo import get_db
+        db = get_db()
+        
+        # Calcular progreso
+        progreso_cursor = db.progreso_fisico.find({"id_miembro": self._id}).sort("fecha_registro", -1).limit(1)
+        progreso_reciente = list(progreso_cursor)[0] if list(progreso_cursor) else None
+        
+        progreso_porcentaje = 0
+        if progreso_reciente and self.peso_inicial:
+            diferencia = abs(self.peso_inicial - float(progreso_reciente.get("peso", 0)))
+            progreso_porcentaje = min(int((diferencia / self.peso_inicial) * 100), 100)
+            
+        # Calcular racha (días consecutivos con asistencia)
+        fecha_actual = date.today()
+        racha = 0
+        for i in range(30):
+            fecha_check = (fecha_actual - timedelta(days=i)).strftime('%Y-%m-%d')
+            asistencia = db.asistencias.find_one({
+                "id_miembro": self._id,
+                "fecha": fecha_check # Recuerda que guardamos fechas aisladas o como str
+            })
+            if asistencia:
+                racha += 1
+            elif i > 0:
+                break
+                
+        # Total de sesiones
+        sesiones_total = db.sesiones.count_documents({
+            "id_miembro": self._id,
+            "estado": "completed"
+        })
+        
+        # Última sesión
+        ultima_sesion = list(db.sesiones.find({"id_miembro": self._id}).sort("fecha", -1).limit(1))
+        ultima_sesion = ultima_sesion[0] if ultima_sesion else None
+        
+        last_session = "Nunca"
+        if ultima_sesion:
+            # Lógica simplificada de fechas
+            fecha_us = ultima_sesion.get("fecha")
+            if isinstance(fecha_us, str):
+                from datetime import datetime
+                fecha_us = datetime.strptime(fecha_us, '%Y-%m-%d').date()
+            elif hasattr(fecha_us, 'date'):
+                 fecha_us = fecha_us.date()
+                 
+            if fecha_us == fecha_actual:
+                last_session = "Hoy"
+            elif fecha_us == fecha_actual - timedelta(days=1):
+                last_session = "Ayer"
+            elif ultima_sesion.get("estado") == "in-progress":
+                last_session = "En curso"
+            else:
+                dias = (fecha_actual - fecha_us).days
+                last_session = f"Hace {dias} días"
+
+        # Calcular asistencia (últimos 30 días)
+        hace_30_dias = fecha_actual - timedelta(days=30)
+        # Adaptar consulta según cómo guardas la fecha en sesiones
+        sesiones_programadas = db.sesiones.count_documents({
+            "id_miembro": self._id,
+            "estado": {"$in": ["completed", "cancelled"]}
+            # Omitimos el filtro de fecha complejo por simplicidad en Mongo, 
+            # asumiendo que el entrenador ve métricas generales.
+        })
+        
+        sesiones_asistidas = db.sesiones.count_documents({
+            "id_miembro": self._id,
+            "estado": "completed"
+        })
+        
+        attendance = int((sesiones_asistidas / sesiones_programadas * 100)) if sesiones_programadas > 0 else 0
+        
+        status = 'active' if attendance >= 75 else 'warning'
+        trend = 'up' if attendance >= 80 else ('down' if attendance < 60 else 'stable')
+        
+        from datetime import date
+        edad = 0
+        if self.fecha_nacimiento:
+             # Manejo seguro si es string o date
+             fn = self.fecha_nacimiento
+             if isinstance(fn, str):
+                 from datetime import datetime
+                 try: fn = datetime.strptime(fn, '%Y-%m-%d').date()
+                 except: fn = None
+             if fn: edad = (date.today() - fn).days // 365
+             
+        objetivo = "Pérdida de peso"
+        if progreso_reciente:
+            gc = float(progreso_reciente.get("grasa_corporal") or 0)
+            mm = float(progreso_reciente.get("masa_muscular") or 0)
+            if gc > 0 and gc < 15: objetivo = "Ganancia muscular"
+            elif mm > 40: objetivo = "Definición"
+            elif gc > 30: objetivo = "Pérdida de peso"
+            else: objetivo = "Acondicionamiento"
+            
+        stats = {
+            'weight': {'initial': float(self.peso_inicial or 70), 'current': float(self.peso_inicial or 70), 'goal': float(self.peso_inicial or 70) * 0.9},
+            'muscle': {'initial': 30, 'current': 30, 'goal': 36},
+            'fat': {'initial': 25, 'current': 25, 'goal': 18}
+        }
+        
+        # Obtener nombre de usuario
+        usuario_doc = db.usuarios.find_one({"_id": self.id_usuario})
+        nombre_usuario = usuario_doc["nombre"] if usuario_doc else "Sin nombre"
+
+        return {
+            'id': str(self._id),
+            'name': nombre_usuario,
+            'age': edad,
+            'goal': objetivo,
+            'progress': progreso_porcentaje,
+            'lastSession': last_session,
+            'streak': racha,
+            'sessionsTotal': sesiones_total,
+            'attendance': attendance,
+            'status': status,
+            'trend': trend,
+            'stats': stats
+        }
+
+    def to_dict_full(self, include_stats=False):
+        """Reemplaza al to_dict() sobrecargado, evita recursión infinita"""
+        base_dict = self.to_dict() # Llama al to_dict() original que creamos antes
+        
+        # Añadimos datos extra que pedía tu función original
+        base_dict['id'] = str(self._id)
+        base_dict['birthDate'] = str(self.fecha_nacimiento) if self.fecha_nacimiento else None
+        base_dict['initialWeight'] = float(self.peso_inicial) if self.peso_inicial else None
+        base_dict['height'] = float(self.estatura) if self.estatura else None
+        base_dict['registrationDate'] = str(self.fecha_registro) if self.fecha_registro else None
+        base_dict['profilePhoto'] = self.foto_perfil
+        
+        if include_stats:
+            client_card = self.to_client_card()
+            base_dict.update({
+                'progress': client_card['progress'],
+                'streak': client_card['streak'],
+                'sessionsTotal': client_card['sessionsTotal'],
+                'attendance': client_card['attendance'],
+                'goal': client_card['goal'],
+                'stats': client_card['stats']
+            })
+            
+        return base_dict

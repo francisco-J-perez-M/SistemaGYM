@@ -1,9 +1,8 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime, timedelta
-from app.models.miembro_membresia import MiembroMembresia
-from app.models.miembro import Miembro  # ⚠️ ESTO FALTABA
-from app.extensions import db
+from bson.objectid import ObjectId
+from app.mongo import get_db
 
 miembro_membresias_bp = Blueprint('miembro_membresias', __name__)
 
@@ -11,36 +10,54 @@ miembro_membresias_bp = Blueprint('miembro_membresias', __name__)
 # @jwt_required()  # Descomenta si necesitas seguridad
 def membresias_por_expirar():
     try:
+        db = get_db()
         # Obtener parámetros (por defecto 7 días)
         dias = request.args.get('dias', default=7, type=int)
         
-        # Calcular fechas
-        hoy = datetime.now().date()
-        fecha_limite = hoy + timedelta(days=dias)
+        # En MongoDB es mejor usar datetime completo para comparaciones
+        hoy = datetime.now()
+        # Reseteamos horas, minutos, segundos a 0 para comparación justa
+        inicio_hoy = datetime(hoy.year, hoy.month, hoy.day)
+        fecha_limite = inicio_hoy + timedelta(days=dias)
         
         # Consultar DB: Membresías activas que vencen en el rango
-        resultados = MiembroMembresia.query.filter(
-            MiembroMembresia.fecha_fin <= fecha_limite,
-            MiembroMembresia.fecha_fin >= hoy,
-            MiembroMembresia.estado == 'Activa'
-        ).all()
+        resultados = list(db.miembro_membresia.find({
+            "fecha_fin": {"$gte": inicio_hoy, "$lte": fecha_limite},
+            "estado": "Activa"
+        }))
 
         data = []
         for mm in resultados:
-            # Obtener nombre con seguridad
+            # Obtener nombre con seguridad simulando las relaciones
             nombre_miembro = "Desconocido"
-            if mm.miembro and mm.miembro.usuario:
-                nombre_miembro = mm.miembro.usuario.nombre
+            if "id_miembro" in mm:
+                miembro_doc = db.miembros.find_one({"_id": mm["id_miembro"]})
+                if miembro_doc and "id_usuario" in miembro_doc:
+                    usuario_doc = db.usuarios.find_one({"_id": miembro_doc["id_usuario"]})
+                    if usuario_doc and "nombre" in usuario_doc:
+                        nombre_miembro = usuario_doc["nombre"]
+            
+            # Obtener nombre de la membresía
+            nombre_plan = "N/A"
+            if "id_membresia" in mm:
+                membresia_doc = db.membresias.find_one({"_id": mm["id_membresia"]})
+                if membresia_doc and "nombre" in membresia_doc:
+                    nombre_plan = membresia_doc["nombre"]
             
             # Calcular estado de urgencia
-            dias_restantes = (mm.fecha_fin - hoy).days
+            # Asegurarnos de que fecha_fin sea datetime para la resta
+            fecha_fin_dt = mm["fecha_fin"]
+            if isinstance(fecha_fin_dt, str):
+                 fecha_fin_dt = datetime.strptime(fecha_fin_dt, '%Y-%m-%d')
+            
+            dias_restantes = (fecha_fin_dt - inicio_hoy).days
             status = 'urgent' if dias_restantes <= 3 else 'warning'
 
             data.append({
-                "id": mm.id_mm,
+                "id": str(mm["_id"]),
                 "miembro": nombre_miembro,
-                "plan": mm.membresia.nombre if mm.membresia else "N/A",
-                "fecha_fin": mm.fecha_fin.strftime('%Y-%m-%d'),
+                "plan": nombre_plan,
+                "fecha_fin": fecha_fin_dt.strftime('%Y-%m-%d') if isinstance(fecha_fin_dt, datetime) else str(mm["fecha_fin"]),
                 "status": status
             })
 
@@ -59,10 +76,12 @@ def obtener_membresia_activa():
     Retorna el nivel de acceso basado en tu tabla de membresías.
     """
     try:
-        user_id = get_jwt_identity()
+        db = get_db()
+        user_id_str = get_jwt_identity()
+        user_id = ObjectId(user_id_str)
 
         # 🔍 Buscar el miembro asociado al usuario
-        miembro = Miembro.query.filter_by(id_usuario=user_id).first()
+        miembro = db.miembros.find_one({"id_usuario": user_id})
         
         if not miembro:
             return jsonify({
@@ -70,40 +89,48 @@ def obtener_membresia_activa():
                 "mensaje": "No se encontró perfil de miembro"
             }), 200
 
-        # 🔍 Buscar membresía activa
-        membresia_activa = (
-            MiembroMembresia.query
-            .filter(
-                MiembroMembresia.id_miembro == miembro.id_miembro,
-                MiembroMembresia.estado == "Activa"
-            )
-            .order_by(MiembroMembresia.fecha_fin.desc())
-            .first()
-        )
+        # 🔍 Buscar membresía activa (ordenamos descendente por fecha_fin y tomamos 1)
+        membresia_activa_cursor = db.miembro_membresia.find(
+            {
+                "id_miembro": miembro["_id"],
+                "estado": "Activa"
+            }
+        ).sort("fecha_fin", -1).limit(1)
+        
+        membresia_activa_lista = list(membresia_activa_cursor)
+        membresia_activa = membresia_activa_lista[0] if membresia_activa_lista else None
 
-        if not membresia_activa or not membresia_activa.membresia:
+        if not membresia_activa or "id_membresia" not in membresia_activa:
+            return jsonify({"tiene_membresia": False}), 200
+
+        # Buscar los detalles del plan en la colección membresias
+        plan_doc = db.membresias.find_one({"_id": membresia_activa["id_membresia"]})
+        
+        if not plan_doc:
             return jsonify({"tiene_membresia": False}), 200
 
         # ✅ DETERMINAR NIVEL DE ACCESO BASADO EN TUS PLANES
-        nombre_plan = membresia_activa.membresia.nombre
-        
-        # Según tu DB:
-        # Premium → Premium Mensual, Premium Anual, VIP
-        # Básico → Básica Mensual, Básica Anual, Estudiante, Familiar
+        nombre_plan = plan_doc.get("nombre", "Desconocido")
         
         planes_premium = ["Premium", "VIP"]
-        
         tipo_acceso = "premium" if any(p in nombre_plan for p in planes_premium) else "basico"
+        
+        # Manejo seguro de fechas para strftime
+        fecha_inicio = membresia_activa.get("fecha_inicio")
+        fecha_fin = membresia_activa.get("fecha_fin")
+        
+        str_inicio = fecha_inicio.strftime("%Y-%m-%d") if isinstance(fecha_inicio, datetime) else str(fecha_inicio)
+        str_fin = fecha_fin.strftime("%Y-%m-%d") if isinstance(fecha_fin, datetime) else str(fecha_fin)
 
         return jsonify({
             "tiene_membresia": True,
             "membresia": {
-                "id": membresia_activa.membresia.id_membresia,
+                "id": str(plan_doc["_id"]),
                 "nombre": nombre_plan,
                 "tipo": tipo_acceso,  # "premium" o "basico"
-                "fecha_inicio": membresia_activa.fecha_inicio.strftime("%Y-%m-%d"),
-                "fecha_fin": membresia_activa.fecha_fin.strftime("%Y-%m-%d"),
-                "estado": membresia_activa.estado
+                "fecha_inicio": str_inicio,
+                "fecha_fin": str_fin,
+                "estado": membresia_activa.get("estado")
             }
         }), 200
 

@@ -1,10 +1,8 @@
 from flask import Blueprint, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from datetime import datetime
-from sqlalchemy import extract, desc, func
-from app.extensions import db
-from app.models.pago import Pago
-from app.models.miembro import Miembro
+from datetime import datetime, timedelta
+from bson.objectid import ObjectId
+from app.mongo import get_db
 
 user_payments_bp = Blueprint('user_payments', __name__)
 
@@ -15,58 +13,63 @@ def get_user_payments():
     Obtiene el historial completo de pagos del usuario autenticado
     """
     try:
-        user_id = int(get_jwt_identity())
+        db = get_db()
+        user_id = ObjectId(get_jwt_identity())
         
-        # Buscar el miembro asociado al usuario
-        miembro = Miembro.query.filter_by(id_usuario=user_id).first()
-        
+        miembro = db.miembros.find_one({"id_usuario": user_id})
         if not miembro:
             return jsonify({"error": "Miembro no encontrado"}), 404
 
-        # Obtener todos los pagos del miembro ordenados por fecha descendente
-        pagos = Pago.query.filter_by(
-            id_miembro=miembro.id_miembro
-        ).order_by(desc(Pago.fecha_pago)).all()
+        pagos = list(db.pagos.find({"id_miembro": miembro["_id"]}).sort("fecha_pago", -1))
         
-        # Calcular estadísticas
-        total_pagado = db.session.query(
-            func.sum(Pago.monto)
-        ).filter_by(id_miembro=miembro.id_miembro).scalar() or 0
+        # Calcular total pagado mediante agregación (sum)
+        pipeline = [
+            {"$match": {"id_miembro": miembro["_id"]}},
+            {"$group": {"_id": None, "total": {"$sum": "$monto"}}}
+        ]
+        resultado_suma = list(db.pagos.aggregate(pipeline))
+        total_pagado = resultado_suma[0]["total"] if resultado_suma else 0
         
-        # Obtener último y próximo pago
         ultimo_pago = pagos[0] if pagos else None
         
-        # Formatear datos para el frontend
         pagos_formateados = []
-        for idx, pago in enumerate(pagos):
+        for pago in pagos:
+            fecha_p = pago.get("fecha_pago")
+            if isinstance(fecha_p, str):
+                fecha_p = datetime.strptime(fecha_p[:19], "%Y-%m-%dT%H:%M:%S")
+                
             pagos_formateados.append({
-                "id": f"PAY-{str(pago.id_pago).zfill(3)}",
-                "date": pago.fecha_pago.strftime('%d %b %Y'),
-                "concept": pago.concepto or f"Pago de membresía",
-                "amount": float(pago.monto),
-                "method": _format_payment_method(pago.metodo_pago),
+                "id": f"PAY-{str(pago['_id'])[-5:].upper()}", # Usamos últimos 5 chars del ObjectId para simular ID
+                "date": fecha_p.strftime('%d %b %Y') if isinstance(fecha_p, datetime) else str(fecha_p),
+                "concept": pago.get("concepto") or "Pago de membresía",
+                "amount": float(pago.get("monto", 0)),
+                "method": _format_payment_method(pago.get("metodo_pago")),
                 "status": "Completado",
-                "rawDate": pago.fecha_pago.isoformat()
+                "rawDate": fecha_p.isoformat() if isinstance(fecha_p, datetime) else str(fecha_p)
             })
         
         # Calcular próximo pago estimado (si tiene membresía activa)
-        from app.models.miembro_membresia import MiembroMembresia
-        membresia_activa = MiembroMembresia.query.filter_by(
-            id_miembro=miembro.id_miembro,
-            estado='Activa'
-        ).first()
+        membresia_activa = db.miembro_membresia.find_one({
+            "id_miembro": miembro["_id"],
+            "estado": 'Activa'
+        })
         
         proximo_pago = None
-        if membresia_activa and membresia_activa.fecha_fin:
-            # Estimar próximo pago 3 días antes del vencimiento
-            from datetime import timedelta
-            fecha_estimada = membresia_activa.fecha_fin - timedelta(days=3)
+        if membresia_activa and membresia_activa.get("fecha_fin"):
+            fecha_f = membresia_activa["fecha_fin"]
+            if isinstance(fecha_f, str):
+                fecha_f = datetime.strptime(fecha_f[:10], "%Y-%m-%d")
+            fecha_estimada = fecha_f - timedelta(days=3)
             proximo_pago = fecha_estimada.strftime('%d %b %Y')
         
+        up_date = ultimo_pago.get("fecha_pago") if ultimo_pago else None
+        if isinstance(up_date, str):
+             up_date = datetime.strptime(up_date[:10], "%Y-%m-%d")
+             
         return jsonify({
             "stats": {
                 "totalPaid": float(total_pagado),
-                "lastPayment": ultimo_pago.fecha_pago.strftime('%d %b %Y') if ultimo_pago else "N/A",
+                "lastPayment": up_date.strftime('%d %b %Y') if up_date else "N/A",
                 "nextPayment": proximo_pago or "No programado",
                 "status": "Al día" if membresia_activa else "Sin membresía"
             },
@@ -97,34 +100,44 @@ def get_payment_stats():
     Obtiene estadísticas detalladas de pagos por mes/año
     """
     try:
-        user_id = int(get_jwt_identity())
-        miembro = Miembro.query.filter_by(id_usuario=user_id).first()
+        db = get_db()
+        user_id = ObjectId(get_jwt_identity())
+        miembro = db.miembros.find_one({"id_usuario": user_id})
         
         if not miembro:
             return jsonify({"error": "Miembro no encontrado"}), 404
         
-        # Obtener pagos agrupados por mes
         current_year = datetime.now().year
+        start_of_year = datetime(current_year, 1, 1)
+        end_of_year = datetime(current_year + 1, 1, 1)
         
-        monthly_stats = db.session.query(
-            extract('month', Pago.fecha_pago).label('mes'),
-            func.sum(Pago.monto).label('total'),
-            func.count(Pago.id_pago).label('cantidad')
-        ).filter(
-            Pago.id_miembro == miembro.id_miembro,
-            extract('year', Pago.fecha_pago) == current_year
-        ).group_by('mes').all()
+        # Pipeline de agregación para agrupar por mes y sumar montos
+        pipeline = [
+            {"$match": {
+                "id_miembro": miembro["_id"],
+                "fecha_pago": {"$gte": start_of_year, "$lt": end_of_year}
+            }},
+            {"$group": {
+                "_id": {"$month": "$fecha_pago"},
+                "total": {"$sum": "$monto"},
+                "cantidad": {"$sum": 1}
+            }}
+        ]
         
-        # Formatear datos mensuales
+        monthly_stats = list(db.pagos.aggregate(pipeline))
+        
+        # Convertir a diccionario para fácil acceso {mes_numero: stats}
+        stats_dict = {doc["_id"]: doc for doc in monthly_stats}
+        
         meses = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
         stats_por_mes = []
         
         for i in range(1, 13):
-            stat = next((s for s in monthly_stats if s.mes == i), None)
+            stat = stats_dict.get(i)
             stats_por_mes.append({
                 "mes": meses[i-1],
-                "total": float(stat.total) if stat else 0,
-                "cantidad": int(stat.cantidad) if stat else 0
+                "total": float(stat["total"]) if stat else 0,
+                "cantidad": int(stat["cantidad"]) if stat else 0
             })
         
         return jsonify({

@@ -1,49 +1,57 @@
 from flask import Blueprint, jsonify
-from sqlalchemy import func, extract
 from datetime import datetime, timedelta
-
-# --- CORRECCIÓN DE IMPORTACIONES ---
-# 1. Importamos 'db' desde extensions (lugar habitual en patrones factory)
-from app.extensions import db 
-# 2. Importamos los modelos desde sus archivos específicos
-from app.models.miembro import Miembro
-from app.models.pago import Pago
+from app.mongo import get_db
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
 @dashboard_bp.route('/dashboard/kpis', methods=['GET'])
 def get_dashboard_kpis():
     try:
+        db = get_db()
         now = datetime.now()
         
-        # 1. MIEMBROS ACTIVOS (Conteo directo en DB)
-        active_members = Miembro.query.filter_by(estado='Activo').count()
+        # 1. MIEMBROS ACTIVOS
+        active_members = db.miembros.count_documents({'estado': 'Activo'})
         
-        # 2. INGRESOS DEL MES ACTUAL (Suma directa en DB)
-        current_month_income = db.session.query(func.sum(Pago.monto))\
-            .filter(extract('year', Pago.fecha_pago) == now.year)\
-            .filter(extract('month', Pago.fecha_pago) == now.month)\
-            .scalar() or 0  # scalar() devuelve el valor único, or 0 si es None
+        # 2. INGRESOS DEL MES ACTUAL
+        # Construimos las fechas de inicio y fin del mes actual
+        start_of_month = datetime(now.year, now.month, 1)
+        if now.month == 12:
+            start_of_next_month = datetime(now.year + 1, 1, 1)
+        else:
+            start_of_next_month = datetime(now.year, now.month + 1, 1)
 
-        # 3. INGRESOS ÚLTIMOS 6 MESES (Agrupación SQL)
+        # Usamos el pipeline de agregación para sumar el monto
+        current_month_pipeline = [
+            {"$match": {"fecha_pago": {"$gte": start_of_month, "$lt": start_of_next_month}}},
+            {"$group": {"_id": None, "total": {"$sum": "$monto"}}}
+        ]
+        
+        current_month_result = list(db.pagos.aggregate(current_month_pipeline))
+        current_month_income = current_month_result[0]['total'] if current_month_result else 0
+
+        # 3. INGRESOS ÚLTIMOS 6 MESES
         six_months_ago = now - timedelta(days=180)
         
-        income_query = db.session.query(
-            extract('month', Pago.fecha_pago).label('mes'),
-            func.sum(Pago.monto).label('total')
-        ).filter(Pago.fecha_pago >= six_months_ago)\
-         .group_by(extract('month', Pago.fecha_pago))\
-         .all()
+        six_months_pipeline = [
+            {"$match": {"fecha_pago": {"$gte": six_months_ago}}},
+            {"$group": {
+                "_id": {"$month": "$fecha_pago"}, # Agrupamos por el mes extraído de la fecha
+                "total": {"$sum": "$monto"}
+            }}
+        ]
+        
+        income_query = list(db.pagos.aggregate(six_months_pipeline))
 
         # Formatear para el gráfico
-        revenue_map = {int(row.mes): float(row.total) for row in income_query}
+        revenue_map = {row['_id']: float(row['total']) for row in income_query}
         kpi_revenue = []
         
         # Generar los últimos 6 meses en orden
         for i in range(5, -1, -1):
             date_cursor = now - timedelta(days=i*30) 
             mes_num = date_cursor.month
-            kpi_revenue.append(revenue_map.get(mes_num, 0))
+            kpi_revenue.append(revenue_map.get(mes_num, 0.0))
 
         return jsonify({
             'active_members': active_members,

@@ -1,27 +1,67 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime
-from app.extensions import db
-from app.models.miembro import Miembro
-from app.models.rutina_models import Rutina, RutinaDia, RutinaEjercicio
+from bson.objectid import ObjectId
+from app.mongo import get_db
 
 user_routines_bp = Blueprint('user_routines', __name__)
 
+def _build_routine_dict(db, rutina_doc):
+    """Helper para armar el diccionario de la rutina con sus días y ejercicios"""
+    dias = list(db.rutina_dias.find({"id_rutina": rutina_doc["_id"]}).sort("orden", 1))
+    
+    dias_formateados = []
+    for dia in dias:
+        ejercicios = list(db.rutina_ejercicios.find({"id_rutina_dia": dia["_id"]}).sort("orden", 1))
+        
+        ej_formateados = []
+        for ej in ejercicios:
+            ej_formateados.append({
+                "id": str(ej["_id"]),
+                "nombre": ej.get("nombre_ejercicio", ""),
+                "series": ej.get("series", "3"),
+                "reps": ej.get("repeticiones", "12"),
+                "peso": ej.get("peso", ""),
+                "notas": ej.get("notas", ""),
+                "orden": ej.get("orden", 0)
+            })
+            
+        dias_formateados.append({
+            "id": str(dia["_id"]),
+            "dia": dia.get("dia_semana", ""),
+            "grupo": dia.get("grupo_muscular", ""),
+            "orden": dia.get("orden", 0),
+            "ejercicios": ej_formateados
+        })
+        
+    return {
+        "id": str(rutina_doc["_id"]),
+        "nombre": rutina_doc.get("nombre", ""),
+        "categoria": rutina_doc.get("categoria", "General"),
+        "dificultad": rutina_doc.get("dificultad", "Intermedio"),
+        "duracion_minutos": rutina_doc.get("duracion_minutos", 60),
+        "descripcion": rutina_doc.get("descripcion", ""),
+        "objetivo": rutina_doc.get("objetivo", ""),
+        "activa": rutina_doc.get("activa", True),
+        "dias": dias_formateados
+    }
 
 @user_routines_bp.route('/routines', methods=['GET'])
 @jwt_required()
 def get_user_routines():
     try:
-        user_id = int(get_jwt_identity())
-        miembro = Miembro.query.filter_by(id_usuario=user_id).first()
+        db = get_db()
+        user_id = ObjectId(get_jwt_identity())
+        miembro = db.miembros.find_one({"id_usuario": user_id})
         
         if not miembro:
             return jsonify({"error": "Miembro no encontrado"}), 404
         
-        rutinas = Rutina.query.filter_by(id_miembro=miembro.id_miembro).all()
+        rutinas_docs = list(db.rutinas.find({"id_miembro": miembro["_id"]}))
+        rutinas_completas = [_build_routine_dict(db, r) for r in rutinas_docs]
         
         return jsonify({
-            "rutinas": [rutina.to_dict() for rutina in rutinas]
+            "rutinas": rutinas_completas
         }), 200
         
     except Exception as e:
@@ -31,25 +71,26 @@ def get_user_routines():
         return jsonify({"error": str(e)}), 500
 
 
-@user_routines_bp.route('/routines/<int:id>', methods=['GET'])
+@user_routines_bp.route('/routines/<id>', methods=['GET'])
 @jwt_required()
 def get_routine(id):
     try:
-        user_id = int(get_jwt_identity())
-        miembro = Miembro.query.filter_by(id_usuario=user_id).first()
+        db = get_db()
+        user_id = ObjectId(get_jwt_identity())
+        miembro = db.miembros.find_one({"id_usuario": user_id})
         
         if not miembro:
             return jsonify({"error": "Miembro no encontrado"}), 404
         
-        rutina = Rutina.query.filter_by(
-            id_rutina=id,
-            id_miembro=miembro.id_miembro
-        ).first()
+        rutina_doc = db.rutinas.find_one({
+            "_id": ObjectId(id),
+            "id_miembro": miembro["_id"]
+        })
         
-        if not rutina:
+        if not rutina_doc:
             return jsonify({"error": "Rutina no encontrada"}), 404
         
-        return jsonify(rutina.to_dict()), 200
+        return jsonify(_build_routine_dict(db, rutina_doc)), 200
         
     except Exception as e:
         print(f"Error en get_routine: {e}")
@@ -60,8 +101,9 @@ def get_routine(id):
 @jwt_required()
 def create_routine():
     try:
-        user_id = int(get_jwt_identity())
-        miembro = Miembro.query.filter_by(id_usuario=user_id).first()
+        db = get_db()
+        user_id = ObjectId(get_jwt_identity())
+        miembro = db.miembros.find_one({"id_usuario": user_id})
         
         if not miembro:
             return jsonify({"error": "Miembro no encontrado"}), 404
@@ -75,204 +117,226 @@ def create_routine():
             return jsonify({"error": "Debes agregar al menos un día"}), 400
         
         # Crear rutina
-        nueva_rutina = Rutina(
-            id_miembro=miembro.id_miembro,
-            nombre=data['nombre'],
-            activa=True
-        )
-        db.session.add(nueva_rutina)
-        db.session.flush()
+        nueva_rutina = {
+            "id_miembro": miembro["_id"],
+            "nombre": data['nombre'],
+            "activa": True,
+            "fecha_creacion": datetime.now(),
+            "fecha_actualizacion": datetime.now()
+        }
+        rutina_id = db.rutinas.insert_one(nueva_rutina).inserted_id
+        nueva_rutina["_id"] = rutina_id
         
         # Crear días y ejercicios
         for idx, dia_data in enumerate(data['dias']):
-            nuevo_dia = RutinaDia(
-                id_rutina=nueva_rutina.id_rutina,
-                dia_semana=dia_data['dia'],
-                grupo_muscular=dia_data.get('grupo', ''),
-                orden=idx
-            )
-            db.session.add(nuevo_dia)
-            db.session.flush()
+            nuevo_dia = {
+                "id_rutina": rutina_id,
+                "dia_semana": dia_data.get('dia', ''),
+                "grupo_muscular": dia_data.get('grupo', ''),
+                "orden": idx
+            }
+            dia_id = db.rutina_dias.insert_one(nuevo_dia).inserted_id
             
+            ejercicios_a_insertar = []
             for ej_idx, ejercicio_data in enumerate(dia_data.get('ejercicios', [])):
-                if ejercicio_data['nombre'].strip():
-                    nuevo_ejercicio = RutinaEjercicio(
-                        id_rutina_dia=nuevo_dia.id_rutina_dia,
-                        nombre_ejercicio=ejercicio_data['nombre'],
-                        series=ejercicio_data.get('series', '3'),
-                        repeticiones=ejercicio_data.get('reps', '12'),
-                        orden=ej_idx
-                    )
-                    db.session.add(nuevo_ejercicio)
-        
-        db.session.commit()
+                if ejercicio_data.get('nombre', '').strip():
+                    ejercicios_a_insertar.append({
+                        "id_rutina_dia": dia_id,
+                        "nombre_ejercicio": ejercicio_data['nombre'],
+                        "series": str(ejercicio_data.get('series', '3')),
+                        "repeticiones": str(ejercicio_data.get('reps', '12')),
+                        "orden": ej_idx
+                    })
+                    
+            if ejercicios_a_insertar:
+                db.rutina_ejercicios.insert_many(ejercicios_a_insertar)
         
         return jsonify({
             "message": "Rutina creada exitosamente",
-            "rutina": nueva_rutina.to_dict()
+            "rutina": _build_routine_dict(db, nueva_rutina)
         }), 201
         
     except Exception as e:
-        db.session.rollback()
         print(f"Error en create_routine: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
 
-@user_routines_bp.route('/routines/<int:id>', methods=['PUT'])
+@user_routines_bp.route('/routines/<id>', methods=['PUT'])
 @jwt_required()
 def update_routine(id):
     try:
-        user_id = int(get_jwt_identity())
-        miembro = Miembro.query.filter_by(id_usuario=user_id).first()
+        db = get_db()
+        user_id = ObjectId(get_jwt_identity())
+        miembro = db.miembros.find_one({"id_usuario": user_id})
         
         if not miembro:
             return jsonify({"error": "Miembro no encontrado"}), 404
+            
+        rutina_id = ObjectId(id)
+        rutina_doc = db.rutinas.find_one({
+            "_id": rutina_id,
+            "id_miembro": miembro["_id"]
+        })
         
-        rutina = Rutina.query.filter_by(
-            id_rutina=id,
-            id_miembro=miembro.id_miembro
-        ).first()
-        
-        if not rutina:
+        if not rutina_doc:
             return jsonify({"error": "Rutina no encontrada"}), 404
         
         data = request.json
         
         # Actualizar nombre
         if data.get('nombre'):
-            rutina.nombre = data['nombre']
+            db.rutinas.update_one(
+                {"_id": rutina_id},
+                {"$set": {
+                    "nombre": data['nombre'],
+                    "fecha_actualizacion": datetime.now()
+                }}
+            )
+            # Refrescar el documento para armar el diccionario final
+            rutina_doc["nombre"] = data['nombre']
         
-        # Eliminar días existentes
-        RutinaDia.query.filter_by(id_rutina=rutina.id_rutina).delete()
+        # Eliminar días y ejercicios existentes para reemplazarlos
+        dias_existentes = list(db.rutina_dias.find({"id_rutina": rutina_id}))
+        dias_ids = [d["_id"] for d in dias_existentes]
+        
+        if dias_ids:
+            db.rutina_ejercicios.delete_many({"id_rutina_dia": {"$in": dias_ids}})
+            db.rutina_dias.delete_many({"id_rutina": rutina_id})
         
         # Crear nuevos días y ejercicios
         for idx, dia_data in enumerate(data.get('dias', [])):
-            nuevo_dia = RutinaDia(
-                id_rutina=rutina.id_rutina,
-                dia_semana=dia_data['dia'],
-                grupo_muscular=dia_data.get('grupo', ''),
-                orden=idx
-            )
-            db.session.add(nuevo_dia)
-            db.session.flush()
+            nuevo_dia = {
+                "id_rutina": rutina_id,
+                "dia_semana": dia_data.get('dia', ''),
+                "grupo_muscular": dia_data.get('grupo', ''),
+                "orden": idx
+            }
+            dia_id = db.rutina_dias.insert_one(nuevo_dia).inserted_id
             
+            ejercicios_a_insertar = []
             for ej_idx, ejercicio_data in enumerate(dia_data.get('ejercicios', [])):
-                if ejercicio_data['nombre'].strip():
-                    nuevo_ejercicio = RutinaEjercicio(
-                        id_rutina_dia=nuevo_dia.id_rutina_dia,
-                        nombre_ejercicio=ejercicio_data['nombre'],
-                        series=ejercicio_data.get('series', '3'),
-                        repeticiones=ejercicio_data.get('reps', '12'),
-                        orden=ej_idx
-                    )
-                    db.session.add(nuevo_ejercicio)
-        
-        rutina.fecha_actualizacion = datetime.now()
-        db.session.commit()
+                if ejercicio_data.get('nombre', '').strip():
+                    ejercicios_a_insertar.append({
+                        "id_rutina_dia": dia_id,
+                        "nombre_ejercicio": ejercicio_data['nombre'],
+                        "series": str(ejercicio_data.get('series', '3')),
+                        "repeticiones": str(ejercicio_data.get('reps', '12')),
+                        "orden": ej_idx
+                    })
+                    
+            if ejercicios_a_insertar:
+                db.rutina_ejercicios.insert_many(ejercicios_a_insertar)
         
         return jsonify({
             "message": "Rutina actualizada exitosamente",
-            "rutina": rutina.to_dict()
+            "rutina": _build_routine_dict(db, rutina_doc)
         }), 200
         
     except Exception as e:
-        db.session.rollback()
         print(f"Error en update_routine: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
 
-@user_routines_bp.route('/routines/<int:id>', methods=['DELETE'])
+@user_routines_bp.route('/routines/<id>', methods=['DELETE'])
 @jwt_required()
 def delete_routine(id):
     try:
-        user_id = int(get_jwt_identity())
-        miembro = Miembro.query.filter_by(id_usuario=user_id).first()
+        db = get_db()
+        user_id = ObjectId(get_jwt_identity())
+        miembro = db.miembros.find_one({"id_usuario": user_id})
         
         if not miembro:
             return jsonify({"error": "Miembro no encontrado"}), 404
+            
+        rutina_id = ObjectId(id)
+        rutina_doc = db.rutinas.find_one({
+            "_id": rutina_id,
+            "id_miembro": miembro["_id"]
+        })
         
-        rutina = Rutina.query.filter_by(
-            id_rutina=id,
-            id_miembro=miembro.id_miembro
-        ).first()
-        
-        if not rutina:
+        if not rutina_doc:
             return jsonify({"error": "Rutina no encontrada"}), 404
         
-        db.session.delete(rutina)
-        db.session.commit()
+        # Eliminar cascada
+        dias_existentes = list(db.rutina_dias.find({"id_rutina": rutina_id}))
+        dias_ids = [d["_id"] for d in dias_existentes]
+        
+        if dias_ids:
+            db.rutina_ejercicios.delete_many({"id_rutina_dia": {"$in": dias_ids}})
+            db.rutina_dias.delete_many({"id_rutina": rutina_id})
+            
+        db.rutinas.delete_one({"_id": rutina_id})
         
         return jsonify({"message": "Rutina eliminada exitosamente"}), 200
         
     except Exception as e:
-        db.session.rollback()
         print(f"Error en delete_routine: {e}")
         return jsonify({"error": str(e)}), 500
 
 
-@user_routines_bp.route('/routines/<int:id>/duplicate', methods=['POST'])
+@user_routines_bp.route('/routines/<id>/duplicate', methods=['POST'])
 @jwt_required()
 def duplicate_routine(id):
     try:
-        user_id = int(get_jwt_identity())
-        miembro = Miembro.query.filter_by(id_usuario=user_id).first()
+        db = get_db()
+        user_id = ObjectId(get_jwt_identity())
+        miembro = db.miembros.find_one({"id_usuario": user_id})
         
         if not miembro:
             return jsonify({"error": "Miembro no encontrado"}), 404
-        
-        rutina_original = Rutina.query.filter_by(
-            id_rutina=id,
-            id_miembro=miembro.id_miembro
-        ).first()
+            
+        rutina_id = ObjectId(id)
+        rutina_original = db.rutinas.find_one({
+            "_id": rutina_id,
+            "id_miembro": miembro["_id"]
+        })
         
         if not rutina_original:
             return jsonify({"error": "Rutina no encontrada"}), 404
         
         # Crear copia de la rutina
-        nueva_rutina = Rutina(
-            id_miembro=miembro.id_miembro,
-            nombre=f"Copia de {rutina_original.nombre}",
-            activa=False
-        )
-        db.session.add(nueva_rutina)
-        db.session.flush()
+        nueva_rutina = rutina_original.copy()
+        del nueva_rutina["_id"] # Eliminar el ID original
+        nueva_rutina["nombre"] = f"Copia de {rutina_original.get('nombre', '')}"
+        nueva_rutina["activa"] = False
+        nueva_rutina["fecha_creacion"] = datetime.now()
+        nueva_rutina["fecha_actualizacion"] = datetime.now()
+        
+        nuevo_id_rutina = db.rutinas.insert_one(nueva_rutina).inserted_id
+        nueva_rutina["_id"] = nuevo_id_rutina
         
         # Copiar días y ejercicios
-        for dia in rutina_original.dias:
-            nuevo_dia = RutinaDia(
-                id_rutina=nueva_rutina.id_rutina,
-                dia_semana=dia.dia_semana,
-                grupo_muscular=dia.grupo_muscular,
-                orden=dia.orden
-            )
-            db.session.add(nuevo_dia)
-            db.session.flush()
-            
-            for ejercicio in dia.ejercicios:
-                nuevo_ejercicio = RutinaEjercicio(
-                    id_rutina_dia=nuevo_dia.id_rutina_dia,
-                    nombre_ejercicio=ejercicio.nombre_ejercicio,
-                    series=ejercicio.series,
-                    repeticiones=ejercicio.repeticiones,
-                    peso=ejercicio.peso,
-                    notas=ejercicio.notas,
-                    orden=ejercicio.orden
-                )
-                db.session.add(nuevo_ejercicio)
+        dias_originales = list(db.rutina_dias.find({"id_rutina": rutina_id}))
         
-        db.session.commit()
+        for dia in dias_originales:
+            ejercicios_originales = list(db.rutina_ejercicios.find({"id_rutina_dia": dia["_id"]}))
+            
+            nuevo_dia = dia.copy()
+            del nuevo_dia["_id"]
+            nuevo_dia["id_rutina"] = nuevo_id_rutina
+            
+            nuevo_id_dia = db.rutina_dias.insert_one(nuevo_dia).inserted_id
+            
+            ejercicios_a_insertar = []
+            for ej in ejercicios_originales:
+                nuevo_ej = ej.copy()
+                del nuevo_ej["_id"]
+                nuevo_ej["id_rutina_dia"] = nuevo_id_dia
+                ejercicios_a_insertar.append(nuevo_ej)
+                
+            if ejercicios_a_insertar:
+                db.rutina_ejercicios.insert_many(ejercicios_a_insertar)
         
         return jsonify({
             "message": "Rutina duplicada exitosamente",
-            "rutina": nueva_rutina.to_dict()
+            "rutina": _build_routine_dict(db, nueva_rutina)
         }), 201
         
     except Exception as e:
-        db.session.rollback()
         print(f"Error en duplicate_routine: {e}")
         import traceback
         traceback.print_exc()

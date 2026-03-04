@@ -1,13 +1,14 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
 from datetime import date
-from dateutil.relativedelta import relativedelta # <--- Recomendado para manejar meses
+from dateutil.relativedelta import relativedelta 
+import math
 
-from app.extensions import db
+from app.mongo import get_db
 from app.models.pago import Pago
 from app.models.membresia import Membresia
 from app.models.miembro_membresia import MiembroMembresia
-from app.models.miembro import Miembro # <--- IMPORTANTE: Importar el modelo Miembro
+from app.models.miembro import Miembro
 from app.utils.luhn import validar_luhn
 
 pagos_bp = Blueprint("pagos", __name__)
@@ -16,6 +17,7 @@ pagos_bp = Blueprint("pagos", __name__)
 @jwt_required()
 def registrar_pago():
     try:
+        db = get_db()
         data = request.json
 
         # 1. Validaciones básicas
@@ -24,71 +26,81 @@ def registrar_pago():
             if field not in data:
                 return jsonify({"error": f"Falta el campo {field}"}), 400
 
-        # 2. Validar que la Membresía existe
-        membresia = Membresia.query.get(data["id_membresia"])
+        # 2. Validar Membresía
+        membresia = Membresia.find_by_id(data["id_membresia"])
         if not membresia:
             return jsonify({"error": "Membresía no válida"}), 404
 
-        # 3. Validar que el Miembro existe (¡Faltaba esto!)
-        miembro = Miembro.query.get(data["id_miembro"])
+        # 3. Validar Miembro
+        miembro = Miembro.find_by_id(data["id_miembro"])
         if not miembro:
             return jsonify({"error": "Miembro no encontrado"}), 404
 
-        # 4. Validar tarjeta (solo si aplica)
+        # 4. Validar tarjeta
         if data["metodo_pago"] == "Tarjeta":
             tarjeta = data.get("numero_tarjeta", "")
             if not validar_luhn(tarjeta):
                 return jsonify({"error": "Número de tarjeta inválido"}), 400
 
-        # 5. Crear el objeto Pago
+        # 5. Crear el Pago
         pago = Pago(
-            id_miembro=data["id_miembro"],
+            id_miembro=miembro._id,
             monto=membresia.precio,
             metodo_pago=data["metodo_pago"],
             concepto=f"Pago membresía {membresia.nombre}"
         )
-        db.session.add(pago)
+        pago.save()
 
-        # 6. Calcular fechas de forma segura
-        # Usamos relativedelta para evitar errores tipo "30 de febrero"
+        # 6. Calcular fechas
         inicio = date.today()
-        fin = inicio + relativedelta(months=membresia.duracion_meses)
+        # Manejo seguro si duracion_meses viene como string
+        duracion = int(membresia.duracion_meses)
+        fin = inicio + relativedelta(months=duracion)
 
-        # 7. Crear/Actualizar la relación Miembro-Membresía
+        # 7. Crear la relación Miembro-Membresía
+        # Usamos string format para MongoDB
         mm = MiembroMembresia(
-            id_miembro=data["id_miembro"],
-            id_membresia=membresia.id_membresia,
-            fecha_inicio=inicio,
-            fecha_fin=fin,
+            id_miembro=miembro._id,
+            id_membresia=membresia._id,
+            fecha_inicio=inicio.strftime('%Y-%m-%d'),
+            fecha_fin=fin.strftime('%Y-%m-%d'),
             estado="Activa"
         )
-        db.session.add(mm)
+        mm.save()
         
-        db.session.commit()
-
         return jsonify(pago.to_dict()), 201
 
     except Exception as e:
-        db.session.rollback() # Deshacer cambios si algo falla
-        print(f"Error en registrar_pago: {str(e)}") # Ver error en consola
+        print(f"Error en registrar_pago: {str(e)}") 
         return jsonify({"error": "Error interno del servidor", "detalle": str(e)}), 500
 
 @pagos_bp.route("/api/pagos", methods=["GET"])
 @jwt_required()
 def listar_pagos():
     try:
+        db = get_db()
         page = request.args.get("page", 1, type=int)
         per_page = 6
+        skip = (page - 1) * per_page
 
-        pagination = Pago.query.order_by(
-            Pago.fecha_pago.desc()
-        ).paginate(page=page, per_page=per_page, error_out=False)
+        total_pagos = db.pagos.count_documents({})
+        pagos_cursor = db.pagos.find({}).sort("fecha_pago", -1).skip(skip).limit(per_page)
+        
+        pages = math.ceil(total_pagos / per_page) if total_pagos > 0 else 0
+        
+        pagos_lista = []
+        for p_data in pagos_cursor:
+            p = Pago(**p_data)
+            # Reemplazamos _id con id_pago para la salida del dict
+            dict_data = p.to_dict()
+            dict_data["id_pago"] = str(p_data["_id"])
+            pagos_lista.append(dict_data)
 
         return jsonify({
-            "pagos": [p.to_dict() for p in pagination.items],
-            "total": pagination.total,
-            "pages": pagination.pages,
-            "page": pagination.page
+            "pagos": pagos_lista,
+            "total": total_pagos,
+            "pages": pages,
+            "page": page
         }), 200
     except Exception as e:
         print(f"Error listando pagos: {e}")

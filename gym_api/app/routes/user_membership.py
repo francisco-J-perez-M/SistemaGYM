@@ -1,11 +1,8 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime, timedelta
-from app.extensions import db
-from app.models.miembro import Miembro
-from app.models.membresia import Membresia
-from app.models.miembro_membresia import MiembroMembresia
-from app.models.pago import Pago
+from bson.objectid import ObjectId
+from app.mongo import get_db
 
 user_membership_bp = Blueprint('user_membership', __name__)
 
@@ -17,17 +14,18 @@ def get_user_membership():
     Obtiene información de la membresía actual del usuario
     """
     try:
-        user_id = int(get_jwt_identity())
-        miembro = Miembro.query.filter_by(id_usuario=user_id).first()
+        db = get_db()
+        user_id = ObjectId(get_jwt_identity())
+        miembro = db.miembros.find_one({"id_usuario": user_id})
         
         if not miembro:
             return jsonify({"error": "Miembro no encontrado"}), 404
         
         # Buscar membresía activa
-        membresia_activa = MiembroMembresia.query.filter_by(
-            id_miembro=miembro.id_miembro,
-            estado='Activa'
-        ).first()
+        membresia_activa = db.miembro_membresia.find_one({
+            "id_miembro": miembro["_id"],
+            "estado": 'Activa'
+        })
         
         if not membresia_activa:
             return jsonify({
@@ -36,21 +34,27 @@ def get_user_membership():
             }), 200
         
         # Obtener datos de la membresía
-        membresia = membresia_activa.membresia
+        membresia = db.membresias.find_one({"_id": membresia_activa["id_membresia"]})
         
         # Calcular días restantes
-        dias_restantes = (membresia_activa.fecha_fin - datetime.now().date()).days
+        fecha_fin = membresia_activa.get("fecha_fin")
+        if isinstance(fecha_fin, str):
+            fecha_fin = datetime.strptime(fecha_fin[:10], "%Y-%m-%d").date()
+        elif isinstance(fecha_fin, datetime):
+            fecha_fin = fecha_fin.date()
+            
+        dias_restantes = (fecha_fin - datetime.now().date()).days
         
         return jsonify({
             "tieneMembresia": True,
             "membresia": {
-                "id": membresia_activa.id_mm,
-                "nombre": membresia.nombre if membresia else "N/A",
-                "fechaInicio": membresia_activa.fecha_inicio.strftime('%Y-%m-%d'),
-                "fechaFin": membresia_activa.fecha_fin.strftime('%Y-%m-%d'),
+                "id": str(membresia_activa["_id"]),
+                "nombre": membresia.get("nombre", "N/A") if membresia else "N/A",
+                "fechaInicio": membresia_activa.get("fecha_inicio").strftime('%Y-%m-%d') if isinstance(membresia_activa.get("fecha_inicio"), datetime) else str(membresia_activa.get("fecha_inicio")),
+                "fechaFin": fecha_fin.strftime('%Y-%m-%d'),
                 "diasRestantes": dias_restantes,
                 "estado": "activa" if dias_restantes > 0 else "por_vencer",
-                "precio": float(membresia.precio) if membresia else 0
+                "precio": float(membresia.get("precio", 0)) if membresia else 0
             }
         }), 200
         
@@ -68,25 +72,32 @@ def get_available_plans():
     Obtiene los planes de membresía disponibles para renovación
     """
     try:
-        # Obtener todas las membresías
-        membresias = Membresia.query.all()
+        db = get_db()
+        membresias = list(db.membresias.find({}))
         
         planes = []
+        # Buscar el precio de 1 mes base para calcular ahorros
+        precio_mensual = 950
+        for m in membresias:
+            if m.get("duracion_meses") == 1:
+                precio_mensual = float(m.get("precio", 950))
+                break
+                
         for mem in membresias:
-            # Calcular ahorro basado en el plan mensual
-            precio_mensual = next((m.precio for m in membresias if m.duracion_meses == 1), 950)
-            ahorro = (precio_mensual * mem.duracion_meses) - mem.precio if mem.duracion_meses > 1 else 0
+            duracion = int(mem.get("duracion_meses", 1))
+            precio = float(mem.get("precio", 0))
             
-            # Mapear a formato del frontend
-            plan_id = "monthly" if mem.duracion_meses == 1 else "quarterly" if mem.duracion_meses == 3 else "annual"
+            ahorro = (precio_mensual * duracion) - precio if duracion > 1 else 0
+            
+            plan_id = "monthly" if duracion == 1 else "quarterly" if duracion == 3 else "annual"
             
             planes.append({
                 "id": plan_id,
-                "id_membresia": mem.id_membresia,
-                "nombre": mem.nombre,
-                "duracion_meses": mem.duracion_meses,
-                "precio": float(mem.precio),
-                "ahorro": float(ahorro)
+                "id_membresia": str(mem["_id"]),
+                "nombre": mem.get("nombre"),
+                "duracion_meses": duracion,
+                "precio": precio,
+                "ahorro": max(0, float(ahorro))
             })
         
         return jsonify({"planes": planes}), 200
@@ -103,83 +114,81 @@ def renew_membership():
     Procesa la renovación de membresía
     """
     try:
-        user_id = int(get_jwt_identity())
-        miembro = Miembro.query.filter_by(id_usuario=user_id).first()
+        db = get_db()
+        user_id = ObjectId(get_jwt_identity())
+        miembro = db.miembros.find_one({"id_usuario": user_id})
         
         if not miembro:
             return jsonify({"error": "Miembro no encontrado"}), 404
         
         data = request.json
-        id_membresia = data.get('id_membresia')
-        metodo_pago = data.get('metodo_pago', 'Tarjeta')  # Obtener del request
+        id_membresia_str = data.get('id_membresia')
+        metodo_pago = data.get('metodo_pago', 'Tarjeta') 
         
-        if not id_membresia:
+        if not id_membresia_str:
             return jsonify({"error": "ID de membresía requerido"}), 400
-        
-        # Validar método de pago
+            
         metodos_validos = ['Efectivo', 'Tarjeta', 'Transferencia']
         if metodo_pago not in metodos_validos:
             return jsonify({"error": f"Método de pago inválido. Usar: {', '.join(metodos_validos)}"}), 400
         
-        membresia = Membresia.query.get(id_membresia)
-        
+        membresia = db.membresias.find_one({"_id": ObjectId(id_membresia_str)})
         if not membresia:
             return jsonify({"error": "Membresía no encontrada"}), 404
         
-        # Verificar si tiene membresía activa
-        membresia_activa = MiembroMembresia.query.filter_by(
-            id_miembro=miembro.id_miembro,
-            estado='Activa'
-        ).first()
+        membresia_activa = db.miembro_membresia.find_one({
+            "id_miembro": miembro["_id"],
+            "estado": 'Activa'
+        })
         
-        # Calcular fechas
-        fecha_inicio = datetime.now().date()
+        fecha_inicio = datetime.now()
         
         if membresia_activa:
-            # Si tiene membresía activa, la nueva inicia cuando expire la actual
-            if membresia_activa.fecha_fin > fecha_inicio:
-                fecha_inicio = membresia_activa.fecha_fin + timedelta(days=1)
+            f_fin_activa = membresia_activa.get("fecha_fin")
+            if isinstance(f_fin_activa, str):
+                f_fin_activa = datetime.strptime(f_fin_activa[:10], "%Y-%m-%d")
+                
+            if f_fin_activa > fecha_inicio:
+                fecha_inicio = f_fin_activa + timedelta(days=1)
             
-            # Cambiar estado de la membresía anterior
-            membresia_activa.estado = 'Vencida'
+            # Cambiar estado de la anterior a Vencida
+            db.miembro_membresia.update_one(
+                {"_id": membresia_activa["_id"]},
+                {"$set": {"estado": "Vencida"}}
+            )
         
-        fecha_fin = fecha_inicio + timedelta(days=membresia.duracion_meses * 30)
+        duracion = int(membresia.get("duracion_meses", 1))
+        fecha_fin = fecha_inicio + timedelta(days=duracion * 30)
         
         # Crear nueva membresía
-        nueva_membresia = MiembroMembresia(
-            id_miembro=miembro.id_miembro,
-            id_membresia=id_membresia,
-            fecha_inicio=fecha_inicio,
-            fecha_fin=fecha_fin,
-            estado='Activa'
-        )
+        db.miembro_membresia.insert_one({
+            "id_miembro": miembro["_id"],
+            "id_membresia": membresia["_id"],
+            "fecha_inicio": fecha_inicio,
+            "fecha_fin": fecha_fin,
+            "estado": 'Activa'
+        })
         
-        db.session.add(nueva_membresia)
-        
-        # Registrar pago con el método seleccionado
-        nuevo_pago = Pago(
-            id_miembro=miembro.id_miembro,
-            monto=membresia.precio,
-            metodo_pago=metodo_pago,
-            concepto=f"Renovación {membresia.nombre}",
-            fecha_pago=datetime.now()
-        )
-        
-        db.session.add(nuevo_pago)
-        db.session.commit()
+        # Registrar pago
+        db.pagos.insert_one({
+            "id_miembro": miembro["_id"],
+            "monto": float(membresia.get("precio", 0)),
+            "metodo_pago": metodo_pago,
+            "concepto": f"Renovación {membresia.get('nombre')}",
+            "fecha_pago": datetime.now()
+        })
         
         return jsonify({
             "message": "Membresía renovada exitosamente",
             "membresia": {
-                "nombre": membresia.nombre,
+                "nombre": membresia.get("nombre"),
                 "fechaInicio": fecha_inicio.strftime('%Y-%m-%d'),
                 "fechaFin": fecha_fin.strftime('%Y-%m-%d'),
-                "monto": float(membresia.precio)
+                "monto": float(membresia.get("precio", 0))
             }
         }), 201
         
     except Exception as e:
-        db.session.rollback()
         print(f"Error en renew_membership: {e}")
         import traceback
         traceback.print_exc()
@@ -193,43 +202,38 @@ def get_payment_methods():
     Obtiene los métodos de pago guardados del usuario
     """
     try:
-        user_id = int(get_jwt_identity())
-        miembro = Miembro.query.filter_by(id_usuario=user_id).first()
+        db = get_db()
+        user_id = ObjectId(get_jwt_identity())
+        miembro = db.miembros.find_one({"id_usuario": user_id})
         
         if not miembro:
             return jsonify({"error": "Miembro no encontrado"}), 404
         
-        # Obtener los últimos métodos de pago utilizados
-        pagos_recientes = Pago.query.filter_by(
-            id_miembro=miembro.id_miembro
-        ).order_by(Pago.fecha_pago.desc()).limit(5).all()
+        pagos_recientes = list(db.pagos.find({
+            "id_miembro": miembro["_id"]
+        }).sort("fecha_pago", -1).limit(5))
         
-        # Extraer métodos únicos
         metodos_vistos = set()
         metodos = []
         
         for idx, pago in enumerate(pagos_recientes):
-            if pago.metodo_pago not in metodos_vistos:
-                metodos_vistos.add(pago.metodo_pago)
+            metodo = pago.get("metodo_pago")
+            if metodo and metodo not in metodos_vistos:
+                metodos_vistos.add(metodo)
                 
-                # Formatear según el tipo
-                if pago.metodo_pago == 'Tarjeta':
-                    numero_display = "**** **** **** 4242"  # En producción, guardar últimos 4 dígitos
-                elif pago.metodo_pago == 'Transferencia':
+                if metodo == 'Tarjeta':
+                    numero_display = "**** **** **** 4242"
+                elif metodo == 'Transferencia':
                     numero_display = "Cuenta bancaria"
                 else:
-                    numero_display = pago.metodo_pago
+                    numero_display = metodo
                 
                 metodos.append({
                     "id": idx + 1,
-                    "tipo": pago.metodo_pago,
+                    "tipo": metodo,
                     "numero": numero_display,
-                    "principal": idx == 0
+                    "principal": len(metodos) == 0 # El primero es el principal
                 })
-        
-        # Si no tiene métodos, retornar lista vacía
-        if not metodos:
-            return jsonify({"metodos": []}), 200
         
         return jsonify({"metodos": metodos}), 200
         

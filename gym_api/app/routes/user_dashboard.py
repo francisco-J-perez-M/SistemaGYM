@@ -1,13 +1,8 @@
 from flask import Blueprint, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime, timedelta
-from sqlalchemy import func, extract, desc
-from app.extensions import db
-from app.models.miembro import Miembro
-from app.models.user import User
-from app.models.asistencia import Asistencia
-from app.models.miembro_membresia import MiembroMembresia
-from app.models.progreso_fisico import ProgresoFisico
+from bson.objectid import ObjectId
+from app.mongo import get_db
 
 user_dashboard_bp = Blueprint('user_dashboard', __name__)
 
@@ -18,41 +13,38 @@ def get_user_dashboard():
     Endpoint principal para obtener todos los datos del dashboard del usuario
     """
     try:
-        # Obtener el ID del usuario autenticado
-        user_id = int(get_jwt_identity())
+        db = get_db()
+        user_id = ObjectId(get_jwt_identity())
         
-        # Buscar el miembro asociado al usuario
-        miembro = Miembro.query.filter_by(id_usuario=user_id).first()
-        
+        miembro = db.miembros.find_one({"id_usuario": user_id})
         if not miembro:
             return jsonify({"error": "Miembro no encontrado"}), 404
 
-        # Obtener datos del usuario
-        usuario = User.query.get(user_id)
+        usuario = db.usuarios.find_one({"_id": user_id})
         
         # 1. DATOS BÁSICOS DEL USUARIO
         user_data = {
-            "id": usuario.id_usuario,
-            "nombre": usuario.nombre,
-            "email": usuario.email,
+            "id": str(usuario["_id"]),
+            "nombre": usuario.get("nombre", "Usuario"),
+            "email": usuario.get("email", ""),
             "role": "Miembro",
-            "foto_perfil": miembro.foto_perfil
+            "foto_perfil": miembro.get("foto_perfil")
         }
 
         # 2. ESTADÍSTICAS DE WORKOUT
-        workout_stats = _get_workout_stats(miembro.id_miembro, miembro.estatura)
+        workout_stats = _get_workout_stats(db, miembro["_id"], miembro.get("estatura"))
         
-        # 3. RUTINA DE HOY (simulada - puedes conectarla a una tabla real)
+        # 3. RUTINA DE HOY (simulada)
         today_workout = _get_today_workout()
         
         # 4. PROGRESO SEMANAL
-        weekly_progress = _get_weekly_progress(miembro.id_miembro)
+        weekly_progress = _get_weekly_progress(db, miembro["_id"])
         
         # 5. LOGROS RECIENTES
-        recent_achievements = _get_recent_achievements(miembro.id_miembro)
+        recent_achievements = _get_recent_achievements(db, miembro["_id"])
         
         # 6. INFORMACIÓN DE MEMBRESÍA ACTIVA
-        membership_info = _get_active_membership(miembro.id_miembro)
+        membership_info = _get_active_membership(db, miembro["_id"])
 
         return jsonify({
             "user": user_data,
@@ -70,48 +62,48 @@ def get_user_dashboard():
         return jsonify({"error": str(e)}), 500
 
 
-def _get_workout_stats(id_miembro, estatura):
-    """Calcula estadísticas de entrenamientos del usuario"""
+def _get_workout_stats(db, id_miembro, estatura):
     try:
         now = datetime.now()
-        
+        start_of_month = datetime(now.year, now.month, 1)
+        if now.month == 12:
+            start_of_next_month = datetime(now.year + 1, 1, 1)
+        else:
+            start_of_next_month = datetime(now.year, now.month + 1, 1)
+            
         # Asistencias este mes
-        asistencias_mes = Asistencia.query.filter(
-            Asistencia.id_miembro == id_miembro,
-            extract('year', Asistencia.fecha) == now.year,
-            extract('month', Asistencia.fecha) == now.month
-        ).count()
+        asistencias_mes = db.asistencias.count_documents({
+            "id_miembro": id_miembro,
+            "fecha": {"$gte": start_of_month, "$lt": start_of_next_month}
+        })
         
-        # Calcular racha (días consecutivos)
-        racha = _calcular_racha(id_miembro)
-        
-        # Calorías quemadas (estimación: 300 calorías por sesión)
+        racha = _calcular_racha(db, id_miembro)
         calorias_estimadas = asistencias_mes * 300
         
-        # ✅ CORRECCIÓN: Obtener el peso más reciente
-        progreso_reciente = ProgresoFisico.query.filter_by(
-            id_miembro=id_miembro
-        ).order_by(desc(ProgresoFisico.fecha_registro)).first()
+        # Progreso reciente
+        progreso_reciente = list(db.progreso_fisico.find({"id_miembro": id_miembro}).sort("fecha_registro", -1).limit(1))
         
-        # Si no hay progreso registrado, usar peso inicial del miembro
-        if progreso_reciente and progreso_reciente.peso:
-            peso_actual = float(progreso_reciente.peso)
+        if progreso_reciente and progreso_reciente[0].get("peso"):
+            peso_actual = float(progreso_reciente[0]["peso"])
         else:
-            # Buscar peso inicial del miembro
-            miembro = Miembro.query.get(id_miembro)
-            peso_actual = float(miembro.peso_inicial) if miembro and miembro.peso_inicial else 0
-        
+            miembro = db.miembros.find_one({"_id": id_miembro})
+            peso_actual = float(miembro.get("peso_inicial", 0) or 0)
+            
         # Calcular semana actual (basado en fecha de primera asistencia)
-        primera_asistencia = Asistencia.query.filter_by(
-            id_miembro=id_miembro
-        ).order_by(Asistencia.fecha.asc()).first()
+        primera_asistencia = list(db.asistencias.find({"id_miembro": id_miembro}).sort("fecha", 1).limit(1))
         
         if primera_asistencia:
-            dias_desde_inicio = (now.date() - primera_asistencia.fecha).days
+            fecha_pa = primera_asistencia[0].get("fecha")
+            if isinstance(fecha_pa, str):
+                fecha_pa = datetime.strptime(fecha_pa[:10], "%Y-%m-%d").date()
+            elif isinstance(fecha_pa, datetime):
+                fecha_pa = fecha_pa.date()
+                
+            dias_desde_inicio = (now.date() - fecha_pa).days
             semana_actual = (dias_desde_inicio // 7) + 1
         else:
             semana_actual = 1
-        
+            
         return {
             "currentWeek": semana_actual,
             "totalWorkouts": asistencias_mes,
@@ -121,39 +113,33 @@ def _get_workout_stats(id_miembro, estatura):
         }
     except Exception as e:
         print(f"Error en _get_workout_stats: {e}")
-        import traceback
-        traceback.print_exc()
         return {
-            "currentWeek": 0,
-            "totalWorkouts": 0,
-            "caloriesBurned": 0,
-            "streakDays": 0,
-            "currentWeight": 0
+            "currentWeek": 0, "totalWorkouts": 0, "caloriesBurned": 0,
+            "streakDays": 0, "currentWeight": 0
         }
 
 
-def _calcular_racha(id_miembro):
-    """Calcula la racha de días consecutivos entrenando"""
+def _calcular_racha(db, id_miembro):
     try:
-        # Obtener asistencias ordenadas por fecha descendente
-        asistencias = Asistencia.query.filter_by(
-            id_miembro=id_miembro
-        ).order_by(Asistencia.fecha.desc()).all()
+        asistencias = list(db.asistencias.find({"id_miembro": id_miembro}).sort("fecha", -1))
+        if not asistencias: return 0
         
-        if not asistencias:
-            return 0
+        # Limpiar y ordenar fechas únicas
+        fechas_asistencia = []
+        for a in asistencias:
+            f = a.get("fecha")
+            if isinstance(f, datetime): f = f.date()
+            elif isinstance(f, str): f = datetime.strptime(f[:10], "%Y-%m-%d").date()
+            if f not in fechas_asistencia:
+                fechas_asistencia.append(f)
+                
+        fechas_asistencia.sort(reverse=True)
         
-        # Crear set de fechas únicas y ordenarlas
-        fechas_asistencia = sorted(set([a.fecha for a in asistencias]), reverse=True)
-        
-        # Verificar si entrenó hoy o ayer (para contar racha actual)
         fecha_actual = datetime.now().date()
         fecha_mas_reciente = fechas_asistencia[0]
         
-        # Si la última asistencia fue hace más de 1 día, no hay racha activa
         dias_desde_ultima = (fecha_actual - fecha_mas_reciente).days
-        if dias_desde_ultima > 1:
-            return 0
+        if dias_desde_ultima > 1: return 0
         
         racha = 0
         fecha_esperada = fecha_actual if dias_desde_ultima == 0 else fecha_actual - timedelta(days=1)
@@ -163,9 +149,8 @@ def _calcular_racha(id_miembro):
                 racha += 1
                 fecha_esperada -= timedelta(days=1)
             elif fecha < fecha_esperada:
-                # Hubo un salto, la racha se rompió
                 break
-        
+                
         return racha
     except Exception as e:
         print(f"Error calculando racha: {e}")
@@ -173,7 +158,6 @@ def _calcular_racha(id_miembro):
 
 
 def _get_today_workout():
-    """Retorna la rutina del día (simulada - conecta con tu sistema de rutinas)"""
     dias = ["Descanso", "Pecho y Tríceps", "Espalda y Bíceps", "Pierna", "Hombro", "Cardio", "Descanso"]
     dia_semana = datetime.now().weekday()
     
@@ -212,52 +196,43 @@ def _get_today_workout():
             {"name": "Elíptica", "sets": "15 min", "completed": False}
         ]
     }
-    
     tipo_rutina = dias[dia_semana]
-    ejercicios = rutinas.get(tipo_rutina, [])
-    
     return {
         "type": tipo_rutina,
-        "exercises": ejercicios
+        "exercises": rutinas.get(tipo_rutina, [])
     }
 
 
-def _get_weekly_progress(id_miembro):
-    """Obtiene el progreso de asistencias de la semana"""
+def _get_weekly_progress(db, id_miembro):
     try:
         now = datetime.now()
-        # Comenzar desde el lunes de esta semana
-        inicio_semana = now - timedelta(days=now.weekday())
-        
+        inicio_semana = datetime.combine(now.date() - timedelta(days=now.weekday()), datetime.min.time())
         progreso_diario = []
         
         for i in range(7):
-            dia = inicio_semana + timedelta(days=i)
-            asistencias = Asistencia.query.filter(
-                Asistencia.id_miembro == id_miembro,
-                Asistencia.fecha == dia.date()
-            ).count()
+            dia_inicio = inicio_semana + timedelta(days=i)
+            dia_fin = dia_inicio + timedelta(days=1)
             
-            # Porcentaje: 100% si asistió, 0% si no
-            porcentaje = 100 if asistencias > 0 else 0
-            progreso_diario.append(porcentaje)
-        
+            asistencias = db.asistencias.count_documents({
+                "id_miembro": id_miembro,
+                "fecha": {"$gte": dia_inicio, "$lt": dia_fin}
+            })
+            
+            progreso_diario.append(100 if asistencias > 0 else 0)
+            
         return progreso_diario
     except Exception as e:
         print(f"Error en _get_weekly_progress: {e}")
         return [0, 0, 0, 0, 0, 0, 0]
 
 
-def _get_recent_achievements(id_miembro):
-    """Retorna logros recientes del usuario con iconos de react-icons"""
+def _get_recent_achievements(db, id_miembro):
     achievements = []
-    
     try:
-        # Logro de racha
-        racha = _calcular_racha(id_miembro)
+        racha = _calcular_racha(db, id_miembro)
         if racha >= 7:
             achievements.append({
-                "icon": "FaFire",  # Se interpreta en el frontend
+                "icon": "FaFire",
                 "title": f"Racha de {racha} días",
                 "description": "Completado hoy",
                 "color": "var(--accent-color)"
@@ -269,14 +244,14 @@ def _get_recent_achievements(id_miembro):
                 "description": "¡Sigue así!",
                 "color": "var(--warning-color)"
             })
-        
-        # Logro de peso (si tiene progreso)
-        progresos = ProgresoFisico.query.filter_by(
-            id_miembro=id_miembro
-        ).order_by(desc(ProgresoFisico.fecha_registro)).limit(2).all()
+            
+        progresos = list(db.progreso_fisico.find({"id_miembro": id_miembro}).sort("fecha_registro", -1).limit(2))
         
         if len(progresos) >= 2:
-            diferencia = float(progresos[0].peso) - float(progresos[1].peso)
+            peso_actual = float(progresos[0].get("peso", 0) or 0)
+            peso_anterior = float(progresos[1].get("peso", 0) or 0)
+            diferencia = peso_actual - peso_anterior
+            
             if abs(diferencia) >= 1:
                 signo = "+" if diferencia > 0 else ""
                 achievements.append({
@@ -285,13 +260,18 @@ def _get_recent_achievements(id_miembro):
                     "description": "Última medición",
                     "color": "var(--success-color)"
                 })
-        
-        # Logro de asistencias del mes
-        asistencias_mes = Asistencia.query.filter(
-            Asistencia.id_miembro == id_miembro,
-            extract('month', Asistencia.fecha) == datetime.now().month,
-            extract('year', Asistencia.fecha) == datetime.now().year
-        ).count()
+                
+        now = datetime.now()
+        start_of_month = datetime(now.year, now.month, 1)
+        if now.month == 12:
+            start_of_next_month = datetime(now.year + 1, 1, 1)
+        else:
+            start_of_next_month = datetime(now.year, now.month + 1, 1)
+            
+        asistencias_mes = db.asistencias.count_documents({
+            "id_miembro": id_miembro,
+            "fecha": {"$gte": start_of_month, "$lt": start_of_next_month}
+        })
         
         if asistencias_mes >= 20:
             achievements.append({
@@ -307,29 +287,36 @@ def _get_recent_achievements(id_miembro):
                 "description": "Este mes",
                 "color": "var(--warning-color)"
             })
-        
+            
     except Exception as e:
         print(f"Error en _get_recent_achievements: {e}")
-    
     return achievements
 
 
-def _get_active_membership(id_miembro):
-    """Obtiene información de la membresía activa del usuario"""
+def _get_active_membership(db, id_miembro):
     try:
-        membresia_activa = MiembroMembresia.query.filter_by(
-            id_miembro=id_miembro,
-            estado='Activa'
-        ).first()
+        membresia_activa = db.miembro_membresia.find_one({
+            "id_miembro": id_miembro,
+            "estado": 'Activa'
+        })
         
         if not membresia_activa:
             return None
+            
+        plan_doc = db.membresias.find_one({"_id": membresia_activa.get("id_membresia")})
+        nombre_plan = plan_doc.get("nombre", "N/A") if plan_doc else "N/A"
         
-        dias_restantes = (membresia_activa.fecha_fin - datetime.now().date()).days
+        fecha_fin = membresia_activa.get("fecha_fin")
+        if isinstance(fecha_fin, str):
+            fecha_fin = datetime.strptime(fecha_fin[:10], "%Y-%m-%d").date()
+        elif isinstance(fecha_fin, datetime):
+            fecha_fin = fecha_fin.date()
+            
+        dias_restantes = (fecha_fin - datetime.now().date()).days
         
         return {
-            "plan": membresia_activa.membresia.nombre if membresia_activa.membresia else "N/A",
-            "fecha_fin": membresia_activa.fecha_fin.strftime('%Y-%m-%d'),
+            "plan": nombre_plan,
+            "fecha_fin": fecha_fin.strftime('%Y-%m-%d'),
             "dias_restantes": dias_restantes,
             "estado": "activa" if dias_restantes > 0 else "por_vencer"
         }
@@ -344,22 +331,13 @@ def _get_active_membership(id_miembro):
 @user_dashboard_bp.route('/api/user/workout/complete', methods=['POST'])
 @jwt_required()
 def complete_exercise():
-    """
-    Marca un ejercicio como completado
-    (En una implementación real, guardarías esto en la DB)
-    """
     try:
         from flask import request
         data = request.json
-        
-        # Aquí podrías guardar en una tabla workout_sessions
-        # Por ahora solo retornamos éxito
-        
         return jsonify({
             "message": "Ejercicio marcado como completado",
             "exercise": data.get("exercise_name")
         }), 200
-        
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -370,41 +348,40 @@ def complete_exercise():
 @user_dashboard_bp.route('/api/user/checkin', methods=['POST'])
 @jwt_required()
 def register_checkin():
-    """Registra la asistencia del usuario al gimnasio"""
     try:
-        user_id = int(get_jwt_identity())
-        miembro = Miembro.query.filter_by(id_usuario=user_id).first()
+        db = get_db()
+        user_id = ObjectId(get_jwt_identity())
+        miembro = db.miembros.find_one({"id_usuario": user_id})
         
         if not miembro:
             return jsonify({"error": "Miembro no encontrado"}), 404
+            
+        now = datetime.now()
+        hoy_inicio = datetime.combine(now.date(), datetime.min.time())
+        hoy_fin = hoy_inicio + timedelta(days=1)
         
-        # Verificar si ya registró asistencia hoy
-        hoy = datetime.now().date()
-        asistencia_hoy = Asistencia.query.filter(
-            Asistencia.id_miembro == miembro.id_miembro,
-            Asistencia.fecha == hoy
-        ).first()
+        asistencia_hoy = db.asistencias.find_one({
+            "id_miembro": miembro["_id"],
+            "fecha": {"$gte": hoy_inicio, "$lt": hoy_fin}
+        })
         
         if asistencia_hoy:
             return jsonify({"message": "Ya registraste tu asistencia hoy"}), 200
+            
+        nueva_asistencia = {
+            "id_miembro": miembro["_id"],
+            "fecha": now,
+            "hora_entrada": now.strftime('%H:%M:%S')
+        }
         
-        # Crear nueva asistencia
-        nueva_asistencia = Asistencia(
-            id_miembro=miembro.id_miembro,
-            fecha=hoy,
-            hora_entrada=datetime.now().time()
-        )
-        
-        db.session.add(nueva_asistencia)
-        db.session.commit()
+        db.asistencias.insert_one(nueva_asistencia)
         
         return jsonify({
             "message": "Asistencia registrada exitosamente",
-            "fecha": hoy.strftime('%Y-%m-%d')
+            "fecha": now.strftime('%Y-%m-%d')
         }), 201
         
     except Exception as e:
-        db.session.rollback()
         print(f"Error en register_checkin: {e}")
         return jsonify({"error": str(e)}), 500
 
@@ -415,41 +392,44 @@ def register_checkin():
 @user_dashboard_bp.route('/api/user/progress', methods=['POST'])
 @jwt_required()
 def register_progress():
-    """Registra el progreso físico del usuario"""
     try:
         from flask import request
-        user_id = int(get_jwt_identity())
-        miembro = Miembro.query.filter_by(id_usuario=user_id).first()
+        db = get_db()
+        user_id = ObjectId(get_jwt_identity())
+        miembro = db.miembros.find_one({"id_usuario": user_id})
         
         if not miembro:
             return jsonify({"error": "Miembro no encontrado"}), 404
-        
+            
         data = request.json
         
-        # Crear nuevo registro de progreso
-        nuevo_progreso = ProgresoFisico(
-            id_miembro=miembro.id_miembro,
-            peso=data.get('peso'),
-            bmi=data.get('bmi'),
-            cintura=data.get('cintura'),
-            cadera=data.get('cadera'),
-            fecha_registro=datetime.now().date()
-        )
+        nuevo_progreso = {
+            "id_miembro": miembro["_id"],
+            "peso": float(data.get('peso', 0)),
+            "cintura": float(data.get('cintura', 0)) if data.get('cintura') else None,
+            "cadera": float(data.get('cadera', 0)) if data.get('cadera') else None,
+            "fecha_registro": datetime.now()
+        }
         
-        # Calcular BMI automáticamente si no viene
-        if not nuevo_progreso.bmi and miembro.estatura:
-            estatura_metros = float(miembro.estatura) / 100  # convertir cm a metros
-            nuevo_progreso.calcular_bmi(estatura_metros)
+        estatura = float(miembro.get("estatura") or 0)
+        bmi = data.get('bmi')
+        if not bmi and estatura > 0 and nuevo_progreso["peso"]:
+            bmi = round(_calcular_imc(nuevo_progreso["peso"], estatura), 2)
+            
+        nuevo_progreso["bmi"] = float(bmi) if bmi else None
+            
+        db.progreso_fisico.insert_one(nuevo_progreso)
         
-        db.session.add(nuevo_progreso)
-        db.session.commit()
+        # Para retornar un id como string sin romper
+        nuevo_progreso["_id"] = str(nuevo_progreso["_id"])
+        nuevo_progreso["id_miembro"] = str(nuevo_progreso["id_miembro"])
+        nuevo_progreso["fecha_registro"] = nuevo_progreso["fecha_registro"].strftime('%Y-%m-%d')
         
         return jsonify({
             "message": "Progreso registrado exitosamente",
-            "progreso": nuevo_progreso.to_dict()
+            "progreso": nuevo_progreso
         }), 201
         
     except Exception as e:
-        db.session.rollback()
         print(f"Error en register_progress: {e}")
         return jsonify({"error": str(e)}), 500

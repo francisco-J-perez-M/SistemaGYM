@@ -1,10 +1,8 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime
-from sqlalchemy import desc
-from app.extensions import db
-from app.models.miembro import Miembro
-from app.models.progreso_fisico import ProgresoFisico
+from bson.objectid import ObjectId
+from app.mongo import get_db
 
 user_health_bp = Blueprint('user_health', __name__)
 
@@ -45,28 +43,29 @@ def _calcular_imc(peso, estatura):
 @jwt_required()
 def get_user_health():
     try:
-        user_id = int(get_jwt_identity())
-        miembro = Miembro.query.filter_by(id_usuario=user_id).first()
+        db = get_db()
+        user_id = ObjectId(get_jwt_identity())
+        miembro = db.miembros.find_one({"id_usuario": user_id})
 
         if not miembro:
             return jsonify({"error": "Miembro no encontrado"}), 404
 
-        ultimo_progreso = ProgresoFisico.query.filter_by(
-            id_miembro=miembro.id_miembro
-        ).order_by(ProgresoFisico.fecha_registro.desc()).first()
+        # Obtener último progreso
+        progreso_cursor = db.progreso_fisico.find({"id_miembro": miembro["_id"]}).sort("fecha_registro", -1).limit(1)
+        ultimo_progreso = list(progreso_cursor)[0] if list(progreso_cursor) else None
 
         # PESO
-        if ultimo_progreso and ultimo_progreso.peso:
-            peso_actual = float(ultimo_progreso.peso)
+        if ultimo_progreso and ultimo_progreso.get("peso"):
+            peso_actual = float(ultimo_progreso["peso"])
         else:
-            peso_actual = float(miembro.peso_inicial or 0)
+            peso_actual = float(miembro.get("peso_inicial") or 0)
 
-        # ESTATURA (IGUAL QUE body-progress)
-        estatura = float(miembro.estatura or 1.7)
+        # ESTATURA
+        estatura = float(miembro.get("estatura") or 1.7)
         if estatura <= 0:
             estatura = 1.7
 
-        # IMC (MISMA FUNCIÓN QUE YA FUNCIONA)
+        # IMC
         imc = _calcular_imc(peso_actual, estatura)
 
         condiciones = []
@@ -123,7 +122,7 @@ def get_user_health():
             }
 
             for campo, nombre in medidas.items():
-                valor = getattr(ultimo_progreso, campo, None)
+                valor = ultimo_progreso.get(campo)
                 if valor:
                     condiciones.append({
                         "nombre": nombre,
@@ -132,13 +131,17 @@ def get_user_health():
                         "icon": "FiActivity"
                     })
 
+        # Formatear fecha
+        fecha_act = ultimo_progreso.get("fecha_registro") if ultimo_progreso else None
+        str_fecha = fecha_act.strftime('%Y-%m-%d') if isinstance(fecha_act, datetime) else (str(fecha_act) if fecha_act else None)
+
         return jsonify({
             "condiciones": condiciones,
             "alergias": [],
             "medicamentos": [],
             "lesiones": [],
-            "notas": ultimo_progreso.notas if ultimo_progreso else None,
-            "ultimaActualizacion": ultimo_progreso.fecha_registro.strftime('%Y-%m-%d') if ultimo_progreso else None
+            "notas": ultimo_progreso.get("notas") if ultimo_progreso else None,
+            "ultimaActualizacion": str_fecha
         }), 200
 
     except Exception as e:
@@ -156,26 +159,27 @@ def get_user_health():
 @jwt_required()
 def update_user_health():
     try:
-        user_id = int(get_jwt_identity())
-        miembro = Miembro.query.filter_by(id_usuario=user_id).first()
+        db = get_db()
+        user_id = ObjectId(get_jwt_identity())
+        miembro = db.miembros.find_one({"id_usuario": user_id})
         if not miembro:
             return jsonify({"error": "Miembro no encontrado"}), 404
 
         data = request.json
 
-        nuevo_progreso = ProgresoFisico(
-            id_miembro=miembro.id_miembro,
-            peso=data.get('peso'),
-            cintura=data.get('cintura'),
-            cadera=data.get('cadera'),
-            fecha_registro=datetime.now().date()
-        )
+        nuevo_progreso = {
+            "id_miembro": miembro["_id"],
+            "peso": float(data.get('peso')) if data.get('peso') else None,
+            "cintura": float(data.get('cintura')) if data.get('cintura') else None,
+            "cadera": float(data.get('cadera')) if data.get('cadera') else None,
+            "fecha_registro": datetime.now()
+        }
 
-        # 🔴 IMC SIEMPRE CALCULADO CORRECTAMENTE
-        if nuevo_progreso.peso and miembro.estatura:
-            nuevo_progreso.bmi = _calcular_bmi(
-                nuevo_progreso.peso,
-                miembro.estatura
+        # IMC SIEMPRE CALCULADO CORRECTAMENTE
+        if nuevo_progreso["peso"] and miembro.get("estatura"):
+            nuevo_progreso["bmi"] = _calcular_bmi(
+                nuevo_progreso["peso"],
+                miembro["estatura"]
             )
 
         campos_extra = [
@@ -184,16 +188,18 @@ def update_user_health():
         ]
 
         for campo in campos_extra:
-            if campo in data:
-                setattr(nuevo_progreso, campo, data.get(campo))
+            if campo in data and data.get(campo):
+                if campo == 'notas':
+                    nuevo_progreso[campo] = str(data.get(campo))
+                else:
+                    nuevo_progreso[campo] = float(data.get(campo))
 
-        db.session.add(nuevo_progreso)
-        db.session.commit()
+        db.progreso_fisico.insert_one(nuevo_progreso)
 
         return jsonify({
             "message": "Datos de salud actualizados correctamente"
         }), 201
 
     except Exception as e:
-        db.session.rollback()
+        print(f"Error en update_user_health: {e}")
         return jsonify({"error": str(e)}), 500
