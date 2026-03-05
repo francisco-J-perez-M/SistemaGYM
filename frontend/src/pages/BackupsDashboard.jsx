@@ -100,7 +100,7 @@ export default function BackupsDashboard() {
     }
   };
 
-  const handleDownload = async (fileType, urlOrFilename) => {
+  const handleDownload = async (urlOrFilename) => {
     try {
       let filename;
       if (urlOrFilename.includes('/')) {
@@ -236,7 +236,7 @@ export default function BackupsDashboard() {
             </div>
           </div>
 
-          {/* DERECHA: Progreso y Descargas - BARRA CORREGIDA */}
+          {/* DERECHA: Progreso y Descargas */}
           <div className="stat-card">
             <div className="chart-header">
               <h3>Monitor de Proceso</h3>
@@ -250,7 +250,6 @@ export default function BackupsDashboard() {
               height: '100%',
               gap: '15px'
             }}>
-              {/* Círculo de progreso CORREGIDO */}
               <div
                 style={{
                   width: '120px',
@@ -290,8 +289,27 @@ export default function BackupsDashboard() {
               {/* BOTONES DE DESCARGA */}
               {!isRunning && downloadLinks && (
                 <div className="download-buttons-container">
-                  {downloadLinks.sql && (
-                    <button className="btn-download sql" onClick={() => handleDownload('sql', downloadLinks.sql)}>
+                  {/* BOTÓN JSON AÑADIDO */}
+                  {downloadLinks.json && (
+                    <button
+                      className="btn-download json"
+                      onClick={() => handleDownload(downloadLinks.json)}
+                    >
+                      <span className="icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                          stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                          <polyline points="7 10 12 15 17 10"/>
+                          <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                      </span>
+                      JSON
+                    </button>
+                  )}
+                  
+                  {/* Botones existentes */}
+                  {downloadLinks.db_dump && (
+                    <button className="btn-download sql" onClick={() => handleDownload(downloadLinks.db_dump)}>
                       <span className="icon" style={{ display: 'flex', alignItems: 'center' }}>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
@@ -299,11 +317,11 @@ export default function BackupsDashboard() {
                           <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
                         </svg>
                       </span>
-                      SQL
+                      {downloadLinks.db_dump.endsWith('.json') ? 'JSON DB' : 'MONGO DB'}
                     </button>
                   )}
                   {downloadLinks.excel && (
-                    <button className="btn-download excel" onClick={() => handleDownload('excel', downloadLinks.excel)}>
+                    <button className="btn-download excel" onClick={() => handleDownload(downloadLinks.excel)}>
                       <span className="icon" style={{ display: 'flex', alignItems: 'center' }}>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
@@ -315,7 +333,7 @@ export default function BackupsDashboard() {
                     </button>
                   )}
                   {downloadLinks.pdf && (
-                    <button className="btn-download pdf" onClick={() => handleDownload('pdf', downloadLinks.pdf)}>
+                    <button className="btn-download pdf" onClick={() => handleDownload(downloadLinks.pdf)}>
                       <span className="icon" style={{ display: 'flex', alignItems: 'center' }}>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -378,7 +396,7 @@ export default function BackupsDashboard() {
                               style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                               onClick={() => {
                                 const filename = bk.url.split('/').pop().split('\\').pop();
-                                handleDownload('sql', filename);
+                                handleDownload(filename);
                               }}
                             >
                               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

@@ -5,14 +5,17 @@ import pandas as pd
 from fpdf import FPDF
 from datetime import datetime
 from flask_mail import Message
-from sqlalchemy import create_engine, text
+from bson import json_util
+from bson.objectid import ObjectId
+
 from app.extensions import mail
+from app.mongo import get_db
 
 # ================= CONFIG =================
 
-MYSQLDUMP_PATH = r"C:\Program Files\MySQL\MySQL Workbench 8.0 CE\mysqldump.exe"
+MONGODUMP_PATH = "mongodump"
 
-BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../"))
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
 BACKUP_DIR = os.path.join(BASE_DIR, "storage", "backups")
 
 LAST_FULL_BACKUP_FILE = os.path.join(BACKUP_DIR, "last_full_backup.txt")
@@ -69,43 +72,58 @@ def save_history(entry):
     with open(HISTORY_FILE, "w", encoding="utf-8") as f:
         json.dump(history, f, indent=2, ensure_ascii=False)
 
+
+# ================= FILTROS MONGODB =================
+
+def _construir_query_fechas(since_date):
+    """Construye un query de Mongo para buscar documentos modificados desde una fecha"""
+    if not since_date:
+        return {}
+    
+    sd = datetime.fromisoformat(since_date)
+    # Buscamos en cualquiera de los campos de fecha que usamos en nuestros modelos
+    return {
+        "$or": [
+            {"fecha_actualizacion": {"$gte": sd}},
+            {"fecha_creacion": {"$gte": sd}},
+            {"fecha_registro": {"$gte": sd}},
+            {"fecha_pago": {"$gte": sd}},
+            {"fecha": {"$gte": sd}}
+        ]
+    }
+
+
 # ================= EXCEL =================
 
-def generate_excel(connection_str, output_path, since_date=None):
-    engine = create_engine(connection_str)
-    with engine.connect() as conn:
-        # Obtener lista de tablas
-        result = conn.execute(text("SHOW TABLES"))
-        tables = [row[0] for row in result]
+def generate_excel(db, output_path, since_date=None):
+    collections = db.list_collection_names()
+    query = _construir_query_fechas(since_date)
 
-        with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
-            for table in tables:
-                try:
-                    # Verificar si la tabla tiene columna updated_at
-                    columns_result = conn.execute(text(f"SHOW COLUMNS FROM `{table}`"))
-                    columns = [row[0] for row in columns_result]
-                    
-                    if since_date and "updated_at" in columns:
-                        # Backup incremental/diferencial
-                        query = text(f"SELECT * FROM `{table}` WHERE updated_at >= :since_date")
-                        df = pd.read_sql(query, conn, params={"since_date": since_date})
-                    else:
-                        # Backup completo o tabla sin updated_at
-                        query = text(f"SELECT * FROM `{table}`")
-                        df = pd.read_sql(query, conn)
-                    
-                    if not df.empty:
-                        # Limitar nombre de hoja a 31 caracteres
-                        sheet_name = table[:31]
-                        df.to_excel(writer, sheet_name=sheet_name, index=False)
-                except Exception as e:
-                    print(f"Error procesando tabla {table}: {e}")
+    with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
+        for coll in collections:
+            try:
+                docs = list(db[coll].find(query))
+                if not docs:
                     continue
+                
+                # Aplanar los ObjectIds para que Pandas los soporte en Excel
+                for d in docs:
+                    for k, v in d.items():
+                        if isinstance(v, ObjectId):
+                            d[k] = str(v)
+                        elif isinstance(v, (dict, list)):
+                            d[k] = str(v) # Convertir anidados a string
+                            
+                df = pd.DataFrame(docs)
+                sheet_name = coll[:31]
+                df.to_excel(writer, sheet_name=sheet_name, index=False)
+            except Exception as e:
+                print(f"Error procesando colección {coll} para Excel: {e}")
+                continue
 
 # ================= PDF =================
 
-def generate_pdf(connection_str, output_path, since_date=None, mode="FULL"):
-    engine = create_engine(connection_str)
+def generate_pdf(db, output_path, since_date=None, mode="FULL"):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", size=10)
@@ -116,94 +134,61 @@ def generate_pdf(connection_str, output_path, since_date=None, mode="FULL"):
     if since_date:
         pdf.cell(0, 8, f"Desde: {since_date}", ln=True)
 
-    with engine.connect() as conn:
-        result = conn.execute(text("SHOW TABLES"))
-        tables = [row[0] for row in result]
+    collections = db.list_collection_names()
+    query = _construir_query_fechas(since_date)
 
-        for table in tables:
-            try:
-                columns_result = conn.execute(text(f"SHOW COLUMNS FROM `{table}`"))
-                columns = [row[0] for row in columns_result]
-                
-                if since_date and "updated_at" in columns:
-                    query = text(f"SELECT * FROM `{table}` WHERE updated_at >= :since_date LIMIT 20")
-                    result = conn.execute(query, {"since_date": since_date})
-                else:
-                    query = text(f"SELECT * FROM `{table}` LIMIT 20")
-                    result = conn.execute(query)
-                
-                rows = result.fetchall()
-                
-                if not rows:
-                    continue
-
-                pdf.ln(5)
-                pdf.set_font("Arial", "B", 11)
-                pdf.cell(0, 8, f"Tabla: {table}", ln=True)
-                pdf.set_font("Arial", size=8)
-                
-                # Mostrar primeras filas
-                pdf.multi_cell(0, 5, f"Registros: {len(rows)}")
-                
-            except Exception as e:
-                print(f"Error en PDF para tabla {table}: {e}")
+    for coll in collections:
+        try:
+            docs = list(db[coll].find(query).limit(20))
+            if not docs:
                 continue
+
+            pdf.ln(5)
+            pdf.set_font("Arial", "B", 11)
+            pdf.cell(0, 8, f"Colección: {coll}", ln=True)
+            pdf.set_font("Arial", size=8)
+            
+            pdf.multi_cell(0, 5, f"Registros exportados en muestra: {len(docs)}")
+        except Exception as e:
+            print(f"Error en PDF para colección {coll}: {e}")
+            continue
 
     pdf.output(output_path)
 
-# ================= SQL =================
+# ================= JSON =================
 
-def generate_incremental_sql(connection_str, output_path, since_date):
-    engine = create_engine(connection_str)
-    with engine.connect() as conn, open(output_path, "w", encoding="utf-8") as f:
-        f.write(f"-- Backup Incremental desde {since_date}\n")
-        f.write(f"-- Generado: {datetime.now().isoformat()}\n\n")
-        
-        result = conn.execute(text("SHOW TABLES"))
-        tables = [row[0] for row in result]
+def generate_incremental_json(db, output_path, since_date):
+    collections = db.list_collection_names()
+    query = _construir_query_fechas(since_date)
+    
+    backup_data = {}
+    
+    for coll in collections:
+        try:
+            docs = list(db[coll].find(query))
+            if docs:
+                backup_data[coll] = docs
+        except Exception as e:
+            print(f"Error extrayendo {coll} para JSON incremental: {e}")
 
-        for table in tables:
-            try:
-                # Verificar si tiene updated_at
-                columns_result = conn.execute(text(f"SHOW COLUMNS FROM `{table}`"))
-                columns = [row[0] for row in columns_result]
-                
-                if "updated_at" not in columns:
-                    continue
+    # Guardamos usando json_util de bson para preservar las fechas y ObjectIds correctamente
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write(json_util.dumps(backup_data, indent=2))
 
-                # Obtener datos modificados
-                query = text(f"SELECT * FROM `{table}` WHERE updated_at >= :since_date")
-                result = conn.execute(query, {"since_date": since_date})
-                rows = result.fetchall()
-                
-                if not rows:
-                    continue
-                
-                f.write(f"-- Tabla: {table}\n")
-                
-                for row in rows:
-                    cols = ", ".join([f"`{col}`" for col in columns])
-                    values = []
-                    
-                    for val in row:
-                        if val is None:
-                            values.append("NULL")
-                        elif isinstance(val, (int, float)):
-                            values.append(str(val))
-                        else:
-                            # Escapar comillas simples
-                            escaped = str(val).replace("'", "''")
-                            values.append(f"'{escaped}'")
-                    
-                    values_str = ", ".join(values)
-                    f.write(f"INSERT INTO `{table}` ({cols}) VALUES ({values_str});\n")
-                
-                f.write("\n")
-                
-            except Exception as e:
-                f.write(f"-- Error en tabla {table}: {e}\n")
-                print(f"Error procesando tabla {table}: {e}")
-                continue
+def generate_full_json(db, output_path):
+    collections = db.list_collection_names()
+    backup_data = {}
+
+    for coll in collections:
+        try:
+            docs = list(db[coll].find())
+            if docs:
+                backup_data[coll] = docs
+        except Exception as e:
+            print(f"Error extrayendo {coll} para JSON FULL: {e}")
+
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write(json_util.dumps(backup_data, indent=2))
 
 # ================= EMAIL =================
 
@@ -215,7 +200,7 @@ def send_email_with_attachments(app, files, backup_type):
             subject=f"[Backup] Respaldo {backup_type.upper()} generado",
             sender=app.config.get("MAIL_USERNAME"),
             recipients=[recipient],
-            body=f"El respaldo {backup_type} se generó correctamente.\n\nFecha: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            body=f"El respaldo {backup_type} se generó correctamente en MongoDB.\n\nFecha: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
         )
 
         for file_type, file_path in files.items():
@@ -248,43 +233,47 @@ def run_backup(job_id: str, backup_type: str, app):
         try:
             timestamp = now_str()
             path = ensure_dirs(backup_type)
+            db = get_db()
 
-            db_user = os.getenv("DB_USER")
-            db_pass = os.getenv("DB_PASSWORD", "")
-            db_host = os.getenv("DB_HOST", "localhost")
-            db_name = os.getenv("DB_NAME")
-            db_uri = f"mysql+pymysql://{db_user}:{db_pass}@{db_host}/{db_name}"
+            # Construir URI base para MongoDump
+            db_user = os.getenv("MONGO_USER")
+            db_pass = os.getenv("MONGO_PASSWORD")
+            db_cluster = os.getenv("MONGO_CLUSTER")
+            db_name = os.getenv("MONGO_DB")
+            mongo_uri = f"mongodb+srv://{db_user}:{db_pass}@{db_cluster}/"
 
-            sql = None
+            archive = None
+            json_file = None
             xlsx = None
             pdf = None
             file_size = 0
 
             if backup_type == "full":
-                backup_state["current_step"] = "Generando backup completo SQL"
+                backup_state["current_step"] = "Generando backup completo (.archive)"
                 backup_state["progress_percentage"] = 20
                 
-                sql = os.path.join(path, f"backup_full_{timestamp}.sql")
+                archive = os.path.join(path, f"backup_full_{timestamp}.archive")
+                json_file = os.path.join(path, f"backup_full_{timestamp}.json")  # AÑADIDO
                 xlsx = os.path.join(path, f"backup_full_{timestamp}.xlsx")
                 pdf = os.path.join(path, f"backup_full_{timestamp}.pdf")
 
-                env = os.environ.copy()
-                if db_pass:
-                    env["MYSQL_PWD"] = db_pass
+                # Llamar a mongodump nativo
+                subprocess.run(
+                    [MONGODUMP_PATH, "--uri", mongo_uri, "--db", db_name, f"--archive={archive}"],
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True
+                )
 
-                with open(sql, "w", encoding="utf-8") as f:
-                    subprocess.run(
-                        [MYSQLDUMP_PATH, "-u", db_user, db_name],
-                        stdout=f, stderr=subprocess.PIPE, env=env, check=True
-                    )
+                backup_state["progress_percentage"] = 40  # Ajustado
+                backup_state["current_step"] = "Generando JSON completo"
+                generate_full_json(db, json_file)  # AÑADIDO
 
-                backup_state["progress_percentage"] = 50
+                backup_state["progress_percentage"] = 60  # Ajustado
                 backup_state["current_step"] = "Generando Excel"
-                generate_excel(db_uri, xlsx)
+                generate_excel(db, xlsx)
 
-                backup_state["progress_percentage"] = 75
+                backup_state["progress_percentage"] = 80  # Ajustado
                 backup_state["current_step"] = "Generando PDF"
-                generate_pdf(db_uri, pdf, mode="FULL")
+                generate_pdf(db, pdf, mode="FULL")
 
                 save_last_backup(LAST_FULL_BACKUP_FILE)
                 save_last_backup(LAST_BACKUP_FILE)
@@ -294,20 +283,20 @@ def run_backup(job_id: str, backup_type: str, app):
                 if not since:
                     raise Exception("No existe respaldo FULL previo. Ejecute primero un backup completo.")
 
-                backup_state["current_step"] = "Generando backup diferencial"
+                backup_state["current_step"] = "Generando backup diferencial (.json)"
                 backup_state["progress_percentage"] = 30
                 
-                sql = os.path.join(path, f"backup_diff_{timestamp}.sql")
+                json_file = os.path.join(path, f"backup_diff_{timestamp}.json")
                 xlsx = os.path.join(path, f"backup_diff_{timestamp}.xlsx")
                 pdf = os.path.join(path, f"backup_diff_{timestamp}.pdf")
 
-                generate_incremental_sql(db_uri, sql, since)
+                generate_incremental_json(db, json_file, since)
                 
                 backup_state["progress_percentage"] = 60
-                generate_excel(db_uri, xlsx, since)
+                generate_excel(db, xlsx, since)
                 
                 backup_state["progress_percentage"] = 80
-                generate_pdf(db_uri, pdf, since, "DIFERENCIAL")
+                generate_pdf(db, pdf, since, "DIFERENCIAL")
 
                 save_last_backup(LAST_BACKUP_FILE)
 
@@ -316,32 +305,34 @@ def run_backup(job_id: str, backup_type: str, app):
                 if not since:
                     raise Exception("No existe respaldo previo. Ejecute primero un backup completo.")
 
-                backup_state["current_step"] = "Generando backup incremental"
+                backup_state["current_step"] = "Generando backup incremental (.json)"
                 backup_state["progress_percentage"] = 30
                 
-                sql = os.path.join(path, f"backup_inc_{timestamp}.sql")
+                json_file = os.path.join(path, f"backup_inc_{timestamp}.json")
                 xlsx = os.path.join(path, f"backup_inc_{timestamp}.xlsx")
                 pdf = os.path.join(path, f"backup_inc_{timestamp}.pdf")
 
-                generate_incremental_sql(db_uri, sql, since)
+                generate_incremental_json(db, json_file, since)
                 
                 backup_state["progress_percentage"] = 60
-                generate_excel(db_uri, xlsx, since)
+                generate_excel(db, xlsx, since)
                 
                 backup_state["progress_percentage"] = 80
-                generate_pdf(db_uri, pdf, since, "INCREMENTAL")
+                generate_pdf(db, pdf, since, "INCREMENTAL")
 
                 save_last_backup(LAST_BACKUP_FILE)
 
             else:
                 raise Exception("Tipo de respaldo no válido")
 
-            # Calcular tamaño
-            if sql and os.path.exists(sql):
-                file_size = os.path.getsize(sql) / (1024 * 1024)  # MB
+            # Calcular tamaño del archivo principal
+            main_file = archive if archive else json_file
+            if main_file and os.path.exists(main_file):
+                file_size = os.path.getsize(main_file) / (1024 * 1024)  # MB
 
             backup_state["generated_files"] = {
-                "sql": sql,
+                "db_dump": main_file,
+                "json": json_file,  # AÑADIDO explícitamente para todos los tipos
                 "excel": xlsx,
                 "pdf": pdf
             }
@@ -349,12 +340,11 @@ def run_backup(job_id: str, backup_type: str, app):
             backup_state["progress_percentage"] = 90
             backup_state["current_step"] = "Guardando historial"
 
-            # Guardar en historial
             save_history({
                 "date": datetime.now().isoformat(),
                 "type": backup_type,
                 "size": f"{file_size:.2f} MB",
-                "url": sql
+                "url": main_file
             })
 
             backup_state["progress_percentage"] = 95
@@ -371,7 +361,6 @@ def run_backup(job_id: str, backup_type: str, app):
             backup_state["progress_percentage"] = 0
             print("[BACKUP ERROR]", e)
             
-            # Guardar error en historial
             save_history({
                 "date": datetime.now().isoformat(),
                 "type": backup_type,

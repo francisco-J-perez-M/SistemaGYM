@@ -16,7 +16,7 @@ const RestoreDashboard = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
-  // 2. Paginación para Historial de Restauraciones (NUEVO)
+  // 2. Paginación para Historial de Restauraciones 
   const [restorePage, setRestorePage] = useState(1);
   const restoreItemsPerPage = 5;
 
@@ -42,7 +42,7 @@ const RestoreDashboard = () => {
     return Swal.fire({
       title: '¿Estás seguro?',
       html: `Vas a restaurar: <strong>${filename}</strong>.<br/><br/>
-             <span style="color: var(--danger-color)">⚠ Esta acción sobrescribirá TODA la base de datos actual.</span>`,
+             <span style="color: var(--danger-color)">⚠ Esta acción sobrescribirá o actualizará la base de datos actual.</span>`,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: 'var(--accent-color)',
@@ -163,7 +163,7 @@ const RestoreDashboard = () => {
   const totalPages = Math.ceil(availableBackups.length / itemsPerPage);
 
   // ===============================
-  // LÓGICA DE PAGINACIÓN 2: Historial de Restauraciones (NUEVA)
+  // LÓGICA DE PAGINACIÓN 2: Historial de Restauraciones
   // ===============================
   const indexOfLastRestore = restorePage * restoreItemsPerPage;
   const indexOfFirstRestore = indexOfLastRestore - restoreItemsPerPage;
@@ -268,7 +268,8 @@ const RestoreDashboard = () => {
                 {!loading &&
                   currentBackups.map((backup, index) => {
                     const filename = getCleanFilename(backup.url);
-                    const isSQL = filename.endsWith(".sql");
+                    // Ahora verificamos si es un archivo de Mongo válido para restaurar
+                    const isRestorable = filename.endsWith(".archive") || filename.endsWith(".json");
 
                     return (
                       <tr key={index}>
@@ -281,7 +282,7 @@ const RestoreDashboard = () => {
                           </span>
                         </td>
                         <td>
-                          {isSQL ? (
+                          {isRestorable ? (
                             <button
                               className="btn-download pdf"
                               style={{ 
@@ -353,7 +354,6 @@ const RestoreDashboard = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {/* AQUÍ: Mapeamos currentRestoreLogs en lugar de restoreLogs completo */}
                   {currentRestoreLogs.map((log, index) => (
                     <tr key={index}>
                       <td>{getCleanFilename(log.url)}</td>
@@ -369,7 +369,7 @@ const RestoreDashboard = () => {
               </table>
             </div>
 
-            {/* AQUÍ: Controles de Paginación para Historial */}
+            {/* Controles de Paginación para Historial */}
             {restoreLogs.length > restoreItemsPerPage && (
               <div className="pagination-controls">
                 <button

@@ -11,14 +11,14 @@ from app.backups.service import (
     save_history
 )
 
-from app.backups.restore_service import restore_sql_backup
+# Cambiamos el nombre de la función a uno más genérico
+from app.backups.restore_service import restore_backup_file 
 
 backups_bp = Blueprint("backups", __name__, url_prefix="/api/backups")
 
 
 @backups_bp.route("/dashboard-summary", methods=["GET"])
 def dashboard_summary():
-    # Cargar historial reciente
     history = load_history()
     
     response = {
@@ -39,7 +39,7 @@ def dashboard_summary():
             {"title": "Respaldos diarios", "desc": "Cada madrugada a las 3:00 AM"},
             {"title": "Respaldo semanal completo", "desc": "Domingos - Base de datos completa"},
         ],
-        "recent_history": history[:3]  # Últimos 3 backups
+        "recent_history": history[:3]
     }
 
     return jsonify(response), 200
@@ -47,7 +47,6 @@ def dashboard_summary():
 
 @backups_bp.route("/history", methods=["GET"])
 def backup_history():
-    """Endpoint para obtener el historial completo"""
     history = load_history()
     return jsonify(history), 200
 
@@ -64,7 +63,6 @@ def trigger_backup():
     data = request.get_json() or {}
     backup_type = data.get("type", "incremental")
     
-    # Validar tipo de backup
     valid_types = ["full", "differential", "incremental"]
     if backup_type not in valid_types:
         return jsonify({
@@ -72,8 +70,6 @@ def trigger_backup():
         }), 400
     
     job_id = f"job_{uuid.uuid4().hex[:8]}"
-
-    # Importante: pasar la app real al thread
     app_instance = current_app._get_current_object()
 
     thread = threading.Thread(
@@ -115,13 +111,13 @@ def backup_status():
 
 @backups_bp.route("/download/<filename>", methods=["GET"])
 def download_backup(filename):
-    # Buscar el archivo en todas las subcarpetas de backups
     for root, dirs, files in os.walk(BACKUP_DIR):
         if filename in files:
             file_path = os.path.join(root, filename)
             return send_file(file_path, as_attachment=True)
 
     return jsonify({"error": "Archivo no encontrado"}), 404
+
 
 @backups_bp.route("/restore", methods=["POST"])
 def restore_backup():
@@ -130,25 +126,23 @@ def restore_backup():
     if not data or "filename" not in data:
         return jsonify({"error": "Archivo no especificado"}), 400
 
-    # Limpiamos la entrada para quedarnos solo con el nombre del archivo
     raw_filename = data["filename"]
     filename = os.path.basename(raw_filename)
 
-    # Buscar el archivo
-    sql_path = None
+    # Buscar el archivo (Ahora aceptamos .archive para Full y .json para Incrementales)
+    file_path = None
     for root, _, files in os.walk(BACKUP_DIR):
-        if filename in files and filename.endswith(".sql"):
-            sql_path = os.path.join(root, filename)
+        if filename in files and (filename.endswith(".archive") or filename.endswith(".json")):
+            file_path = os.path.join(root, filename)
             break
 
-    if not sql_path:
+    if not file_path:
         print(f"DEBUG: Buscaba '{filename}' en '{BACKUP_DIR}' y no lo encontré.")
-        return jsonify({"error": "Backup no encontrado"}), 404
+        return jsonify({"error": "Backup no encontrado o formato inválido"}), 404
 
-    # --- AQUI ESTABA EL ERROR: FALTABA EL CODIGO DENTRO DEL TRY Y EL EXCEPT ---
     try:
-        # 1. Ejecutar la restauración
-        restore_sql_backup(sql_path)
+        # 1. Ejecutar la restauración usando nuestra nueva función
+        restore_backup_file(file_path)
 
         # 2. Guardar en el historial que se hizo una restauración
         save_history({
@@ -158,19 +152,18 @@ def restore_backup():
             "url": filename
         })
 
-        # 3. Retornar éxito al frontend
         return jsonify({
             "message": "Base de datos restaurada correctamente",
             "file": filename
         }), 200
 
     except Exception as e:
-        # 4. Capturar errores si falla
         print(f"Error crítico restaurando backup: {e}")
         return jsonify({
             "error": "Error al restaurar",
             "detail": str(e)
         }), 500
+
 
 @backups_bp.route("/test-email", methods=["GET"])
 def test_email():
@@ -182,10 +175,9 @@ def test_email():
             subject="Prueba de Configuración - Sistema de Backups",
             sender=current_app.config.get("MAIL_USERNAME"),
             recipients=[current_app.config.get("MAIL_RECIPIENT") or current_app.config.get("MAIL_USERNAME")],
-            body="Si recibes este correo, la configuración de email está funcionando correctamente."
+            body="Si recibes este correo, la configuración de email está funcionando correctamente con MongoDB."
         )
         mail.send(msg)
         return jsonify({"message": "Correo enviado con éxito"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-    

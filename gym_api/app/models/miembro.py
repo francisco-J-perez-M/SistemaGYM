@@ -93,7 +93,7 @@ class Miembro:
             return cls(**data) if data else None
         except Exception:
             return None
-def to_client_card(self):
+    def to_client_card(self):
         """Convierte miembro a tarjeta de cliente para el dashboard del entrenador"""
         from datetime import date, timedelta
         from app.mongo import get_db
