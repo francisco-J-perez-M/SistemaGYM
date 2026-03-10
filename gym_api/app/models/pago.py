@@ -29,8 +29,8 @@ class Pago:
                     nombre_mostrar = "Miembro sin usuario"
 
         return {
-            "id_miembro": self.id_miembro,
-            "id_entrenador": self.id_entrenador,
+            "id_miembro": str(self.id_miembro) if self.id_miembro else None,
+            "id_entrenador": str(self.id_entrenador) if self.id_entrenador else None,
             "nombre_miembro": nombre_mostrar,
             "monto": self.monto,
             "metodo_pago": self.metodo_pago,

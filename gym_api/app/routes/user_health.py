@@ -52,7 +52,8 @@ def get_user_health():
 
         # Obtener último progreso
         progreso_cursor = db.progreso_fisico.find({"id_miembro": miembro["_id"]}).sort("fecha_registro", -1).limit(1)
-        ultimo_progreso = list(progreso_cursor)[0] if list(progreso_cursor) else None
+        progresos_list = list(progreso_cursor)
+        ultimo_progreso = progresos_list[0] if progresos_list else None
 
         # PESO
         if ultimo_progreso and ultimo_progreso.get("peso"):

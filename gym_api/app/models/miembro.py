@@ -53,7 +53,7 @@ class Miembro:
                 }
 
         return {
-            "id": self._id,
+            "id": str(self._id) if self._id else None,
             "nombre": nombre_usuario,
             "email": email_usuario,
             "telefono": self.telefono,
@@ -62,7 +62,7 @@ class Miembro:
             "estatura": self.estatura,
             "activo": self.estado == "Activo",
             "foto_perfil": foto_url,
-            "id_entrenador": self.id_entrenador,
+            "id_entrenador": str(self.id_entrenador) if self.id_entrenador else None,
             "objetivo": self.objetivo,
             "peso_objetivo": self.peso_objetivo,
             "grasa_objetivo": self.grasa_objetivo,

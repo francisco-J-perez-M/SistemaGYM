@@ -7,7 +7,7 @@ from spark_config import crear_spark_session, DB_NAME
 # CONFIG STREAMLIT
 # ──────────────────────────────────────────────
 st.set_page_config(page_title="Análisis GYM", layout="wide")
-st.title(" Ingresos por Método de Pago (Spark + MongoDB)")
+st.title(" Ingresos por Método de Pago")
 
 # ──────────────────────────────────────────────
 # CREAR SPARK SESSION
