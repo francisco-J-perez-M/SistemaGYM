@@ -37,7 +37,7 @@ fake = Faker("es_MX")
 
 MESES_ACTIVIDAD = 6
 
-DEFAULT_PASSWORD = (
+zazaza = (
     "scrypt:32768:8:1$U1umhxfH8LDLojFb$"
     "7c6b302a3cdc30296572691480bfcad86209846fe"
     "6896a4f69c0f22caf58e23a85d8396fdce945a45f"
@@ -89,7 +89,7 @@ def crear_admin(db, id_role):
         "id_role":        id_role,
         "nombre":         "Carlos Admin",
         "email":          "admin@gym.com",
-        "password":       DEFAULT_PASSWORD,
+        "password":       zazaza,
         "activo":         True,
         "fecha_creacion": datetime.now() - timedelta(days=365),
     }
@@ -103,7 +103,7 @@ def crear_entrenador(db, id_role):
         "id_role":        id_role,
         "nombre":         "Miguel Entrenador",
         "email":          "entrenador@gym.com",
-        "password":       DEFAULT_PASSWORD,
+        "password":       zazaza,
         "activo":         True,
         "fecha_creacion": datetime.now() - timedelta(days=400),
     }
@@ -140,7 +140,7 @@ def crear_recepcionista(db, id_role):
         "id_role":        id_role,
         "nombre":         "Ana Recepcionista",
         "email":          "recepcion@gym.com",
-        "password":       DEFAULT_PASSWORD,
+        "password":       zazaza,
         "activo":         True,
         "fecha_creacion": datetime.now() - timedelta(days=400),
     }
@@ -212,7 +212,7 @@ def crear_miembros(db, id_role_miembro, id_entrenador, membresias, tipos_dieta, 
             "id_role":        id_role_miembro,
             "nombre":         nombre,
             "email":          email,
-            "password":       DEFAULT_PASSWORD,
+            "password":       zazaza,
             "activo":         True,
             "fecha_creacion": fecha_registro,
         }
