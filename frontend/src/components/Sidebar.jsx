@@ -8,7 +8,7 @@ import {
   FiSettings, FiUpload, FiDownload, FiClipboard, FiTrendingUp,
   FiRefreshCw, FiUser, FiUserCheck, FiCalendar, FiClock,
   FiFileText, FiMail, FiLogOut, FiActivity, FiLock, FiCreditCard,
-  FiShoppingCart, FiBookOpen // <--- 1. Agregamos el icono del libro
+  FiShoppingCart, FiBookOpen, FiCpu, FiPieChart
 } from "react-icons/fi";
 import { GiMuscleUp, GiFruitBowl, GiPineTree, GiMeal } from "react-icons/gi";
 
@@ -197,6 +197,16 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
       { id: "pagos", label: "Pagos", icon: <FiDollarSign /> },
       { type: "divider" },
       {
+        id: "analytics",
+        label: "IA & Analíticas",
+        icon: <FiCpu />,
+        children: [
+          { id: "mapreduce", label: "Finanzas y Flujo", icon: <FiPieChart /> },
+          { id: "kmeans", label: "Segmentación", icon: <FiUsers /> },
+          { id: "regresion", label: "Tendencias", icon: <FiTrendingUp /> }
+        ]
+      },
+      {
         id: "settings",
         label: "Configuración",
         icon: <FiSettings />,
@@ -218,6 +228,7 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
         children: [
           { id: "routine", label: "Mi Rutina", icon: <FiFileText /> },
           { id: "progress", label: "Progreso Físico", icon: <FiTrendingUp /> },
+          { id: "prediction", label: "Mi Predicción", icon: <FiCpu /> },
         ]
       },
       {
@@ -248,6 +259,15 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
       { id: "sessions", label: "Sesiones", icon: <FiClock /> },
       { id: "routines", label: "Rutinas", icon: <FiFileText /> },
       { type: "divider" },
+      {
+        id: "ia-coach",
+        label: "IA Coach",
+        icon: <FiCpu />,
+        children: [
+          { id: "trainer-kmeans", label: "Segmentación", icon: <FiUsers /> },
+          { id: "trainer-regresion", label: "Predicciones", icon: <FiTrendingUp /> }
+        ]
+      },
       { id: "reports", label: "Reportes", icon: <FiBarChart2 /> },
       { id: "profile", label: "Mi Perfil", icon: <FiUser /> }
     ],

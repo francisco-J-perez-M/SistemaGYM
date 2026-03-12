@@ -17,6 +17,9 @@ from app.routes.user_body_progress import user_body_progress_bp
 from app.routes.user_membership import user_membership_bp
 from app.routes.user_routine import user_routines_bp
 from app.routes.trainer_routes import trainer_bp
+from app.routes.spark_mapreduce import spark_mapreduce_bp
+from app.routes.spark_kmeans    import spark_kmeans_bp
+from app.routes.spark_regresion import spark_regresion_bp
 
 def create_app():
     app = Flask(__name__)
@@ -44,6 +47,9 @@ def create_app():
     app.register_blueprint(user_body_progress_bp)
     app.register_blueprint(user_membership_bp)
     app.register_blueprint(user_dashboard_bp)
+    app.register_blueprint(spark_mapreduce_bp)
+    app.register_blueprint(spark_kmeans_bp)
+    app.register_blueprint(spark_regresion_bp)
     app.register_blueprint(user_routines_bp, url_prefix="/api/user")
     app.register_blueprint(miembro_membresias_bp, url_prefix="/api")
 

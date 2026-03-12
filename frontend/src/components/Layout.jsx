@@ -7,8 +7,6 @@ export default function Layout({ role = "admin" }) {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // --- CONFIGURACIÓN: Ocultar Sidebar ---
-  // Agrega aquí la ruta EXACTA donde quieres ocultar la barra lateral
   const rutasSinSidebar = ["/user/complete-profile", "/complete-profile"];
   const mostrarSidebar = !rutasSinSidebar.includes(location.pathname);
 
@@ -22,6 +20,9 @@ export default function Layout({ role = "admin" }) {
     if (path === "/dashboard/pos") return "pos";
     if (path === "/dashboard/backups") return "backups";
     if (path === "/dashboard/restore") return "restore";
+    if (path === "/dashboard/mapreduce") return "mapreduce";
+    if (path === "/dashboard/kmeans") return "kmeans";
+    if (path === "/dashboard/regresion") return "regresion";
 
     // RUTAS ENTRENADOR
     if (path === "/trainer-dashboard") return "clients";
@@ -32,6 +33,8 @@ export default function Layout({ role = "admin" }) {
     if (path === "/trainer/reports") return "reports";
     if (path === "/trainer/profile") return "profile";
     if (path === "/trainer/pos") return "pos";
+    if (path === "/trainer/trainer-kmeans") return "trainer-kmeans";
+    if (path === "/trainer/trainer-regresion") return "trainer-regresion";
 
     // RUTAS RECEPCIONISTA
     if (path === "/receptionist-dashboard") return "checkins";
@@ -54,6 +57,7 @@ export default function Layout({ role = "admin" }) {
     if (path === "/user/renew") return "renew";
     if (path === "/user/profile") return "profile";
     if (path === "/user/pos") return "pos";
+    if (path === "/user/prediction") return "prediction";
 
     return "";
   };
@@ -67,7 +71,10 @@ export default function Layout({ role = "admin" }) {
         pagos: "/dashboard/payments",
         pos: "/dashboard/pos",
         backups: "/dashboard/backups",
-        restore: "/dashboard/restore"
+        restore: "/dashboard/restore",
+        mapreduce: "/dashboard/mapreduce",
+        kmeans: "/dashboard/kmeans",
+        regresion: "/dashboard/regresion"
       };
       if (adminRoutes[tabId]) navigate(adminRoutes[tabId]);
     }
@@ -81,7 +88,9 @@ export default function Layout({ role = "admin" }) {
         routines: "/trainer/routines",
         reports: "/trainer/reports",
         profile: "/trainer/profile",
-        pos: "/trainer/pos"
+        pos: "/trainer/pos",
+        "trainer-kmeans": "/trainer/trainer-kmeans",
+        "trainer-regresion": "/trainer/trainer-regresion"
       };
       if (trainerRoutes[tabId]) navigate(trainerRoutes[tabId]);
     }
@@ -113,7 +122,8 @@ export default function Layout({ role = "admin" }) {
         payments: "/user/payments",
         renew: "/user/renew",
         profile: "/user/profile",
-        pos: "/user/pos"
+        pos: "/user/pos",
+        prediction: "/user/prediction"
       };
       if (userRoutes[tabId]) navigate(userRoutes[tabId]);
     }

@@ -14,23 +14,26 @@ def get_db():
     cluster  = os.getenv("MONGO_CLUSTER")
     DB_NAME  = os.getenv("MONGO_DB")
 
-    missing = [k for k, v in {
-        "MONGO_USER": user, "MONGO_PASSWORD": password,
-        "MONGO_CLUSTER": cluster, "MONGO_DB": DB_NAME
-    }.items() if not v]
-
-    if missing:
+    if not cluster or not DB_NAME:
         raise EnvironmentError(
-            f"❌ Variables de entorno faltantes: {', '.join(missing)}\n"
-            "   Crea un archivo .env con MONGO_USER, MONGO_PASSWORD, MONGO_CLUSTER, MONGO_DB"
+            "❌ Variables faltantes: MONGO_CLUSTER y MONGO_DB"
         )
 
-    uri = f"mongodb+srv://{user}:{password}@{cluster}/{DB_NAME}?retryWrites=true&w=majority"
+    # ── CONEXIÓN LOCAL ─────────────────────────
+    if not user or not password:
+        uri = f"mongodb://{cluster}/{DB_NAME}"
+        print(f"   🔗 Conectando a MongoDB LOCAL → {cluster}")
+
+    # ── CONEXIÓN ATLAS ─────────────────────────
+    else:
+        uri = f"mongodb+srv://{user}:{password}@{cluster}/{DB_NAME}?retryWrites=true&w=majority"
+        print(f"   🔗 Conectando a MongoDB Atlas → {cluster}")
+
     client = MongoClient(uri)
 
-    # Verificar conexión
+    # verificar conexión
     client.admin.command("ping")
-    print(f"   🔗 Conectado a MongoDB Atlas → {cluster}")
+
     return client[DB_NAME], DB_NAME
 
 

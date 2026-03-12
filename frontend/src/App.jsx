@@ -39,6 +39,12 @@ import TrainerProfile from "./pages/TrainerProfile";
 // --- PÁGINAS DE RECEPCIONISTA ---
 import ReceptionistDashboard from "./pages/ReceptionistDashboard";
 
+// --- NUEVAS IMPORTACIONES DE IA ---
+import AnalyticsMapReduce from "./pages/AnalyticsMapReduce";
+import AnalyticsKMeans from "./pages/AnalyticsKMeans";
+import AnalyticsRegresion from "./pages/AnalyticsRegresion";
+import UserWeightPrediction from "./pages/UserWeightPrediction";
+
 function App() {
   return (
     <ThemeProvider>
@@ -56,6 +62,9 @@ function App() {
             <Route path="/dashboard/pos" element={<PointOfSale />} />
             <Route path="/dashboard/backups" element={<BackupsDashboard />} />
             <Route path="/dashboard/restore" element={<RestoreDashboard />} />
+            <Route path="/dashboard/mapreduce" element={<AnalyticsMapReduce />} />
+            <Route path="/dashboard/kmeans" element={<AnalyticsKMeans />} />
+            <Route path="/dashboard/regresion" element={<AnalyticsRegresion />} />
           </Route>
 
           {/* 3. RUTAS USUARIO (MIEMBRO) */}
@@ -63,6 +72,7 @@ function App() {
             <Route path="/user/dashboard" element={<UserDashboard />} />
             <Route path="/user/routine" element={<UserRoutineCreator />} />
             <Route path="/user/progress" element={<UserBodyProgress />} />
+            <Route path="/user/prediction" element={<UserWeightPrediction />} />
             <Route path="/user/body-metrics" element={<UserBodyProgress />} />
             <Route path="/user/meal-plan" element={<UserMealPlan />} />
             <Route path="/user/recipes" element={<UserRecipes />} />
@@ -82,6 +92,8 @@ function App() {
             <Route path="/trainer/schedule" element={<TrainerSchedule />} />
             <Route path="/trainer/sessions" element={<TrainerSessions />} />
             <Route path="/trainer/routines" element={<TrainerRoutines />} />
+            <Route path="/trainer/trainer-kmeans" element={<AnalyticsKMeans />} />
+            <Route path="/trainer/trainer-regresion" element={<AnalyticsRegresion />} />
             <Route path="/trainer/reports" element={<TrainerReports />} />
             <Route path="/trainer/profile" element={<TrainerProfile />} />
             <Route path="/trainer/pos" element={<PointOfSale />} />
