@@ -37,9 +37,14 @@ export const trainerService = {
 
   // ─── CLIENTES ──────────────────────────────────────────────────────────────
 
-  getClients: async () => {
-    const data = await apiFetch(`${API_BASE_URL}/trainer/clients`);
-    return data.clients;
+  getClients: async (page = 1, searchTerm = '', filterStatus = 'all') => {
+    const params = new URLSearchParams({
+      page,
+      search: searchTerm,
+      status: filterStatus
+    });
+    const data = await apiFetch(`${API_BASE_URL}/trainer/clients?${params}`);
+    return data; // Debe devolver { clients, pagination: { total_pages } }
   },
 
   getClientHistory: async (clientId) => {

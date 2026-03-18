@@ -24,18 +24,25 @@ export default function TrainerClients() {
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // Paginación
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
-  // Cargar clientes al montar el componente
-  useEffect(() => {
-    loadClients();
-  }, []);
-
+  // Cargar clientes con todos los parámetros
   const loadClients = async () => {
     try {
       setLoading(true);
       setError(null);
-      const clientsData = await trainerService.getClients();
-      setClients(clientsData);
+      
+      const res = await trainerService.getClients(
+        page,
+        searchTerm,
+        filterStatus
+      );
+
+      setClients(res.clients);
+      setTotalPages(res.pagination?.total_pages || 1);
     } catch (err) {
       setError(err.message || 'Error al cargar clientes');
       console.error('Error loading clients:', err);
@@ -44,11 +51,30 @@ export default function TrainerClients() {
     }
   };
 
-  const filteredClients = clients.filter(client => {
-    const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter = filterStatus === "all" || client.status === filterStatus;
-    return matchesSearch && matchesFilter;
-  });
+  // 🔄 Cargar cuando cambia la página
+  useEffect(() => {
+    loadClients();
+  }, [page]);
+
+  // 🔍 Filtros con debounce
+  useEffect(() => {
+    const delay = setTimeout(() => {
+      setPage(1); // Resetear a primera página al filtrar
+      loadClients();
+    }, 400);
+
+    return () => clearTimeout(delay);
+  }, [searchTerm, filterStatus]);
+
+  // Calcular KPIs desde los datos reales
+  const totalClients = clients.length;
+  const averageProgress = clients.length > 0 
+    ? Math.round(clients.reduce((acc, c) => acc + (c.progress || 0), 0) / clients.length)
+    : 0;
+  const averageAttendance = clients.length > 0
+    ? Math.round(clients.reduce((acc, c) => acc + (c.attendance || 0), 0) / clients.length)
+    : 0;
+  const totalSessions = clients.reduce((acc, c) => acc + (c.sessionsTotal || 0), 0);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -71,18 +97,8 @@ export default function TrainerClients() {
     }
   };
 
-  // Calcular KPIs desde los datos reales
-  const totalClients = clients.length;
-  const averageProgress = clients.length > 0 
-    ? Math.round(clients.reduce((acc, c) => acc + c.progress, 0) / clients.length)
-    : 0;
-  const averageAttendance = clients.length > 0
-    ? Math.round(clients.reduce((acc, c) => acc + c.attendance, 0) / clients.length)
-    : 0;
-  const totalSessions = clients.reduce((acc, c) => acc + c.sessionsTotal, 0);
-
   // Loading state
-  if (loading) {
+  if (loading && clients.length === 0) {
     return (
       <div className="dashboard-content">
         <div className="loading-container">
@@ -92,7 +108,7 @@ export default function TrainerClients() {
             transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
           />
           <p style={{ marginTop: '20px', color: 'var(--text-secondary)' }}>
-            Cargando clientes...
+            Cargando clientes ...
           </p>
         </div>
       </div>
@@ -100,7 +116,7 @@ export default function TrainerClients() {
   }
 
   // Error state
-  if (error) {
+  if (error && clients.length === 0) {
     return (
       <div className="dashboard-content">
         <motion.div 
@@ -211,7 +227,7 @@ export default function TrainerClients() {
           </div>
 
           <div style={{ display: 'flex', gap: '8px' }}>
-            {['all', 'active', 'warning'].map(status => (
+            {['all', 'active', 'inactive', 'risk'].map(status => (
               <motion.button
                 key={status}
                 className={`btn-outline-small ${filterStatus === status ? 'active' : ''}`}
@@ -224,7 +240,9 @@ export default function TrainerClients() {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
-                {status === 'all' ? 'Todos' : status === 'active' ? 'Activos' : 'Atención'}
+                {status === 'all' ? 'Todos' : 
+                 status === 'active' ? 'Activos' : 
+                 status === 'inactive' ? 'Inactivos' : 'En riesgo'}
               </motion.button>
             ))}
           </div>
@@ -240,7 +258,14 @@ export default function TrainerClients() {
         transition={{ delay: 0.3 }}
       >
         <div className="chart-header">
-          <h3>Clientes ({filteredClients.length})</h3>
+          <h3>Clientes ({clients.length})</h3>
+          {totalPages > 1 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
+                Página {page} de {totalPages}
+              </span>
+            </div>
+          )}
         </div>
 
         <motion.div 
@@ -249,7 +274,7 @@ export default function TrainerClients() {
           initial="hidden"
           animate="visible"
         >
-          {filteredClients.map((client, idx) => (
+          {clients.map((client, idx) => (
             <motion.div
               key={client.id}
               variants={itemVariants}
@@ -268,14 +293,14 @@ export default function TrainerClients() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '15px' }}>
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                   <div className="avatar" style={{ width: '50px', height: '50px', fontSize: '18px' }}>
-                    {client.name.split(' ').map(n => n[0]).join('')}
+                    {client.name?.split(' ').map(n => n[0]).join('') || '?'}
                   </div>
                   <div>
                     <h4 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '4px' }}>
                       {client.name}
                     </h4>
                     <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                      {client.age} años • {client.goal}
+                      {client.age || '?'} años • {client.goal || 'Sin objetivo'}
                     </p>
                   </div>
                 </div>
@@ -297,7 +322,7 @@ export default function TrainerClients() {
                 }}>
                   <div style={{ color: 'var(--text-secondary)', marginBottom: '4px' }}>Racha</div>
                   <div style={{ fontSize: '16px', fontWeight: '700', color: 'var(--accent-color)' }}>
-                    {client.streak} días
+                    {client.streak || 0} días
                   </div>
                 </div>
                 <div style={{ 
@@ -308,7 +333,7 @@ export default function TrainerClients() {
                 }}>
                   <div style={{ color: 'var(--text-secondary)', marginBottom: '4px' }}>Asistencia</div>
                   <div style={{ fontSize: '16px', fontWeight: '700', color: 'var(--success-color)' }}>
-                    {client.attendance}%
+                    {client.attendance || 0}%
                   </div>
                 </div>
               </div>
@@ -325,7 +350,7 @@ export default function TrainerClients() {
                     fontWeight: '700',
                     color: client.progress >= 80 ? 'var(--success-color)' : 'var(--accent-color)'
                   }}>
-                    {client.progress}%
+                    {client.progress || 0}%
                   </span>
                 </div>
                 <div style={{ 
@@ -341,7 +366,7 @@ export default function TrainerClients() {
                       borderRadius: '3px'
                     }}
                     initial={{ width: 0 }}
-                    animate={{ width: `${client.progress}%` }}
+                    animate={{ width: `${client.progress || 0}%` }}
                     transition={{ delay: 0.3 + (idx * 0.05), duration: 0.8 }}
                   />
                 </div>
@@ -355,18 +380,95 @@ export default function TrainerClients() {
                 fontSize: '11px',
                 color: 'var(--text-secondary)'
               }}>
-                <span>Última sesión: {client.lastSession}</span>
-                <span>{client.sessionsTotal} sesiones</span>
+                <span>Estado: <span style={{ 
+                  color: client.status === 'active' ? 'var(--success-color)' : 
+                         client.status === 'risk' ? 'var(--warning-color)' : 
+                         'var(--text-secondary)',
+                  fontWeight: '600'
+                }}>{client.status === 'active' ? 'Activo' : 
+                     client.status === 'inactive' ? 'Inactivo' : 
+                     client.status === 'risk' ? 'En riesgo' : client.status}</span></span>
+                <span>{client.sessionsTotal || 0} sesiones</span>
               </div>
             </motion.div>
           ))}
         </motion.div>
 
-        {filteredClients.length === 0 && (
+        {clients.length === 0 && !loading && (
           <div className="empty-state">
             <FiUsers size={48} style={{ opacity: 0.3, marginBottom: '15px' }} />
             <h3>No se encontraron clientes</h3>
             <p>Intenta con otro término de búsqueda o ajusta los filtros</p>
+          </div>
+        )}
+
+        {/* 🔥 PAGINACIÓN */}
+        {totalPages > 1 && (
+          <motion.div 
+            className="pagination"
+            style={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              gap: '15px',
+              marginTop: '25px',
+              paddingTop: '15px',
+              borderTop: '1px solid var(--border-dark)'
+            }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.4 }}
+          >
+            <motion.button
+              className="btn-outline-small"
+              onClick={() => setPage(page - 1)}
+              disabled={page === 1}
+              whileHover={page !== 1 ? { scale: 1.05 } : {}}
+              whileTap={page !== 1 ? { scale: 0.95 } : {}}
+              style={{
+                opacity: page === 1 ? 0.5 : 1,
+                cursor: page === 1 ? 'not-allowed' : 'pointer'
+              }}
+            >
+              Anterior
+            </motion.button>
+
+            <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
+              Página {page} de {totalPages}
+            </span>
+
+            <motion.button
+              className="btn-outline-small"
+              onClick={() => setPage(page + 1)}
+              disabled={page === totalPages}
+              whileHover={page !== totalPages ? { scale: 1.05 } : {}}
+              whileTap={page !== totalPages ? { scale: 0.95 } : {}}
+              style={{
+                opacity: page === totalPages ? 0.5 : 1,
+                cursor: page === totalPages ? 'not-allowed' : 'pointer'
+              }}
+            >
+              Siguiente
+            </motion.button>
+          </motion.div>
+        )}
+
+        {/* Indicador de carga para más páginas */}
+        {loading && clients.length > 0 && (
+          <div style={{ textAlign: 'center', marginTop: '20px' }}>
+            <motion.div 
+              className="spinner-small"
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+              style={{
+                width: '30px',
+                height: '30px',
+                border: '3px solid var(--border-dark)',
+                borderTopColor: 'var(--accent-color)',
+                borderRadius: '50%',
+                margin: '0 auto'
+              }}
+            />
           </div>
         )}
       </motion.div>
@@ -417,12 +519,12 @@ export default function TrainerClients() {
               }}>
                 <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
                   <div className="avatar" style={{ width: '60px', height: '60px', fontSize: '24px' }}>
-                    {selectedClient.name.split(' ').map(n => n[0]).join('')}
+                    {selectedClient.name?.split(' ').map(n => n[0]).join('') || '?'}
                   </div>
                   <div>
                     <h3 style={{ fontSize: '20px', marginBottom: '5px' }}>{selectedClient.name}</h3>
                     <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
-                      {selectedClient.age} años • {selectedClient.goal}
+                      {selectedClient.age || '?'} años • {selectedClient.goal || 'Sin objetivo'}
                     </p>
                   </div>
                 </div>
@@ -442,9 +544,9 @@ export default function TrainerClients() {
                 </h4>
                 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                  {Object.entries(selectedClient.stats).map(([key, values]) => {
+                  {selectedClient.stats && Object.entries(selectedClient.stats).map(([key, values]) => {
                     // Solo mostrar si hay datos válidos
-                    if (values.initial === 0 && values.current === 0 && values.goal === 0) {
+                    if (!values || (values.initial === 0 && values.current === 0 && values.goal === 0)) {
                       return null;
                     }
                     

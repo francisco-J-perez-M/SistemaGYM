@@ -12,103 +12,173 @@ trainer_bp = Blueprint('trainer', __name__, url_prefix='/api/trainer')
 #  RUTAS — CLIENTES DEL ENTRENADOR
 # ═══════════════════════════════════════════════════════════════
 
+from flask import jsonify
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from bson import ObjectId
+from datetime import datetime
+
 @trainer_bp.route('/clients', methods=['GET'])
 @jwt_required()
 def get_trainer_clients():
     try:
         db = get_db()
         current_user_id = ObjectId(get_jwt_identity())
-        
-        miembros = list(db.miembros.find({"id_entrenador": current_user_id}))
-        clients_data = []
-        
-        for miembro in miembros:
-            try:
-                usuario = db.usuarios.find_one({"_id": miembro.get("id_usuario")})
-                
-                total_sesiones = db.sesiones.count_documents({
-                    "id_miembro": miembro["_id"], 
-                    "estado": "completed"
-                })
-                
-                inicio_mes = datetime.now().replace(day=1, hour=0, minute=0, second=0)
-                asistencias_mes = db.asistencias.count_documents({
-                    "id_miembro": miembro["_id"],
-                    "fecha": {"$gte": inicio_mes}
-                })
-                
-                ultima_sesion_cursor = db.sesiones.find({"id_miembro": miembro["_id"]}).sort("fecha", -1).limit(1)
-                ultima_sesion = list(ultima_sesion_cursor)[0] if list(ultima_sesion_cursor) else None
-                
-                racha = calcular_racha_dias(db, miembro["_id"])
-                
-                progreso_inicial = list(db.progreso_fisico.find({"id_miembro": miembro["_id"]}).sort("fecha_registro", 1).limit(1))
-                progreso_inicial = progreso_inicial[0] if progreso_inicial else None
-                
-                progreso_actual = list(db.progreso_fisico.find({"id_miembro": miembro["_id"]}).sort("fecha_registro", -1).limit(1))
-                progreso_actual = progreso_actual[0] if progreso_actual else None
-                
-                progreso_porcentaje = calcular_progreso_porcentaje(miembro, progreso_inicial, progreso_actual)
-                tasa_asistencia = calcular_tasa_asistencia(db, miembro["_id"])
-                tendencia = determinar_tendencia(progreso_inicial, progreso_actual)
-                estado = determinar_estado_cliente(ultima_sesion, tasa_asistencia)
-                
-                if ultima_sesion:
-                    fecha_us = ultima_sesion.get("fecha")
-                    if isinstance(fecha_us, str):
-                        fecha_us = datetime.strptime(fecha_us, '%Y-%m-%d').date()
-                    elif isinstance(fecha_us, datetime):
-                        fecha_us = fecha_us.date()
-                        
-                    dias_diferencia = (datetime.now().date() - fecha_us).days
-                    if dias_diferencia == 0:
-                        ultima_sesion_texto = "Hoy"
-                    elif dias_diferencia == 1:
-                        ultima_sesion_texto = "Ayer"
-                    else:
-                        ultima_sesion_texto = f"Hace {dias_diferencia} días"
-                else:
-                    ultima_sesion_texto = "Nunca"
-                
-                client_data = {
-                    'id': str(miembro["_id"]),
-                    'name': usuario.get("nombre", "Sin nombre") if usuario else "Sin nombre",
-                    'age': calcular_edad(miembro.get("fecha_nacimiento")),
-                    'goal': miembro.get("objetivo") or "Sin objetivo definido",
-                    'progress': progreso_porcentaje,
-                    'lastSession': ultima_sesion_texto,
-                    'streak': racha,
-                    'sessionsTotal': total_sesiones,
-                    'attendance': tasa_asistencia,
-                    'status': estado,
-                    'trend': tendencia,
-                    'stats': {
-                        'weight': {
-                            'initial': float(progreso_inicial.get("peso", 0)) if progreso_inicial else 0,
-                            'current': float(progreso_actual.get("peso", 0)) if progreso_actual else 0,
-                            'goal': float(miembro.get("peso_objetivo", 0))
-                        },
-                        'muscle': {
-                            'initial': float(progreso_inicial.get("masa_muscular", 0)) if progreso_inicial else 0,
-                            'current': float(progreso_actual.get("masa_muscular", 0)) if progreso_actual else 0,
-                            'goal': float(miembro.get("masa_muscular_objetivo", 0))
-                        },
-                        'fat': {
-                            'initial': float(progreso_inicial.get("grasa_corporal", 0)) if progreso_inicial else 0,
-                            'current': float(progreso_actual.get("grasa_corporal", 0)) if progreso_actual else 0,
-                            'goal': float(miembro.get("grasa_objetivo", 0))
-                        }
-                    }
+
+        # 📌 PARAMS
+        page = int(request.args.get('page', 1))
+        per_page = 6
+        skip = (page - 1) * per_page
+
+        search = request.args.get('search', '')
+        status = request.args.get('status', 'all')
+
+        inicio_mes = datetime.now().replace(day=1, hour=0, minute=0, second=0)
+
+        pipeline = [
+            {"$match": {"id_entrenador": current_user_id}},
+
+            # 🔗 JOIN USUARIOS
+            {
+                "$lookup": {
+                    "from": "usuarios",
+                    "localField": "id_usuario",
+                    "foreignField": "_id",
+                    "as": "usuario"
                 }
-                clients_data.append(client_data)
-            except Exception as e:
-                print(f"  Error procesando miembro {miembro['_id']}: {str(e)}")
-                continue
-                
-        return jsonify({'success': True, 'clients': clients_data}), 200
+            },
+            {"$unwind": {"path": "$usuario", "preserveNullAndEmptyArrays": True}},
+        ]
+
+        # 🔍 FILTRO POR NOMBRE (YA CON JOIN)
+        if search:
+            pipeline.append({
+                "$match": {
+                    "usuario.nombre": {"$regex": search, "$options": "i"}
+                }
+            })
+
+        pipeline.extend([
+            {
+                "$facet": {
+                    "data": [
+                        {"$skip": skip},
+                        {"$limit": per_page},
+
+                        # 📊 sesiones completadas
+                        {
+                            "$lookup": {
+                                "from": "sesiones",
+                                "let": {"miembro_id": "$_id"},
+                                "pipeline": [
+                                    {
+                                        "$match": {
+                                            "$expr": {
+                                                "$and": [
+                                                    {"$eq": ["$id_miembro", "$$miembro_id"]},
+                                                    {"$eq": ["$estado", "completed"]}
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    {"$count": "total"}
+                                ],
+                                "as": "sesiones_data"
+                            }
+                        },
+
+                        # 📅 asistencias del mes
+                        {
+                            "$lookup": {
+                                "from": "asistencias",
+                                "let": {"miembro_id": "$_id"},
+                                "pipeline": [
+                                    {
+                                        "$match": {
+                                            "$expr": {
+                                                "$and": [
+                                                    {"$eq": ["$id_miembro", "$$miembro_id"]},
+                                                    {"$gte": ["$fecha", inicio_mes]}
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    {"$count": "total"}
+                                ],
+                                "as": "asistencias_mes_data"
+                            }
+                        },
+
+                        # 🔄 NORMALIZACIÓN
+                        {
+                            "$addFields": {
+                                "total_sesiones": {
+                                    "$ifNull": [{"$arrayElemAt": ["$sesiones_data.total", 0]}, 0]
+                                },
+                                "asistencias_mes": {
+                                    "$ifNull": [{"$arrayElemAt": ["$asistencias_mes_data.total", 0]}, 0]
+                                }
+                            }
+                        }
+                    ],
+                    "totalCount": [
+                        {"$count": "total"}
+                    ]
+                }
+            }
+        ])
+
+        result = list(db.miembros.aggregate(pipeline))[0]
+
+        data = result["data"]
+        total = result["totalCount"][0]["total"] if result["totalCount"] else 0
+
+        clients_data = []
+
+        for r in data:
+            miembro_id = r["_id"]
+
+            # 🔥 cálculos ligeros
+            racha = calcular_racha_dias(db, miembro_id)
+            tasa_asistencia = calcular_tasa_asistencia(db, miembro_id)
+
+            estado = determinar_estado_cliente(
+                None,  # puedes mejorar luego con última sesión
+                tasa_asistencia
+            )
+
+            client_data = {
+                "id": str(miembro_id),
+                "name": r.get("usuario", {}).get("nombre", "Sin nombre"),
+                "goal": r.get("objetivo"),
+                "sessionsTotal": r.get("total_sesiones", 0),
+                "attendance": tasa_asistencia,
+                "streak": racha,
+                "status": estado
+            }
+
+            clients_data.append(client_data)
+
+        # ⚠️ FILTRO POR STATUS (POST-PROCESO)
+        if status != "all":
+            clients_data = [
+                c for c in clients_data if c["status"] == status
+            ]
+
+        return jsonify({
+            "success": True,
+            "clients": clients_data,
+            "pagination": {
+                "page": page,
+                "per_page": per_page,
+                "total": total,
+                "total_pages": (total + per_page - 1) // per_page
+            }
+        }), 200
+
     except Exception as e:
+        import traceback
         print(traceback.format_exc())
-        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
+        return jsonify({"success": False, "message": str(e)}), 500
 
 # ═══════════════════════════════════════════════════════════════
 #  RUTAS — PERFIL DEL ENTRENADOR
