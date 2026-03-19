@@ -368,6 +368,154 @@ def generar_sesiones(db, entrenadores_ids, miembros_data):
     print(f"   ✅ {len(sesiones):,} sesiones insertadas respetando límites")
 
 # ══════════════════════════════════════════════
+# 5. PROGRESO, ASISTENCIAS Y PAGOS (Vital para ML y MapReduce)
+# ══════════════════════════════════════════════
+def generar_progreso_asistencias_pagos(db):
+    print("\n📈 Generando historial de progreso, asistencias y pagos...")
+    miembros = list(db.miembros.find())
+    now = datetime.now()
+    
+    progresos, asistencias, pagos = [], [], []
+    metodos_pago = ["Efectivo", "Tarjeta", "Transferencia"]
+    
+    for m in miembros:
+        id_m = m["_id"]
+        fecha_reg = m["fecha_registro"]
+        peso_actual = m["peso_inicial"]
+        estatura = m["estatura"]
+        id_entrenador = m["id_entrenador"]
+        
+        meses_activos = (now.year - fecha_reg.year) * 12 + now.month - fecha_reg.month
+        if meses_activos < 1: meses_activos = 1
+        
+        # Generar un registro por cada mes activo
+        for mes in range(meses_activos + 1):
+            fecha_hito = fecha_reg + timedelta(days=30 * mes)
+            if fecha_hito > now: break
+            
+            # Variación de peso y métricas (simulando progreso)
+            peso_actual += random.uniform(-1.5, 0.5) 
+            bmi = round(peso_actual / (estatura ** 2), 2)
+            grasa = round(random.uniform(15.0, 30.0) - (mes * 0.2), 1)
+            musculo = round(random.uniform(25.0, 45.0) + (mes * 0.1), 1)
+            cintura = round(random.uniform(70.0, 100.0) - (mes * 0.5), 1)
+            
+            progresos.append({
+                "id_miembro": id_m,
+                "peso": round(peso_actual, 1),
+                "bmi": bmi,
+                "grasa_corporal": grasa,
+                "masa_muscular": musculo,
+                "cintura": cintura,
+                "fecha_registro": fecha_hito
+            })
+            
+            # Un pago mensual
+            pagos.append({
+                "id_miembro": id_m,
+                "id_entrenador": id_entrenador,
+                "monto": random.choice([80.0, 90.0, 100.0]),
+                "metodo_pago": random.choice(metodos_pago),
+                "fecha_pago": fecha_hito
+            })
+
+        # Generar asistencias aleatorias (ej. 3 a 5 veces por semana)
+        dias_totales = (now - fecha_reg).days
+        for dia in range(dias_totales):
+            if random.random() < 0.6: # 60% de probabilidad de ir al gym ese día
+                asistencias.append({
+                    "id_miembro": id_m,
+                    "fecha": fecha_reg + timedelta(days=dia)
+                })
+
+    if progresos: db.progreso_fisico.insert_many(progresos)
+    if asistencias: db.asistencias.insert_many(asistencias)
+    if pagos: db.pagos.insert_many(pagos)
+    print(f"  ✅ {len(progresos)} progresos, {len(asistencias)} asistencias y {len(pagos)} pagos creados.")
+
+# ══════════════════════════════════════════════
+# 6. PLANES ALIMENTICIOS Y VENTAS
+# ══════════════════════════════════════════════
+def generar_dietas_ventas_correos(db, tipos_dieta, recetas, productos):
+    print("\n🥗 Generando planes alimenticios, ventas de mostrador y correos...")
+    miembros = list(db.miembros.find())
+    now = datetime.now()
+    
+    # Planes Alimenticios
+    for m in miembros:
+        tipo_dieta_id = random.choice(list(tipos_dieta.values()))
+        plan_doc = {
+            "id_miembro": m["_id"],
+            "id_tipo_dieta": tipo_dieta_id,
+            "nombre_plan": f"Plan Nutricional - {m['objetivo']}",
+            "activo": True
+        }
+        db.planes_alimenticios.insert_one(plan_doc)
+        
+        # Asignar 3 recetas al azar a este plan para un par de días
+        recetas_compatibles = [r for r in recetas if r["id_tipo_dieta"] == tipo_dieta_id]
+        if recetas_compatibles:
+            for dia in ["Lunes", "Miércoles", "Viernes"]:
+                db.plan_recetas.insert_one({
+                    "id_plan": plan_doc["_id"],
+                    "id_receta": random.choice(recetas_compatibles)["_id"],
+                    "dia_semana": dia
+                })
+
+    # Ventas de Mostrador (Productos)
+    for _ in range(30): # 30 ventas aleatorias
+        venta_doc = {"fecha": now - timedelta(days=random.randint(0, 60))}
+        db.ventas.insert_one(venta_doc)
+        
+        prod = random.choice(productos)
+        cant = random.randint(1, 3)
+        db.detalle_venta.insert_one({
+            "id_venta": venta_doc["_id"],
+            "id_producto": prod["_id"],
+            "cantidad": cant,
+            "subtotal": prod["precio"] * cant
+        })
+
+    # Correos
+    correo_doc = {"tipo": "Masivo", "asunto": "¡Promoción de Verano!", "fecha": now}
+    db.correos_enviados.insert_one(correo_doc)
+    db.correo_miembro.insert_many([
+        {"id_correo": correo_doc["_id"], "id_miembro": m["_id"]} 
+        for m in random.sample(miembros, min(10, len(miembros)))
+    ])
+    print("  ✅ Dietas, ventas y correos listos.")
+
+# ══════════════════════════════════════════════
+# 7. EXTRAS DEL ENTRENADOR (Certificaciones, Logros, Evaluaciones)
+# ══════════════════════════════════════════════
+def generar_extras_entrenadores(db):
+    print("\n🏅 Añadiendo certificaciones y evaluaciones a los entrenadores...")
+    entrenadores = list(db.usuarios.find({"email": {"$regex": "entrenador"}}))
+    miembros = list(db.miembros.find())
+    
+    for ent in entrenadores:
+        db.certificaciones_entrenador.insert_one({
+            "id_entrenador": ent["_id"],
+            "nombre": random.choice(["CrossFit L1", "Nutrición Deportiva ISO", "Primeros Auxilios"])
+        })
+        db.logros_entrenador.insert_one({
+            "id_entrenador": ent["_id"],
+            "titulo": random.choice(["Entrenador del mes", "Top Transformaciones 2024"])
+        })
+        
+        # Asignar evaluaciones aleatorias de miembros a este entrenador
+        for _ in range(random.randint(2, 5)):
+            db.evaluaciones_entrenador.insert_one({
+                "id_entrenador": ent["_id"],
+                "id_miembro": random.choice(miembros)["_id"],
+                "calificacion": random.randint(4, 5) # Entrenadores buenos ;)
+            })
+    print("  ✅ Extras de entrenadores listos.")
+
+# ══════════════════════════════════════════════
+# MAIN
+# ══════════════════════════════════════════════
+# ══════════════════════════════════════════════
 # MAIN
 # ══════════════════════════════════════════════
 def main():
@@ -387,7 +535,7 @@ def main():
     # 2. Generamos el pool de rutinas (máx 6 por entrenador)
     pool_rutinas = pregenerar_rutinas_entrenadores(db, entrenadores_ids)
 
-    # 3. Creamos miembros asignándolos balanceadamente a los entrenadores
+    # 3. Creamos miembros asignándolos balanceadamente
     miembros_data = crear_miembros(
         db, roles["Miembro"], entrenadores_ids, pool_rutinas,
         membresias, tipos_dieta, recetas, num_usuarios=50
@@ -396,7 +544,17 @@ def main():
     # 4. Generamos sesiones limitadas por entrenador
     generar_sesiones(db, entrenadores_ids, miembros_data)
 
-    print("\n✅ ¡POBLACIÓN EXITOSA!\n")
+    # ---> NUEVAS LLAMADAS PARA LLENAR EL RESTO DE COLECCIONES <---
+    # 5. Progreso Físico, Asistencias y Pagos (Para PySpark)
+    generar_progreso_asistencias_pagos(db)
+
+    # 6. Planes Alimenticios, Ventas de Mostrador y Correos
+    generar_dietas_ventas_correos(db, tipos_dieta, recetas, productos)
+
+    # 7. Currículum y evaluaciones de los entrenadores
+    generar_extras_entrenadores(db)
+
+    print("\n✅ ¡POBLACIÓN TOTAL EXITOSA EN LAS 22 COLECCIONES!\n")
 
 if __name__ == "__main__":
     main()
