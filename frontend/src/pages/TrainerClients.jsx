@@ -156,7 +156,7 @@ export default function TrainerClients() {
             <h2>Mis Clientes</h2>
             <p>Gestiona y monitorea el progreso de tus clientes</p>
           </div>
-          <FiUsers size={50} style={{ color: 'var(--accent-color)', opacity: 0.8 }} />
+          <FiUsers size={50} style={{ color: 'var(--accent)', opacity: 0.8 }} />
         </div>
       </motion.div>
 
@@ -233,9 +233,9 @@ export default function TrainerClients() {
                 className={`btn-outline-small ${filterStatus === status ? 'active' : ''}`}
                 onClick={() => setFilterStatus(status)}
                 style={{
-                  background: filterStatus === status ? 'var(--accent-color)' : 'transparent',
+                  background: filterStatus === status ? 'var(--accent)' : 'transparent',
                   color: filterStatus === status ? 'var(--text-on-accent)' : 'var(--text-secondary)',
-                  borderColor: filterStatus === status ? 'var(--accent-color)' : 'var(--border-dark)'
+                  borderColor: filterStatus === status ? 'var(--accent)' : 'var(--border-dark)'
                 }}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -315,18 +315,18 @@ export default function TrainerClients() {
                 fontSize: '12px'
               }}>
                 <div style={{ 
-                  background: 'var(--bg-card-dark)', 
+                  background: 'var(--bg-card)', 
                   padding: '8px', 
                   borderRadius: '8px',
                   textAlign: 'center'
                 }}>
                   <div style={{ color: 'var(--text-secondary)', marginBottom: '4px' }}>Racha</div>
-                  <div style={{ fontSize: '16px', fontWeight: '700', color: 'var(--accent-color)' }}>
+                  <div style={{ fontSize: '16px', fontWeight: '700', color: 'var(--accent)' }}>
                     {client.streak || 0} días
                   </div>
                 </div>
                 <div style={{ 
-                  background: 'var(--bg-card-dark)', 
+                  background: 'var(--bg-card)', 
                   padding: '8px', 
                   borderRadius: '8px',
                   textAlign: 'center'
@@ -348,21 +348,21 @@ export default function TrainerClients() {
                   <span style={{ color: 'var(--text-secondary)' }}>Progreso</span>
                   <span style={{ 
                     fontWeight: '700',
-                    color: client.progress >= 80 ? 'var(--success-color)' : 'var(--accent-color)'
+                    color: client.progress >= 80 ? 'var(--success-color)' : 'var(--accent)'
                   }}>
                     {client.progress || 0}%
                   </span>
                 </div>
                 <div style={{ 
                   height: '6px', 
-                  background: 'var(--bg-card-dark)', 
+                  background: 'var(--bg-card)', 
                   borderRadius: '3px',
                   overflow: 'hidden'
                 }}>
                   <motion.div 
                     style={{ 
                       height: '100%', 
-                      background: client.progress >= 80 ? 'var(--success-color)' : 'var(--accent-color)',
+                      background: client.progress >= 80 ? 'var(--success-color)' : 'var(--accent)',
                       borderRadius: '3px'
                     }}
                     initial={{ width: 0 }}
@@ -464,7 +464,7 @@ export default function TrainerClients() {
                 width: '30px',
                 height: '30px',
                 border: '3px solid var(--border-dark)',
-                borderTopColor: 'var(--accent-color)',
+                borderTopColor: 'var(--accent)',
                 borderRadius: '50%',
                 margin: '0 auto'
               }}
@@ -497,7 +497,7 @@ export default function TrainerClients() {
           >
             <motion.div
               style={{
-                background: 'var(--bg-card-dark)',
+                background: 'var(--bg-card)',
                 borderRadius: '16px',
                 maxWidth: '600px',
                 width: '100%',
@@ -574,7 +574,7 @@ export default function TrainerClients() {
                           <motion.div 
                             style={{ 
                               height: '100%',
-                              background: 'var(--accent-color)',
+                              background: 'var(--accent)',
                               borderRadius: '4px',
                               position: 'absolute'
                             }}

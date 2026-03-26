@@ -15,7 +15,7 @@
   width: 50px;
   height: 50px;
   border: 4px solid rgba(255, 255, 255, 0.1);
-  border-top-color: var(--accent-color);
+  border-top-color: var(--accent);
   border-radius: 50%;
 }
 
@@ -67,7 +67,7 @@
 }
 
 .input-dark-container.with-icon:focus-within {
-  border-color: var(--accent-color);
+  border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
@@ -120,14 +120,14 @@
 }
 
 .btn-outline-small.active {
-  background: var(--accent-color);
+  background: var(--accent);
   color: var(--text-on-accent);
-  border-color: var(--accent-color);
+  border-color: var(--accent);
 }
 
 /* Avatar mejorado */
 .avatar {
-  background: var(--accent-color);
+  background: var(--accent);
   color: var(--text-on-accent);
   border-radius: 50%;
   display: flex;
@@ -144,7 +144,7 @@
 
 .member-card-hover:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  border-color: var(--accent-color) !important;
+  border-color: var(--accent) !important;
 }
 
 /* Botón de icono */
@@ -165,7 +165,7 @@
 .icon-btn:hover {
   background: var(--input-bg-dark);
   color: var(--text-primary);
-  border-color: var(--accent-color);
+  border-color: var(--accent);
 }
 
 /* Form labels compactos */
@@ -193,7 +193,7 @@
 
 .input-compact:focus {
   outline: none;
-  border-color: var(--accent-color);
+  border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
@@ -212,7 +212,7 @@
   font-weight: 500;
   border-radius: 8px;
   border: none;
-  background: var(--accent-color);
+  background: var(--accent);
   color: var(--text-on-accent);
   cursor: pointer;
   transition: all 0.2s ease;
@@ -281,7 +281,7 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--bg-card-dark);
+  background: var(--bg-card);
 }
 
 ::-webkit-scrollbar-thumb {

@@ -252,7 +252,7 @@ export default function UserPaymentsHistory() {
                   ) : (
                     currentPayments.map((p) => (
                       <tr key={p.id}>
-                        <td style={{ fontWeight: '600', color: 'var(--accent-color)' }}>
+                        <td style={{ fontWeight: '600', color: 'var(--accent)' }}>
                             {p.id}
                         </td>
                         <td>{p.date}</td>

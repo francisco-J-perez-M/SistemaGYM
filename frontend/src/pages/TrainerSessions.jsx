@@ -28,7 +28,7 @@ function NotesModal({ session, onClose, onSaved }) {
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <motion.div initial={{ opacity: 0, scale: 0.92, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.92 }}
-        style={{ background: "var(--bg-card-dark)", border: "1px solid var(--border-dark)", borderRadius: "18px", padding: "28px", width: "100%", maxWidth: "460px" }}
+        style={{ background: "var(--bg-card)", border: "1px solid var(--border-dark)", borderRadius: "18px", padding: "28px", width: "100%", maxWidth: "460px" }}
       >
         <h3 style={{ marginBottom: "8px", fontSize: "18px", fontWeight: "700" }}>Editar Notas</h3>
         <p style={{ fontSize: "13px", color: "var(--text-secondary)", marginBottom: "20px" }}>{session.client} — {session.time}</p>
@@ -59,7 +59,7 @@ function DeleteModal({ session, onClose, onDeleted }) {
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <motion.div initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.92 }}
-        style={{ background: "var(--bg-card-dark)", border: "1px solid var(--error-color)", borderRadius: "18px", padding: "28px", width: "100%", maxWidth: "400px", textAlign: "center" }}
+        style={{ background: "var(--bg-card)", border: "1px solid var(--error-color)", borderRadius: "18px", padding: "28px", width: "100%", maxWidth: "400px", textAlign: "center" }}
       >
         <FiTrash2 size={40} style={{ color: "var(--error-color)", marginBottom: "16px" }} />
         <h3 style={{ marginBottom: "8px", fontSize: "18px", fontWeight: "700" }}>Eliminar Sesión</h3>
@@ -114,7 +114,7 @@ export default function TrainerSessions() {
     finally { setActionLoading(null); }
   };
 
-  const statusColor = (s) => ({ completed: "var(--success-color)", "in-progress": "var(--accent-color)", scheduled: "#38bdf8", cancelled: "var(--error-color)" }[s] || "var(--text-secondary)");
+  const statusColor = (s) => ({ completed: "var(--success-color)", "in-progress": "var(--accent)", scheduled: "#38bdf8", cancelled: "var(--error-color)" }[s] || "var(--text-secondary)");
   const statusText  = (s) => ({ completed: "Completada", "in-progress": "En Curso", scheduled: "Programada", cancelled: "Cancelada" }[s] || s);
   const statusIcon  = (s) => ({ completed: <FiCheckCircle />, "in-progress": <FiPlay />, scheduled: <FiClock />, cancelled: <FiXCircle /> }[s] || <FiClock />);
 
@@ -139,7 +139,7 @@ export default function TrainerSessions() {
       <motion.div className="welcome-section" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5 }}>
         <div className="welcome-content">
           <div className="welcome-text"><h2>Historial de Sesiones</h2><p>Monitorea y gestiona todas tus sesiones de entrenamiento</p></div>
-          <FiClock size={50} style={{ color: "var(--accent-color)", opacity: 0.8 }} />
+          <FiClock size={50} style={{ color: "var(--accent)", opacity: 0.8 }} />
         </div>
       </motion.div>
 
@@ -171,7 +171,7 @@ export default function TrainerSessions() {
             <span style={{ fontSize: "13px", fontWeight: "600", color: "var(--text-secondary)" }}>Estado:</span>
             {filterBtns.map(f => (
               <motion.button key={f.value} className="btn-outline-small" onClick={() => setFilterStatus(f.value)}
-                style={{ background: filterStatus === f.value ? "var(--accent-color)" : "transparent", color: filterStatus === f.value ? "var(--text-on-accent)" : "var(--text-secondary)", borderColor: filterStatus === f.value ? "var(--accent-color)" : "var(--border-dark)" }}
+                style={{ background: filterStatus === f.value ? "var(--accent)" : "transparent", color: filterStatus === f.value ? "var(--text-on-accent)" : "var(--text-secondary)", borderColor: filterStatus === f.value ? "var(--accent)" : "var(--border-dark)" }}
                 whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>{f.label}
               </motion.button>
             ))}
@@ -180,7 +180,7 @@ export default function TrainerSessions() {
             <span style={{ fontSize: "13px", fontWeight: "600", color: "var(--text-secondary)" }}>Periodo:</span>
             {rangeBtns.map(r => (
               <motion.button key={r.value} className="btn-outline-small" onClick={() => setDateRange(r.value)}
-                style={{ background: dateRange === r.value ? "var(--accent-color)" : "transparent", color: dateRange === r.value ? "var(--text-on-accent)" : "var(--text-secondary)", borderColor: dateRange === r.value ? "var(--accent-color)" : "var(--border-dark)" }}
+                style={{ background: dateRange === r.value ? "var(--accent)" : "transparent", color: dateRange === r.value ? "var(--text-on-accent)" : "var(--text-secondary)", borderColor: dateRange === r.value ? "var(--accent)" : "var(--border-dark)" }}
                 whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>{r.label}
               </motion.button>
             ))}
@@ -211,11 +211,11 @@ export default function TrainerSessions() {
             {sessions.map((session) => (
               <motion.div key={session.id_sesion} variants={iv}
                 style={{ background: "var(--input-bg-dark)", border: "1px solid var(--border-dark)", borderLeft: `4px solid ${statusColor(session.status)}`, borderRadius: "12px", padding: "20px", display: "grid", gridTemplateColumns: "auto 1fr auto", gap: "20px", alignItems: "center", opacity: session.status === "cancelled" ? 0.6 : 1 }}
-                whileHover={{ borderColor: "var(--accent-color)", transform: "translateX(5px)" }}
+                whileHover={{ borderColor: "var(--accent)", transform: "translateX(5px)" }}
               >
                 {/* Date + icon */}
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", minWidth: "80px" }}>
-                  <div style={{ fontSize: "24px", fontWeight: "700", color: "var(--accent-color)" }}>{session.time}</div>
+                  <div style={{ fontSize: "24px", fontWeight: "700", color: "var(--accent)" }}>{session.time}</div>
                   <div style={{ fontSize: "11px", color: "var(--text-secondary)", textAlign: "center" }}>
                     {new Date(session.date + "T00:00:00").toLocaleDateString("es-ES", { day: "numeric", month: "short" })}
                   </div>
@@ -235,7 +235,7 @@ export default function TrainerSessions() {
                     {session.attendance && <span style={{ padding: "2px 8px", background: "rgba(76,217,100,0.1)", color: "var(--success-color)", borderRadius: "5px", fontSize: "11px", fontWeight: "600" }}>✓ Asistió</span>}
                   </div>
                   {session.notes && (
-                    <div style={{ fontSize: "12px", color: "var(--text-secondary)", fontStyle: "italic", background: "var(--bg-card-dark)", padding: "8px 12px", borderRadius: "6px", borderLeft: "2px solid var(--accent-color)" }}>{session.notes}</div>
+                    <div style={{ fontSize: "12px", color: "var(--text-secondary)", fontStyle: "italic", background: "var(--bg-card)", padding: "8px 12px", borderRadius: "6px", borderLeft: "2px solid var(--accent)" }}>{session.notes}</div>
                   )}
                 </div>
 

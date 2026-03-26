@@ -244,7 +244,7 @@ export default function TrainerRoutines() {
             <h2>Biblioteca de Rutinas</h2>
             <p>Crea, edita y gestiona tus rutinas de entrenamiento</p>
           </div>
-          <FiFileText size={50} style={{ color: 'var(--accent-color)', opacity: 0.8 }} />
+          <FiFileText size={50} style={{ color: 'var(--accent)', opacity: 0.8 }} />
         </div>
       </motion.div>
 
@@ -354,9 +354,9 @@ export default function TrainerRoutines() {
               className={`btn-outline-small ${filterCategory === cat.value ? 'active' : ''}`}
               onClick={() => setFilterCategory(cat.value)}
               style={{
-                background:   filterCategory === cat.value ? 'var(--accent-color)' : 'transparent',
+                background:   filterCategory === cat.value ? 'var(--accent)' : 'transparent',
                 color:        filterCategory === cat.value ? 'var(--text-on-accent)' : 'var(--text-secondary)',
-                borderColor:  filterCategory === cat.value ? 'var(--accent-color)' : 'var(--border-dark)',
+                borderColor:  filterCategory === cat.value ? 'var(--accent)' : 'var(--border-dark)',
                 display: 'flex', alignItems: 'center', gap: 6
               }}
               whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
@@ -410,9 +410,9 @@ export default function TrainerRoutines() {
                   <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                     <div style={{
                       width: 50, height: 50,
-                      background: 'var(--bg-card-dark)', borderRadius: 10,
+                      background: 'var(--bg-card)', borderRadius: 10,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 24, color: 'var(--accent-color)'
+                      fontSize: 24, color: 'var(--accent)'
                     }}>
                       {CATEGORY_ICONS[routine.category] || <GiMuscleUp />}
                     </div>
@@ -431,11 +431,11 @@ export default function TrainerRoutines() {
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 15 }}>
                   {[
-                    { label: 'Ejercicios', value: routine.exercises, color: 'var(--accent-color)' },
+                    { label: 'Ejercicios', value: routine.exercises, color: 'var(--accent)' },
                     { label: 'Clientes',   value: routine.clients,   color: 'var(--success-color)' }
                   ].map(stat => (
                     <div key={stat.label} style={{
-                      background: 'var(--bg-card-dark)', padding: 8, borderRadius: 8, textAlign: 'center'
+                      background: 'var(--bg-card)', padding: 8, borderRadius: 8, textAlign: 'center'
                     }}>
                       <div style={{ color: 'var(--text-secondary)', fontSize: 11, marginBottom: 4 }}>{stat.label}</div>
                       <div style={{ fontSize: 16, fontWeight: 700, color: stat.color }}>{stat.value}</div>
@@ -519,7 +519,7 @@ export default function TrainerRoutines() {
           >
             <motion.div
               style={{
-                background: 'var(--bg-card-dark)', borderRadius: 16,
+                background: 'var(--bg-card)', borderRadius: 16,
                 maxWidth: 700, width: '100%', maxHeight: '90vh',
                 overflow: 'auto', border: '1px solid var(--border-dark)'
               }}
@@ -535,7 +535,7 @@ export default function TrainerRoutines() {
                   <div style={{
                     width: 60, height: 60, background: 'var(--input-bg-dark)', borderRadius: 12,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 28, color: 'var(--accent-color)'
+                    fontSize: 28, color: 'var(--accent)'
                   }}>
                     {CATEGORY_ICONS[selectedRoutine.category] || <GiMuscleUp />}
                   </div>
@@ -575,7 +575,7 @@ export default function TrainerRoutines() {
                     >
                       <div style={{
                         width: 30, height: 30,
-                        background: 'var(--accent-color)', color: 'var(--text-on-accent)',
+                        background: 'var(--accent)', color: 'var(--text-on-accent)',
                         borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
                         fontWeight: 700, fontSize: 13
                       }}>{idx + 1}</div>
@@ -586,7 +586,7 @@ export default function TrainerRoutines() {
                       <div style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 600 }}>{ex.sets}</div>
                       <div style={{
                         fontSize: 12, color: 'var(--text-secondary)',
-                        background: 'var(--bg-card-dark)', padding: '4px 8px', borderRadius: 6
+                        background: 'var(--bg-card)', padding: '4px 8px', borderRadius: 6
                       }}>
                         {ex.rest || ex.peso || '—'}
                       </div>
@@ -633,7 +633,7 @@ export default function TrainerRoutines() {
           >
             <motion.div
               style={{
-                background: 'var(--bg-card-dark)', borderRadius: 16,
+                background: 'var(--bg-card)', borderRadius: 16,
                 maxWidth: 750, width: '100%', maxHeight: '92vh',
                 overflow: 'auto', border: '1px solid var(--border-dark)'
               }}

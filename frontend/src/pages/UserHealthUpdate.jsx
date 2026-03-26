@@ -141,7 +141,7 @@ export default function UserHealthUpdate() {
         icon: "error",
         title: "Datos Inválidos",
         text: "Por favor corrige los errores antes de continuar",
-        background: "var(--bg-card-dark)",
+        background: "var(--bg-card)",
         color: "var(--text-primary)"
       });
       return;
@@ -191,9 +191,9 @@ export default function UserHealthUpdate() {
         icon: "success",
         title: "¡Datos Actualizados!",
         text: "Tu información de salud se ha guardado correctamente",
-        background: "var(--bg-card-dark)",
+        background: "var(--bg-card)",
         color: "var(--text-primary)",
-        confirmButtonColor: "var(--accent-color)"
+        confirmButtonColor: "var(--accent)"
       });
 
       navigate("/user/health");
@@ -203,7 +203,7 @@ export default function UserHealthUpdate() {
         icon: "error",
         title: "Error",
         text: "No se pudieron guardar los datos. Intenta nuevamente.",
-        background: "var(--bg-card-dark)",
+        background: "var(--bg-card)",
         color: "var(--text-primary)"
       });
     } finally {
@@ -251,8 +251,8 @@ export default function UserHealthUpdate() {
                 transition: 'all 0.3s ease'
               }}
               onMouseOver={(e) => {
-                e.currentTarget.style.borderColor = 'var(--accent-color)';
-                e.currentTarget.style.color = 'var(--accent-color)';
+                e.currentTarget.style.borderColor = 'var(--accent)';
+                e.currentTarget.style.color = 'var(--accent)';
               }}
               onMouseOut={(e) => {
                 e.currentTarget.style.borderColor = 'var(--border-dark)';
@@ -282,7 +282,7 @@ export default function UserHealthUpdate() {
               alignItems: 'flex-start',
               gap: '15px'
             }}>
-              <FiAlertCircle size={24} style={{ color: 'var(--accent-color)', flexShrink: 0, marginTop: '2px' }} />
+              <FiAlertCircle size={24} style={{ color: 'var(--accent)', flexShrink: 0, marginTop: '2px' }} />
               <div>
                 <h4 style={{ marginBottom: '8px', fontSize: '16px', fontWeight: '600' }}>
                   Actualiza tu Progreso
@@ -661,7 +661,7 @@ export default function UserHealthUpdate() {
                         transition: 'all 0.3s ease'
                       }}
                       onFocus={(e) => {
-                        e.target.style.borderColor = 'var(--accent-color)';
+                        e.target.style.borderColor = 'var(--accent)';
                         e.target.style.boxShadow = '0 0 0 3px rgba(251, 227, 121, 0.15)';
                       }}
                       onBlur={(e) => {
@@ -738,7 +738,7 @@ export default function UserHealthUpdate() {
             <div style={{
               marginTop: '30px',
               padding: '20px',
-              background: 'var(--bg-card-dark)',
+              background: 'var(--bg-card)',
               borderRadius: '12px',
               border: '1px solid var(--border-dark)'
             }}>

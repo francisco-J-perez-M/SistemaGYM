@@ -14,7 +14,7 @@ const CustomTooltip = ({ active, payload, label, prefix = "", suffix = "" }) => 
   if (!active || !payload?.length) return null;
   return (
     <div style={{
-      background: "var(--bg-card-dark)",
+      background: "var(--bg-card)",
       border: "1px solid var(--border-dark)",
       borderRadius: 8,
       padding: "10px 14px",
@@ -49,9 +49,12 @@ export default function AnalyticsMapReduce() {
   }, []);
 
   if (loading) return (
-    <div className="loading-spinner" style={{ height: "60vh" }}>
+    <div className="loading-spinner" style={{ height: "60vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center" }}>
       <div className="dashboard-spinner" />
-      <p style={{ marginTop: 16, color: "var(--text-secondary)" }}>Cargando analytics...</p>
+      <h3 style={{ marginTop: 24, marginBottom: 8, color: "var(--text-primary)" }}>Ejecutando nodos de MapReduce...</h3>
+      <p style={{ color: "var(--text-secondary)", maxWidth: 450, fontSize: 14, lineHeight: 1.5 }}>
+        La arquitectura <b>MapReduce de PySpark</b> está procesando miles de registros distribuidos. Primero <i>"Mapea"</i> y clasifica los datos por periodo y método de pago en paralelo, y luego <i>"Reduce"</i> y suma los resultados para entregarte métricas financieras exactas a gran velocidad.
+      </p>
     </div>
   );
 
@@ -227,9 +230,9 @@ export default function AnalyticsMapReduce() {
                 type="monotone"
                 dataKey="total"
                 name="Ingresos"
-                stroke="var(--accent-color)"
+                stroke="var(--accent)"
                 strokeWidth={2.5}
-                dot={{ r: 4, fill: "var(--accent-color)", strokeWidth: 0 }}
+                dot={{ r: 4, fill: "var(--accent)", strokeWidth: 0 }}
                 activeDot={{ r: 6 }}
               />
             </LineChart>
@@ -260,7 +263,7 @@ export default function AnalyticsMapReduce() {
                   <Tooltip
                     formatter={(v) => [`$${v.toLocaleString("es-MX")}`, ""]}
                     contentStyle={{
-                      background: "var(--bg-card-dark)",
+                      background: "var(--bg-card)",
                       border: "1px solid var(--border-dark)",
                       borderRadius: 8,
                     }}
@@ -318,7 +321,7 @@ export default function AnalyticsMapReduce() {
                 {asistenciaDiaOrdenada.map((entry, i) => (
                   <Cell
                     key={i}
-                    fill={entry.dia === diaTop ? "var(--accent-color)" : "rgba(251,227,121,0.2)"}
+                    fill={entry.dia === diaTop ? "var(--accent)" : "rgba(251,227,121,0.2)"}
                   />
                 ))}
               </Bar>
@@ -352,7 +355,7 @@ export default function AnalyticsMapReduce() {
                 {(asistenciaMes).map((_, i) => (
                   <Cell
                     key={i}
-                    fill={i === asistenciaMes.length - 1 ? "var(--accent-color)" : "rgba(251,227,121,0.25)"}
+                    fill={i === asistenciaMes.length - 1 ? "var(--accent)" : "rgba(251,227,121,0.25)"}
                   />
                 ))}
               </Bar>

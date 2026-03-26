@@ -138,7 +138,7 @@ export default function ReceptionistDashboard() {
                 <h2>¡Bienvenida, {user.nombre?.split(" ")[0] || "Recepcionista"}! 🌟</h2>
                 <p>Tienes 8 pagos pendientes de procesar y 12 citas programadas hoy</p>
               </div>
-              <FiUserCheck size={50} style={{ color: 'var(--accent-color)', opacity: 0.8 }} />
+              <FiUserCheck size={50} style={{ color: 'var(--accent)', opacity: 0.8 }} />
             </div>
           </motion.div>
 
@@ -214,7 +214,7 @@ export default function ReceptionistDashboard() {
                       <div style={{ 
                         width: '45px', 
                         height: '45px',
-                        background: 'var(--accent-color)',
+                        background: 'var(--accent)',
                         borderRadius: '50%',
                         display: 'flex',
                         alignItems: 'center',
@@ -335,12 +335,12 @@ export default function ReceptionistDashboard() {
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.6 + (idx * 0.05) }}
-                    whileHover={{ scale: 1.01, borderColor: 'var(--accent-color)' }}
+                    whileHover={{ scale: 1.01, borderColor: 'var(--accent)' }}
                   >
                     <div style={{ 
                       width: '60px',
                       height: '60px',
-                      background: 'var(--accent-color)',
+                      background: 'var(--accent)',
                       borderRadius: '8px',
                       display: 'flex',
                       flexDirection: 'column',
@@ -387,7 +387,7 @@ export default function ReceptionistDashboard() {
               }}>
                 {[
                   { icon: <FiUserCheck size={24} />, title: "Registrar Check-in", color: 'var(--success-color)' },
-                  { icon: <FiDollarSign size={24} />, title: "Procesar Pago", color: 'var(--accent-color)' },
+                  { icon: <FiDollarSign size={24} />, title: "Procesar Pago", color: 'var(--accent)' },
                   { icon: <FiPhoneCall size={24} />, title: "Llamadas", color: 'var(--warning-color)' },
                   { icon: <FiMail size={24} />, title: "Enviar Email", color: '#4A90E2' }
                 ].map((action, idx) => (

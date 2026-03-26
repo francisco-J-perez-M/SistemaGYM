@@ -205,7 +205,7 @@ export default function UserDashboard() {
             animate={{ rotate: 360 }}
             transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
           >
-            <FaSpinner size={50} color="var(--accent-color)" />
+            <FaSpinner size={50} color="var(--accent)" />
           </motion.div>
           <p style={{ marginTop: '20px' }}>Cargando dashboard...</p>
         </motion.div>
@@ -240,7 +240,7 @@ export default function UserDashboard() {
             style={{
               marginTop: '20px',
               padding: '10px 20px',
-              background: 'var(--accent-color)',
+              background: 'var(--accent)',
               border: 'none',
               borderRadius: '6px',
               cursor: 'pointer',
@@ -410,7 +410,7 @@ export default function UserDashboard() {
                     cy="40"
                     r="35"
                     fill="none"
-                    stroke="var(--accent-color)"
+                    stroke="var(--accent)"
                     strokeWidth="6"
                     strokeLinecap="round"
                     initial={{ strokeDasharray: "0 220" }}
@@ -427,7 +427,7 @@ export default function UserDashboard() {
                   transform: 'translate(-50%, -50%)',
                   fontSize: '18px',
                   fontWeight: '700',
-                  color: 'var(--accent-color)'
+                  color: 'var(--accent)'
                 }}>
                   {calculateProgress()}%
                 </div>
@@ -613,12 +613,12 @@ export default function UserDashboard() {
                         animate={{ height: `${height}%` }}
                         transition={{ duration: 0.8, delay: index * 0.1 }}
                         style={{ 
-                          backgroundColor: isToday ? 'var(--accent-color)' : 'rgba(251, 227, 121, 0.7)'
+                          backgroundColor: isToday ? 'var(--accent)' : 'rgba(251, 227, 121, 0.7)'
                         }}
                       >
                         <span className="tooltip">{height}% completado</span>
                       </motion.div>
-                      <span className="bar-label" style={{ color: isToday ? 'var(--accent-color)' : 'var(--text-secondary)' }}>
+                      <span className="bar-label" style={{ color: isToday ? 'var(--accent)' : 'var(--text-secondary)' }}>
                         {day}
                       </span>
                     </div>
@@ -629,7 +629,7 @@ export default function UserDashboard() {
               <div style={{ marginTop: '20px', padding: '15px', background: 'var(--bg-input-dark)', borderRadius: '8px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
                   <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Progreso semanal</span>
-                  <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--accent-color)' }}>
+                  <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--accent)' }}>
                     {calculateWeeklyProgress()}%
                   </span>
                 </div>
@@ -637,7 +637,7 @@ export default function UserDashboard() {
                   <motion.div 
                     style={{ 
                       height: '100%', 
-                      background: 'var(--accent-color)',
+                      background: 'var(--accent)',
                       borderRadius: '3px'
                     }}
                     initial={{ width: 0 }}

@@ -217,7 +217,7 @@ export default function UserProfile() {
                         height: '120px',
                         borderRadius: '50%',
                         objectFit: 'cover',
-                        border: '3px solid var(--accent-color)'
+                        border: '3px solid var(--accent)'
                       }}
                     />
                   ) : (
@@ -233,7 +233,7 @@ export default function UserProfile() {
                         position: 'absolute',
                         bottom: '5px',
                         right: '5px',
-                        background: 'var(--accent-color)',
+                        background: 'var(--accent)',
                         border: 'none',
                         borderRadius: '50%',
                         width: '36px',
@@ -261,7 +261,7 @@ export default function UserProfile() {
                 
                 <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
                   <div style={{ flex: 1, padding: '15px', background: 'var(--bg-input-dark)', borderRadius: '8px' }}>
-                    <div style={{ fontSize: '24px', fontWeight: '700', color: 'var(--accent-color)' }}>
+                    <div style={{ fontSize: '24px', fontWeight: '700', color: 'var(--accent)' }}>
                       {profileData.mesesActivo}
                     </div>
                     <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Meses activo</div>

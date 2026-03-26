@@ -533,7 +533,7 @@ export default function UserHealthProgress() {
   };
 
   const kpiMetrics = [
-    { label: "Estatura", value: bodyMetrics.estatura > 0 ? `${bodyMetrics.estatura} m` : '--', icon: <GiBodyHeight />, color: "var(--accent-color)" },
+    { label: "Estatura", value: bodyMetrics.estatura > 0 ? `${bodyMetrics.estatura} m` : '--', icon: <GiBodyHeight />, color: "var(--accent)" },
     { label: "Peso Actual", value: bodyMetrics.peso.actual > 0 ? `${bodyMetrics.peso.actual} kg` : '--', icon: <GiWeightScale />, color: "var(--success-color)", meta: bodyMetrics.peso.meta > 0 ? `Meta: ${bodyMetrics.peso.meta}kg` : null },
     { label: "Masa Muscular", value: bodyMetrics.musculo.actual > 0 ? `${bodyMetrics.musculo.actual}%` : '--', icon: <GiMuscleUp />, color: "var(--warning-color)", meta: bodyMetrics.musculo.meta > 0 ? `Meta: ${bodyMetrics.musculo.meta}%` : null },
     { label: "Grasa Corporal", value: bodyMetrics.grasaCorporal.actual > 0 ? `${bodyMetrics.grasaCorporal.actual}%` : '--', icon: <FiActivity />, color: "var(--error-color)", meta: bodyMetrics.grasaCorporal.meta > 0 ? `Meta: ${bodyMetrics.grasaCorporal.meta}%` : null },
@@ -557,7 +557,7 @@ export default function UserHealthProgress() {
             onClick={() => window.location.href = '/user-health-update'}
             style={{ 
               display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px',
-              background: 'var(--accent-color)', border: 'none', borderRadius: '8px',
+              background: 'var(--accent)', border: 'none', borderRadius: '8px',
               cursor: 'pointer', color: 'var(--bg-dark)', fontWeight: '600'
             }}
           >
@@ -592,10 +592,10 @@ export default function UserHealthProgress() {
                 onClick={() => setActiveTab(tab.key)}
                 style={{
                   padding: '12px 24px',
-                  background: activeTab === tab.key ? 'var(--accent-color)' : 'transparent',
+                  background: activeTab === tab.key ? 'var(--accent)' : 'transparent',
                   color: activeTab === tab.key ? 'var(--text-on-accent)' : 'var(--text-secondary)',
                   border: 'none',
-                  borderBottom: activeTab === tab.key ? '3px solid var(--accent-color)' : 'none',
+                  borderBottom: activeTab === tab.key ? '3px solid var(--accent)' : 'none',
                   cursor: 'pointer', fontWeight: '600', transition: 'all 0.3s ease',
                   borderRadius: '8px 8px 0 0', display: 'flex', alignItems: 'center', gap: '8px'
                 }}
@@ -613,7 +613,7 @@ export default function UserHealthProgress() {
                 <div style={{ 
                   padding: '20px', background: 'rgba(74, 144, 226, 0.1)', borderRadius: '8px', 
                   marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px',
-                  color: 'var(--accent-color)'
+                  color: 'var(--accent)'
                 }}>
                   <FiActivity />
                   <span>No hay registros de progreso. Comienza a registrar tus mediciones para ver tu evolución.</span>
@@ -756,7 +756,7 @@ export default function UserHealthProgress() {
                   <button 
                     onClick={() => window.location.href = '/user-health-update'}
                     style={{
-                      padding: '12px 24px', background: 'var(--accent-color)', color: 'var(--bg-dark)',
+                      padding: '12px 24px', background: 'var(--accent)', color: 'var(--bg-dark)',
                       border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600'
                     }}
                   >
@@ -867,12 +867,12 @@ export default function UserHealthProgress() {
                             padding: '15px',
                             background: 'rgba(74, 144, 226, 0.1)',
                             borderRadius: '8px',
-                            borderLeft: '4px solid var(--accent-color)',
+                            borderLeft: '4px solid var(--accent)',
                             display: 'flex',
                             alignItems: 'flex-start',
                             gap: '10px'
                           }}>
-                            <FiAlertCircle size={18} style={{ color: 'var(--accent-color)', flexShrink: 0, marginTop: '2px' }} />
+                            <FiAlertCircle size={18} style={{ color: 'var(--accent)', flexShrink: 0, marginTop: '2px' }} />
                             <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.6', margin: 0 }}>
                               Estas recomendaciones son generales. Para un plan personalizado, consulta con un profesional de la salud.
                             </p>
@@ -911,7 +911,7 @@ export default function UserHealthProgress() {
                           <SeccionHistorial 
                             titulo="Lesiones o Limitaciones" 
                             items={healthData.lesiones} 
-                            color="var(--accent-color)" 
+                            color="var(--accent)" 
                             icon={FiAlertCircle}
                           />
                         )}
@@ -933,14 +933,14 @@ export default function UserHealthProgress() {
                               padding: '20px', 
                               background: 'var(--bg-input-dark)', 
                               borderRadius: '8px',
-                              borderLeft: '4px solid var(--accent-color)'
+                              borderLeft: '4px solid var(--accent)'
                             }}>
                               <div style={{ 
                                 display: 'flex', 
                                 alignItems: 'center', 
                                 gap: '8px',
                                 marginBottom: '12px',
-                                color: 'var(--accent-color)'
+                                color: 'var(--accent)'
                               }}>
                                 <FiEdit2 size={16} />
                                 <span style={{ fontSize: '13px', fontWeight: '600' }}>Última nota registrada</span>
@@ -1002,10 +1002,10 @@ export default function UserHealthProgress() {
                           padding: '15px',
                           background: 'rgba(74, 144, 226, 0.1)',
                           borderRadius: '8px',
-                          borderLeft: '4px solid var(--accent-color)'
+                          borderLeft: '4px solid var(--accent)'
                         }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                            <FiHeart size={16} style={{ color: 'var(--accent-color)' }} />
+                            <FiHeart size={16} style={{ color: 'var(--accent)' }} />
                             <span style={{ fontWeight: '600', fontSize: '14px' }}>Mantén tu información actualizada</span>
                           </div>
                           <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.5' }}>

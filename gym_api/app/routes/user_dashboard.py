@@ -235,7 +235,7 @@ def _get_recent_achievements(db, id_miembro):
                 "icon": "FaFire",
                 "title": f"Racha de {racha} días",
                 "description": "Completado hoy",
-                "color": "var(--accent-color)"
+                "color": "var(--accent)"
             })
         elif racha >= 3:
             achievements.append({
@@ -278,7 +278,7 @@ def _get_recent_achievements(db, id_miembro):
                 "icon": "FaTrophy",
                 "title": f"{asistencias_mes} entrenamientos",
                 "description": "¡Campeón del mes!",
-                "color": "var(--accent-color)"
+                "color": "var(--accent)"
             })
         elif asistencias_mes >= 12:
             achievements.append({

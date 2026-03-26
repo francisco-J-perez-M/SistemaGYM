@@ -116,7 +116,7 @@ export default function PointOfSale() {
                   {producto.nombre}
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '18px', fontWeight: '700', color: 'var(--accent-color)' }}>
+                  <span style={{ fontSize: '18px', fontWeight: '700', color: 'var(--accent)' }}>
                     ${producto.precio}
                   </span>
                   <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
@@ -229,7 +229,7 @@ export default function PointOfSale() {
                       </motion.button>
                     </div>
                     
-                    <span style={{ fontWeight: '700', color: 'var(--accent-color)' }}>
+                    <span style={{ fontWeight: '700', color: 'var(--accent)' }}>
                       ${(item.precio * item.cantidad).toFixed(2)}
                     </span>
                   </div>
@@ -242,7 +242,7 @@ export default function PointOfSale() {
           <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', fontSize: '20px', fontWeight: '700' }}>
               <span>Total:</span>
-              <span style={{ color: 'var(--accent-color)' }}>${getTotal().toFixed(2)}</span>
+              <span style={{ color: 'var(--accent)' }}>${getTotal().toFixed(2)}</span>
             </div>
             
             <motion.button
@@ -252,7 +252,7 @@ export default function PointOfSale() {
               style={{
                 width: '100%',
                 padding: '14px',
-                background: cart.length === 0 ? 'var(--bg-tertiary)' : 'var(--accent-color)',
+                background: cart.length === 0 ? 'var(--bg-tertiary)' : 'var(--accent)',
                 color: 'white',
                 border: 'none',
                 borderRadius: '8px',

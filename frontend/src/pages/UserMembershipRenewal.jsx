@@ -231,7 +231,7 @@ export default function UserMembershipRenewal() {
                   style={{
                     padding: '25px',
                     background: selectedPlan?.id === plan.id ? 'linear-gradient(135deg, rgba(255, 159, 10, 0.1), transparent)' : 'var(--bg-input-dark)',
-                    border: selectedPlan?.id === plan.id ? '2px solid var(--accent-color)' : '2px solid var(--border-dark)',
+                    border: selectedPlan?.id === plan.id ? '2px solid var(--accent)' : '2px solid var(--border-dark)',
                     borderRadius: '12px',
                     cursor: 'pointer',
                     position: 'relative',
@@ -246,7 +246,7 @@ export default function UserMembershipRenewal() {
                         position: 'absolute', 
                         top: '15px', 
                         right: '15px', 
-                        background: 'var(--accent-color)', 
+                        background: 'var(--accent)', 
                         borderRadius: '50%', 
                         width: '28px', 
                         height: '28px', 
@@ -263,7 +263,7 @@ export default function UserMembershipRenewal() {
                   <h3 style={{ marginBottom: '15px', fontSize: '22px' }}>{plan.nombre}</h3>
                   
                   <div style={{ marginBottom: '15px' }}>
-                    <span style={{ fontSize: '36px', fontWeight: '700', color: 'var(--accent-color)' }}>
+                    <span style={{ fontSize: '36px', fontWeight: '700', color: 'var(--accent)' }}>
                       ${plan.precio.toLocaleString()}
                     </span>
                     <span style={{ color: 'var(--text-secondary)', fontSize: '14px' }}> MXN</span>
@@ -343,7 +343,7 @@ export default function UserMembershipRenewal() {
                       style={{
                         padding: '20px',
                         background: selectedPaymentMethod === metodo.id ? 'linear-gradient(135deg, rgba(255, 159, 10, 0.1), transparent)' : 'var(--bg-input-dark)',
-                        border: selectedPaymentMethod === metodo.id ? '2px solid var(--accent-color)' : '2px solid var(--border-dark)',
+                        border: selectedPaymentMethod === metodo.id ? '2px solid var(--accent)' : '2px solid var(--border-dark)',
                         borderRadius: '12px',
                         cursor: 'pointer',
                         position: 'relative',
@@ -355,7 +355,7 @@ export default function UserMembershipRenewal() {
                           position: 'absolute', 
                           top: '10px', 
                           right: '10px', 
-                          background: 'var(--accent-color)', 
+                          background: 'var(--accent)', 
                           borderRadius: '50%', 
                           width: '24px', 
                           height: '24px', 
@@ -371,7 +371,7 @@ export default function UserMembershipRenewal() {
                       <div style={{ 
                         fontSize: '24px', 
                         marginBottom: '10px',
-                        color: selectedPaymentMethod === metodo.id ? 'var(--accent-color)' : 'var(--text-secondary)'
+                        color: selectedPaymentMethod === metodo.id ? 'var(--accent)' : 'var(--text-secondary)'
                       }}>
                         {metodo.icono}
                       </div>
@@ -411,7 +411,7 @@ export default function UserMembershipRenewal() {
                     fontWeight: '700'
                   }}>
                     <span>Total:</span>
-                    <span style={{ color: 'var(--accent-color)' }}>
+                    <span style={{ color: 'var(--accent)' }}>
                       ${selectedPlan.precio.toLocaleString()} MXN
                     </span>
                   </div>
@@ -427,7 +427,7 @@ export default function UserMembershipRenewal() {
                 style={{
                   width: '100%',
                   padding: '16px',
-                  background: processing || !selectedPlan || !selectedPaymentMethod ? 'var(--border-dark)' : 'var(--accent-color)',
+                  background: processing || !selectedPlan || !selectedPaymentMethod ? 'var(--border-dark)' : 'var(--accent)',
                   color: 'var(--bg-dark)',
                   border: 'none',
                   borderRadius: '12px',

@@ -338,7 +338,7 @@ export default function UserRoutineCreator() {
                         whileHover={{ scale: 1.05 }} 
                         style={{ 
                           padding: '8px 16px', 
-                          background: 'var(--accent-color)', 
+                          background: 'var(--accent)', 
                           color: 'var(--bg-dark)', 
                           border: 'none', 
                           borderRadius: '8px', 

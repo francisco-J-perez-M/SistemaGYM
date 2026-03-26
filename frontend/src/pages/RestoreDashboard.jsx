@@ -30,7 +30,7 @@ const RestoreDashboard = () => {
     showConfirmButton: false,
     timer: 3000,
     timerProgressBar: true,
-    background: 'var(--bg-card-dark)',
+    background: 'var(--bg-card)',
     color: 'var(--text-primary)',
     didOpen: (toast) => {
       toast.addEventListener('mouseenter', Swal.stopTimer)
@@ -45,11 +45,11 @@ const RestoreDashboard = () => {
              <span style="color: var(--danger-color)">⚠ Esta acción sobrescribirá o actualizará la base de datos actual.</span>`,
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonColor: 'var(--accent-color)',
+      confirmButtonColor: 'var(--accent)',
       cancelButtonColor: '#d33',
       confirmButtonText: '<span style="color: var(--text-on-accent)">Sí, restaurar</span>',
       cancelButtonText: 'Cancelar',
-      background: 'var(--bg-card-dark)',
+      background: 'var(--bg-card)',
       color: 'var(--text-primary)',
       focusConfirm: false,
       backdrop: `rgba(0,0,0,0.6)`
@@ -95,7 +95,7 @@ const RestoreDashboard = () => {
         title: 'Restaurando...',
         html: 'Por favor no cierres la ventana.',
         allowOutsideClick: false,
-        background: 'var(--bg-card-dark)',
+        background: 'var(--bg-card)',
         color: 'var(--text-primary)',
         didOpen: () => {
           Swal.showLoading();
@@ -110,9 +110,9 @@ const RestoreDashboard = () => {
         icon: 'success',
         title: '¡Restauración Completada!',
         text: 'La base de datos ha sido actualizada correctamente.',
-        confirmButtonColor: 'var(--accent-color)',
+        confirmButtonColor: 'var(--accent)',
         confirmButtonText: '<span style="color: var(--text-on-accent)">Entendido</span>',
-        background: 'var(--bg-card-dark)',
+        background: 'var(--bg-card)',
         color: 'var(--text-primary)',
       });
 
@@ -126,7 +126,7 @@ const RestoreDashboard = () => {
         icon: 'error',
         title: 'Falló la restauración',
         text: error?.response?.data?.detail || "Ocurrió un error inesperado.",
-        background: 'var(--bg-card-dark)',
+        background: 'var(--bg-card)',
         color: 'var(--text-primary)',
         confirmButtonColor: 'var(--danger-color)'
       });

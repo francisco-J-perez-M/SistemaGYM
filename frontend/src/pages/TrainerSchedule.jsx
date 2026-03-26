@@ -49,7 +49,7 @@ function NewSessionModal({ onClose, onSaved, selectedDayDate, members }) {
     >
       <motion.div
         initial={{ opacity: 0, scale: 0.92, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.92, y: 20 }}
-        style={{ background: "var(--bg-card-dark)", border: "1px solid var(--border-dark)", borderRadius: "18px", padding: "32px", width: "100%", maxWidth: "520px", maxHeight: "90vh", overflowY: "auto" }}
+        style={{ background: "var(--bg-card)", border: "1px solid var(--border-dark)", borderRadius: "18px", padding: "32px", width: "100%", maxWidth: "520px", maxHeight: "90vh", overflowY: "auto" }}
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
           <h3 style={{ fontSize: "20px", fontWeight: "700" }}>Nueva Sesión</h3>
@@ -171,7 +171,7 @@ export default function TrainerSchedule() {
 
   const selectedDayData = selectedDay !== null ? weekDays[selectedDay] : null;
 
-  const statusColor = (s) => ({ scheduled: "#38bdf8", "in-progress": "var(--accent-color)", completed: "var(--success-color)", cancelled: "var(--error-color)" }[s] || "var(--text-secondary)");
+  const statusColor = (s) => ({ scheduled: "#38bdf8", "in-progress": "var(--accent)", completed: "var(--success-color)", cancelled: "var(--error-color)" }[s] || "var(--text-secondary)");
   const statusLabel = (s) => ({ scheduled: "Programada", "in-progress": "En Curso", completed: "Completada", cancelled: "Cancelada" }[s] || s);
 
   const cv = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.05 } } };
@@ -182,7 +182,7 @@ export default function TrainerSchedule() {
       <motion.div className="welcome-section" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5 }}>
         <div className="welcome-content">
           <div className="welcome-text"><h2>Agenda y Calendario</h2><p>Gestiona tus sesiones y horarios semanales</p></div>
-          <FiCalendar size={50} style={{ color: "var(--accent-color)", opacity: 0.8 }} />
+          <FiCalendar size={50} style={{ color: "var(--accent)", opacity: 0.8 }} />
         </div>
       </motion.div>
 
@@ -219,12 +219,12 @@ export default function TrainerSchedule() {
           <motion.div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "12px", marginBottom: "20px" }} variants={cv} initial="hidden" animate="visible">
             {weekDays.map((day) => (
               <motion.div key={day.index} variants={iv} onClick={() => setSelectedDay(day.index)}
-                style={{ background: day.isToday ? "linear-gradient(135deg, var(--accent-color), var(--accent-hover))" : selectedDay === day.index ? "var(--input-bg-dark)" : "var(--bg-card-dark)", border: `2px solid ${selectedDay === day.index ? "var(--accent-color)" : "var(--border-dark)"}`, borderRadius: "12px", padding: "15px", textAlign: "center", cursor: "pointer", transition: "all 0.3s ease" }}
-                whileHover={{ scale: 1.05, borderColor: "var(--accent-color)" }} whileTap={{ scale: 0.98 }}
+                style={{ background: day.isToday ? "linear-gradient(135deg, var(--accent), var(--accent-hover))" : selectedDay === day.index ? "var(--input-bg-dark)" : "var(--bg-card)", border: `2px solid ${selectedDay === day.index ? "var(--accent)" : "var(--border-dark)"}`, borderRadius: "12px", padding: "15px", textAlign: "center", cursor: "pointer", transition: "all 0.3s ease" }}
+                whileHover={{ scale: 1.05, borderColor: "var(--accent)" }} whileTap={{ scale: 0.98 }}
               >
                 <div style={{ fontSize: "11px", fontWeight: "600", textTransform: "uppercase", marginBottom: "8px", color: day.isToday ? "var(--text-on-accent)" : "var(--text-secondary)" }}>{day.dayName.slice(0, 3)}</div>
                 <div style={{ fontSize: "24px", fontWeight: "700", color: day.isToday ? "var(--text-on-accent)" : "var(--text-primary)" }}>{day.dayNumber}</div>
-                <div style={{ fontSize: "10px", marginTop: "8px", padding: "3px 6px", background: day.isToday ? "rgba(0,0,0,0.2)" : "rgba(251,227,121,0.1)", borderRadius: "6px", color: day.isToday ? "var(--text-on-accent)" : "var(--accent-color)" }}>{day.sessions.length} sesiones</div>
+                <div style={{ fontSize: "10px", marginTop: "8px", padding: "3px 6px", background: day.isToday ? "rgba(0,0,0,0.2)" : "rgba(251,227,121,0.1)", borderRadius: "6px", color: day.isToday ? "var(--text-on-accent)" : "var(--accent)" }}>{day.sessions.length} sesiones</div>
               </motion.div>
             ))}
           </motion.div>
@@ -245,10 +245,10 @@ export default function TrainerSchedule() {
                   {selectedDayData.sessions.map((session) => (
                     <motion.div key={session.id_sesion} variants={iv}
                       style={{ background: "var(--input-bg-dark)", border: "1px solid var(--border-dark)", borderLeft: `4px solid ${statusColor(session.status)}`, borderRadius: "12px", padding: "20px", display: "grid", gridTemplateColumns: "80px 1fr auto", gap: "20px", alignItems: "center" }}
-                      whileHover={{ borderColor: "var(--accent-color)", transform: "translateX(5px)" }}
+                      whileHover={{ borderColor: "var(--accent)", transform: "translateX(5px)" }}
                     >
                       <div style={{ textAlign: "center" }}>
-                        <div style={{ fontSize: "24px", fontWeight: "700", color: "var(--accent-color)" }}>{session.time}</div>
+                        <div style={{ fontSize: "24px", fontWeight: "700", color: "var(--accent)" }}>{session.time}</div>
                         <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "4px" }}>{session.duration}</div>
                       </div>
                       <div>
@@ -258,7 +258,7 @@ export default function TrainerSchedule() {
                           <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>{session.location === "Online" ? <FiVideo size={14} /> : <FiMapPin size={14} />}{session.location}</span>
                           <span style={{ padding: "2px 8px", background: `${statusColor(session.status)}20`, color: statusColor(session.status), borderRadius: "6px", fontSize: "11px", fontWeight: "600" }}>{statusLabel(session.status)}</span>
                         </div>
-                        {session.notes && <div style={{ marginTop: "8px", fontSize: "12px", color: "var(--text-secondary)", fontStyle: "italic", background: "var(--bg-card-dark)", padding: "6px 10px", borderRadius: "6px", borderLeft: "2px solid var(--accent-color)" }}>{session.notes}</div>}
+                        {session.notes && <div style={{ marginTop: "8px", fontSize: "12px", color: "var(--text-secondary)", fontStyle: "italic", background: "var(--bg-card)", padding: "6px 10px", borderRadius: "6px", borderLeft: "2px solid var(--accent)" }}>{session.notes}</div>}
                       </div>
                       <div style={{ display: "flex", gap: "8px" }}>
                         {session.status !== "completed" && session.status !== "cancelled" && (

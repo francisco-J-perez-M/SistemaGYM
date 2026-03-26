@@ -59,7 +59,7 @@ const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
     <div style={{
-      background: "var(--bg-card-dark)", border: "1px solid var(--border-dark)",
+      background: "var(--bg-card)", border: "1px solid var(--border-dark)",
       borderRadius: 8, padding: "10px 14px", fontSize: 13,
     }}>
       <p style={{ color: "var(--text-secondary)", marginBottom: 4 }}>{label}</p>
@@ -266,8 +266,8 @@ export default function UserWeightPrediction() {
                 onClick={() => handleDiasChange(opt.value)}
                 style={{
                   padding: "7px 16px", borderRadius: 20, border: "1px solid",
-                  borderColor: dias === opt.value ? "var(--accent-color)" : "var(--border-dark)",
-                  background: dias === opt.value ? "var(--accent-color)" : "var(--input-bg-dark)",
+                  borderColor: dias === opt.value ? "var(--accent)" : "var(--border-dark)",
+                  background: dias === opt.value ? "var(--accent)" : "var(--input-bg-dark)",
                   color: dias === opt.value ? "var(--text-on-accent)" : "var(--text-secondary)",
                   fontSize: 13, fontWeight: 500, cursor: "pointer", transition: "all 0.2s",
                 }}

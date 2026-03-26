@@ -86,7 +86,7 @@ export default function CompleteProfile() {
         icon: "warning",
         title: "Faltan Datos",
         text: "Por favor revisa los campos en rojo y acepta los términos.",
-        background: "var(--bg-card-dark)",
+        background: "var(--bg-card)",
         color: "var(--text-primary)"
       });
       return;
@@ -142,9 +142,9 @@ export default function CompleteProfile() {
         icon: "success",
         title: "¡Perfil Completado!",
         text: "Tu información ha sido registrada exitosamente.",
-        background: "var(--bg-card-dark)",
+        background: "var(--bg-card)",
         color: "var(--text-primary)",
-        confirmButtonColor: "var(--accent-color)"
+        confirmButtonColor: "var(--accent)"
       });
 
       navigate("/user/dashboard"); 
@@ -180,7 +180,7 @@ export default function CompleteProfile() {
               border: '1px solid rgba(234, 179, 8, 0.3)',
               display: 'flex', alignItems: 'center', gap: '20px'
             }}>
-              <div style={{ background: 'var(--accent-color)', padding: '10px', borderRadius: '50%', color: '#000' }}>
+              <div style={{ background: 'var(--accent)', padding: '10px', borderRadius: '50%', color: '#000' }}>
                 <FiCheckCircle size={24} />
               </div>
               <div>
@@ -327,7 +327,7 @@ export default function CompleteProfile() {
                   <a href="/Terminos y Condiciones.pdf" target="_blank" rel="noopener noreferrer"
                     style={{ display: 'flex', alignItems: 'center', gap: '15px', padding: '12px 25px', background: 'var(--bg-main)', borderRadius: '8px', textDecoration: 'none', color: 'var(--text-primary)', border: '1px solid var(--border-dark)', width: '100%', maxWidth: '350px', justifyContent: 'center' }}
                   >
-                    <FiFileText size={20} color="var(--accent-color)" />
+                    <FiFileText size={20} color="var(--accent)" />
                     <span>Leer Documento PDF</span>
                     <FiArrowRight />
                   </a>
@@ -335,7 +335,7 @@ export default function CompleteProfile() {
                   <label style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', userSelect: 'none' }}>
                     <div style={{ position: 'relative', width: '24px', height: '24px' }}>
                       <input type="checkbox" name="aceptaTerminos" checked={formData.aceptaTerminos} onChange={handleInputChange} style={{ opacity: 0, position: 'absolute', width: '100%', height: '100%', cursor: 'pointer' }} />
-                      {formData.aceptaTerminos ? <FiCheckSquare size={24} color="var(--accent-color)" /> : <FiSquare size={24} color="var(--text-secondary)" />}
+                      {formData.aceptaTerminos ? <FiCheckSquare size={24} color="var(--accent)" /> : <FiSquare size={24} color="var(--text-secondary)" />}
                     </div>
                     <span style={{ color: 'var(--text-primary)' }}>He leído y acepto los Términos y Condiciones.</span>
                   </label>

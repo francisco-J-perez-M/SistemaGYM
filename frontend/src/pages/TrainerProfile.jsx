@@ -164,7 +164,7 @@ export default function TrainerProfile() {
             <h2>Mi Perfil</h2>
             <p>Gestiona tu información personal y profesional</p>
           </div>
-          <FiUser size={50} style={{ color: 'var(--accent-color)', opacity: 0.8 }} />
+          <FiUser size={50} style={{ color: 'var(--accent)', opacity: 0.8 }} />
         </div>
       </motion.div>
 
@@ -318,7 +318,7 @@ export default function TrainerProfile() {
                   width: '100px', 
                   height: '100px', 
                   fontSize: '36px',
-                  border: '3px solid var(--accent-color)'
+                  border: '3px solid var(--accent)'
                 }}>
                   {formData.name.split(' ').map(n => n[0]).join('')}
                 </div>
@@ -331,7 +331,7 @@ export default function TrainerProfile() {
                       width: '32px',
                       height: '32px',
                       borderRadius: '50%',
-                      background: 'var(--accent-color)',
+                      background: 'var(--accent)',
                       color: 'var(--text-on-accent)',
                       border: 'none',
                       display: 'flex',
@@ -576,14 +576,14 @@ export default function TrainerProfile() {
                   alignItems: 'center'
                 }}
                 whileHover={{ 
-                  borderColor: 'var(--accent-color)',
+                  borderColor: 'var(--accent)',
                   transform: 'translateY(-3px)'
                 }}
               >
                 <div style={{
                   width: '50px',
                   height: '50px',
-                  background: 'var(--accent-color)',
+                  background: 'var(--accent)',
                   color: 'var(--text-on-accent)',
                   borderRadius: '12px',
                   display: 'flex',

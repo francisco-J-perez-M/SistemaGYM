@@ -256,7 +256,7 @@ export default function BackupsDashboard() {
                   height: '120px',
                   borderRadius: '50%',
                   background: `conic-gradient(
-                    var(--accent-color) ${progress * 3.6}deg, 
+                    var(--accent) ${progress * 3.6}deg, 
                     var(--input-bg-dark) ${progress * 3.6}deg
                   )`,
                   display: 'flex',
@@ -268,7 +268,7 @@ export default function BackupsDashboard() {
                   style={{
                     width: '100px',
                     height: '100px',
-                    background: 'var(--bg-card-dark)',
+                    background: 'var(--bg-card)',
                     borderRadius: '50%',
                     display: 'flex',
                     alignItems: 'center',

@@ -65,7 +65,7 @@ body {
     font-size: 28px;
     font-weight: 900;
     letter-spacing: 2px;
-    color: var(--accent-color); /* El logo en amarillo */
+    color: var(--accent); /* El logo en amarillo */
     text-transform: uppercase;
 }
 
@@ -99,7 +99,7 @@ body {
 
 .hero-indicators span.active {
     width: 30px;
-    background-color: var(--accent-color);
+    background-color: var(--accent);
     border-radius: 5px;
 }
 
@@ -118,7 +118,7 @@ body {
 
 .login-card {
   /* La tarjeta ahora es oscura y se funde más con el fondo */
-  background-color: var(--bg-card-dark);
+  background-color: var(--bg-card);
   border-radius: var(--border-radius-card);
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
   width: 100%;
@@ -185,7 +185,7 @@ body {
 }
 
 .input-dark-container input:focus {
-  border-color: var(--accent-color); /* Borde amarillo al enfocar */
+  border-color: var(--accent); /* Borde amarillo al enfocar */
   box-shadow: 0 0 0 3px rgba(251, 227, 121, 0.15); /* Resplandor amarillo suave */
 }
 
@@ -204,7 +204,7 @@ body {
 
 /* Checkbox personalizado para que se vea bien en oscuro */
 .custom-checkbox {
-    accent-color: var(--accent-color); /* Checkbox amarillo */
+    accent-color: var(--accent); /* Checkbox amarillo */
     width: 16px;
     height: 16px;
     margin-right: 10px;
@@ -226,7 +226,7 @@ body {
 }
 
 .forgot-password:hover {
-  color: var(--accent-color);
+  color: var(--accent);
 }
 
 /* Mensaje de error */
@@ -257,7 +257,7 @@ body {
   width: 100%;
   padding: 16px;
   /* Color de fondo amarillo */
-  background-color: var(--accent-color);
+  background-color: var(--accent);
   /* Texto negro sobre el amarillo para contraste */
   color: var(--text-on-accent);
   border: none;
@@ -312,7 +312,7 @@ body {
 }
 
 .register-link a {
-  color: var(--accent-color);
+  color: var(--accent);
   font-weight: 600;
   text-decoration: none;
   margin-left: 5px;

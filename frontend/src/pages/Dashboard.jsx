@@ -119,7 +119,7 @@ export default function AdminDashboard() {
                       height: '80px',
                       borderRadius: '50%',
                       background: `conic-gradient(
-                        var(--accent-color) ${adminData.retention * 3.6}deg, 
+                        var(--accent) ${adminData.retention * 3.6}deg, 
                         var(--input-bg-dark) ${adminData.retention * 3.6}deg
                       )`,
                       display: 'flex',
@@ -132,7 +132,7 @@ export default function AdminDashboard() {
                       style={{
                         width: '65px',
                         height: '65px',
-                        background: 'var(--bg-card-dark)',
+                        background: 'var(--bg-card)',
                         borderRadius: '50%',
                         display: 'flex',
                         alignItems: 'center',
@@ -160,7 +160,7 @@ export default function AdminDashboard() {
                         width: '8px',
                         height: '8px',
                         borderRadius: '50%',
-                        background: 'var(--accent-color)',
+                        background: 'var(--accent)',
                         display: 'inline-block'
                       }}></span>
                       Renuevan ({adminData.retention}%)

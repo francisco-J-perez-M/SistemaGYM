@@ -5,11 +5,11 @@ const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 const RISK_CONFIG = {
   default: {
-    borderColor: "var(--accent-color)",
+    borderColor: "var(--accent)",
     badgeBg: "rgba(251,227,121,0.12)",
-    badgeColor: "var(--accent-color)",
+    badgeColor: "var(--accent)",
     tagBg: "rgba(251,227,121,0.12)",
-    tagColor: "var(--accent-color)",
+    tagColor: "var(--accent)",
   },
 };
 
@@ -44,7 +44,7 @@ function getRiskConfig(perfil = "") {
 
 function getSilhouetteConfig(score) {
   if (score >= 0.7) return { label: "Excelente", color: "var(--success-color)", bg: "rgba(76,217,100,0.12)" };
-  if (score >= 0.5) return { label: "Bueno", color: "var(--accent-color)", bg: "rgba(251,227,121,0.12)" };
+  if (score >= 0.5) return { label: "Bueno", color: "var(--accent)", bg: "rgba(251,227,121,0.12)" };
   if (score >= 0.3) return { label: "Aceptable", color: "var(--warning-color)", bg: "rgba(255,189,46,0.12)" };
   return { label: "Bajo", color: "var(--danger-color)", bg: "rgba(255,77,77,0.12)" };
 }
@@ -86,9 +86,12 @@ export default function AnalyticsKMeans() {
   const handleRecalculate = () => fetchData(kValue, true);
 
   if (loading) return (
-    <div className="loading-spinner" style={{ height: "60vh" }}>
+    <div className="loading-spinner" style={{ height: "60vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center" }}>
       <div className="dashboard-spinner" />
-      <p style={{ marginTop: 16, color: "var(--text-secondary)" }}>Calculando clusters...</p>
+      <h3 style={{ marginTop: 24, marginBottom: 8, color: "var(--text-primary)" }}>Entrenando modelo K-Means...</h3>
+      <p style={{ color: "var(--text-secondary)", maxWidth: 450, fontSize: 14, lineHeight: 1.5 }}>
+        El algoritmo de <b>Machine Learning K-Means</b> está analizando en tiempo real las métricas corporales (peso, IMC, grasa y músculo). Su objetivo es encontrar patrones matemáticos ocultos y agrupar automáticamente a los miembros en "clusters" con perfiles similares para personalizar su entrenamiento.
+      </p>
     </div>
   );
 
@@ -155,8 +158,8 @@ export default function AnalyticsKMeans() {
               onClick={() => setKValue(k)}
               style={{
                 width: 40, height: 40, borderRadius: 8, border: "1px solid",
-                borderColor: kValue === k ? "var(--accent-color)" : "var(--border-dark)",
-                background: kValue === k ? "var(--accent-color)" : "var(--input-bg-dark)",
+                borderColor: kValue === k ? "var(--accent)" : "var(--border-dark)",
+                background: kValue === k ? "var(--accent)" : "var(--input-bg-dark)",
                 color: kValue === k ? "var(--text-on-accent)" : "var(--text-secondary)",
                 fontWeight: 600, fontSize: 15, cursor: "pointer", transition: "all 0.2s",
               }}

@@ -11,7 +11,7 @@ const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
     <div style={{
-      background: "var(--bg-card-dark)", border: "1px solid var(--border-dark)",
+      background: "var(--bg-card)", border: "1px solid var(--border-dark)",
       borderRadius: 8, padding: "10px 14px", fontSize: 13,
     }}>
       <p style={{ color: "var(--text-secondary)", marginBottom: 4 }}>{label}</p>
@@ -192,8 +192,12 @@ export default function AnalyticsRegresion() {
       </div>
 
       {globalLoading ? (
-        <div style={{ display: "flex", justifyContent: "center", padding: 40 }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "60px 20px", textAlign: "center", background: "var(--bg-card)", borderRadius: 12, border: "1px solid var(--border-dark)" }}>
           <div className="dashboard-spinner" />
+          <h3 style={{ marginTop: 20, marginBottom: 8, color: "var(--text-primary)" }}>Calculando Regresión Lineal Global...</h3>
+          <p style={{ color: "var(--text-secondary)", maxWidth: 500, fontSize: 14, lineHeight: 1.5 }}>
+            PySpark está ajustando un modelo matemático sobre todo el historial del gimnasio. Analiza factores como tiempo de entrenamiento y porcentajes corporales para trazar la <b>"línea de mejor ajuste"</b>, lo que nos permite entender la tendencia general de progreso de los miembros.
+          </p>
         </div>
       ) : globalError ? (
         <div className="empty-state" style={{ marginBottom: 20 }}>
@@ -233,7 +237,7 @@ export default function AnalyticsRegresion() {
             <p style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--text-secondary)" }}>
               Precisión del modelo
             </p>
-            <div style={{ fontSize: 52, fontWeight: 700, color: "var(--accent-color)", lineHeight: 1 }}>
+            <div style={{ fontSize: 52, fontWeight: 700, color: "var(--accent)", lineHeight: 1 }}>
               {r2 !== null ? r2.toFixed(2) : "—"}
             </div>
             <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>Coeficiente R²</p>
@@ -293,7 +297,7 @@ export default function AnalyticsRegresion() {
             {showDropdown && (
               <div style={{
                 position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0,
-                background: "var(--bg-card-dark)", border: "1px solid var(--border-dark)",
+                background: "var(--bg-card)", border: "1px solid var(--border-dark)",
                 borderRadius: 10, overflow: "hidden", zIndex: 100,
                 boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
               }}>
@@ -335,8 +339,8 @@ export default function AnalyticsRegresion() {
               onClick={() => handleDiasChange(opt.value)}
               style={{
                 padding: "10px 16px", borderRadius: 20, border: "1px solid",
-                borderColor: dias === opt.value ? "var(--accent-color)" : "var(--border-dark)",
-                background: dias === opt.value ? "var(--accent-color)" : "var(--input-bg-dark)",
+                borderColor: dias === opt.value ? "var(--accent)" : "var(--border-dark)",
+                background: dias === opt.value ? "var(--accent)" : "var(--input-bg-dark)",
                 color: dias === opt.value ? "var(--text-on-accent)" : "var(--text-secondary)",
                 fontSize: 13, fontWeight: 500, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap",
               }}
@@ -349,8 +353,12 @@ export default function AnalyticsRegresion() {
 
       {/* Gráfico del miembro */}
       {memberLoading && (
-        <div style={{ display: "flex", justifyContent: "center", padding: 40 }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 20px", textAlign: "center" }}>
           <div className="dashboard-spinner" />
+          <h4 style={{ marginTop: 16, marginBottom: 4, color: "var(--text-primary)" }}>Proyectando futuro del miembro...</h4>
+          <p style={{ color: "var(--text-secondary)", maxWidth: 400, fontSize: 13, lineHeight: 1.4 }}>
+            La IA está tomando las medidas corporales actuales del miembro y multiplicándolas por los <b>coeficientes aprendidos</b> del modelo general para estimar su progresión matemática para los próximos meses.
+          </p>
         </div>
       )}
       {memberError && (

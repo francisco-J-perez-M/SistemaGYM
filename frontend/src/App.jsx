@@ -120,7 +120,7 @@ function App() {
             }}>
               <h1 style={{ fontSize: '72px', marginBottom: '20px' }}>404</h1>
               <p style={{ fontSize: '20px' }}>Página no encontrada</p>
-              <a href="/" style={{ marginTop: '20px', color: 'var(--accent-color)' }}>
+              <a href="/" style={{ marginTop: '20px', color: 'var(--accent)' }}>
                 Volver al inicio
               </a>
             </div>

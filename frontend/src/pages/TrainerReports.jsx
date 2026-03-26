@@ -89,7 +89,7 @@ export default function TrainerReports() {
             <h2>Reportes y Estadísticas</h2>
             <p>Analiza tu desempeño y el progreso de tus clientes</p>
           </div>
-          <FiBarChart2 size={50} style={{ color: 'var(--accent-color)', opacity: 0.8 }} />
+          <FiBarChart2 size={50} style={{ color: 'var(--accent)', opacity: 0.8 }} />
         </div>
       </motion.div>
 
@@ -141,9 +141,9 @@ export default function TrainerReports() {
                 className={`btn-outline-small ${timeRange === r.value ? 'active' : ''}`}
                 onClick={() => setTimeRange(r.value)}
                 style={{
-                  background:  timeRange === r.value ? 'var(--accent-color)' : 'transparent',
+                  background:  timeRange === r.value ? 'var(--accent)' : 'transparent',
                   color:       timeRange === r.value ? 'var(--text-on-accent)' : 'var(--text-secondary)',
-                  borderColor: timeRange === r.value ? 'var(--accent-color)' : 'var(--border-dark)'
+                  borderColor: timeRange === r.value ? 'var(--accent)' : 'var(--border-dark)'
                 }}
                 whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
               >
@@ -284,7 +284,7 @@ export default function TrainerReports() {
                   <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4 }}>
                     Promedio mensual
                   </div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--accent-color)' }}>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--accent)' }}>
                     ${monthlyData.length
                       ? Math.round(monthlyData.reduce((a, d) => a + d.revenue, 0) / monthlyData.length).toLocaleString('es-MX')
                       : 0
@@ -321,7 +321,7 @@ export default function TrainerReports() {
                     style={{
                       padding: 15, marginBottom: 10,
                       background: 'var(--input-bg-dark)', borderRadius: 8,
-                      border: index === 0 ? '1px solid var(--accent-color)' : '1px solid var(--border-dark)'
+                      border: index === 0 ? '1px solid var(--accent)' : '1px solid var(--border-dark)'
                     }}
                     initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.5 + index * 0.05 }}
@@ -330,7 +330,7 @@ export default function TrainerReports() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <div style={{
                           width: 30, height: 30,
-                          background: index === 0 ? 'var(--accent-color)' : 'var(--bg-card-dark)',
+                          background: index === 0 ? 'var(--accent)' : 'var(--bg-card)',
                           color: index === 0 ? 'var(--text-on-accent)' : 'var(--text-primary)',
                           borderRadius: '50%',
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -347,16 +347,16 @@ export default function TrainerReports() {
                       </div>
                       <span style={{
                         fontSize: 16, fontWeight: 700,
-                        color: client.improvement >= 85 ? 'var(--success-color)' : 'var(--accent-color)'
+                        color: client.improvement >= 85 ? 'var(--success-color)' : 'var(--accent)'
                       }}>
                         {client.improvement}%
                       </span>
                     </div>
-                    <div style={{ height: 6, background: 'var(--bg-card-dark)', borderRadius: 3, overflow: 'hidden' }}>
+                    <div style={{ height: 6, background: 'var(--bg-card)', borderRadius: 3, overflow: 'hidden' }}>
                       <motion.div
                         style={{
                           height: '100%',
-                          background: client.improvement >= 85 ? 'var(--success-color)' : 'var(--accent-color)',
+                          background: client.improvement >= 85 ? 'var(--success-color)' : 'var(--accent)',
                           borderRadius: 3
                         }}
                         initial={{ width: 0 }}
@@ -400,7 +400,7 @@ export default function TrainerReports() {
                   label: 'Satisfacción',
                   value: metrics.satisfaction ? `${metrics.satisfaction}/5` : 'N/A',
                   trend: 'Promedio evaluaciones',
-                  color: 'var(--accent-color)'
+                  color: 'var(--accent)'
                 },
                 {
                   label: 'Retención',
@@ -412,7 +412,7 @@ export default function TrainerReports() {
                   label: 'Sesiones / Cliente',
                   value: metrics.sessionsPerClient || 0,
                   trend: 'Promedio del período',
-                  color: 'var(--accent-color)'
+                  color: 'var(--accent)'
                 },
                 {
                   label: 'Nuevos Clientes',
@@ -493,7 +493,7 @@ export default function TrainerReports() {
                         }}
                       >
                         <td style={{ padding: '12px 14px', fontWeight: 600 }}>{row.month}</td>
-                        <td style={{ padding: '12px 14px', color: 'var(--accent-color)', fontWeight: 700 }}>
+                        <td style={{ padding: '12px 14px', color: 'var(--accent)', fontWeight: 700 }}>
                           ${row.revenue.toLocaleString('es-MX')}
                         </td>
                         <td style={{ padding: '12px 14px' }}>{row.sessions}</td>
