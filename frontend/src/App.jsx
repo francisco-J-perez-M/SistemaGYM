@@ -3,8 +3,8 @@ import { ThemeProvider } from "./hooks/ThemeContext";
 import Layout from "./components/Layout";
 
 // --- PÁGINAS PÚBLICAS ---
-import Login from "./pages/Login";
-import Register from "./pages/Register"; 
+// Importamos el nuevo componente unificado
+import AuthPage from "./components/AuthPage"; 
 
 // --- PÁGINAS DE DASHBOARD (ADMIN) ---
 import Dashboard from "./pages/Dashboard";         
@@ -51,8 +51,9 @@ function App() {
       <BrowserRouter>
         <Routes>
           {/* 1. RUTAS PÚBLICAS */}
-          <Route path="/" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+          {/* Ambas rutas apuntan al nuevo componente que maneja la vista internamente */}
+          <Route path="/" element={<AuthPage />} />
+          <Route path="/register" element={<AuthPage />} />
 
           {/* 2. RUTAS ADMIN */}
           <Route element={<Layout role="admin" />}>

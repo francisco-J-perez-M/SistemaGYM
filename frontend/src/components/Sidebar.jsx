@@ -312,16 +312,28 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
     }
     return { initials: "US", name: "Usuario", role: "Invitado" };
   };
+  const sidebarRef = useRef(null);
+
+useEffect(() => {
+  function handleClickOutside(e) {
+    if (sidebarRef.current && !sidebarRef.current.contains(e.target)) {
+      setOpenSubmenu(null);
+    }
+  }
+  document.addEventListener("mousedown", handleClickOutside);
+  return () => document.removeEventListener("mousedown", handleClickOutside);
+}, []);
 
   const displayUser = getDisplayUser();
 
   return (
     <motion.aside 
-      className={`sidebar ${collapsed ? "collapsed" : ""}`}
-      initial={{ x: -300 }}
-      animate={{ x: 0 }}
-      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-    >
+  ref={sidebarRef}
+  className={`sidebar ${collapsed ? "collapsed" : ""}`}
+  initial={{ y: -80, opacity: 0 }}
+  animate={{ y: 0, opacity: 1 }}
+  transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+>
       <motion.button 
         className="collapse-btn" 
         onClick={() => setCollapsed(!collapsed)}
@@ -375,7 +387,7 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
 
             const hasChildren = item.children && item.children.length > 0;
             const isChildActive = hasChildren && item.children.some(child => child.id === activeTab);
-            const isOpen = openSubmenu === item.id || isChildActive;
+            const isOpen = openSubmenu === item.id;
             const isParentActive = activeTab === item.id && !hasChildren;
             const isItemRestricted = !isLoadingAccess && isRestricted && blockedMenuIds.includes(item.id);
 
@@ -394,6 +406,7 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
                   if (hasChildren) {
                     setOpenSubmenu(openSubmenu === item.id ? null : item.id);
                   } else {
+                    setOpenSubmenu(null);
                     onTabChange(item.id);
                   }
                 }}
@@ -451,6 +464,7 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
                                   handleRestrictedAccess(item.label);
                                   return;
                                 }
+                                setOpenSubmenu(null);
                                 onTabChange(sub.id);
                               }}
                               initial={{ opacity: 0, x: -10 }}
