@@ -1,25 +1,18 @@
 import { useState, useEffect } from "react";
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
 import "../css/CSSUnificado.css";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
-
 const DIAS_SEMANA = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
-const COLORS_PIE = ["#fbe379", "#4cd964", "#38bdf8", "#ff6b9d", "#a78bfa"];
+const COLORS_PIE  = ["#fbe379", "#4cd964", "#38bdf8", "#ff6b9d", "#a78bfa"];
 
 const CustomTooltip = ({ active, payload, label, prefix = "", suffix = "" }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div style={{
-      background: "var(--bg-card)",
-      border: "1px solid var(--border-dark)",
-      borderRadius: 8,
-      padding: "10px 14px",
-      fontSize: 13,
-    }}>
+    <div style={{ background: "var(--bg-card)", border: "1px solid var(--border-dark)", borderRadius: 8, padding: "10px 14px", fontSize: 13 }}>
       <p style={{ color: "var(--text-secondary)", marginBottom: 4 }}>{label}</p>
       {payload.map((p, i) => (
         <p key={i} style={{ color: p.color, fontWeight: 500 }}>
@@ -31,29 +24,62 @@ const CustomTooltip = ({ active, payload, label, prefix = "", suffix = "" }) => 
 };
 
 export default function AnalyticsMapReduce() {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [data, setData]             = useState(null);
+  const [loading, setLoading]       = useState(true);
+  const [trainLoading, setTrainLoading] = useState(false);
+  const [error, setError]           = useState(null);
+  const [trainMsg, setTrainMsg]     = useState(null);
 
-  useEffect(() => {
+  // ── GET: carga desde caché ─────────────────────────────────────────────────
+  const fetchData = async () => {
+    setLoading(true);
+    setError(null);
+    setTrainMsg(null);
     const token = localStorage.getItem("token");
-    fetch(`${API_BASE}/api/analytics/mapreduce`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => {
-        if (!r.ok) throw new Error(`Error ${r.status}`);
-        return r.json();
-      })
-      .then((d) => { setData(d); setLoading(false); })
-      .catch((e) => { setError(e.message); setLoading(false); });
-  }, []);
+    try {
+      const r = await fetch(`${API_BASE}/api/analytics/mapreduce`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!r.ok) throw new Error(`Error ${r.status}`);
+      setData(await r.json());
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ── POST /train: re-ejecuta MapReduce y guarda en caché ───────────────────
+  const handleTrain = async () => {
+    setTrainLoading(true);
+    setTrainMsg(null);
+    setError(null);
+    const token = localStorage.getItem("token");
+    try {
+      const r = await fetch(`${API_BASE}/api/analytics/mapreduce/train`, {
+        method:  "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!r.ok) throw new Error(`Error ${r.status}`);
+      const json = await r.json();
+      setData(json);
+      setTrainMsg(json.mensaje || "MapReduce re-ejecutado correctamente.");
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setTrainLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchData(); }, []);
 
   if (loading) return (
     <div className="loading-spinner" style={{ height: "60vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center" }}>
       <div className="dashboard-spinner" />
-      <h3 style={{ marginTop: 24, marginBottom: 8, color: "var(--text-primary)" }}>Ejecutando nodos de MapReduce...</h3>
+      <h3 style={{ marginTop: 24, marginBottom: 8, color: "var(--text-primary)" }}>Cargando análisis financiero...</h3>
       <p style={{ color: "var(--text-secondary)", maxWidth: 450, fontSize: 14, lineHeight: 1.5 }}>
-        La arquitectura <b>MapReduce de PySpark</b> está procesando miles de registros distribuidos. Primero <i>"Mapea"</i> y clasifica los datos por periodo y método de pago en paralelo, y luego <i>"Reduce"</i> y suma los resultados para entregarte métricas financieras exactas a gran velocidad.
+        Obteniendo los resultados del <b>MapReduce</b> desde la base de datos.
+        Si es la primera vez, los nodos de Spark se ejecutarán ahora.
       </p>
     </div>
   );
@@ -62,61 +88,128 @@ export default function AnalyticsMapReduce() {
     <div className="empty-state">
       <h3>Error al cargar datos</h3>
       <p>{error}</p>
+      <button className="btn-primary" style={{ marginTop: 16 }} onClick={fetchData}>Reintentar</button>
     </div>
   );
 
-  // --- Procesamiento de datos del backend ---
-  const resumenIngresos = data?.resumen_ingresos || [];
-  const ingresosPorPeriodo = data?.ingresos_por_periodo || [];
-  const asistenciaMes = data?.asistencia_por_mes || [];
-  const asistenciaDia = data?.asistencia_por_dia_semana || [];
+  const resumenIngresos     = data?.resumen_ingresos          || [];
+  const ingresosPorPeriodo  = data?.ingresos_por_periodo      || [];
+  const asistenciaMes       = data?.asistencia_por_mes        || [];
+  const asistenciaDia       = data?.asistencia_por_dia_semana || [];
+  const desdeCache          = data?.desde_cache ?? false;
+  const ejecutadoEn         = data?.ejecutado_en;
 
-  // Mes actual
-  const mesActual = resumenIngresos[resumenIngresos.length - 1];
-  const mesAnterior = resumenIngresos[resumenIngresos.length - 2];
-  const totalMesActual = mesActual?.total || 0;
-  const variacion = mesAnterior?.total
-    ? (((totalMesActual - mesAnterior.total) / mesAnterior.total) * 100).toFixed(1)
+  const mesActual      = resumenIngresos[resumenIngresos.length - 1];
+  const mesAnterior    = resumenIngresos[resumenIngresos.length - 2];
+  const totalMesActual = mesActual?.total_periodo || mesActual?.total || 0;
+  const totalAnterior  = mesAnterior?.total_periodo || mesAnterior?.total || 0;
+  const variacion      = totalAnterior
+    ? (((totalMesActual - totalAnterior) / totalAnterior) * 100).toFixed(1)
     : null;
 
-  // Día con más asistencia
-  const diaTopObj = [...asistenciaDia].sort((a, b) => b.total - a.total)[0];
-  const diaTop = diaTopObj?.dia_semana || diaTopObj?.dia || "—";
-  const diaTopTotal = diaTopObj?.total || 0;
+  const diaTopObj  = [...asistenciaDia].sort((a, b) => (b.total_visitas || b.total || 0) - (a.total_visitas || a.total || 0))[0];
+  const diaTop     = diaTopObj?.dia_semana || diaTopObj?.dia || "—";
+  const diaTopTotal = diaTopObj?.total_visitas || diaTopObj?.total || 0;
 
-  // Métodos de pago (agrupar ingresos_por_periodo por metodo_pago)
   const metodosMap = {};
   ingresosPorPeriodo.forEach((item) => {
-    const metodo = item.metodo_pago || item.metodo || "Otro";
-    metodosMap[metodo] = (metodosMap[metodo] || 0) + (item.total || 0);
+    const metodo = item.metodo_pago || "Otro";
+    metodosMap[metodo] = (metodosMap[metodo] || 0) + (item.total_ingresos || item.total || 0);
   });
   const metodosData = Object.entries(metodosMap).map(([name, value]) => ({ name, value }));
 
-  // Asistencia por día ordenada
   const asistenciaDiaOrdenada = DIAS_SEMANA.map((dia) => {
     const found = asistenciaDia.find(
       (d) => (d.dia_semana || d.dia || "").toLowerCase().includes(dia.toLowerCase().slice(0, 3))
     );
-    return { dia, total: found?.total || 0 };
+    return { dia, total: found?.total_visitas || found?.total || 0 };
   });
 
-  // Ingresos globales para gráfico de línea
   const lineData = resumenIngresos.map((item) => ({
-    mes: item.mes || item.periodo || "",
-    total: item.total || 0,
+    mes:   item.periodo || item.mes || "",
+    total: item.total_periodo || item.total || 0,
+  }));
+
+  const asistenciaMesNorm = asistenciaMes.map((item) => ({
+    mes:   item.periodo || item.mes || "",
+    total: item.total_visitas || item.total || 0,
   }));
 
   return (
     <div className="dashboard-content">
       {/* Header */}
-      <div style={{ marginBottom: 24, display: "flex", alignItems: "center", gap: 12 }}>
+      <div style={{ marginBottom: 24, display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
         <div>
           <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>Finanzas y Flujo</h2>
           <p style={{ color: "var(--text-secondary)", fontSize: 14 }}>
             Análisis MapReduce · Ingresos y asistencia del gimnasio
           </p>
         </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          {/* Badge caché */}
+          {ejecutadoEn && (
+            <span style={{ fontSize: 11, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 4 }}>
+              <span style={{
+                width: 6, height: 6, borderRadius: "50%",
+                background: desdeCache ? "var(--success-color)" : "var(--warning-color)",
+                display: "inline-block",
+              }} />
+              {desdeCache ? "Desde caché" : "Recién calculado"} · {new Date(ejecutadoEn).toLocaleString("es-MX")}
+            </span>
+          )}
+
+          {/* Botón Reentrenar */}
+          <button
+            className="btn-compact-primary"
+            onClick={handleTrain}
+            disabled={trainLoading}
+            title="Re-ejecuta MapReduce con los datos actuales y actualiza la caché"
+          >
+            {trainLoading ? <span className="spinner" /> : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+                <path d="M21 3v5h-5"/>
+                <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+                <path d="M8 16H3v5"/>
+              </svg>
+            )}
+            {trainLoading ? "Procesando..." : "Reejecutar MapReduce"}
+          </button>
+        </div>
       </div>
+
+      {/* Notificación exitosa */}
+      {trainMsg && (
+        <div style={{
+          marginBottom: 16, padding: "12px 16px", borderRadius: 8,
+          background: "rgba(76,217,100,0.1)", border: "1px solid var(--success-color)",
+          color: "var(--success-color)", fontSize: 13, display: "flex", alignItems: "center", gap: 8,
+        }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+          </svg>
+          {trainMsg}
+        </div>
+      )}
+
+      {/* Loading overlay */}
+      {trainLoading && (
+        <div style={{
+          marginBottom: 16, padding: "20px 24px", borderRadius: 12,
+          background: "var(--bg-card)", border: "1px solid var(--border-dark)",
+          display: "flex", alignItems: "center", gap: 16,
+        }}>
+          <div className="dashboard-spinner" style={{ width: 28, height: 28 }} />
+          <div>
+            <p style={{ fontWeight: 600, marginBottom: 4 }}>Ejecutando nodos MapReduce...</p>
+            <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+              Procesando pagos y asistencias en paralelo. Esto puede tardar unos segundos.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* KPI Cards */}
       <div className="kpi-grid" style={{ marginBottom: 24 }}>
@@ -124,13 +217,11 @@ export default function AnalyticsMapReduce() {
           <div className="stat-header">
             <div>
               <h3>Ingresos del mes actual</h3>
-              <div className="stat-value highlight">
-                ${totalMesActual.toLocaleString("es-MX")}
-              </div>
+              <div className="stat-value highlight">${totalMesActual.toLocaleString("es-MX")}</div>
             </div>
             <div className="card-icon-wrapper">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
               </svg>
             </div>
           </div>
@@ -149,9 +240,9 @@ export default function AnalyticsMapReduce() {
             </div>
             <div className="card-icon-wrapper">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
               </svg>
             </div>
           </div>
@@ -163,12 +254,12 @@ export default function AnalyticsMapReduce() {
             <div>
               <h3>Total acumulado</h3>
               <div className="stat-value">
-                ${resumenIngresos.reduce((s, i) => s + (i.total || 0), 0).toLocaleString("es-MX")}
+                ${resumenIngresos.reduce((s, i) => s + (i.total_periodo || i.total || 0), 0).toLocaleString("es-MX")}
               </div>
             </div>
             <div className="card-icon-wrapper">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
               </svg>
             </div>
           </div>
@@ -179,95 +270,48 @@ export default function AnalyticsMapReduce() {
           <div className="stat-header">
             <div>
               <h3>Método principal</h3>
-              <div className="stat-value" style={{ fontSize: 18 }}>
-                {metodosData[0]?.name || "—"}
-              </div>
+              <div className="stat-value" style={{ fontSize: 18 }}>{metodosData[0]?.name || "—"}</div>
             </div>
             <div className="card-icon-wrapper">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
-                <line x1="1" y1="10" x2="23" y2="10" />
+                <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
+                <line x1="1" y1="10" x2="23" y2="10"/>
               </svg>
             </div>
           </div>
           <span className="stat-detail">
-            {metodosData[0]
-              ? `$${metodosData[0].value.toLocaleString("es-MX")} en pagos`
-              : "Sin datos"}
+            {metodosData[0] ? `$${metodosData[0].value.toLocaleString("es-MX")} en pagos` : "Sin datos"}
           </span>
         </div>
       </div>
 
-      {/* Gráfico de líneas + Pie */}
+      {/* Gráficos línea + pie */}
       <div className="charts-row" style={{ marginBottom: 20 }}>
         <div className="chart-card">
           <div className="chart-header">
             <h3>Evolución de ingresos</h3>
-            <div className="chart-legend">
-              <span className="legend-item">
-                <span className="color-box income" />
-                Ingresos mensuales
-              </span>
-            </div>
           </div>
           <ResponsiveContainer width="100%" height={220}>
             <LineChart data={lineData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-              <XAxis
-                dataKey="mes"
-                tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-                tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
-              />
-              <Tooltip content={<CustomTooltip prefix="$" />} />
-              <Line
-                type="monotone"
-                dataKey="total"
-                name="Ingresos"
-                stroke="var(--accent)"
-                strokeWidth={2.5}
-                dot={{ r: 4, fill: "var(--accent)", strokeWidth: 0 }}
-                activeDot={{ r: 6 }}
-              />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)"/>
+              <XAxis dataKey="mes" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false}/>
+              <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}/>
+              <Tooltip content={<CustomTooltip prefix="$"/>}/>
+              <Line type="monotone" dataKey="total" name="Ingresos" stroke="var(--accent)" strokeWidth={2.5} dot={{ r: 4, fill: "var(--accent)", strokeWidth: 0 }} activeDot={{ r: 6 }}/>
             </LineChart>
           </ResponsiveContainer>
         </div>
 
         <div className="chart-card">
-          <div className="chart-header">
-            <h3>Métodos de pago</h3>
-          </div>
+          <div className="chart-header"><h3>Métodos de pago</h3></div>
           {metodosData.length > 0 ? (
             <>
               <ResponsiveContainer width="100%" height={160}>
                 <PieChart>
-                  <Pie
-                    data={metodosData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={45}
-                    outerRadius={70}
-                    paddingAngle={3}
-                    dataKey="value"
-                  >
-                    {metodosData.map((_, i) => (
-                      <Cell key={i} fill={COLORS_PIE[i % COLORS_PIE.length]} />
-                    ))}
+                  <Pie data={metodosData} cx="50%" cy="50%" innerRadius={45} outerRadius={70} paddingAngle={3} dataKey="value">
+                    {metodosData.map((_, i) => <Cell key={i} fill={COLORS_PIE[i % COLORS_PIE.length]}/>)}
                   </Pie>
-                  <Tooltip
-                    formatter={(v) => [`$${v.toLocaleString("es-MX")}`, ""]}
-                    contentStyle={{
-                      background: "var(--bg-card)",
-                      border: "1px solid var(--border-dark)",
-                      borderRadius: 8,
-                    }}
-                  />
+                  <Tooltip formatter={(v) => [`$${v.toLocaleString("es-MX")}`, ""]} contentStyle={{ background: "var(--bg-card)", border: "1px solid var(--border-dark)", borderRadius: 8 }}/>
                 </PieChart>
               </ResponsiveContainer>
               <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
@@ -275,10 +319,7 @@ export default function AnalyticsMapReduce() {
                   const pct = ((m.value / metodosData.reduce((s, x) => s + x.value, 0)) * 100).toFixed(1);
                   return (
                     <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
-                      <span style={{
-                        width: 10, height: 10, borderRadius: 2,
-                        background: COLORS_PIE[i % COLORS_PIE.length], flexShrink: 0,
-                      }} />
+                      <span style={{ width: 10, height: 10, borderRadius: 2, background: COLORS_PIE[i % COLORS_PIE.length], flexShrink: 0 }}/>
                       <span style={{ color: "var(--text-secondary)", flex: 1 }}>{m.name}</span>
                       <span style={{ fontWeight: 600 }}>{pct}%</span>
                     </div>
@@ -287,9 +328,7 @@ export default function AnalyticsMapReduce() {
               </div>
             </>
           ) : (
-            <p style={{ color: "var(--text-secondary)", fontSize: 13, textAlign: "center", paddingTop: 40 }}>
-              Sin datos de métodos de pago
-            </p>
+            <p style={{ color: "var(--text-secondary)", fontSize: 13, textAlign: "center", paddingTop: 40 }}>Sin datos de métodos de pago</p>
           )}
         </div>
       </div>
@@ -297,32 +336,16 @@ export default function AnalyticsMapReduce() {
       {/* Asistencia por día y por mes */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
         <div className="chart-card">
-          <div className="chart-header">
-            <h3>Asistencia por día de la semana</h3>
-          </div>
+          <div className="chart-header"><h3>Asistencia por día de la semana</h3></div>
           <ResponsiveContainer width="100%" height={220}>
-            <BarChart
-              data={asistenciaDiaOrdenada}
-              layout="vertical"
-              margin={{ top: 0, right: 10, left: 0, bottom: 0 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
-              <XAxis type="number" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis
-                type="category"
-                dataKey="dia"
-                tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-                width={80}
-              />
-              <Tooltip content={<CustomTooltip suffix=" visitas" />} />
+            <BarChart data={asistenciaDiaOrdenada} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false}/>
+              <XAxis type="number" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false}/>
+              <YAxis type="category" dataKey="dia" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false} width={80}/>
+              <Tooltip content={<CustomTooltip suffix=" visitas"/>}/>
               <Bar dataKey="total" name="Asistencias" radius={[0, 4, 4, 0]}>
                 {asistenciaDiaOrdenada.map((entry, i) => (
-                  <Cell
-                    key={i}
-                    fill={entry.dia === diaTop ? "var(--accent)" : "rgba(251,227,121,0.2)"}
-                  />
+                  <Cell key={i} fill={entry.dia === diaTop ? "var(--accent)" : "rgba(251,227,121,0.2)"}/>
                 ))}
               </Bar>
             </BarChart>
@@ -330,33 +353,16 @@ export default function AnalyticsMapReduce() {
         </div>
 
         <div className="chart-card">
-          <div className="chart-header">
-            <h3>Asistencia por mes</h3>
-          </div>
+          <div className="chart-header"><h3>Asistencia por mes</h3></div>
           <ResponsiveContainer width="100%" height={220}>
-            <BarChart
-              data={asistenciaMes}
-              margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-              <XAxis
-                dataKey="mes"
-                tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <Tooltip content={<CustomTooltip suffix=" visitas" />} />
-              <Bar dataKey="total" name="Asistencias" fill="rgba(251,227,121,0.3)" radius={[4, 4, 0, 0]}>
-                {(asistenciaMes).map((_, i) => (
-                  <Cell
-                    key={i}
-                    fill={i === asistenciaMes.length - 1 ? "var(--accent)" : "rgba(251,227,121,0.25)"}
-                  />
+            <BarChart data={asistenciaMesNorm} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)"/>
+              <XAxis dataKey="mes" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false}/>
+              <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false}/>
+              <Tooltip content={<CustomTooltip suffix=" visitas"/>}/>
+              <Bar dataKey="total" name="Asistencias" radius={[4, 4, 0, 0]}>
+                {asistenciaMesNorm.map((_, i) => (
+                  <Cell key={i} fill={i === asistenciaMesNorm.length - 1 ? "var(--accent)" : "rgba(251,227,121,0.25)"}/>
                 ))}
               </Bar>
             </BarChart>
