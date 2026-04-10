@@ -60,11 +60,12 @@ def _save_cached_result(payload: dict):
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# HELPERS MapReduce
+# LÓGICA MAPREDUCE: INGRESOS Y ASISTENCIA
 # ──────────────────────────────────────────────────────────────────────────────
 
 def _mapreduce_ingresos(spark):
     import sys, os
+    # Asegura que el entorno reconozca módulos locales para la configuración de Spark
     directorio_actual = os.path.dirname(__file__)
     if directorio_actual not in sys.path:
         sys.path.insert(0, directorio_actual)
@@ -72,14 +73,20 @@ def _mapreduce_ingresos(spark):
     from spark_config import leer_coleccion
     from pyspark.sql import functions as F
 
+    # Carga de datos crudos desde la colección de pagos
     df = leer_coleccion(spark, "pagos")
 
+    # FASE DE MAPPING:
+    # Seleccionamos y transformamos las columnas necesarias.
+    # Se formatea la fecha a "año-mes" para crear las claves de agrupación.
     df_mapped = df.select(
         F.date_format(F.col("fecha_pago"), "yyyy-MM").alias("periodo"),
         F.col("metodo_pago"),
         F.col("monto").cast("double").alias("monto")
-    ).filter(F.col("monto").isNotNull())
+    ).filter(F.col("monto").isNotNull()) # Limpieza de registros sin valor monetario
 
+    # FASE DE REDUCING (Detalle por Método):
+    # Agrupamos por periodo y método para calcular métricas financieras distribuidas.
     resultado = (
         df_mapped
         .groupBy("periodo", "metodo_pago")
@@ -91,6 +98,8 @@ def _mapreduce_ingresos(spark):
         .orderBy("periodo", "metodo_pago")
     )
 
+    # FASE DE REDUCING (Resumen Mensual):
+    # Segunda agregación para obtener el gran total por mes, independientemente del método.
     resumen_periodo = (
         df_mapped
         .groupBy("periodo")
@@ -101,6 +110,7 @@ def _mapreduce_ingresos(spark):
         .orderBy("periodo")
     )
 
+    # Recolección de resultados al driver para su posterior procesamiento
     return (
         [row.asDict() for row in resultado.collect()],
         [row.asDict() for row in resumen_periodo.collect()]
@@ -118,12 +128,16 @@ def _mapreduce_asistencia(spark):
 
     df = leer_coleccion(spark, "asistencias")
 
+    # FASE DE MAPPING:
+    # Extraemos dimensiones temporales (mes y nombre del día) de la marca de tiempo.
     df_mapped = df.select(
         F.col("fecha"),
         F.date_format(F.col("fecha"), "yyyy-MM").alias("periodo"),
         F.date_format(F.col("fecha"), "EEEE").alias("dia_semana")
     ).filter(F.col("fecha").isNotNull())
 
+    # FASE DE REDUCING (Volumen Mensual):
+    # Conteo de concurrencia total por mes.
     por_mes = (
         df_mapped
         .groupBy("periodo")
@@ -131,11 +145,13 @@ def _mapreduce_asistencia(spark):
         .orderBy("periodo")
     )
 
+    # FASE DE REDUCING (Frecuencia por Día):
+    # Identificación de los días de la semana con mayor afluencia.
     por_dia = (
         df_mapped
         .groupBy("dia_semana")
         .agg(F.count("*").alias("total_visitas"))
-        .orderBy(F.count("*").desc())
+        .orderBy(F.count("*").desc()) # Orden descendente para ver picos de asistencia
     )
 
     return (
@@ -145,11 +161,15 @@ def _mapreduce_asistencia(spark):
 
 
 def _clean(lst):
+    """
+    Función de utilidad para sanitizar tipos de datos antes de la serialización JSON.
+    Convierte objetos Decimal de Spark/BSON a floats estándar y redondea a 2 decimales.
+    """
     cleaned = []
     for row in lst:
         clean_row = {}
         for k, v in row.items():
-            if hasattr(v, 'to_decimal'):
+            if hasattr(v, 'to_decimal'): # Manejo específico para tipos Decimal de Spark
                 clean_row[k] = float(v.to_decimal())
             elif isinstance(v, float):
                 clean_row[k] = round(v, 2)
@@ -160,10 +180,17 @@ def _clean(lst):
 
 
 def _ejecutar_y_construir_payload(spark):
-    """Corre MapReduce completo y devuelve el dict de respuesta."""
+    """
+    Orquestador principal: Ejecuta las tareas de MapReduce y construye el objeto de respuesta.
+    Consolidando los ingresos, tendencias de asistencia y metadatos de ejecución.
+    """
+    from datetime import datetime
+
+    # Disparo de las tareas de análisis
     ingresos_detalle, resumen_ingresos = _mapreduce_ingresos(spark)
     asistencia_mes,   asistencia_dia   = _mapreduce_asistencia(spark)
 
+    # Construcción de la estructura final (Payload)
     return {
         "algoritmo":   "MapReduce",
         "descripcion": "Agregación distribuida de ingresos y asistencia por periodo",
@@ -173,7 +200,6 @@ def _ejecutar_y_construir_payload(spark):
         "asistencia_por_dia_semana": _clean(asistencia_dia),
         "ejecutado_en":              datetime.now().isoformat()
     }
-
 
 # ──────────────────────────────────────────────────────────────────────────────
 # ENDPOINTS

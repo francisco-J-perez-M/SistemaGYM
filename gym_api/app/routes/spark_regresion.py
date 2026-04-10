@@ -114,7 +114,7 @@ def _resolver_id_miembro(spark, id_entrada: str) -> str:
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# LÓGICA REGRESIÓN LINEAL
+# LÓGICA REGRESIÓN LINEAL (PREDICCIÓN DE PESO)
 # ──────────────────────────────────────────────────────────────────────────────
 
 def _regresion_global(spark):
@@ -130,6 +130,8 @@ def _regresion_global(spark):
     from pyspark.ml.feature import VectorAssembler
     from pyspark.ml.evaluation import RegressionEvaluator
 
+    # 1. EXTRACCIÓN Y LIMPIEZA
+    # Seleccionamos las variables físicas que influyen en el peso corporal.
     df = (
         leer_coleccion(spark, "progreso_fisico")
         .select(
@@ -147,9 +149,13 @@ def _regresion_global(spark):
         )
     )
 
+    # Validación de volumen mínimo para asegurar que el modelo pueda generalizar.
     if df.count() < 10:
         raise ValueError("Se necesitan al menos 10 registros de progreso para entrenar el modelo.")
 
+    # 2. INGENIERÍA DE CARACTERÍSTICAS (FEATURE ENGINEERING)
+    # Calculamos la "antigüedad" en días para cada registro respecto al primer registro del miembro.
+    # Esto convierte una fecha absoluta en una variable numérica lineal para la regresión.
     w_min = Window.partitionBy("id_miembro")
     df = df.withColumn(
         "fecha_inicio", F.min("fecha_registro").over(w_min)
@@ -157,11 +163,15 @@ def _regresion_global(spark):
         "dias", F.datediff(F.col("fecha_registro"), F.col("fecha_inicio")).cast("double")
     )
 
+    # 3. IMPUTACIÓN DE VALORES FALTANTES
+    # Se calculan medias globales para llenar huecos y no descartar registros valiosos.
     media_cintura = df.agg(F.avg("cintura")).collect()[0][0] or 80.0
     media_grasa   = df.agg(F.avg("grasa_corporal")).collect()[0][0] or 22.0
 
     df = df.fillna({"cintura": media_cintura, "grasa_corporal": media_grasa, "bmi": 25.0})
 
+    # 4. PREPARACIÓN DEL VECTOR DE ENTRADA
+    # El modelo de Spark requiere que todas las variables independientes estén en una sola columna tipo Vector.
     assembler = VectorAssembler(
         inputCols=["dias", "cintura", "grasa_corporal", "bmi"], outputCol="features"
     )
@@ -169,19 +179,26 @@ def _regresion_global(spark):
         "features", F.col("peso").alias("label"), "dias", "id_miembro"
     )
 
+    # División de datos: 80% para aprender patrones y 20% para validar la precisión.
     train, test = df_ml.randomSplit([0.8, 0.2], seed=42)
 
+    # 5. ENTRENAMIENTO (REGRESIÓN RIDGE)
+    # Se utiliza regParam=0.1 (Regularización L2) para evitar que los coeficientes crezcan demasiado
+    # y el modelo se sobreajuste (overfitting) a ruidos en los datos.
     lr = LinearRegression(
         featuresCol="features", labelCol="label",
         maxIter=50, regParam=0.1, elasticNetParam=0.0
     )
     model = lr.fit(train)
 
+    # 6. EVALUACIÓN DE MÉTRICAS
     predicciones = model.transform(test)
     eval_rmse = RegressionEvaluator(labelCol="label", predictionCol="prediction", metricName="rmse")
     eval_r2   = RegressionEvaluator(labelCol="label", predictionCol="prediction", metricName="r2")
     eval_mae  = RegressionEvaluator(labelCol="label", predictionCol="prediction", metricName="mae")
 
+    # Extracción de coeficientes para entender el impacto de cada variable:
+    # Peso = Intercepto + (B1 * dias) + (B2 * cintura) + ...
     coeficientes = {
         "dias":           round(float(model.coefficients[0]), 6),
         "cintura":        round(float(model.coefficients[1]), 6),
@@ -190,6 +207,7 @@ def _regresion_global(spark):
         "intercepto":     round(float(model.intercept),       4)
     }
 
+    # Agregación para reporte visual de la tendencia real histórica.
     tendencia = (
         df.withColumn("mes", F.date_format("fecha_registro", "yyyy-MM"))
         .groupBy("mes")
@@ -202,9 +220,9 @@ def _regresion_global(spark):
 
     return (
         model,
-        {"rmse": round(eval_rmse.evaluate(predicciones), 4),
-         "r2":   round(eval_r2.evaluate(predicciones),   4),
-         "mae":  round(eval_mae.evaluate(predicciones),  4)},
+        {"rmse": round(eval_rmse.evaluate(predicciones), 4), # Error cuadrático medio
+         "r2":   round(eval_r2.evaluate(predicciones),   4), # Coeficiente de determinación
+         "mae":  round(eval_mae.evaluate(predicciones),  4)},# Error absoluto medio
         coeficientes,
         [row.asDict() for row in tendencia.collect()],
         media_cintura,
@@ -213,13 +231,16 @@ def _regresion_global(spark):
 
 
 def _build_global_payload(metricas, coeficientes, tendencia):
+    """Construye el resumen interpretativo para el usuario final."""
     r2 = metricas["r2"]
+    # Lógica de interpretación del R-cuadrado (capacidad predictiva del modelo).
     interpretacion = (
         "Excelente — el modelo explica mas del 80% de la varianza del peso" if r2 > 0.8 else
-        "Bueno — explica mas del 60% de la varianza"                        if r2 > 0.6 else
-        "Moderado — hay factores no capturados (edad, dieta, etc.)"         if r2 > 0.4 else
+        "Bueno — explica mas del 60% de la varianza"                         if r2 > 0.6 else
+        "Moderado — hay factores no capturados (edad, dieta, etc.)"          if r2 > 0.4 else
         "Bajo — se recomienda mas historial de datos o features adicionales"
     )
+    from datetime import datetime
     return {
         "algoritmo":             "Regresion Lineal (Ridge)",
         "descripcion":           "Prediccion de peso corporal basada en dias de entrenamiento, cintura, grasa y BMI",
@@ -234,25 +255,25 @@ def _build_global_payload(metricas, coeficientes, tendencia):
 
 
 def _predecir_miembro(spark, model, id_miembro: str, dias_futuro: int,
-                      media_cintura: float, media_grasa: float):
+                     media_cintura: float, media_grasa: float):
+    """
+    Realiza una proyección futura para un miembro específico.
+    Utiliza el modelo global pero con los datos base (cintura, grasa) del usuario.
+    """
     import sys, os, re
-    directorio_actual = os.path.dirname(__file__)
-    if directorio_actual not in sys.path:
-        sys.path.insert(0, directorio_actual)
-
-    from spark_config import leer_coleccion
-    from pyspark.sql import functions as F
-    from pyspark.sql.types import StringType
-    from pyspark.ml.feature import VectorAssembler
-
+    from datetime import datetime, timedelta
+    
+    # UDF para limpiar y estandarizar el formato de los ID provenientes de MongoDB.
     def oid_hex(val):
         if val is None:
             return None
         m = re.search(r"[0-9a-fA-F]{24}", str(val))
         return m.group(0) if m else str(val)
 
+    from pyspark.sql.types import StringType
     oid_udf = F.udf(oid_hex, StringType())
 
+    # Carga de la historia de progreso del miembro seleccionado.
     df = (
         leer_coleccion(spark, "progreso_fisico")
         .withColumn("id_miembro_hex", oid_udf(F.col("id_miembro")))
@@ -271,6 +292,7 @@ def _predecir_miembro(spark, model, id_miembro: str, dias_futuro: int,
     if df.count() == 0:
         return None, []
 
+    # Obtenemos los últimos valores físicos registrados para proyectarlos.
     ultimo          = df.orderBy(F.col("fecha_registro").desc()).limit(1).collect()[0]
     primer_registro = df.agg(F.min("fecha_registro")).collect()[0][0]
     dias_actuales   = (datetime.now() - primer_registro).days if primer_registro else 0
@@ -285,23 +307,32 @@ def _predecir_miembro(spark, model, id_miembro: str, dias_futuro: int,
         for row in df.collect()
     ]
 
-    cintura = float(ultimo["cintura"]        or media_cintura)
+    # Datos de entrada estables para la predicción (Ceteris Paribus).
+    cintura = float(ultimo["cintura"]         or media_cintura)
     grasa   = float(ultimo["grasa_corporal"] or media_grasa)
     bmi     = float(ultimo["bmi"]            or 25.0)
 
+    from pyspark.ml.feature import VectorAssembler
     assembler = VectorAssembler(
         inputCols=["dias", "cintura", "grasa_corporal", "bmi"], outputCol="features"
     )
+
+    # 7. GENERACIÓN DE PREDICCIONES POR INTERVALOS
+    # Generamos estimaciones cada 30 días hasta el límite definido.
     predicciones_futuras = []
     for d in [30, 60, 90, 120, 150, 180]:
         if d <= dias_futuro:
+            # Creamos un DataFrame efímero para alimentar el modelo.
             pred_data = spark.createDataFrame(
                 [(float(dias_actuales + d), cintura, grasa, bmi)],
                 ["dias", "cintura", "grasa_corporal", "bmi"]
             )
+            # El modelo aplica la fórmula lineal aprendida:
+            # Peso_pred = Intercepto + (coef_dias * dias_futuros) + ...
             peso_pred = model.transform(
                 assembler.transform(pred_data)
             ).collect()[0]["prediction"]
+            
             predicciones_futuras.append({
                 "dias_desde_hoy":   d,
                 "fecha_estimada":   (datetime.now() + timedelta(days=d)).strftime("%Y-%m-%d"),
@@ -309,7 +340,6 @@ def _predecir_miembro(spark, model, id_miembro: str, dias_futuro: int,
             })
 
     return historial, predicciones_futuras
-
 
 # ──────────────────────────────────────────────────────────────────────────────
 # ENDPOINTS DIAGNÓSTICO (sin cambios)

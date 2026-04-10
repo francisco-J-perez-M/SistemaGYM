@@ -23,9 +23,6 @@ def _get_spark():
     return _spark_instance
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-# CACHÉ — helpers para leer/escribir en MongoDB
-# ──────────────────────────────────────────────────────────────────────────────
 
 CACHE_COLLECTION = "analytics_cache"
 CACHE_KEY_PREFIX  = "kmeans"
@@ -81,6 +78,8 @@ def _save_cached_result(k: int, payload: dict):
 
 def _ejecutar_kmeans(spark, k: int = 3, max_iter: int = 20, seed: int = 42):
     import sys, os
+    
+    # Configuración de rutas para asegurar que los módulos locales sean importables
     directorio_actual = os.path.dirname(__file__)
     if directorio_actual not in sys.path:
         sys.path.insert(0, directorio_actual)
@@ -91,6 +90,8 @@ def _ejecutar_kmeans(spark, k: int = 3, max_iter: int = 20, seed: int = 42):
     from pyspark.ml.feature import VectorAssembler, StandardScaler
     from pyspark.ml.evaluation import ClusteringEvaluator
 
+    # 1. CARGA Y LIMPIEZA DE DATOS DE MIEMBROS
+    # Se extraen las características base y se filtran registros inválidos o nulos
     df_miembros = (
         leer_coleccion(spark, "miembros")
         .select(
@@ -106,6 +107,8 @@ def _ejecutar_kmeans(spark, k: int = 3, max_iter: int = 20, seed: int = 42):
         )
     )
 
+    # 2. PROCESAMIENTO DE PROGRESO FÍSICO
+    # Se utiliza una ventana (Window) para obtener solo el registro de progreso más reciente de cada miembro
     from pyspark.sql.window import Window
     w = Window.partitionBy("id_miembro_prog").orderBy(F.col("fecha_registro").desc())
 
@@ -120,16 +123,21 @@ def _ejecutar_kmeans(spark, k: int = 3, max_iter: int = 20, seed: int = 42):
             F.col("fecha_registro")
         )
         .withColumn("rn", F.row_number().over(w))
-        .filter(F.col("rn") == 1)
+        .filter(F.col("rn") == 1) # Mantiene solo la última actualización de peso/grasa
         .drop("rn", "fecha_registro")
     )
 
+    # 3. INTEGRACIÓN DE DATOS (JOIN)
+    # Se une la información de perfil con el progreso físico más reciente
     df = df_miembros.join(
         df_progreso,
         df_miembros["id_miembro"] == df_progreso["id_miembro_prog"],
         "left"
     )
 
+    # 4. INGENIERÍA DE CARACTERÍSTICAS Y TRATAMIENTO DE NULOS
+    # - Se calcula el IMC si no existe.
+    # - Se imputan valores por defecto si el miembro no tiene registros de progreso.
     df = df.withColumn(
         "imc_calculado",
         F.when(F.col("bmi").isNotNull(), F.col("bmi")).otherwise(
@@ -138,11 +146,12 @@ def _ejecutar_kmeans(spark, k: int = 3, max_iter: int = 20, seed: int = 42):
     ).withColumn(
         "peso_final", F.coalesce(F.col("peso"), F.col("peso_inicial"))
     ).withColumn(
-        "grasa_final", F.coalesce(F.col("grasa_corporal"), F.lit(20.0))
+        "grasa_final", F.coalesce(F.col("grasa_corporal"), F.lit(20.0)) # Valor base: 20% grasa
     ).withColumn(
-        "musculo_final", F.coalesce(F.col("masa_muscular"), F.lit(30.0))
+        "musculo_final", F.coalesce(F.col("masa_muscular"), F.lit(30.0)) # Valor base: 30kg músculo
     )
 
+    # Selección final de columnas para el modelo
     df_features = df.select(
         F.col("id_miembro"),
         F.col("peso_final").alias("peso"),
@@ -154,15 +163,20 @@ def _ejecutar_kmeans(spark, k: int = 3, max_iter: int = 20, seed: int = 42):
         F.col("peso").isNotNull() & F.col("imc").isNotNull()
     )
 
+    # Validación de seguridad para evitar errores en el algoritmo de clustering
     if df_features.count() < k:
         raise ValueError(f"Datos insuficientes: se necesitan al menos {k} miembros con datos.")
 
+    # 5. PREPARACIÓN DE VECTORES PARA MLlib
+    # VectorAssembler agrupa las columnas numéricas en un solo vector de características
     assembler = VectorAssembler(
         inputCols=["peso", "imc", "grasa", "musculo"],
         outputCol="features_raw"
     )
     df_assembled = assembler.transform(df_features)
 
+    # Escalado de datos (Estandarización)
+    # K-Means es sensible a la escala; StandardScaler asegura que todas las variables tengan peso equitativo
     scaler = StandardScaler(
         inputCol="features_raw", outputCol="features",
         withStd=True, withMean=True
@@ -170,6 +184,7 @@ def _ejecutar_kmeans(spark, k: int = 3, max_iter: int = 20, seed: int = 42):
     scaler_model = scaler.fit(df_assembled)
     df_scaled = scaler_model.transform(df_assembled)
 
+    # 6. ENTRENAMIENTO DEL MODELO K-MEANS
     kmeans = KMeans(
         featuresCol="features", predictionCol="cluster",
         k=k, maxIter=max_iter, seed=seed
@@ -177,11 +192,14 @@ def _ejecutar_kmeans(spark, k: int = 3, max_iter: int = 20, seed: int = 42):
     model = kmeans.fit(df_scaled)
     df_result = model.transform(df_scaled)
 
+    # 7. EVALUACIÓN DEL MODELO
+    # Se calcula el Coeficiente de Silueta (Silhouette) para medir la cohesión y separación de los clusters
     evaluator = ClusteringEvaluator(
         featuresCol="features", predictionCol="cluster", metricName="silhouette"
     )
     silhouette = evaluator.evaluate(df_result)
 
+    # Extracción de centroides (puntos medios de cada cluster)
     centroides_raw = model.clusterCenters()
     centroides = [
         {
@@ -194,6 +212,8 @@ def _ejecutar_kmeans(spark, k: int = 3, max_iter: int = 20, seed: int = 42):
         for i, c in enumerate(centroides_raw)
     ]
 
+    # 8. GENERACIÓN DE RESULTADOS Y RESUMEN
+    # Se calculan los promedios reales (sin escalar) de cada cluster para interpretación de negocio
     resumen_clusters = (
         df_result
         .groupBy("cluster")
@@ -207,6 +227,7 @@ def _ejecutar_kmeans(spark, k: int = 3, max_iter: int = 20, seed: int = 42):
         .orderBy("cluster")
     )
 
+    # Función auxiliar para convertir ObjectIDs de MongoDB a texto plano (hexadecimal)
     from pyspark.sql.types import StringType
     import re as _re
 
@@ -218,6 +239,7 @@ def _ejecutar_kmeans(spark, k: int = 3, max_iter: int = 20, seed: int = 42):
 
     oid_udf = F.udf(_oid_hex, StringType())
 
+    # Formateo de las asignaciones individuales de cada miembro a su cluster
     asignaciones = (
         df_result
         .select(
@@ -231,55 +253,13 @@ def _ejecutar_kmeans(spark, k: int = 3, max_iter: int = 20, seed: int = 42):
         .orderBy("cluster")
     )
 
+    # Retorno de datos en formatos nativos de Python (listas de diccionarios)
     return (
         [row.asDict() for row in resumen_clusters.collect()],
         [row.asDict() for row in asignaciones.collect()],
         centroides,
         round(silhouette, 4)
     )
-
-
-def _build_payload(k, max_iter, resumen, asignaciones, centroides, silhouette):
-    """Construye el dict de respuesta completo (se reutiliza en GET y POST)."""
-    recomendaciones = []
-    for c in resumen:
-        imc   = c.get("imc_promedio",   0)
-        grasa = c.get("grasa_promedio", 0)
-
-        if imc > 27 or grasa > 28:
-            perfil = "Alto riesgo metabólico"
-            accion = "Programa de reducción de grasa + cardio moderado 4x/semana"
-        elif imc < 22 and grasa < 18:
-            perfil = "Atlético / Alto rendimiento"
-            accion = "Entrenamiento de fuerza progresivo + dieta hipercalórica"
-        else:
-            perfil = "Equilibrado / Mantenimiento"
-            accion = "Entrenamiento mixto + dieta flexible balanceada"
-
-        recomendaciones.append({
-            "cluster":         c["cluster"],
-            "perfil":          perfil,
-            "accion_sugerida": accion,
-            "num_miembros":    c["num_miembros"]
-        })
-
-    return {
-        "algoritmo":   "K-Means Clustering",
-        "descripcion": "Segmentación de miembros por métricas corporales (peso, IMC, grasa, músculo)",
-        "parametros":  {"k": k, "max_iter": max_iter},
-        "silhouette_score": silhouette,
-        "interpretacion_silhouette": (
-            "Excelente" if silhouette > 0.7 else
-            "Buena"     if silhouette > 0.5 else
-            "Aceptable" if silhouette > 0.25 else
-            "Débil"
-        ),
-        "resumen_clusters": resumen,
-        "centroides":       centroides,
-        "recomendaciones":  recomendaciones,
-        "asignaciones":     asignaciones,
-        "ejecutado_en":     datetime.now().isoformat()
-    }
 
 
 # ──────────────────────────────────────────────────────────────────────────────
