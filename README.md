@@ -1,132 +1,194 @@
-# Sistema de Gestión de Gimnasio
+# GymPro — Plataforma SaaS de Gestión de Gimnasios
 
-Este proyecto es una solución integral para la administración de gimnasios, que abarca desde el control de socios y pagos hasta analíticas avanzadas de Big Data y Machine Learning. Es una aplicación **Full Stack** moderna construida con tecnologías de vanguardia para ofrecer una experiencia premium a administradores, entrenadores y miembros.
+GymPro es una plataforma **SaaS multi-tenant** para la administración integral de gimnasios y centros deportivos. Cualquier propietario de gimnasio puede registrarse y operar su negocio con datos completamente aislados de otros tenants. Incluye analíticas avanzadas con Apache Spark, app móvil y soporte para dispositivos wearable.
 
-### Vistas Previas del Sistema
-
-| Inicio de Sesión | Panel Administrativo | Analíticas de Big Data |
-| :---: | :---: | :---: |
-| ![Login](screenshots/login_preview.png) | ![Dashboard](screenshots/dashboard_preview.png) | ![Analytics](screenshots/analytics_preview.png) |
+> **Rama `saas`**: implementación de la migración a arquitectura multi-tenant. Ver [`doc/GymPro_SaaS_Propuesta.docx`](doc/GymPro_SaaS_Propuesta.docx) y [`doc/GymPro_Sprints_Gantt.docx`](doc/GymPro_Sprints_Gantt.docx) para el plan de migración completo.
 
 ---
 
-## Arquitectura del Proyecto
+## Estructura del Proyecto
 
-El sistema está diseñado bajo una arquitectura de micro-servicios y procesamiento distribuido:
-
-1.  **Backend (API):** Servidor RESTful robusto para la lógica de negocio.
-2.  **Capa de Big Data:** Motor de procesamiento distribuido para analíticas complejas y predicciones.
-3.  **Frontend (UI):** Interfaz SPA (Single Page Application) altamente interactiva.
-4.  **Persistencia Políglota:**
-    *   **MySQL:** Almacenamiento relacional para transacciones, usuarios y gestión operativa.
-    *   **MongoDB:** Almacenamiento NoSQL para grandes volúmenes de datos y resultados de analíticas.
-
----
-
-## Technical Stack
-
-### Backend: Gym Management API & Analytics
-Ubicado en la carpeta `gym_api/`.
-*   **Lenguaje:** Python 3.10+
-*   **Framework Web:** Flask 3.1+
-*   **Analítica de Datos:** **Apache Spark (PySpark)** para procesamiento distribuido.
-*   **Bases de Datos:** MySQL (SQLAlchemy ORM) y MongoDB (PyMongo).
-*   **Seguridad:** JSON Web Tokens (JWT) con rotación de claves y autorización por roles.
-*   **Notificaciones:** Flask-Mail para alertas SMTP y reportes automatizados.
-
-### Frontend: Interfaz de Usuario Premium
-Ubicado en la carpeta `frontend/`.
-*   **Framework:** **React 19** sustentado por **Vite**.
-*   **Navegación:** React Router 7.
-*   **UX/UI:** Framer Motion (animaciones), SweetAlert2 y CSS Vanilla (Design System Unificado).
-*   **Visualización de Datos:** Recharts / Chart.js para visualización de métricas y Big Data.
+```
+SistemaGYM/
+├── api/          # Backend Flask (API REST + Apache Spark)
+├── web/          # Frontend React + Vite (SPA)
+├── mobile/       # App móvil React Native / Flutter
+├── doc/          # Documentación técnica, diagramas y propuestas
+│   ├── Auditoria_Tecnica_GymPro.docx
+│   ├── GymPro_SaaS_Propuesta.docx
+│   ├── GymPro_Sprints_Gantt.docx
+│   ├── Diagrama Relacional.png
+│   ├── Diagrama entidad relacion.png
+│   ├── db2.sql        # Schema relacional original (referencia)
+│   └── screenshots/   # Capturas del sistema
+└── README.md
+```
 
 ---
 
-## Módulos y Características
+## Arquitectura
 
-### 1. Big Data & Machine Learning (Spark Integration)
-El sistema utiliza Apache Spark para procesar datos masivos almacenados en MongoDB:
-*   **Segmentación KMeans:** Agrupación inteligente de miembros basada en comportamiento y objetivos.
-*   **Estadísticas MapReduce:** Procesamiento de grandes volúmenes de asistencias y pagos para generar KPIS.
-*   **Regresión Lineal:** Predicción del progreso físico y tendencias de salud de los miembros.
-*   **Predicción de Peso:** Algoritmo dedicado para estimar la evolución corporal basada en el historial del usuario.
+GymPro opera bajo un modelo **SaaS multi-tenant compartido** (shared database + `id_gimnasio` field):
 
-### 2. Gestión Administrativa
-*   **Control de Miembros:** CRUD completo, gestión de estados (activo/inactivo) y carga de fotos.
-*   **Punto de Venta (POS):** Transacciones rápidas, venta de membresías y registro de métodos de pago.
-*   **Backups Maestros:** Sistema experto para copias de seguridad (Full, Incremental, Diferencial) con restauración automatizada.
+- **Subdomain routing**: `gymname.gymsaas.com` → Nginx extrae el slug y lo pasa como header `X-Tenant-Slug`
+- **Tenant middleware**: Flask resuelve `X-Tenant-Slug → id_gimnasio` en cada request (Redis cache)
+- **JWT multi-tenant**: el token incluye `id_gimnasio` y `slug_gimnasio` como claims
+- **Aislamiento**: todos los queries de MongoDB filtran por `id_gimnasio` del token
 
-### 3. Módulo de Entrenadores (Staff)
-*   **Gestión de Clientes:** Seguimiento personalizado de alumnos asignados.
-*   **Generador de Reportes:** Creación de informes de rendimiento y cumplimiento de objetivos.
-*   **Agenda Digital:** Control de sesiones de entrenamiento y calendarios de clases.
-
-### 4. Experiencia del Miembro (User Experience)
-*   **Creador de Rutinas:** Herramienta interactiva para diseñar planes de entrenamiento personalizados.
-*   **Monitoreo de Salud:** Seguimiento dinámico de IMC, grasa corporal y métricas antropométricas.
-*   **Nutrición y Dieta:** Acceso a planes de alimentación sugeridos y recetario saludable.
-*   **Historial de Pagos:** Consulta transparente de membresías y renovaciones.
+```
+Cliente (navegador/móvil)
+    ↓  gymname.gymsaas.com
+Nginx  →  X-Tenant-Slug: gymname
+    ↓
+Flask API  →  Tenant Middleware  →  Redis cache
+    ↓
+MongoDB Atlas  (filtro id_gimnasio en cada query)
+```
 
 ---
 
-## Base de Datos y Persistencia
+## Tech Stack
 
-*   **Esquema Relacional:** El archivo `db2.sql` contiene la estructura para MySQL (Usuarios, Roles, Membresías, Pagos).
-*   **Esquema NoSQL:** MongoDB almacena los datasets para los procesos de Spark y los resultados de las analíticas.
-*   **Datos de Prueba:** Utiliza los scripts en `gym_api/app` para la población inicial del sistema.
+### `api/` — Backend
 
----
+| Componente | Tecnología |
+|---|---|
+| Lenguaje | Python 3.10+ |
+| Framework | Flask 3.1+ con Blueprints |
+| Base de datos principal | MongoDB Atlas (PyMongo) |
+| Cache / Rate limiting | Redis |
+| Analítica Big Data | Apache Spark (PySpark) — K-Means, Regresión Lineal, MapReduce |
+| Autenticación | JWT (flask-jwt-extended) con claims multi-tenant |
+| Servidor producción | Gunicorn (multi-worker) |
+| Contenedor | Docker multi-stage |
 
-## Instalación y Configuración
+### `web/` — Frontend
 
-### Requisitos Previos
-*   Python 3.10+
-*   Node.js 18+
-*   MySQL 8.0+
-*   MongoDB Atlas (o instancia local)
-*   Apache Spark (opcional para ejecución local de analíticas)
+| Componente | Tecnología |
+|---|---|
+| Framework | React 19 + Vite |
+| Routing | React Router 7 con PrivateRoute (multi-tenant) |
+| HTTP client | Axios (instancia centralizada con interceptors) |
+| Animaciones | Framer Motion |
+| Gráficos | Recharts / Chart.js |
 
-### Configuración del Backend
-1. Navegar a `gym_api/`.
-2. Crear y activar entorno virtual:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # Linux/macOS
-   .\venv\Scripts\activate   # Windows
-   ```
-3. Instalar dependencias: `pip install -r requirements.txt`.
-4. Configurar el archivo `.env`:
-   ```env
-   MYSQL_URL=mysql+pymysql://user:pass@localhost/gym_db
-   MONGO_USER=...
-   MONGO_PASSWORD=...
-   MONGO_CLUSTER=...
-   MONGO_DB=GYMDB
-   JWT_SECRET_KEY=su_clave_secreta
-   ```
-5. Ejecutar servidor: `python run.py`.
+### `mobile/` — App Móvil
 
-### Configuración del Frontend
-1. Navegar a `frontend/`.
-2. Instalar dependencias: `npm install`.
-3. Iniciar desarrollo: `npm run dev`.
+| Componente | Tecnología |
+|---|---|
+| Framework | React Native / Flutter *(en desarrollo)* |
+| Autenticación | JWT multi-tenant |
 
 ---
 
-## Referencia de API Principal
+## Módulos SaaS
 
-| Método | Endpoint | Descripción |
-| :--- | :--- | :--- |
-| POST | `/api/auth/login` | Autenticación y generación de JWT |
-| GET | `/api/spark/kmeans` | Ejecuta segmentación de usuarios con Spark |
-| GET | `/api/spark/regression` | Obtiene predicciones de salud/peso |
-| GET | `/api/miembros` | Listado paginado de socios |
-| POST | `/api/user/routine` | Crea una rutina personalizada |
-| POST | `/api/backups/trigger` | Ejecuta tarea de backup de base de datos |
+| Módulo | Tier requerido | Descripción |
+|---|---|---|
+| Core (Miembros, Auth, Dashboard) | Todos | Siempre activo |
+| Pagos y Membresías | Starter+ | Punto de venta, historial |
+| Entrenadores | Starter+ | Staff, rutinas, sesiones |
+| Big Data / Analytics | Professional+ | Spark, K-Means, regresión |
+| Backups | Professional+ | Full, incremental, diferencial |
+| App Móvil | Professional+ | Miembros vía mobile |
+| Wearable | Enterprise | Métricas en tiempo real |
+| API pública | Enterprise | Integración de terceros |
 
 ---
 
-## Licencia
-Proyecto desarrollado con fines académicos y profesionales. Adaptable para implementaciones de alta escalabilidad.
+## Instalación (Desarrollo con Docker)
 
+```bash
+# Requisitos: Docker + Docker Compose
+
+# 1. Clonar y entrar al proyecto
+git clone <repo> && cd SistemaGYM
+
+# 2. Copiar variables de entorno
+cp .env.example .env
+# Editar .env con tus credenciales MongoDB Atlas, Redis, JWT secret, etc.
+
+# 3. Levantar todos los servicios
+docker-compose up -d
+
+# Servicios disponibles:
+#   API:     http://localhost:5000
+#   Web:     http://localhost:3000
+#   MongoDB: localhost:27017 (dev local)
+#   Redis:   localhost:6379
+```
+
+### Configuración manual (sin Docker)
+
+**API:**
+```bash
+cd api/
+python -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env  # completar variables
+python run.py
+```
+
+**Web:**
+```bash
+cd web/
+npm install
+npm run dev
+```
+
+---
+
+## Variables de Entorno
+
+Ver `.env.example` en la raíz del proyecto. Variables principales:
+
+```env
+# MongoDB
+MONGO_URI=mongodb+srv://user:pass@cluster.mongodb.net/gymdb
+
+# Redis
+REDIS_URL=redis://redis:6379/0
+
+# JWT
+JWT_SECRET_KEY=cambiar_en_produccion
+
+# API
+FLASK_ENV=development
+FLASK_DEBUG=0
+
+# CORS (producción)
+ALLOWED_ORIGINS=https://*.gymsaas.com
+
+# Email (backups / notificaciones)
+MAIL_SERVER=smtp.gmail.com
+MAIL_USERNAME=...
+MAIL_PASSWORD=...
+```
+
+---
+
+## API — Endpoints principales
+
+| Método | Endpoint | Auth | Descripción |
+|---|---|---|---|
+| POST | `/api/auth/login` | — | Login, retorna JWT con claims del tenant |
+| POST | `/api/auth/register` | — | Registro de nuevo usuario |
+| GET | `/api/miembros` | JWT | Listado paginado (filtrado por tenant) |
+| GET | `/api/spark/kmeans` | JWT + módulo Analytics | Segmentación con Spark |
+| GET | `/api/spark/regression` | JWT + módulo Analytics | Predicciones de salud |
+| POST | `/api/backups/trigger` | JWT + Admin | Ejecutar backup |
+| GET | `/api/gimnasios/me` | JWT | Info del tenant actual |
+
+> Todos los endpoints filtran automáticamente por `id_gimnasio` del JWT. No existe forma de acceder a datos de otro tenant.
+
+---
+
+## Documentación
+
+La carpeta `doc/` contiene:
+
+| Archivo | Descripción |
+|---|---|
+| `Auditoria_Tecnica_GymPro.docx` | Auditoría técnica completa: 36 hallazgos de seguridad, arquitectura y rendimiento |
+| `GymPro_SaaS_Propuesta.docx` | Propuesta de transformación a SaaS multi-tenant: módulos, planes, arquitectura |
+| `GymPro_Sprints_Gantt.docx` | Gantt + definición d
