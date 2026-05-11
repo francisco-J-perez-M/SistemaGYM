@@ -1,0 +1,105 @@
+# docker-compose.yml — Orquestación de servicios GymPro
+#
+# Uso:
+#   cp api/.env.example api/.env   # completar con tus credenciales reales
+#   docker compose up --build -d
+#   docker compose logs -f
+#
+# Servicios:
+#   mongo  → MongoDB 7 local (datos persistidos en volumen mongo_data)
+#   redis  → cache interno y rate limiting (Flask-Limiter)
+#   api    → Flask + Gunicorn (depende de mongo y redis)
+#   web    → React bundle servido por nginx, proxea /api/ → api:5000
+
+services:
+
+  # ── MongoDB local ────────────────────────────────────────────────────────────
+  # Sin autenticación en dev. Para producción en EC2, agregar:
+  #   environment:
+  #     MONGO_INITDB_ROOT_USERNAME: admin
+  #     MONGO_INITDB_ROOT_PASSWORD: secreto
+  # y actualizar MONGO_URI en api/.env a mongodb://admin:secreto@mongo:27017/gymdb
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping').ok", "--quiet"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    networks:
+      - gympro
+    # Puerto expuesto al host solo para herramientas de gestión (Compass, mongosh local)
+    # En producción comentar esta línea y controlar acceso vía firewall
+    ports:
+      - "27017:27017"
+
+  # ── Redis ────────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - gympro
+
+  # ── API Flask + Gunicorn ─────────────────────────────────────────────────────
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file: ./api/.env
+    # Sobreescribir URIs para que apunten a los contenedores por nombre de servicio
+    environment:
+      MONGO_URI: mongodb://mongo:27017/gymdb
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - gympro
+    # El puerto de la API NO se expone al host — nginx enruta internamente.
+    # Para debug directo descomenta:
+    # ports:
+    #   - "5000:5000"
+
+  # ── Web React + nginx ────────────────────────────────────────────────────────
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      args:
+        REACT_APP_API_URL: /api
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - gympro
+
+# ── Volúmenes persistentes ───────────────────────────────────────────────────
+volumes:
+  mongo_data:
+    driver: local
+
+# ── Red interna ──────────────────────────────────────────────────────────────
+networks:
+  gympro:
+    driver: bridge
