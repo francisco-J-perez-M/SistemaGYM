@@ -1,70 +1,93 @@
-# Getting Started with Create React App
+# GymPro Web
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Frontend de GymPro: SPA construida con React 19 + Vite. Se conecta a la API REST y soporta multi-tenant via subdomain.
 
-## Available Scripts
+→ [Documentación completa del proyecto](../doc/README.md)
 
-In the project directory, you can run:
+---
 
-### `npm start`
+## Requisitos
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+| Herramienta | Versión mínima |
+|---|---|
+| Node.js | 18.x+ |
+| npm | 9.x+ |
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+---
 
-### `npm test`
+## Setup de desarrollo
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+```bash
+cd web/
 
-### `npm run build`
+# Instalar dependencias
+npm install
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+# Copiar variables de entorno
+cp .env.example .env.local
+# Editar .env.local con la URL de tu API local
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+# Iniciar servidor de desarrollo (hot-reload)
+npm run dev
+# → http://localhost:3000
+```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+### Variables de entorno
 
-### `npm run eject`
+```env
+# URL base de la API
+VITE_API_URL=http://localhost:5000/api
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+# Entorno (development | production)
+VITE_ENV=development
+```
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+> **Importante**: este proyecto usa Vite, no Create React App. Las variables de entorno deben usar el prefijo `VITE_` (no `REACT_APP_`).
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+---
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+## Comandos disponibles
 
-## Learn More
+```bash
+npm run dev        # Servidor de desarrollo con HMR en puerto 3000
+npm run build      # Build de producción en dist/
+npm run preview    # Preview del build de producción localmente
+npm run lint       # Análisis estático con ESLint
+```
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+---
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+## Levantar con Docker Compose
 
-### Code Splitting
+Desde la raíz del proyecto:
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+```bash
+docker compose up -d web
+# → http://localhost:3000
+```
 
-### Analyzing the Bundle Size
+---
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+## Estructura de carpetas
 
-### Making a Progressive Web App
+```
+web/src/
+├── api/              # Clientes HTTP (axios) por módulo
+├── components/       # Componentes reutilizables (Layout, Cards, etc.)
+├── hooks/            # Custom hooks (ThemeContext, useTheme, etc.)
+├── pages/            # Páginas por rol: admin, trainer, user
+├── services/         # Servicios de negocio (trainerService, etc.)
+└── App.jsx           # Router principal
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+---
 
-### Advanced Configuration
+## Stack
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+| Librería | Versión | Uso |
+|---|---|---|
+| React | ^19.2 | Framework UI |
+| React Router | ^7.12 | Navegación SPA |
+| Axios | ^1.13 | HTTP client |
+| Framer Motion | ^12.29 | Animaciones |
+| Recharts / Chart.js | — | Visualización de datos |

@@ -1,50 +1,62 @@
-# Welcome to your Expo app 👋
+# GymPro Mobile
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+App móvil de GymPro para miembros y entrenadores. Actualmente en desarrollo; se integrará con la API multi-tenant en Sprint 4.
 
-## Get started
+→ [Documentación completa del proyecto](../doc/README.md)
 
-1. Install dependencies
+---
 
-   ```bash
-   npm install
-   ```
+> ⚠️ **Estado**: en desarrollo. La integración con la API multi-tenant está planificada para **Sprint 4 (Junio 2026)**, una vez que el API y el frontend estén estables.
 
-2. Start the app
+---
 
-   ```bash
-   npx expo start
-   ```
+## Requisitos
 
-In the output, you'll find options to open the app in a
+| Herramienta | Versión |
+|---|---|
+| Node.js | 18.x+ |
+| npm | 9.x+ |
+| Expo CLI | latest |
+| Android Studio / Xcode | Para emuladores nativos |
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+---
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Setup
 
 ```bash
-npm run reset-project
+cd mobile/
+
+# Instalar dependencias
+npm install
+
+# Iniciar con Expo
+npx expo start
+
+# Opciones de ejecución:
+#   → Presionar 'a' para Android emulator
+#   → Presionar 'i' para iOS simulator
+#   → Escanear QR con la app Expo Go en tu teléfono
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+---
 
-## Learn more
+## Pendiente (Sprint 4)
 
-To learn more about developing your project with Expo, look at the following resources:
+- [ ] Adaptar autenticación a JWT multi-tenant (claims `id_gimnasio`)
+- [ ] Implementar detección de tenant por deep link / configuración
+- [ ] Centralizar cliente HTTP con interceptor de tenant header
+- [ ] Actualizar screens para consumir la nueva API multi-tenant
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+---
 
-## Join the community
+## Estructura
 
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+```
+mobile/
+├── app/              # Rutas y navegación (Expo Router)
+├── screens/          # Pantallas: Login, Dashboard, Trainer, User
+├── components/       # Componentes reutilizables
+├── api/              # Clientes HTTP
+├── navigation/       # AppNavigator
+└── constants/        # Theme, colores
+```
