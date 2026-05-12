@@ -1,5 +1,5 @@
 //frontend\src\api\auth.jsx
-const API_URL = "http://localhost:5000/api/auth";
+const API_URL = "/api/auth";
 
 export async function login(email, password) {
   const response = await fetch(`${API_URL}/login`, {

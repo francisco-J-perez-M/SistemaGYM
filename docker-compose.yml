@@ -13,6 +13,32 @@
 
 services:
 
+  # ── PostgreSQL (Sprint 2 — plataforma, finanzas, multi-tenant) ───────────────
+  # Roles, Gimnasios y Usuarios viven aquí. La URI se lee de POSTGRES_URI en api/.env.
+  # Para producción en EC2, asegurarse de que el security group solo abra 5432
+  # hacia la red interna (no al exterior).
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       ${POSTGRES_DB:-gymprodb}
+      POSTGRES_USER:     ${POSTGRES_USER:-gymuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gympassword}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gymuser} -d ${POSTGRES_DB:-gymprodb}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - gympro
+    # Puerto expuesto al host para herramientas de gestión (DBeaver, psql local)
+    # Comentar en producción y controlar acceso vía security groups de AWS
+    ports:
+      - "5432:5432"
+
   # ── MongoDB local ────────────────────────────────────────────────────────────
   # Sin autenticación en dev. Para producción en EC2, agregar:
   #   environment:
@@ -58,15 +84,18 @@ services:
     env_file: ./api/.env
     # Sobreescribir URIs para que apunten a los contenedores por nombre de servicio
     environment:
-      MONGO_URI: mongodb://mongo:27017/gymdb
-      REDIS_URL: redis://redis:6379/0
+      MONGO_URI:    mongodb://mongo:27017/gymdb
+      REDIS_URL:    redis://redis:6379/0
+      POSTGRES_URI: postgresql+psycopg2://${POSTGRES_USER:-gymuser}:${POSTGRES_PASSWORD:-gympassword}@postgres:5432/${POSTGRES_DB:-gymprodb}
     depends_on:
       mongo:
         condition: service_healthy
       redis:
         condition: service_healthy
+      postgres:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:5000/api/health"]
+      test: ["CMD", "curl", "-f", "-s", "http://localhost:5000/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -97,6 +126,8 @@ services:
 # ── Volúmenes persistentes ───────────────────────────────────────────────────
 volumes:
   mongo_data:
+    driver: local
+  pg_data:
     driver: local
 
 # ── Red interna ──────────────────────────────────────────────────────────────

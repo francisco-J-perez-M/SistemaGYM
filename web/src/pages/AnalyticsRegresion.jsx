@@ -5,7 +5,7 @@ import {
 } from "recharts";
 import "../css/CSSUnificado.css";
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const API_BASE = "";
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;

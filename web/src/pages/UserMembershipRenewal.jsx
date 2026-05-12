@@ -30,7 +30,7 @@ export default function UserMembershipRenewal() {
       setLoading(true);
       const token = localStorage.getItem("token");
       
-      const response = await fetch("http://localhost:5000/api/user/membership/plans", {
+      const response = await fetch("/api/user/membership/plans", {
         headers: {
           "Authorization": `Bearer ${token}`,
           "Content-Type": "application/json"
@@ -61,7 +61,7 @@ export default function UserMembershipRenewal() {
     try {
       const token = localStorage.getItem("token");
       
-      const response = await fetch("http://localhost:5000/api/user/membership/payment-methods", {
+      const response = await fetch("/api/user/membership/payment-methods", {
         headers: {
           "Authorization": `Bearer ${token}`,
           "Content-Type": "application/json"
@@ -100,7 +100,7 @@ export default function UserMembershipRenewal() {
       setError(null);
       const token = localStorage.getItem("token");
       
-      const response = await fetch("http://localhost:5000/api/user/membership/renew", {
+      const response = await fetch("/api/user/membership/renew", {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`,

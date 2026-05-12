@@ -52,10 +52,10 @@ export default function UserHealthUpdate() {
       const token = localStorage.getItem("token");
       
       const [healthResponse, progressResponse] = await Promise.all([
-        fetch("http://localhost:5000/api/user/health", {
+        fetch("/api/user/health", {
           headers: { "Authorization": `Bearer ${token}` }
         }),
-        fetch("http://localhost:5000/api/user/body-progress", {
+        fetch("/api/user/body-progress", {
           headers: { "Authorization": `Bearer ${token}` }
         })
       ]);
@@ -174,7 +174,7 @@ export default function UserHealthUpdate() {
         dataToSend.notas = formData.notas;
       }
 
-      const response = await fetch("http://localhost:5000/api/user/health", {
+      const response = await fetch("/api/user/health", {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`,

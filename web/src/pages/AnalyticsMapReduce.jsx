@@ -5,7 +5,7 @@ import {
 } from "recharts";
 import "../css/CSSUnificado.css";
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const API_BASE = "";
 const DIAS_SEMANA = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 const COLORS_PIE  = ["#fbe379", "#4cd964", "#38bdf8", "#ff6b9d", "#a78bfa"];
 

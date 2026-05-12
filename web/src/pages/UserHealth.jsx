@@ -467,10 +467,10 @@ export default function UserHealthProgress() {
       const token = localStorage.getItem("token");
       
       const [progressResponse, healthResponse] = await Promise.all([
-        fetch("http://localhost:5000/api/user/body-progress", {
+        fetch("/api/user/body-progress", {
           headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" }
         }),
-        fetch("http://localhost:5000/api/user/health", {
+        fetch("/api/user/health", {
           headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" }
         })
       ]);

@@ -42,7 +42,7 @@ export default function UserProfile() {
       setLoading(true);
       const token = localStorage.getItem("token");
       
-      const response = await fetch("http://localhost:5000/api/user/profile", {
+      const response = await fetch("/api/user/profile", {
         headers: {
           "Authorization": `Bearer ${token}`,
           "Content-Type": "application/json"
@@ -69,7 +69,7 @@ export default function UserProfile() {
       setError(null);
       const token = localStorage.getItem("token");
       
-      const response = await fetch("http://localhost:5000/api/user/profile", {
+      const response = await fetch("/api/user/profile", {
         method: "PUT",
         headers: {
           "Authorization": `Bearer ${token}`,
@@ -112,7 +112,7 @@ export default function UserProfile() {
       const formData = new FormData();
       formData.append("foto", file);
 
-      const response = await fetch("http://localhost:5000/api/user/profile/photo", {
+      const response = await fetch("/api/user/profile/photo", {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`
@@ -210,7 +210,7 @@ export default function UserProfile() {
                 <div style={{ position: 'relative', display: 'inline-block', marginBottom: '20px' }}>
                   {profileData.fotoPerfil ? (
                     <img 
-                      src={`http://localhost:5000/static/uploads/${profileData.fotoPerfil}`}
+                      src={`/api/static/uploads/${profileData.fotoPerfil}`}
                       alt="Perfil"
                       style={{
                         width: '120px',

@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_URL = "http://localhost:5000/api/pagos";
+const API_URL = "/api/pagos";
 
 const authHeader = () => ({
   Authorization: `Bearer ${localStorage.getItem("token")}`,

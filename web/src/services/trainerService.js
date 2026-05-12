@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = '/api';
 
 const getAuthToken = () => localStorage.getItem('token');
 
@@ -21,7 +21,7 @@ const apiFetch = async (url, options = {}) => {
     const text = await response.text();
     throw new Error(
       `El servidor no devolvió JSON (HTTP ${response.status}). ` +
-      `Verifica el proxy en package.json → "proxy": "http://localhost:5000". ` +
+      `Verifica la configuración de nginx proxy. ` +
       `Respuesta: ${text.slice(0, 100)}`
     );
   }

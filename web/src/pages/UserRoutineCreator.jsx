@@ -41,7 +41,7 @@ export default function UserRoutineCreator() {
       setLoading(true);
       const token = localStorage.getItem("token");
       
-      const response = await fetch("http://localhost:5000/api/user/routines", {
+      const response = await fetch("/api/user/routines", {
         headers: {
           "Authorization": `Bearer ${token}`,
           "Content-Type": "application/json"
@@ -134,8 +134,8 @@ export default function UserRoutineCreator() {
       
       const method = routine.id ? "PUT" : "POST";
       const url = routine.id 
-        ? `http://localhost:5000/api/user/routines/${routine.id}`
-        : "http://localhost:5000/api/user/routines";
+        ? `/api/user/routines/${routine.id}`
+        : "/api/user/routines";
       
       const response = await fetch(url, {
         method: method,
@@ -177,7 +177,7 @@ export default function UserRoutineCreator() {
       
       const token = localStorage.getItem("token");
       
-      const response = await fetch(`http://localhost:5000/api/user/routines/${routine.id}/duplicate`, {
+      const response = await fetch(`/api/user/routines/${routine.id}/duplicate`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`,

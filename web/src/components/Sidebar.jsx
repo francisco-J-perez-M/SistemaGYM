@@ -72,7 +72,7 @@ export default function Sidebar({ role = "admin", activeTab = "overview", onTabC
           return;
         }
 
-        const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+        const API_URL = "/api";
         const endpoint = `${API_URL}/miembro/membresia-activa`;
         
         console.log("🔍 [SIDEBAR] Llamando a:", endpoint);

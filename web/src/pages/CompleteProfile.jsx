@@ -128,7 +128,7 @@ export default function CompleteProfile() {
       // O haz dos llamadas (una a perfil, una a salud)
       
       /* Ejemplo de llamada única:
-      const response = await fetch("http://localhost:5000/api/user/complete-profile-full", {
+      const response = await fetch("/api/user/complete-profile-full", {
          method: "POST",
          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
          body: JSON.stringify(dataToSend)

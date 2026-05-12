@@ -60,7 +60,7 @@ export default function UserDashboard() {
   const fetchDashboardData = async (token) => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:5000/api/user/dashboard', {
+      const response = await fetch('/api/user/dashboard', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

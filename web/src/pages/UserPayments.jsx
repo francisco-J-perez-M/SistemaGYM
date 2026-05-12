@@ -47,7 +47,7 @@ export default function UserPaymentsHistory() {
       setLoading(true);
       const token = localStorage.getItem("token");
       
-      const response = await fetch("http://localhost:5000/api/user/payments", {
+      const response = await fetch("/api/user/payments", {
         headers: {
           "Authorization": `Bearer ${token}`,
           "Content-Type": "application/json"

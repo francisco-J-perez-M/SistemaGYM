@@ -5,7 +5,7 @@ import {
 } from "recharts";
 import "../css/CSSUnificado.css";
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const API_BASE = "";
 
 const DIAS_OPTIONS = [
   { label: "3 meses", value: 90 },
