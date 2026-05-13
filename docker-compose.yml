@@ -60,8 +60,8 @@ services:
       - gympro
     # Puerto expuesto al host solo para herramientas de gestión (Compass, mongosh local)
     # En producción comentar esta línea y controlar acceso vía firewall
-    ports:
-      - "27017:27017"
+    # ports:
+    #   - "27017:27017"
 
   # ── Redis ────────────────────────────────────────────────────────────────────
   redis:
@@ -84,9 +84,10 @@ services:
     env_file: ./api/.env
     # Sobreescribir URIs para que apunten a los contenedores por nombre de servicio
     environment:
-      MONGO_URI:    mongodb://mongo:27017/gymdb
-      REDIS_URL:    redis://redis:6379/0
-      POSTGRES_URI: postgresql+psycopg2://${POSTGRES_USER:-gymuser}:${POSTGRES_PASSWORD:-gympassword}@postgres:5432/${POSTGRES_DB:-gymprodb}
+      MONGO_URI:     mongodb://mongo:27017/gymdb
+      REDIS_URL:     redis://redis:6379/0
+      POSTGRES_URI:  postgresql+psycopg2://${POSTGRES_USER:-gymuser}:${POSTGRES_PASSWORD:-gympassword}@postgres:5432/${POSTGRES_DB:-gymprodb}
+      SPARK_ENABLED: "true"
     depends_on:
       mongo:
         condition: service_healthy
