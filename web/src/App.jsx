@@ -4,7 +4,8 @@ import Layout from "./components/Layout";
 
 // --- PÁGINAS PÚBLICAS ---
 // Importamos el nuevo componente unificado
-import AuthPage from "./components/AuthPage"; 
+import AuthPage from "./components/AuthPage";
+import RegisterGym from "./pages/RegisterGym"; 
 
 // --- PÁGINAS DE DASHBOARD (ADMIN) ---
 import Dashboard from "./pages/Dashboard";         
@@ -54,6 +55,7 @@ function App() {
           {/* Ambas rutas apuntan al nuevo componente que maneja la vista internamente */}
           <Route path="/" element={<AuthPage />} />
           <Route path="/register" element={<AuthPage />} />
+          <Route path="/register-gym" element={<RegisterGym />} />
 
           {/* 2. RUTAS ADMIN */}
           <Route element={<Layout role="admin" />}>
