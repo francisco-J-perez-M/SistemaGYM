@@ -45,6 +45,8 @@ import AnalyticsMapReduce from "./pages/AnalyticsMapReduce";
 import AnalyticsKMeans from "./pages/AnalyticsKMeans";
 import AnalyticsRegresion from "./pages/AnalyticsRegresion";
 import UserWeightPrediction from "./pages/UserWeightPrediction";
+// Sprint 4 / US17
+import AdminAnalytics from "./pages/AdminAnalytics";
 
 function App() {
   return (
@@ -68,6 +70,7 @@ function App() {
             <Route path="/dashboard/mapreduce" element={<AnalyticsMapReduce />} />
             <Route path="/dashboard/kmeans" element={<AnalyticsKMeans />} />
             <Route path="/dashboard/regresion" element={<AnalyticsRegresion />} />
+            <Route path="/dashboard/analytics" element={<AdminAnalytics />} />
           </Route>
 
           {/* 3. RUTAS USUARIO (MIEMBRO) */}
@@ -124,14 +127,4 @@ function App() {
               <h1 style={{ fontSize: '72px', marginBottom: '20px' }}>404</h1>
               <p style={{ fontSize: '20px' }}>Página no encontrada</p>
               <a href="/" style={{ marginTop: '20px', color: 'var(--accent)' }}>
-                Volver al inicio
-              </a>
-            </div>
-          } />
-        </Routes>
-      </BrowserRouter>
-    </ThemeProvider>
-  );
-}
-
-export default App;
+                Volver a
