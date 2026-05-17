@@ -7,9 +7,9 @@
  */
 import { useState, useEffect, useCallback } from "react";
 import {
-  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
+  BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ResponsiveContainer, ScatterChart, Scatter, ZAxis,
+  ResponsiveContainer,
 } from "recharts";
 import "../../css/CSSUnificado.css";
 
@@ -383,8 +383,18 @@ function TabRegresion() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const coeficientes = data?.coeficientes || [];
-  const metricas     = data?.metricas || {};
+  const metricas = data?.metricas || {};
+
+  // coeficientes llega del backend como dict {dias: 0.003, cintura: 0.12, ...}
+  // Se normaliza a array para Recharts — se excluye el intercepto de la barra
+  const coeficientesArr = data?.coeficientes
+    ? Object.entries(data.coeficientes)
+        .filter(([key]) => key !== "intercepto")
+        .map(([feature, valor]) => ({
+          feature,
+          valor: parseFloat(Number(valor).toFixed(4)),
+        }))
+    : [];
 
   if (loading) return <LoadingSpinner />;
   if (error)   return <ErrorBox msg={error} />;
@@ -393,10 +403,10 @@ function TabRegresion() {
   return (
     <div>
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 20 }}>
-        <StatCard label="R² Score" value={(metricas.r2 || 0).toFixed(4)} color={metricas.r2 > 0.7 ? SUCCESS : WARNING} />
-        <StatCard label="RMSE" value={(metricas.rmse || 0).toFixed(2)} color={INFO} suffix=" kg" />
-        <StatCard label="MAE" value={(metricas.mae || 0).toFixed(2)} color={INFO} suffix=" kg" />
-        <StatCard label="Muestras" value={metricas.num_muestras || "—"} />
+        <StatCard label="R² Score"  value={(metricas.r2   || 0).toFixed(4)} color={metricas.r2 > 0.7 ? SUCCESS : WARNING} />
+        <StatCard label="RMSE"      value={(metricas.rmse || 0).toFixed(2)} color={INFO} suffix=" kg" />
+        <StatCard label="MAE"       value={(metricas.mae  || 0).toFixed(2)} color={INFO} suffix=" kg" />
+        <StatCard label="Muestras"  value={metricas.num_muestras || "—"} />
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
           <TrainBtn loading={trainLoading} onClick={handleTrain} />
           {trainMsg && <span style={{ color: SUCCESS, fontSize: 13 }}>{trainMsg}</span>}
@@ -404,30 +414,41 @@ function TabRegresion() {
       </div>
 
       <SectionTitle>Coeficientes del modelo Ridge (importancia de features)</SectionTitle>
-      <ResponsiveContainer width="100%" height={220}>
-        <BarChart data={coeficientes.map(c => ({ feature: c.feature, valor: parseFloat((c.coeficiente||0).toFixed(3)) }))}
-                  layout="vertical">
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-dark)" />
-          <XAxis type="number" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} />
-          <YAxis type="category" dataKey="feature" width={140}
-                 tick={{ fill: "var(--text-secondary)", fontSize: 11 }} />
-          <Tooltip content={<CustomTooltip />} />
-          <Bar dataKey="valor" name="Coeficiente"
-               fill={ACCENT} radius={[0,4,4,0]}
-               label={{ position: "right", fill: "var(--text-secondary)", fontSize: 11 }} />
-        </BarChart>
-      </ResponsiveContainer>
+      {coeficientesArr.length > 0 ? (
+        <ResponsiveContainer width="100%" height={180}>
+          <BarChart data={coeficientesArr} layout="vertical">
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-dark)" />
+            <XAxis type="number" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} />
+            <YAxis type="category" dataKey="feature" width={140}
+                   tick={{ fill: "var(--text-secondary)", fontSize: 11 }} />
+            <Tooltip content={<CustomTooltip />} />
+            <Bar dataKey="valor" name="Coeficiente" fill={ACCENT} radius={[0,4,4,0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      ) : (
+        <p style={{ color: "var(--text-secondary)", fontSize: 13 }}>No hay coeficientes disponibles.</p>
+      )}
+
+      {data.coeficientes?.intercepto != null && (
+        <p style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 8 }}>
+          Intercepto: <strong style={{ color: "var(--text-primary)" }}>
+            {Number(data.coeficientes.intercepto).toFixed(4)}
+          </strong>
+        </p>
+      )}
 
       <SectionTitle>Modelo de predicción de peso corporal</SectionTitle>
       <div style={{ background: "var(--bg-input)", borderRadius: 10, padding: "16px 20px", fontSize: 13, lineHeight: 1.7 }}>
         <p style={{ color: "var(--text-secondary)", marginBottom: 8 }}>
           Regresión Ridge entrenada con datos históricos de progreso físico del gimnasio.
-          Predice el peso futuro del miembro en función de semanas transcurridas, edad, IMC y masa muscular.
+          Predice el peso futuro del miembro en función de días de entrenamiento, grasa corporal y BMI.
         </p>
-        <p style={{ color: SUCCESS }}>R² = {(metricas.r2||0).toFixed(4)} —
+        <p style={{ color: SUCCESS }}>
+          R² = {(metricas.r2 || 0).toFixed(4)} —
           {metricas.r2 > 0.8 ? " Excelente ajuste"
-          : metricas.r2 > 0.6 ? " Buen ajuste"
-          : metricas.r2 > 0.4 ? " Ajuste moderado" : " Ajuste bajo"}</p>
+           : metricas.r2 > 0.6 ? " Buen ajuste"
+           : metricas.r2 > 0.4 ? " Ajuste moderado" : " Ajuste bajo"}
+        </p>
       </div>
     </div>
   );
@@ -575,11 +596,37 @@ function TabCancelaciones() {
 // ─────────────────────────────────────────────────────────────────────────────
 // COMPONENTE PRINCIPAL
 // ─────────────────────────────────────────────────────────────────────────────
+// Iconos SVG inline para los tabs (sin emojis)
+const IconMapReduce = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="2" width="20" height="20" rx="2"/><path d="M6 16V8m4 8v-4m4 4V6m4 10v-2"/>
+  </svg>
+);
+const IconKMeans = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="6" cy="6" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="6" cy="18" r="2"/>
+    <circle cx="18" cy="18" r="2"/><circle cx="12" cy="12" r="3"/>
+    <line x1="8" y1="7" x2="10" y2="10"/><line x1="16" y1="7" x2="14" y2="10"/>
+    <line x1="8" y1="17" x2="10" y2="14"/><line x1="16" y1="17" x2="14" y2="14"/>
+  </svg>
+);
+const IconRegresion = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>
+  </svg>
+);
+const IconCancelaciones = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+    <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+  </svg>
+);
+
 const TABS = [
-  { id: "mapreduce",    label: "📊 MapReduce",        Component: TabMapReduce    },
-  { id: "kmeans",       label: "🎯 K-Means",           Component: TabKMeans       },
-  { id: "regresion",    label: "📈 Regresión",         Component: TabRegresion    },
-  { id: "cancelaciones",label: "⚠️ Cancelaciones",    Component: TabCancelaciones},
+  { id: "mapreduce",     label: "MapReduce",     Icon: IconMapReduce,     Component: TabMapReduce     },
+  { id: "kmeans",        label: "K-Means",        Icon: IconKMeans,        Component: TabKMeans        },
+  { id: "regresion",     label: "Regresión",      Icon: IconRegresion,     Component: TabRegresion     },
+  { id: "cancelaciones", label: "Cancelaciones",  Icon: IconCancelaciones, Component: TabCancelaciones },
 ];
 
 export default function AdminAnalytics() {
@@ -613,8 +660,10 @@ export default function AdminAnalytics() {
               color: activeTab === tab.id ? ACCENT : "var(--text-secondary)",
               padding: "10px 20px", fontSize: 14, fontWeight: 600,
               cursor: "pointer", marginBottom: -2, transition: "color 0.2s",
+              display: "flex", alignItems: "center", gap: 7,
             }}
           >
+            <tab.Icon />
             {tab.label}
           </button>
         ))}
