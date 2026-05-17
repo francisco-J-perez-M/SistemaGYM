@@ -1,52 +1,53 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { ThemeProvider } from "./hooks/ThemeContext"; 
-import Layout from "./components/Layout";
+import { ThemeProvider } from "./hooks/ThemeContext";
+import Layout from "./components/compartido/Layout";
 
 // --- PÁGINAS PÚBLICAS ---
-// Importamos el nuevo componente unificado
-import AuthPage from "./components/AuthPage";
-import RegisterGym from "./pages/RegisterGym"; 
+import AuthPage    from "./components/auth/AuthPage";
+import RegisterGym from "./pages/publico/RegisterGym";
 
-// --- PÁGINAS DE DASHBOARD (ADMIN) ---
-import Dashboard from "./pages/Dashboard";         
-import MiembrosDashboard from "./pages/MiembrosDashboard"; 
-import PagosDashboard from "./pages/PagosDashboard";
-import PointOfSale from "./pages/PointOfSale";
-import BackupsDashboard from "./pages/BackupsDashboard"; 
-import RestoreDashboard from "./pages/RestoreDashboard"; 
+// --- PÁGINAS DE ADMIN ---
+import Dashboard          from "./pages/admin/Dashboard";
+import MiembrosDashboard  from "./pages/admin/MiembrosDashboard";
+import PagosDashboard     from "./pages/admin/PagosDashboard";
+import PointOfSale        from "./pages/admin/PointOfSale";
+import BackupsDashboard   from "./pages/admin/BackupsDashboard";
+import RestoreDashboard   from "./pages/admin/RestoreDashboard";
+import AdminAnalytics     from "./pages/admin/AdminAnalytics";
+import AnalyticsMapReduce from "./pages/admin/AnalyticsMapReduce";
+import AnalyticsKMeans    from "./pages/admin/AnalyticsKMeans";
+import AnalyticsRegresion from "./pages/admin/AnalyticsRegresion";
 
-// --- PÁGINAS DE USUARIO (MIEMBRO) ---
-import UserDashboard from "./pages/UserDashboard";
-import UserPayments from "./pages/UserPayments";
-import UserProfile from "./pages/UserProfile";
-import UserRoutineCreator from "./pages/UserRoutineCreator";
-import UserBodyProgress from "./pages/UserBodyProgress";
-import UserMealPlan from "./pages/UserMealPlan";
-import UserRecipes from "./pages/UserRecipes";
-import UserHealth from "./pages/UserHealth";
-import UserHealthUpdate from "./pages/UserHealthUpdate";
-import UserMembershipRenewal from "./pages/UserMembershipRenewal";
-import CompleteProfile from "./pages/CompleteProfile";
+// --- PÁGINAS DE MIEMBRO ---
+import UserDashboard         from "./pages/miembro/UserDashboard";
+import UserPayments          from "./pages/miembro/UserPayments";
+import UserProfile           from "./pages/miembro/UserProfile";
+import UserRoutineCreator    from "./pages/miembro/UserRoutineCreator";
+import UserBodyProgress      from "./pages/miembro/UserBodyProgress";
+import UserMealPlan          from "./pages/miembro/UserMealPlan";
+import UserRecipes           from "./pages/miembro/UserRecipes";
+import UserHealth            from "./pages/miembro/UserHealth";
+import UserHealthUpdate      from "./pages/miembro/UserHealthUpdate";
+import UserMembershipRenewal from "./pages/miembro/UserMembershipRenewal";
+import UserWeightPrediction  from "./pages/miembro/UserWeightPrediction";
+import CompleteProfile       from "./pages/miembro/CompleteProfile";
 
 // --- PÁGINAS DE ENTRENADOR ---
-import TrainerDashboard from "./pages/TrainerDashboard";
-import TrainerClients from "./pages/TrainerClients";
-import TrainerSchedule from "./pages/TrainerSchedule";
-import TrainerSessions from "./pages/TrainerSessions";
-import TrainerRoutines from "./pages/TrainerRoutines";
-import TrainerReports from "./pages/TrainerReports";
-import TrainerProfile from "./pages/TrainerProfile";
+import TrainerDashboard from "./pages/entrenador/TrainerDashboard";
+import TrainerClients   from "./pages/entrenador/TrainerClients";
+import TrainerSchedule  from "./pages/entrenador/TrainerSchedule";
+import TrainerSessions  from "./pages/entrenador/TrainerSessions";
+import TrainerRoutines  from "./pages/entrenador/TrainerRoutines";
+import TrainerReports   from "./pages/entrenador/TrainerReports";
+import TrainerProfile   from "./pages/entrenador/TrainerProfile";
 
 // --- PÁGINAS DE RECEPCIONISTA ---
-import ReceptionistDashboard from "./pages/ReceptionistDashboard";
-
-// --- NUEVAS IMPORTACIONES DE IA ---
-import AnalyticsMapReduce from "./pages/AnalyticsMapReduce";
-import AnalyticsKMeans from "./pages/AnalyticsKMeans";
-import AnalyticsRegresion from "./pages/AnalyticsRegresion";
-import UserWeightPrediction from "./pages/UserWeightPrediction";
-// Sprint 4 / US17
-import AdminAnalytics from "./pages/AdminAnalytics";
+import ReceptionistDashboard    from "./pages/recepcionista/ReceptionistDashboard";
+import ReceptionistMembers      from "./pages/recepcionista/ReceptionistMembers";
+import ReceptionistPayments     from "./pages/recepcionista/ReceptionistPayments";
+import ReceptionistAppointments from "./pages/recepcionista/ReceptionistAppointments";
+import ReceptionistMessages     from "./pages/recepcionista/ReceptionistMessages";
+import ReceptionistTasks        from "./pages/recepcionista/ReceptionistTasks";
 
 function App() {
   return (
@@ -107,8 +108,13 @@ function App() {
 
           {/* 5. RUTAS RECEPCIONISTA */}
           <Route element={<Layout role="receptionist" />}>
-            <Route path="/receptionist-dashboard" element={<ReceptionistDashboard />} />
-            <Route path="/receptionist/pos" element={<PointOfSale />} />
+            <Route path="/receptionist-dashboard"    element={<ReceptionistDashboard />} />
+            <Route path="/receptionist/pos"          element={<PointOfSale />} />
+            <Route path="/receptionist/appointments" element={<ReceptionistAppointments />} />
+            <Route path="/receptionist/payments"     element={<ReceptionistPayments />} />
+            <Route path="/receptionist/members"      element={<ReceptionistMembers />} />
+            <Route path="/receptionist/messages"     element={<ReceptionistMessages />} />
+            <Route path="/receptionist/tasks"        element={<ReceptionistTasks />} />
           </Route>
 
           {/* 6. RUTA 404 */}
@@ -127,4 +133,14 @@ function App() {
               <h1 style={{ fontSize: '72px', marginBottom: '20px' }}>404</h1>
               <p style={{ fontSize: '20px' }}>Página no encontrada</p>
               <a href="/" style={{ marginTop: '20px', color: 'var(--accent)' }}>
-                Volver a
+                Volver al inicio
+              </a>
+            </div>
+          } />
+        </Routes>
+      </BrowserRouter>
+    </ThemeProvider>
+  );
+}
+
+export default App;
