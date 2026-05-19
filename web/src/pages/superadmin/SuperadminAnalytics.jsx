@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Swal from "sweetalert2";
 import {
   getAnalyticsPlataforma,
@@ -6,6 +6,7 @@ import {
   getProyeccion,
   getChurnGimnasios,
   getCrecimiento,
+  getGimnasios,
 } from "../../api/superadmin";
 
 const card = (extra = {}) => ({
@@ -88,6 +89,8 @@ function LineChart({ hist, proj, height = 160 }) {
   );
 }
 
+const PAGE_SIZE = 15;
+
 export default function SuperadminAnalytics() {
   const [tab,        setTab]        = useState("plataforma");
   const [plat,       setPlat]       = useState(null);
@@ -98,6 +101,12 @@ export default function SuperadminAnalytics() {
   const [loadingProy, setLoadingProy] = useState(false);
   const [loadingChurn,setLoadingChurn]= useState(false);
   const [loadingCrec, setLoadingCrec] = useState(false);
+
+  // Selector de gimnasio + paginación
+  const [gyms,       setGyms]       = useState([]);
+  const [selGym,     setSelGym]     = useState("all");   // "all" | gym_id (número)
+  const [pageIngresos, setPageIngresos] = useState(1);
+  const [pageResumen,  setPageResumen]  = useState(1);
 
   const loadPlat = (force = false) => {
     setLoadingPlat(true);
@@ -113,7 +122,36 @@ export default function SuperadminAnalytics() {
     loadProy();
     loadChurn();
     loadCrec();
+    getGimnasios({ per_page: 100 })
+      .then(r => setGyms(r.data.gimnasios || []))
+      .catch(() => {});
   }, []);
+
+  // Datos filtrados por gimnasio seleccionado
+  const ingresosFiltered = useMemo(() => {
+    const rows = plat?.ingresos_por_periodo_gym || [];
+    if (selGym === "all") return rows;
+    return rows.filter(r => String(r.id_gimnasio) === String(selGym));
+  }, [plat, selGym]);
+
+  const resumenFiltered = useMemo(() => {
+    const rows = plat?.resumen_por_gimnasio || [];
+    if (selGym === "all") return rows;
+    return rows.filter(r => String(r.id_gimnasio) === String(selGym));
+  }, [plat, selGym]);
+
+  // Reset páginas al cambiar filtro
+  useEffect(() => { setPageIngresos(1); setPageResumen(1); }, [selGym]);
+
+  // Lookup id_gimnasio → nombre
+  const gymName = useMemo(() => {
+    const map = {};
+    (plat?.resumen_por_gimnasio || []).forEach(r => {
+      if (r.id_gimnasio && r.gimnasio) map[r.id_gimnasio] = r.gimnasio;
+    });
+    gyms.forEach(g => { if (!map[g.id]) map[g.id] = g.nombre; });
+    return (id) => map[id] || `Gym ${id}`;
+  }, [plat, gyms]);
 
   const handleRefresh = async () => {
     const { isConfirmed } = await Swal.fire({
@@ -149,6 +187,29 @@ export default function SuperadminAnalytics() {
         </button>
       </div>
 
+      {/* Selector de gimnasio */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, padding: "12px 16px", background: "var(--bg-card, #1a1d2e)", borderRadius: 12, border: "1px solid var(--border, rgba(255,255,255,.08))", width: "fit-content" }}>
+        <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary, #94a3b8)", whiteSpace: "nowrap" }}>Filtrar por gimnasio</span>
+        <select
+          value={selGym}
+          onChange={e => setSelGym(e.target.value)}
+          style={{ minWidth: 220 }}
+        >
+          <option value="all">Todos los gimnasios</option>
+          {gyms.map(g => (
+            <option key={g.id} value={g.id}>{g.nombre}</option>
+          ))}
+        </select>
+        {selGym !== "all" && (
+          <button
+            style={{ border: "none", background: "rgba(239,68,68,.12)", color: "#ef4444", borderRadius: 6, padding: "4px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+            onClick={() => setSelGym("all")}
+          >
+            ✕ Limpiar
+          </button>
+        )}
+      </div>
+
       {/* Tabs */}
       <div style={{ display: "flex", gap: 4, marginBottom: 24, background: "var(--bg-card, #1a1d2e)", borderRadius: 10, padding: 4, width: "fit-content" }}>
         {TABS.map(t => (
@@ -171,23 +232,42 @@ export default function SuperadminAnalytics() {
             </div>
           )}
 
-          {/* Ingresos por periodo/gym heatmap */}
+          {/* Ingresos por periodo/gym */}
           <div style={card()}>
-            <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary, #f1f5f9)", marginBottom: 16 }}>
-              Ingresos Mensuales por Gimnasio
-            </h3>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary, #f1f5f9)" }}>
+                Ingresos Mensuales por Gimnasio
+                {selGym !== "all" && <span style={{ fontSize: 12, fontWeight: 400, color: "#818cf8", marginLeft: 8 }}>— {gymName(selGym)}</span>}
+              </h3>
+              <span style={{ fontSize: 12, color: "var(--text-secondary, #94a3b8)" }}>{ingresosFiltered.length} registros</span>
+            </div>
             {loadingPlat ? (
               <p style={{ fontSize: 13, color: "var(--text-secondary, #94a3b8)" }}>Calculando con Spark…</p>
             ) : (
-              <PlatformTable data={plat?.ingresos_por_periodo_gym || []} />
+              <PlatformTable
+                data={ingresosFiltered}
+                page={pageIngresos}
+                setPage={setPageIngresos}
+                gymName={gymName}
+              />
             )}
           </div>
 
           {/* Resumen */}
           <div style={card()}>
-            <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary, #f1f5f9)", marginBottom: 16 }}>Resumen Acumulado</h3>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary, #f1f5f9)" }}>
+                Resumen Acumulado
+                {selGym !== "all" && <span style={{ fontSize: 12, fontWeight: 400, color: "#818cf8", marginLeft: 8 }}>— {gymName(selGym)}</span>}
+              </h3>
+              <span style={{ fontSize: 12, color: "var(--text-secondary, #94a3b8)" }}>{resumenFiltered.length} gimnasios</span>
+            </div>
             {loadingPlat ? <p style={{ fontSize: 13, color: "var(--text-secondary, #94a3b8)" }}>Calculando…</p> : (
-              <SummaryTable data={plat?.resumen_por_gimnasio || []} />
+              <SummaryTable
+                data={resumenFiltered}
+                page={pageResumen}
+                setPage={setPageResumen}
+              />
             )}
           </div>
         </div>
@@ -285,93 +365,32 @@ export default function SuperadminAnalytics() {
   );
 }
 
-// ── Sub-tables ─────────────────────────────────────────────────
+// ── Pagination helper ──────────────────────────────────────────
 
-function PlatformTable({ data }) {
-  if (!data.length) return <p style={{ fontSize: 13, color: "var(--text-secondary, #94a3b8)" }}>Sin datos de Spark</p>;
-  return (
-    <div style={{ overflowX: "auto" }}>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-        <thead>
-          <tr>
-            {["Gimnasio", "Período", "Ingresos", "# Pagos"].map(h => (
-              <th key={h} style={{ textAlign: "left", padding: "8px 12px", color: "var(--text-secondary, #94a3b8)", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: ".06em", borderBottom: "1px solid var(--border, rgba(255,255,255,.08))" }}>{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {data.slice(0, 60).map((r, i) => (
-            <tr key={i} style={{ borderBottom: "1px solid var(--border, rgba(255,255,255,.04))" }}>
-              <td style={{ padding: "8px 12px", color: "var(--text-primary, #f1f5f9)" }}>{r.id_gimnasio}</td>
-              <td style={{ padding: "8px 12px", color: "var(--text-secondary, #94a3b8)" }}>{r.periodo}</td>
-              <td style={{ padding: "8px 12px", color: "#10b981", fontWeight: 600 }}>${(r.ingresos || 0).toLocaleString()}</td>
-              <td style={{ padding: "8px 12px", color: "var(--text-secondary, #94a3b8)" }}>{r.num_pagos}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+function Pagination({ total, page, setPage, pageSize = PAGE_SIZE }) {
+  const pages = Math.max(1, Math.ceil(total / pageSize));
+  if (pages <= 1) return null;
+  const btn = (label, target, disabled) => (
+    <button
+      key={label}
+      onClick={() => !disabled && setPage(target)}
+      style={{
+        border: "1px solid rgba(255,255,255,.1)", borderRadius: 6, padding: "4px 10px",
+        background: page === target ? "var(--accent, #6366f1)" : "rgba(255,255,255,.04)",
+        color: disabled ? "rgba(255,255,255,.2)" : (page === target ? "#fff" : "var(--text-secondary, #94a3b8)"),
+        fontSize: 12, fontWeight: 600, cursor: disabled ? "not-allowed" : "pointer",
+      }}
+    >{label}</button>
   );
-}
-
-function SummaryTable({ data }) {
-  if (!data.length) return <p style={{ fontSize: 13, color: "var(--text-secondary, #94a3b8)" }}>Sin datos de Spark</p>;
+  const visible = Array.from({ length: pages }, (_, i) => i + 1)
+    .filter(p => p === 1 || p === pages || Math.abs(p - page) <= 1);
   return (
-    <div style={{ overflowX: "auto" }}>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-        <thead>
-          <tr>
-            {["Gimnasio", "Plan", "Ingresos", "Transacciones", "Ticket Prom.", "Miembros", "Activos"].map(h => (
-              <th key={h} style={{ textAlign: "left", padding: "8px 12px", color: "var(--text-secondary, #94a3b8)", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: ".06em", borderBottom: "1px solid var(--border, rgba(255,255,255,.08))" }}>{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {data.map((r, i) => (
-            <tr key={i} style={{ borderBottom: "1px solid var(--border, rgba(255,255,255,.04))" }}>
-              <td style={{ padding: "8px 12px", fontWeight: 600, color: "var(--text-primary, #f1f5f9)" }}>{r.gimnasio || r.id_gimnasio}</td>
-              <td style={{ padding: "8px 12px", color: "var(--text-secondary, #94a3b8)" }}>{r.plan || "—"}</td>
-              <td style={{ padding: "8px 12px", color: "#10b981", fontWeight: 600 }}>${(r.ingresos_totales || 0).toLocaleString()}</td>
-              <td style={{ padding: "8px 12px", color: "var(--text-secondary, #94a3b8)" }}>{r.total_transacciones}</td>
-              <td style={{ padding: "8px 12px", color: "var(--text-secondary, #94a3b8)" }}>${(r.ticket_promedio || 0).toLocaleString()}</td>
-              <td style={{ padding: "8px 12px", color: "var(--text-secondary, #94a3b8)" }}>{r.total_miembros}</td>
-              <td style={{ padding: "8px 12px", color: "#818cf8" }}>{r.miembros_activos}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function CrecimientoTable({ data }) {
-  return (
-    <div style={{ overflowX: "auto" }}>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-        <thead>
-          <tr>
-            {["Gimnasio", "Período", "Nuevos Miembros"].map(h => (
-              <th key={h} style={{ textAlign: "left", padding: "8px 12px", color: "var(--text-secondary, #94a3b8)", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: ".06em", borderBottom: "1px solid var(--border, rgba(255,255,255,.08))" }}>{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {data.slice(0, 80).map((r, i) => (
-            <tr key={i} style={{ borderBottom: "1px solid var(--border, rgba(255,255,255,.04))" }}>
-              <td style={{ padding: "8px 12px", color: "var(--text-primary, #f1f5f9)", fontWeight: 500 }}>{r.gimnasio || `Gym ${r.gym_id}`}</td>
-              <td style={{ padding: "8px 12px", color: "var(--text-secondary, #94a3b8)" }}>{r.periodo}</td>
-              <td style={{ padding: "8px 12px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <div style={{ flex: 1, height: 5, background: "rgba(255,255,255,.06)", borderRadius: 99, overflow: "hidden", maxWidth: 100 }}>
-                    <div style={{ width: `${Math.min((r.nuevos_miembros / 50) * 100, 100)}%`, height: "100%", background: "#818cf8", borderRadius: 99 }} />
-                  </div>
-                  <span style={{ color: "#818cf8", fontWeight: 700 }}>{r.nuevos_miembros}</span>
-                </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
+    <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 14, justifyContent: "flex-end" }}>
+      <span style={{ fontSize: 11, color: "var(--text-secondary, #94a3b8)", marginRight: 4 }}>
+        {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} de {total}
+      </span>
+      {btn("‹", page - 1, page === 1)}
+      {visible.map((p, i, arr) => {
+        const prev = arr[i - 1];
+        return [
+          prev && p - prev > 1 ? <span key={`gap-${p}`} style={{ color: "rgba(255,255,255,.2)", fontSize: 12 }}>…

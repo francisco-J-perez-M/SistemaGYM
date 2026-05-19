@@ -150,7 +150,7 @@ export default function SuperadminDashboard() {
             <KpiCard
               label="Gimnasios"
               value={fmt(gymsTotal?.total || resumen.length)}
-              meta={`${gymsTotal?.activos ?? "—"} activos`}
+              meta={`${gymsTotal?.activos ?? gymsTotal?.total ?? "—"} activos`}
               top="#6366f1"
               badgeText="Registrados" badgeType="info"
             />
@@ -164,7 +164,7 @@ export default function SuperadminDashboard() {
             <KpiCard
               label="Suscripciones"
               value={fmt(subsTotal?.total || "—")}
-              meta="Planes activos de gymnaios"
+              meta="Planes activos de gimnasios"
               top="#eab308"
               badgeText="SaaS" badgeType="warn"
             />
@@ -258,7 +258,4 @@ export default function SuperadminDashboard() {
             )}
           </div>
         </>
-      )}
-    </div>
-  );
-}
+      
