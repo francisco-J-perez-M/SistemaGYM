@@ -53,6 +53,34 @@ const STATUS_BADGE = {
   fallido: "neg", restore: "warn",
 };
 
+// Descarga un archivo de backup con autenticación JWT
+async function downloadBackupFile(filename) {
+  try {
+    const token = localStorage.getItem("token");
+    const res = await fetch(`/api/superadmin/backups/download/${encodeURIComponent(filename)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const blob = await res.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href     = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    alert(`No se pudo descargar: ${filename}`);
+  }
+}
+
+const FILE_LABELS = {
+  db_dump: { label: "MONGO", color: "#10b981" },
+  pg_dump: { label: "PG",    color: "#818cf8" },
+  json:    { label: "JSON",  color: "#f59e0b" },
+  excel:   { label: "XLS",   color: "#22c55e" },
+  pdf:     { label: "PDF",   color: "#ef4444" },
+};
+
 const TYPE_BADGE = {
   full: "pos", incremental: "info", differential: "warn", restore: "purple",
 };
@@ -194,24 +222,53 @@ export default function SuperadminBackups() {
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                 <thead>
                   <tr style={{ background: "rgba(255,255,255,.03)" }}>
-                    {["Fecha", "Tipo", "Estado", "Job ID"].map(h => (
+                    {["Fecha", "Tipo", "Estado", "Tamaño", "Descargar"].map(h => (
                       <th key={h} style={{ textAlign: "left", padding: "10px 16px", color: "var(--text-secondary, #94a3b8)", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: ".06em", borderBottom: "1px solid var(--border, rgba(255,255,255,.08))" }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {history.length === 0 ? (
-                    <tr><td colSpan={4} style={{ padding: 30, textAlign: "center", color: "var(--text-secondary, #94a3b8)" }}>Sin historial</td></tr>
+                    <tr><td colSpan={5} style={{ padding: 30, textAlign: "center", color: "var(--text-secondary, #94a3b8)" }}>Sin historial</td></tr>
                   ) : history.map((h, i) => (
                     <tr key={i} style={{ borderBottom: "1px solid var(--border, rgba(255,255,255,.04))" }}>
-                      <td style={{ padding: "10px 16px", color: "var(--text-secondary, #94a3b8)" }}>{fmtDate(h.date)}</td>
+                      <td style={{ padding: "10px 16px", color: "var(--text-secondary, #94a3b8)", whiteSpace: "nowrap" }}>{fmtDate(h.date)}</td>
                       <td style={{ padding: "10px 16px" }}>
                         <span style={badge(TYPE_BADGE[h.type] || "muted")}>{h.type}</span>
                       </td>
                       <td style={{ padding: "10px 16px" }}>
-                        <span style={badge(STATUS_BADGE[h.status] || "muted")}>{h.status}</span>
+                        {h.status
+                          ? <span style={badge(STATUS_BADGE[h.status] || "muted")}>{h.status}</span>
+                          : <span style={{ color: "var(--text-secondary, #94a3b8)" }}>—</span>
+                        }
+                        {h.error && (
+                          <p style={{ fontSize: 10, color: "#ef4444", marginTop: 3, maxWidth: 200, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={h.error}>
+                            {h.error}
+                          </p>
+                        )}
                       </td>
-                      <td style={{ padding: "10px 16px", color: "var(--text-secondary, #94a3b8)", fontFamily: "monospace", fontSize: 11 }}>{h.job_id || h.file || "—"}</td>
+                      <td style={{ padding: "10px 16px", color: "var(--text-secondary, #94a3b8)" }}>
+                        {h.size && h.size !== "ERROR" ? h.size : "—"}
+                      </td>
+                      <td style={{ padding: "10px 16px" }}>
+                        {h.files && Object.keys(h.files).length > 0 ? (
+                          <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                            {Object.entries(FILE_LABELS).map(([key, meta]) =>
+                              h.files[key] ? (
+                                <button
+                                  key={key}
+                                  onClick={() => downloadBackupFile(h.files[key])}
+                                  style={{ border: "none", borderRadius: 5, padding: "2px 7px", fontSize: 10, fontWeight: 700, cursor: "pointer", background: `${meta.color}22`, color: meta.color }}
+                                >
+                                  {meta.label}
+                                </button>
+                              ) : null
+                            )}
+                          </div>
+                        ) : (
+                          <span style={{ color: "var(--text-secondary, #94a3b8)" }}>—</span>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
