@@ -76,7 +76,8 @@ export default function AuthPage() {
       }
 
       const userRole = userData.role;
-      if (userRole === "Administrador" || userRole === "admin") navigate("/dashboard");
+      if (userRole === "superadmin") navigate("/superadmin");
+      else if (userRole === "Administrador" || userRole === "admin" || userRole === "owner_gym") navigate("/dashboard");
       else if (userRole === "Entrenador" || userRole === "trainer") navigate("/trainer-dashboard");
       else if (userRole === "Recepcionista" || userRole === "receptionist") navigate("/receptionist-dashboard");
       else navigate("/user/dashboard");

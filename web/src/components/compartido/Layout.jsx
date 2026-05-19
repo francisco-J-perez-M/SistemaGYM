@@ -7,6 +7,7 @@ const ROLE_MAP = {
   trainer:      ["trainer", "entrenador"],
   receptionist: ["receptionist", "recepcionista"],
   user:         ["user", "miembro"],
+  superadmin:   ["superadmin"],
 };
 
 const ROUTE_MAP = {
@@ -57,6 +58,15 @@ const ROUTE_MAP = {
     "/user/pos":          "pos",
     "/user/prediction":   "prediction",
   },
+  superadmin: {
+    "/superadmin":                 "sa-dashboard",
+    "/superadmin/gimnasios":       "sa-gimnasios",
+    "/superadmin/suscripciones":   "sa-suscripciones",
+    "/superadmin/planes":          "sa-planes",
+    "/superadmin/usuarios":        "sa-usuarios",
+    "/superadmin/backups":         "sa-backups",
+    "/superadmin/analytics":       "sa-analytics",
+  },
 };
 
 const NAV_MAP = {
@@ -106,6 +116,15 @@ const NAV_MAP = {
     profile:       "/user/profile",
     pos:           "/user/pos",
     prediction:    "/user/prediction",
+  },
+  superadmin: {
+    "sa-dashboard":    "/superadmin",
+    "sa-gimnasios":    "/superadmin/gimnasios",
+    "sa-suscripciones":"/superadmin/suscripciones",
+    "sa-planes":       "/superadmin/planes",
+    "sa-usuarios":     "/superadmin/usuarios",
+    "sa-backups":      "/superadmin/backups",
+    "sa-analytics":    "/superadmin/analytics",
   },
 };
 
