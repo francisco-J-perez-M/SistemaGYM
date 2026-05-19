@@ -88,10 +88,16 @@ services:
       MONGO_URI:          mongodb://mongo:27017/gymdb
       REDIS_URL:          redis://redis:6379/0
       POSTGRES_URI:       postgresql+psycopg2://${POSTGRES_USER:-gymuser}:${POSTGRES_PASSWORD:-gympassword}@postgres:5432/${POSTGRES_DB:-gymprodb}
+      # Variables individuales para pg_dump (service.py las lee con os.getenv)
+      POSTGRES_HOST:      postgres
+      POSTGRES_PORT:      "5432"
+      POSTGRES_USER:      ${POSTGRES_USER:-gymuser}
+      POSTGRES_PASSWORD:  ${POSTGRES_PASSWORD:-gympassword}
+      POSTGRES_DB:        ${POSTGRES_DB:-gymprodb}
       SPARK_ENABLED:      "true"
       PYTHONUNBUFFERED:   "1"
     volumes:
-      - backup_data:/app/storage/backups
+      - ./backups:/app/storage/backups
     depends_on:
       mongo:
         condition: service_healthy
@@ -129,8 +135,6 @@ volumes:
   mongo_data:
     driver: local
   pg_data:
-    driver: local
-  backup_data:
     driver: local
 
 # ── Red interna ──────────────────────────────────────────────────────────────

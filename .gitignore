@@ -23,3 +23,6 @@ venv/
 # ── OS ────────────────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
+
+# ── Backups generados (solo el directorio raíz, no api/app/backups/) ──────────
+/backups/
