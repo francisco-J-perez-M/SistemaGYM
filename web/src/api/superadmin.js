@@ -33,11 +33,12 @@ export const impersonar      = (id)           => API.post(`/superadmin/usuarios/
 export const toggleUsuario   = (id)           => API.patch(`/superadmin/usuarios/${id}/toggle`);
 
 // ── Backups admin ─────────────────────────────────────────────────
-export const getBackupStatus    = ()        => API.get("/superadmin/backups/status");
-export const triggerBackup      = (tipo)    => API.post("/superadmin/backups/trigger", { tipo });
-export const getBackupHistorial = (params)  => API.get("/superadmin/backups/historial", { params });
-export const getSchedule        = ()        => API.get("/superadmin/backups/schedule");
-export const updateSchedule     = (data)    => API.post("/superadmin/backups/schedule", data);
+export const getBackupStatus      = ()         => API.get("/superadmin/backups/status");
+export const triggerBackup        = (tipo)     => API.post("/superadmin/backups/trigger", { tipo });
+export const getBackupHistorial   = (params)   => API.get("/superadmin/backups/historial", { params });
+export const deleteBackupEntry    = (job_id)   => API.delete(`/superadmin/backups/historial/${job_id}`);
+export const getSchedule          = ()         => API.get("/superadmin/backups/schedule");
+export const updateSchedule       = (data)     => API.post("/superadmin/backups/schedule", data);
 
 // ── Analytics plataforma ──────────────────────────────────────────
 export const getAnalyticsPlataforma = () => API.get("/superadmin/analytics/plataforma");

@@ -393,4 +393,110 @@ function Pagination({ total, page, setPage, pageSize = PAGE_SIZE }) {
       {visible.map((p, i, arr) => {
         const prev = arr[i - 1];
         return [
-          prev && p - prev > 1 ? <span key={`gap-${p}`} style={{ color: "rgba(255,255,255,.2)", fontSize: 12 }}>…
+          prev && p - prev > 1 ? <span key={`gap-${p}`} style={{ color: "rgba(255,255,255,.2)", fontSize: 12 }}>…</span> : null,
+          btn(p, p, false),
+        ];
+      })}
+      {btn("›", page + 1, page === pages)}
+    </div>
+  );
+}
+
+// ── Sub-tables ─────────────────────────────────────────────────
+
+function PlatformTable({ data, page, setPage, gymName }) {
+  if (!data.length) return <p style={{ fontSize: 13, color: "var(--text-secondary, #94a3b8)" }}>Sin datos de Spark</p>;
+  const slice = data.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  return (
+    <>
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+          <thead>
+            <tr>
+              {["Gimnasio", "Período", "Ingresos", "# Pagos"].map(h => (
+                <th key={h} style={{ textAlign: "left", padding: "8px 12px", color: "var(--text-secondary, #94a3b8)", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: ".06em", borderBottom: "1px solid var(--border, rgba(255,255,255,.08))" }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {slice.map((r, i) => (
+              <tr key={i} style={{ borderBottom: "1px solid var(--border, rgba(255,255,255,.04))" }}>
+                <td style={{ padding: "8px 12px", color: "var(--text-primary, #f1f5f9)", fontWeight: 600 }}>{gymName ? gymName(r.id_gimnasio) : r.id_gimnasio}</td>
+                <td style={{ padding: "8px 12px", color: "var(--text-secondary, #94a3b8)" }}>{r.periodo}</td>
+                <td style={{ padding: "8px 12px", color: "#10b981", fontWeight: 600 }}>${(r.ingresos || 0).toLocaleString("es-MX", { minimumFractionDigits: 2 })}</td>
+                <td style={{ padding: "8px 12px", color: "var(--text-secondary, #94a3b8)" }}>{r.num_pagos}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <Pagination total={data.length} page={page} setPage={setPage} />
+    </>
+  );
+}
+
+function SummaryTable({ data, page, setPage }) {
+  if (!data.length) return <p style={{ fontSize: 13, color: "var(--text-secondary, #94a3b8)" }}>Sin datos de Spark</p>;
+  const slice = data.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  return (
+    <>
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+          <thead>
+            <tr>
+              {["Gimnasio", "Plan", "Ingresos", "Transacciones", "Ticket Prom.", "Miembros", "Activos"].map(h => (
+                <th key={h} style={{ textAlign: "left", padding: "8px 12px", color: "var(--text-secondary, #94a3b8)", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: ".06em", borderBottom: "1px solid var(--border, rgba(255,255,255,.08))" }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {slice.map((r, i) => (
+              <tr key={i} style={{ borderBottom: "1px solid var(--border, rgba(255,255,255,.04))" }}>
+                <td style={{ padding: "8px 12px", fontWeight: 600, color: "var(--text-primary, #f1f5f9)" }}>{r.gimnasio || r.id_gimnasio}</td>
+                <td style={{ padding: "8px 12px", color: "var(--text-secondary, #94a3b8)" }}>{r.plan || "—"}</td>
+                <td style={{ padding: "8px 12px", color: "#10b981", fontWeight: 600 }}>${(r.ingresos_totales || 0).toLocaleString("es-MX", { minimumFractionDigits: 2 })}</td>
+                <td style={{ padding: "8px 12px", color: "var(--text-secondary, #94a3b8)" }}>{r.total_transacciones}</td>
+                <td style={{ padding: "8px 12px", color: "var(--text-secondary, #94a3b8)" }}>${(r.ticket_promedio || 0).toLocaleString("es-MX", { minimumFractionDigits: 2 })}</td>
+                <td style={{ padding: "8px 12px", color: "var(--text-secondary, #94a3b8)" }}>{r.total_miembros}</td>
+                <td style={{ padding: "8px 12px", color: "#818cf8" }}>{r.miembros_activos}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <Pagination total={data.length} page={page} setPage={setPage} />
+    </>
+  );
+}
+
+function CrecimientoTable({ data }) {
+  return (
+    <div style={{ overflowX: "auto" }}>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+        <thead>
+          <tr>
+            {["Gimnasio", "Período", "Nuevos Miembros"].map(h => (
+              <th key={h} style={{ textAlign: "left", padding: "8px 12px", color: "var(--text-secondary, #94a3b8)", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: ".06em", borderBottom: "1px solid var(--border, rgba(255,255,255,.08))" }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {data.slice(0, 80).map((r, i) => (
+            <tr key={i} style={{ borderBottom: "1px solid var(--border, rgba(255,255,255,.04))" }}>
+              <td style={{ padding: "8px 12px", color: "var(--text-primary, #f1f5f9)", fontWeight: 500 }}>{r.gimnasio || `Gym ${r.gym_id}`}</td>
+              <td style={{ padding: "8px 12px", color: "var(--text-secondary, #94a3b8)" }}>{r.periodo}</td>
+              <td style={{ padding: "8px 12px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ flex: 1, height: 5, background: "rgba(255,255,255,.06)", borderRadius: 99, overflow: "hidden", maxWidth: 100 }}>
+                    <div style={{ width: `${Math.min((r.nuevos_miembros / 50) * 100, 100)}%`, height: "100%", background: "#818cf8", borderRadius: 99 }} />
+                  </div>
+                  <span style={{ color: "#818cf8", fontWeight: 700 }}>{r.nuevos_miembros}</span>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
