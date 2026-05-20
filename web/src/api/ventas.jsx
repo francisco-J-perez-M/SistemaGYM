@@ -10,7 +10,7 @@ API.interceptors.request.use((config) => {
 
 /**
  * Registra una venta del Punto de Venta.
- * @param {{ items: Array, total: number, metodo_pago: string }} data
+ * @param {{ items, total, metodo_pago, id_miembro?, nombre_miembro?, numero_tarjeta?, referencia? }} data
  */
 export const registrarVenta = (data) => API.post("/ventas", data);
 
