@@ -32,3 +32,12 @@ export const testEmail = () =>
 
 export const restoreBackup = (filename) =>
   API.post("/backups/restore", { filename });
+
+// ── Tenant backups (owner_gym scoped) ─────────────────────────────────────
+export const getTenantSummary  = ()       => API.get("/owner_gym/backups/summary");
+export const triggerTenantBackup = (type) => API.post("/owner_gym/backups/trigger", { type });
+export const getTenantStatus   = ()       => API.get("/owner_gym/backups/status");
+export const downloadTenantFile = (filename) =>
+  API.get(`/owner_gym/backups/download/${filename}`, { responseType: "blob" });
+export const restoreTenantBackup = (filename) =>
+  API.post("/owner_gym/backups/restore", { filename });
