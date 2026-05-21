@@ -323,10 +323,21 @@ export default function MiembrosDashboard() {
     }
   };
 
+  // Normaliza valores de sexo legacy almacenados como texto completo
+  const normalizeSexo = (sexo) => {
+    if (!sexo) return "";
+    const s = sexo.toString().trim();
+    if (s === "M" || s === "F" || s === "O") return s;
+    const lower = s.toLowerCase();
+    if (lower === "masculino" || lower === "male")   return "M";
+    if (lower === "femenino"  || lower === "female") return "F";
+    return "O";
+  };
+
   const handleEdit = (m) => {
     setForm({
       nombre: m.nombre || "", email: m.email || "", password: "",
-      telefono: m.telefono || "", sexo: m.sexo || "",
+      telefono: m.telefono || "", sexo: normalizeSexo(m.sexo),
       peso_inicial: m.peso_inicial || "", estatura: m.estatura || "",
     });
     setFotoPreview(m.foto_perfil ? `${BASE_URL}${m.foto_perfil}` : null);
