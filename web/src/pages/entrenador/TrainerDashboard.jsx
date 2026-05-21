@@ -1,624 +1,308 @@
+/**
+ * TrainerDashboard.jsx — Landing principal del entrenador.
+ * Muestra: KPIs del día/semana, sesiones de hoy, próximas sesiones y accesos rápidos.
+ */
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { 
-  FiUsers, 
-  FiSearch, 
-  FiTrendingUp, 
-  FiTrendingDown,
-  FiEdit,
-  FiEye,
-  FiBarChart2,
-  FiAward,
-  FiTarget,
-  FiActivity,
-  FiX,
-  FiAlertCircle
+import { useNavigate } from "react-router-dom";
+import {
+  FiUsers, FiCalendar, FiActivity, FiCheckCircle,
+  FiClock, FiChevronRight, FiAlertCircle, FiBookOpen,
+  FiBarChart2, FiUser,
 } from "react-icons/fi";
 import trainerService from "../../services/entrenador/trainerService";
 import "../../css/CSSUnificado.css";
 
-export default function TrainerClients() {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedClient, setSelectedClient] = useState(null);
-  const [filterStatus, setFilterStatus] = useState("all");
-  const [clients, setClients] = useState([]);
+/* ── Helpers ── */
+const DIAS_ES = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+const MESES_ES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+
+function fechaHoy() {
+  const d = new Date();
+  return `${DIAS_ES[d.getDay()]}, ${d.getDate()} de ${MESES_ES[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+const STATUS_META = {
+  scheduled:   { label: "Programada",  color: "#6366f1", bg: "rgba(99,102,241,.12)" },
+  "in-progress":{ label: "En curso",   color: "#f59e0b", bg: "rgba(245,158,11,.12)" },
+  completed:   { label: "Completada",  color: "#22c55e", bg: "rgba(34,197,94,.12)"  },
+  cancelled:   { label: "Cancelada",   color: "#ef4444", bg: "rgba(239,68,68,.12)"  },
+};
+
+/* ── KPI Card ── */
+function KpiCard({ icon, label, value, sub, accent = "#6366f1" }) {
+  return (
+    <div className="stat-card" style={{ padding: "20px 22px", gap: 4 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+        <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: ".05em" }}>
+          {label}
+        </span>
+        <div style={{
+          width: 34, height: 34, borderRadius: "var(--r-md)",
+          background: `${accent}18`, display: "flex", alignItems: "center",
+          justifyContent: "center", color: accent, flexShrink: 0,
+        }}>
+          {icon}
+        </div>
+      </div>
+      <div style={{ fontSize: 30, fontWeight: 800, color: "var(--text-primary)", lineHeight: 1 }}>
+        {value}
+      </div>
+      {sub && <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginTop: 4 }}>{sub}</div>}
+    </div>
+  );
+}
+
+/* ── Skeleton ── */
+function KpiSkeleton() {
+  return (
+    <div className="stat-card" style={{ padding: "20px 22px", gap: 10 }}>
+      <div style={{ display: "flex", justifyContent: "space-between" }}>
+        <div className="skeleton" style={{ height: 11, width: "55%", borderRadius: 6 }} />
+        <div className="skeleton" style={{ width: 34, height: 34, borderRadius: 8 }} />
+      </div>
+      <div className="skeleton" style={{ height: 30, width: "40%", borderRadius: 6 }} />
+      <div className="skeleton" style={{ height: 10, width: "65%", borderRadius: 6 }} />
+    </div>
+  );
+}
+
+/* ── Fila de sesión ── */
+function SessionRow({ s, showDate = false }) {
+  const meta = STATUS_META[s.status] || STATUS_META.scheduled;
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", gap: 12,
+      padding: "10px 0",
+      borderBottom: "1px solid var(--border)",
+    }}>
+      {/* Hora */}
+      <div style={{
+        minWidth: 52, textAlign: "center",
+        background: "var(--bg-input)", borderRadius: 8, padding: "6px 4px",
+      }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>{s.time || "—"}</div>
+        {showDate && (
+          <div style={{ fontSize: 10, color: "var(--text-tertiary)", marginTop: 1 }}>
+            {(s.date || "").slice(5)}
+          </div>
+        )}
+      </div>
+
+      {/* Detalles */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          {s.client || "Cliente sin asignar"}
+        </div>
+        <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginTop: 2 }}>
+          {s.type || "Personal"} · {s.duration || "60 min"} · {s.location || "Sin ubicación"}
+        </div>
+      </div>
+
+      {/* Badge */}
+      <span style={{
+        padding: "3px 10px", borderRadius: 999, fontSize: 10, fontWeight: 700,
+        background: meta.bg, color: meta.color, whiteSpace: "nowrap", flexShrink: 0,
+      }}>
+        {meta.label}
+      </span>
+    </div>
+  );
+}
+
+/* ── Acceso rápido ── */
+function QuickLink({ icon, label, to, color = "#6366f1" }) {
+  const navigate = useNavigate();
+  return (
+    <button
+      onClick={() => navigate(to)}
+      style={{
+        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+        gap: 8, padding: "18px 12px", borderRadius: "var(--r-md)",
+        background: "var(--bg-input)", border: "1px solid var(--border)",
+        cursor: "pointer", transition: "border-color .15s, background .15s",
+        flex: 1, minWidth: 80,
+      }}
+      onMouseEnter={e => { e.currentTarget.style.borderColor = color; e.currentTarget.style.background = `${color}10`; }}
+      onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.background = "var(--bg-input)"; }}
+    >
+      <div style={{ color, fontSize: 20 }}>{icon}</div>
+      <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", textAlign: "center" }}>{label}</span>
+    </button>
+  );
+}
+
+/* ═══════════════════════════════════════════════════
+   COMPONENTE PRINCIPAL
+═══════════════════════════════════════════════════ */
+export default function TrainerDashboard() {
+  const [data, setData]     = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  
-  // Paginación
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [error, setError]   = useState(null);
 
-  // Cargar clientes con todos los parámetros
-  const loadClients = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const res = await trainerService.getClients(
-        page,
-        searchTerm,
-        filterStatus
-      );
-
-      setClients(res.clients);
-      setTotalPages(res.pagination?.total_pages || 1);
-    } catch (err) {
-      setError(err.message || 'Error al cargar clientes');
-      console.error('Error loading clients:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 🔄 Cargar cuando cambia la página
   useEffect(() => {
-    loadClients();
-  }, [page]);
+    trainerService.getDashboard()
+      .then(d  => setData(d))
+      .catch(e => setError(e.message || "Error al cargar el dashboard"))
+      .finally(() => setLoading(false));
+  }, []);
 
-  // 🔍 Filtros con debounce
-  useEffect(() => {
-    const delay = setTimeout(() => {
-      setPage(1); // Resetear a primera página al filtrar
-      loadClients();
-    }, 400);
-
-    return () => clearTimeout(delay);
-  }, [searchTerm, filterStatus]);
-
-  // Calcular KPIs desde los datos reales
-  const totalClients = clients.length;
-  const averageProgress = clients.length > 0 
-    ? Math.round(clients.reduce((acc, c) => acc + (c.progress || 0), 0) / clients.length)
-    : 0;
-  const averageAttendance = clients.length > 0
-    ? Math.round(clients.reduce((acc, c) => acc + (c.attendance || 0), 0) / clients.length)
-    : 0;
-  const totalSessions = clients.reduce((acc, c) => acc + (c.sessionsTotal || 0), 0);
-
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { staggerChildren: 0.05 }
-    }
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0 }
-  };
-
-  const getTrendIcon = (trend) => {
-    switch(trend) {
-      case 'up': return <FiTrendingUp style={{ color: 'var(--success-color)' }} />;
-      case 'down': return <FiTrendingDown style={{ color: 'var(--error-color)' }} />;
-      default: return <FiActivity style={{ color: 'var(--text-secondary)' }} />;
-    }
-  };
-
-  // Loading state
-  if (loading && clients.length === 0) {
+  /* ── Error ── */
+  if (error) {
     return (
       <div className="dashboard-content">
-        <div className="loading-container">
-          <motion.div 
-            className="spinner"
-            animate={{ rotate: 360 }}
-            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-          />
-          <p style={{ marginTop: '20px', color: 'var(--text-secondary)' }}>
-            Cargando clientes ...
-          </p>
+        <div className="empty-state" style={{ padding: "60px 24px" }}>
+          <FiAlertCircle size={40} style={{ color: "var(--danger)", marginBottom: 12 }} />
+          <h3>No se pudo cargar el dashboard</h3>
+          <p style={{ color: "var(--text-secondary)", marginBottom: 20 }}>{error}</p>
+          <button className="btn-compact-primary" onClick={() => window.location.reload()}>
+            Reintentar
+          </button>
         </div>
       </div>
     );
   }
 
-  // Error state
-  if (error && clients.length === 0) {
-    return (
-      <div className="dashboard-content">
-        <motion.div 
-          className="chart-card"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <div className="empty-state">
-            <FiAlertCircle size={48} style={{ color: 'var(--error-color)', marginBottom: '15px' }} />
-            <h3>Error al cargar los datos</h3>
-            <p>{error}</p>
-            <motion.button
-              className="btn-compact-primary"
-              onClick={loadClients}
-              style={{ marginTop: '20px' }}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              Reintentar
-            </motion.button>
-          </div>
-        </motion.div>
-      </div>
-    );
-  }
+  const { stats = {}, today_sessions = [], upcoming_sessions = [], trainer_name = "" } = data || {};
+  const firstName = trainer_name.split(" ")[0] || "Entrenador";
 
   return (
     <div className="dashboard-content">
-      <motion.div 
-        className="welcome-section"
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5 }}
-      >
-        <div className="welcome-content">
-          <div className="welcome-text">
-            <h2>Mis Clientes</h2>
-            <p>Gestiona y monitorea el progreso de tus clientes</p>
-          </div>
-          <FiUsers size={50} style={{ color: 'var(--accent)', opacity: 0.8 }} />
+
+      {/* ── Encabezado ── */}
+      <div className="section-header" style={{ marginBottom: 24, alignItems: "flex-end" }}>
+        <div>
+          <h2 className="page-title" style={{ marginBottom: 4 }}>
+            {loading ? "Cargando..." : `Bienvenido, ${firstName}`}
+          </h2>
+          <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)" }}>
+            {fechaHoy()} · Tu resumen del día
+          </p>
         </div>
-      </motion.div>
+      </div>
 
-      {/* KPIs Resumen */}
-      <motion.div 
-        className="kpi-grid" 
-        style={{ marginTop: '25px', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-      >
-        <motion.div className="stat-card" variants={itemVariants}>
-          <div className="stat-header">
-            <h3>Total Clientes</h3>
-          </div>
-          <div className="stat-value highlight">{totalClients}</div>
-          <div className="stat-detail">Activos en el programa</div>
-        </motion.div>
-
-        <motion.div className="stat-card" variants={itemVariants}>
-          <div className="stat-header">
-            <h3>Progreso Promedio</h3>
-          </div>
-          <div className="stat-value">{averageProgress}%</div>
-          <div className="stat-detail">Hacia sus objetivos</div>
-        </motion.div>
-
-        <motion.div className="stat-card" variants={itemVariants}>
-          <div className="stat-header">
-            <h3>Asistencia</h3>
-          </div>
-          <div className="stat-value">{averageAttendance}%</div>
-          <div className="stat-detail">Tasa de asistencia</div>
-        </motion.div>
-
-        <motion.div className="stat-card" variants={itemVariants}>
-          <div className="stat-header">
-            <h3>Sesiones Totales</h3>
-          </div>
-          <div className="stat-value highlight">{totalSessions}</div>
-          <div className="stat-detail">Este mes</div>
-        </motion.div>
-      </motion.div>
-
-      {/* Búsqueda y Filtros */}
-      <motion.div 
-        className="chart-card"
-        style={{ marginTop: '25px' }}
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-      >
-        <div style={{ display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <div className="input-dark-container with-icon" style={{ flex: 1, minWidth: '250px' }}>
-            <FiSearch size={18} style={{ color: 'var(--text-secondary)' }} />
-            <input
-              type="text"
-              className="search-input"
-              placeholder="Buscar cliente..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+      {/* ── KPIs ── */}
+      <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(190px, 1fr))", marginBottom: 24 }}>
+        {loading ? (
+          [0,1,2,3].map(i => <KpiSkeleton key={i} />)
+        ) : (
+          <>
+            <KpiCard
+              icon={<FiUsers size={16} />}
+              label="Clientes activos"
+              value={stats.total_clients ?? "—"}
+              sub="Asignados a ti"
+              accent="#6366f1"
             />
-            {searchTerm && (
-              <button className="clear-search" onClick={() => setSearchTerm("")}>
-                <FiX />
-              </button>
-            )}
+            <KpiCard
+              icon={<FiCalendar size={16} />}
+              label="Sesiones hoy"
+              value={stats.sessions_today ?? "—"}
+              sub={stats.sessions_today === 1 ? "sesión programada" : "sesiones programadas"}
+              accent="#f59e0b"
+            />
+            <KpiCard
+              icon={<FiActivity size={16} />}
+              label="Esta semana"
+              value={stats.sessions_week ?? "—"}
+              sub="sesiones en la semana"
+              accent="#14b8a6"
+            />
+            <KpiCard
+              icon={<FiCheckCircle size={16} />}
+              label="Completadas"
+              value={`${stats.completion_rate ?? 0}%`}
+              sub="tasa de completación"
+              accent="#22c55e"
+            />
+          </>
+        )}
+      </div>
+
+      {/* ── Grid inferior: sesiones de hoy + próximas + accesos rápidos ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+
+        {/* Sesiones de hoy */}
+        <div className="stat-card" style={{ padding: "20px 22px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>
+              <FiClock size={14} style={{ marginRight: 8, verticalAlign: "middle", color: "#f59e0b" }} />
+              Sesiones de hoy
+            </h3>
+            <span style={{
+              fontSize: 11, fontWeight: 700, padding: "2px 10px",
+              borderRadius: 999, background: "rgba(245,158,11,.12)", color: "#f59e0b",
+            }}>
+              {loading ? "—" : today_sessions.length}
+            </span>
           </div>
 
-          <div style={{ display: 'flex', gap: '8px' }}>
-            {['all', 'active', 'inactive', 'risk'].map(status => (
-              <motion.button
-                key={status}
-                className={`btn-outline-small ${filterStatus === status ? 'active' : ''}`}
-                onClick={() => setFilterStatus(status)}
-                style={{
-                  background: filterStatus === status ? 'var(--accent)' : 'transparent',
-                  color: filterStatus === status ? 'var(--text-on-accent)' : 'var(--text-secondary)',
-                  borderColor: filterStatus === status ? 'var(--accent)' : 'var(--border-dark)'
-                }}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                {status === 'all' ? 'Todos' : 
-                 status === 'active' ? 'Activos' : 
-                 status === 'inactive' ? 'Inactivos' : 'En riesgo'}
-              </motion.button>
-            ))}
-          </div>
-        </div>
-      </motion.div>
-
-      {/* Lista de Clientes */}
-      <motion.div 
-        className="chart-card"
-        style={{ marginTop: '20px' }}
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-      >
-        <div className="chart-header">
-          <h3>Clientes ({clients.length})</h3>
-          {totalPages > 1 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
-                Página {page} de {totalPages}
-              </span>
+          {loading ? (
+            [0,1,2].map(i => (
+              <div key={i} style={{ display: "flex", gap: 10, padding: "10px 0", borderBottom: "1px solid var(--border)" }}>
+                <div className="skeleton" style={{ width: 52, height: 40, borderRadius: 8 }} />
+                <div style={{ flex: 1 }}>
+                  <div className="skeleton" style={{ height: 12, width: "70%", borderRadius: 5, marginBottom: 6 }} />
+                  <div className="skeleton" style={{ height: 10, width: "50%", borderRadius: 5 }} />
+                </div>
+              </div>
+            ))
+          ) : today_sessions.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "28px 0", color: "var(--text-tertiary)", fontSize: 13 }}>
+              No hay sesiones programadas para hoy
             </div>
+          ) : (
+            today_sessions.map(s => <SessionRow key={s.id_sesion} s={s} />)
           )}
         </div>
 
-        <motion.div 
-          style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '15px', marginTop: '20px' }}
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
-        >
-          {clients.map((client, idx) => (
-            <motion.div
-              key={client.id}
-              variants={itemVariants}
-              className="member-card-hover"
-              style={{
-                background: 'var(--input-bg-dark)',
-                border: `1px solid var(--border-dark)`,
-                borderRadius: '12px',
-                padding: '20px',
-                cursor: 'pointer'
-              }}
-              onClick={() => setSelectedClient(client)}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '15px' }}>
-                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                  <div className="avatar" style={{ width: '50px', height: '50px', fontSize: '18px' }}>
-                    {client.name?.split(' ').map(n => n[0]).join('') || '?'}
-                  </div>
-                  <div>
-                    <h4 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '4px' }}>
-                      {client.name}
-                    </h4>
-                    <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                      {client.age || '?'} años • {client.goal || 'Sin objetivo'}
-                    </p>
+        {/* Panel derecho: próximas sesiones + accesos rápidos */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+          {/* Próximas sesiones */}
+          <div className="stat-card" style={{ padding: "20px 22px", flex: 1 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>
+                <FiCalendar size={14} style={{ marginRight: 8, verticalAlign: "middle", color: "#6366f1" }} />
+                Próximas sesiones
+              </h3>
+            </div>
+
+            {loading ? (
+              [0,1].map(i => (
+                <div key={i} style={{ display: "flex", gap: 10, padding: "10px 0", borderBottom: "1px solid var(--border)" }}>
+                  <div className="skeleton" style={{ width: 52, height: 40, borderRadius: 8 }} />
+                  <div style={{ flex: 1 }}>
+                    <div className="skeleton" style={{ height: 12, width: "70%", borderRadius: 5, marginBottom: 6 }} />
+                    <div className="skeleton" style={{ height: 10, width: "50%", borderRadius: 5 }} />
                   </div>
                 </div>
-                {getTrendIcon(client.trend)}
+              ))
+            ) : upcoming_sessions.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "20px 0", color: "var(--text-tertiary)", fontSize: 13 }}>
+                No hay sesiones próximas
               </div>
-
-              <div style={{ 
-                display: 'grid', 
-                gridTemplateColumns: '1fr 1fr', 
-                gap: '10px',
-                marginBottom: '15px',
-                fontSize: '12px'
-              }}>
-                <div style={{ 
-                  background: 'var(--bg-card)', 
-                  padding: '8px', 
-                  borderRadius: '8px',
-                  textAlign: 'center'
-                }}>
-                  <div style={{ color: 'var(--text-secondary)', marginBottom: '4px' }}>Racha</div>
-                  <div style={{ fontSize: '16px', fontWeight: '700', color: 'var(--accent)' }}>
-                    {client.streak || 0} días
-                  </div>
-                </div>
-                <div style={{ 
-                  background: 'var(--bg-card)', 
-                  padding: '8px', 
-                  borderRadius: '8px',
-                  textAlign: 'center'
-                }}>
-                  <div style={{ color: 'var(--text-secondary)', marginBottom: '4px' }}>Asistencia</div>
-                  <div style={{ fontSize: '16px', fontWeight: '700', color: 'var(--success-color)' }}>
-                    {client.attendance || 0}%
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ marginBottom: '8px' }}>
-                <div style={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between',
-                  fontSize: '12px',
-                  marginBottom: '6px'
-                }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>Progreso</span>
-                  <span style={{ 
-                    fontWeight: '700',
-                    color: client.progress >= 80 ? 'var(--success-color)' : 'var(--accent)'
-                  }}>
-                    {client.progress || 0}%
-                  </span>
-                </div>
-                <div style={{ 
-                  height: '6px', 
-                  background: 'var(--bg-card)', 
-                  borderRadius: '3px',
-                  overflow: 'hidden'
-                }}>
-                  <motion.div 
-                    style={{ 
-                      height: '100%', 
-                      background: client.progress >= 80 ? 'var(--success-color)' : 'var(--accent)',
-                      borderRadius: '3px'
-                    }}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${client.progress || 0}%` }}
-                    transition={{ delay: 0.3 + (idx * 0.05), duration: 0.8 }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between',
-                paddingTop: '15px',
-                borderTop: '1px solid var(--border-dark)',
-                fontSize: '11px',
-                color: 'var(--text-secondary)'
-              }}>
-                <span>Estado: <span style={{ 
-                  color: client.status === 'active' ? 'var(--success-color)' : 
-                         client.status === 'risk' ? 'var(--warning-color)' : 
-                         'var(--text-secondary)',
-                  fontWeight: '600'
-                }}>{client.status === 'active' ? 'Activo' : 
-                     client.status === 'inactive' ? 'Inactivo' : 
-                     client.status === 'risk' ? 'En riesgo' : client.status}</span></span>
-                <span>{client.sessionsTotal || 0} sesiones</span>
-              </div>
-            </motion.div>
-          ))}
-        </motion.div>
-
-        {clients.length === 0 && !loading && (
-          <div className="empty-state">
-            <FiUsers size={48} style={{ opacity: 0.3, marginBottom: '15px' }} />
-            <h3>No se encontraron clientes</h3>
-            <p>Intenta con otro término de búsqueda o ajusta los filtros</p>
+            ) : (
+              upcoming_sessions.map(s => <SessionRow key={s.id_sesion} s={s} showDate />)
+            )}
           </div>
-        )}
 
-        {/* 🔥 PAGINACIÓN */}
-        {totalPages > 1 && (
-          <motion.div 
-            className="pagination"
-            style={{
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              gap: '15px',
-              marginTop: '25px',
-              paddingTop: '15px',
-              borderTop: '1px solid var(--border-dark)'
-            }}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.4 }}
-          >
-            <motion.button
-              className="btn-outline-small"
-              onClick={() => setPage(page - 1)}
-              disabled={page === 1}
-              whileHover={page !== 1 ? { scale: 1.05 } : {}}
-              whileTap={page !== 1 ? { scale: 0.95 } : {}}
-              style={{
-                opacity: page === 1 ? 0.5 : 1,
-                cursor: page === 1 ? 'not-allowed' : 'pointer'
-              }}
-            >
-              Anterior
-            </motion.button>
-
-            <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
-              Página {page} de {totalPages}
-            </span>
-
-            <motion.button
-              className="btn-outline-small"
-              onClick={() => setPage(page + 1)}
-              disabled={page === totalPages}
-              whileHover={page !== totalPages ? { scale: 1.05 } : {}}
-              whileTap={page !== totalPages ? { scale: 0.95 } : {}}
-              style={{
-                opacity: page === totalPages ? 0.5 : 1,
-                cursor: page === totalPages ? 'not-allowed' : 'pointer'
-              }}
-            >
-              Siguiente
-            </motion.button>
-          </motion.div>
-        )}
-
-        {/* Indicador de carga para más páginas */}
-        {loading && clients.length > 0 && (
-          <div style={{ textAlign: 'center', marginTop: '20px' }}>
-            <motion.div 
-              className="spinner-small"
-              animate={{ rotate: 360 }}
-              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-              style={{
-                width: '30px',
-                height: '30px',
-                border: '3px solid var(--border-dark)',
-                borderTopColor: 'var(--accent)',
-                borderRadius: '50%',
-                margin: '0 auto'
-              }}
-            />
+          {/* Accesos rápidos */}
+          <div className="stat-card" style={{ padding: "18px 22px" }}>
+            <h3 style={{ margin: "0 0 14px", fontSize: 14, fontWeight: 700, color: "var(--text-secondary)" }}>
+              Accesos rápidos
+            </h3>
+            <div style={{ display: "flex", gap: 10 }}>
+              <QuickLink icon={<FiUsers />}    label="Clientes"  to="/trainer/clients"  color="#6366f1" />
+              <QuickLink icon={<FiCalendar />} label="Agenda"    to="/trainer/schedule" color="#f59e0b" />
+              <QuickLink icon={<FiBookOpen />} label="Rutinas"   to="/trainer/routines" color="#14b8a6" />
+              <QuickLink icon={<FiBarChart2 />}label="Reportes"  to="/trainer/reports"  color="#22c55e" />
+              <QuickLink icon={<FiUser />}     label="Perfil"    to="/trainer/profile"  color="#94a3b8" />
+            </div>
           </div>
-        )}
-      </motion.div>
 
-      {/* Modal de Detalle del Cliente */}
-      <AnimatePresence>
-        {selectedClient && (
-          <motion.div
-            style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: 'rgba(0, 0, 0, 0.8)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 1000,
-              padding: '20px'
-            }}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setSelectedClient(null)}
-          >
-            <motion.div
-              style={{
-                background: 'var(--bg-card)',
-                borderRadius: '16px',
-                maxWidth: '600px',
-                width: '100%',
-                maxHeight: '90vh',
-                overflow: 'auto',
-                border: '1px solid var(--border-dark)'
-              }}
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.9, y: 20 }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div style={{ 
-                padding: '25px',
-                borderBottom: '1px solid var(--border-dark)',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}>
-                <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-                  <div className="avatar" style={{ width: '60px', height: '60px', fontSize: '24px' }}>
-                    {selectedClient.name?.split(' ').map(n => n[0]).join('') || '?'}
-                  </div>
-                  <div>
-                    <h3 style={{ fontSize: '20px', marginBottom: '5px' }}>{selectedClient.name}</h3>
-                    <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
-                      {selectedClient.age || '?'} años • {selectedClient.goal || 'Sin objetivo'}
-                    </p>
-                  </div>
-                </div>
-                <motion.button
-                  className="icon-btn"
-                  onClick={() => setSelectedClient(null)}
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                >
-                  <FiX size={20} />
-                </motion.button>
-              </div>
+        </div>
+      </div>
 
-              <div style={{ padding: '25px' }}>
-                <h4 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '15px' }}>
-                  Estadísticas de Progreso
-                </h4>
-                
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                  {selectedClient.stats && Object.entries(selectedClient.stats).map(([key, values]) => {
-                    // Solo mostrar si hay datos válidos
-                    if (!values || (values.initial === 0 && values.current === 0 && values.goal === 0)) {
-                      return null;
-                    }
-                    
-                    return (
-                      <div key={key}>
-                        <div style={{ 
-                          display: 'flex', 
-                          justifyContent: 'space-between',
-                          marginBottom: '10px',
-                          fontSize: '14px'
-                        }}>
-                          <span style={{ textTransform: 'capitalize', fontWeight: '600' }}>
-                            {key === 'weight' ? 'Peso (kg)' : key === 'muscle' ? 'Masa Muscular (%)' : 'Grasa Corporal (%)'}
-                          </span>
-                          <span style={{ color: 'var(--text-secondary)' }}>
-                            {values.initial} → {values.current} / {values.goal}
-                          </span>
-                        </div>
-                        <div style={{ 
-                          height: '8px', 
-                          background: 'var(--bg-main-dark)', 
-                          borderRadius: '4px',
-                          position: 'relative'
-                        }}>
-                          <motion.div 
-                            style={{ 
-                              height: '100%',
-                              background: 'var(--accent)',
-                              borderRadius: '4px',
-                              position: 'absolute'
-                            }}
-                            initial={{ width: 0 }}
-                            animate={{ 
-                              width: `${Math.min(((values.current - values.initial) / (values.goal - values.initial)) * 100, 100)}%` 
-                            }}
-                            transition={{ delay: 0.2, duration: 0.8 }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div style={{ 
-                  marginTop: '25px',
-                  display: 'flex',
-                  gap: '10px'
-                }}>
-                  <motion.button
-                    className="btn-compact-primary"
-                    style={{ flex: 1 }}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    <FiEdit size={16} />
-                    Editar Perfil
-                  </motion.button>
-                  <motion.button
-                    className="btn-compact-primary"
-                    style={{ flex: 1 }}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    <FiBarChart2 size={16} />
-                    Ver Historial
-                  </motion.button>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

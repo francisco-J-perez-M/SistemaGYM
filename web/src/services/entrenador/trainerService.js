@@ -72,10 +72,10 @@ export const trainerService = {
     });
   },
 
-  // ─── ESTADÍSTICAS GENERALES ────────────────────────────────────────────────
+  // ─── DASHBOARD ─────────────────────────────────────────────────────────────
 
-  getDashboardStats: async () => {
-    return await apiFetch(`${API_BASE_URL}/trainer/stats`);
+  getDashboard: async () => {
+    return await apiFetch(`${API_BASE_URL}/trainer/dashboard`);
   },
 
   // ─── AGENDA (SCHEDULE) ─────────────────────────────────────────────────────
@@ -190,6 +190,33 @@ export const trainerService = {
   getReports: async (range = 'month') => {
     const data = await apiFetch(`${API_BASE_URL}/trainer/reports?range=${range}`);
     return data;
+  },
+
+  // ─── BIBLIOTECA DE EJERCICIOS ──────────────────────────────────────────────
+
+  getExercises: async ({ search = '', grupo_muscular = '' } = {}) => {
+    const params = new URLSearchParams({ search, grupo_muscular });
+    return await apiFetch(`${API_BASE_URL}/trainer/exercises?${params}`);
+  },
+
+  createExercise: async (data) => {
+    return await apiFetch(`${API_BASE_URL}/trainer/exercises`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  updateExercise: async (id, data) => {
+    return await apiFetch(`${API_BASE_URL}/trainer/exercises/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  deleteExercise: async (id) => {
+    return await apiFetch(`${API_BASE_URL}/trainer/exercises/${id}`, {
+      method: 'DELETE',
+    });
   },
 };
 

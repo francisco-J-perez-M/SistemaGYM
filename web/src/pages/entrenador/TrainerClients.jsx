@@ -26,6 +26,7 @@ export default function TrainerClients() {
   const [error, setError]                 = useState(null);
   const [page, setPage]                   = useState(1);
   const [totalPages, setTotalPages]       = useState(1);
+  const [serverTotal, setServerTotal]     = useState(0);  // total real del servidor
 
   /* ── Carga ── */
   const loadClients = async () => {
@@ -35,6 +36,7 @@ export default function TrainerClients() {
       const res = await trainerService.getClients(page, searchTerm, filterStatus);
       setClients(res.clients);
       setTotalPages(res.pagination?.total_pages || 1);
+      setServerTotal(res.pagination?.total || 0);
     } catch (err) {
       const msg = err.message || "Error al cargar clientes";
       setError(msg);
@@ -54,15 +56,13 @@ export default function TrainerClients() {
     return () => clearTimeout(delay);
   }, [searchTerm, filterStatus]);
 
-  /* ── KPIs ── */
-  const totalClients     = clients.length;
-  const averageProgress  = clients.length > 0
-    ? Math.round(clients.reduce((acc, c) => acc + (c.progress || 0), 0) / clients.length)
-    : 0;
+  /* ── KPIs (usamos serverTotal para el total real; el resto es aproximado de la página actual) ── */
   const averageAttendance = clients.length > 0
     ? Math.round(clients.reduce((acc, c) => acc + (c.attendance || 0), 0) / clients.length)
     : 0;
   const totalSessions = clients.reduce((acc, c) => acc + (c.sessionsTotal || 0), 0);
+  const activeClients = clients.filter(c => c.status === "active").length;
+  const riskClients   = clients.filter(c => c.status === "risk" || c.status === "inactive").length;
 
   /* ── Animaciones ── */
   const containerVariants = {
@@ -164,10 +164,10 @@ export default function TrainerClients() {
         animate="visible"
       >
         {[
-          { label: "Total Clientes",    value: totalClients,      detail: "Activos en el programa",  highlight: true  },
-          { label: "Progreso Promedio", value: `${averageProgress}%`,  detail: "Hacia sus objetivos"       },
-          { label: "Asistencia",        value: `${averageAttendance}%`, detail: "Tasa de asistencia"        },
-          { label: "Sesiones Totales",  value: totalSessions,     detail: "Este mes",                highlight: true  },
+          { label: "Total Clientes",   value: serverTotal,             detail: "Asignados a ti",          highlight: true  },
+          { label: "Asistencia",       value: `${averageAttendance}%`, detail: "Promedio esta página"                      },
+          { label: "En riesgo",        value: riskClients,             detail: "Baja asistencia / inactivos"               },
+          { label: "Sesiones Totales", value: totalSessions,           detail: "Esta página",             highlight: true  },
         ].map((kpi) => (
           <motion.div className="stat-card" variants={itemVariants} key={kpi.label}>
             <div className="stat-header"><h3>{kpi.label}</h3></div>
@@ -232,7 +232,7 @@ export default function TrainerClients() {
         transition={{ delay: 0.3 }}
       >
         <div className="chart-header">
-          <h3>Clientes ({clients.length})</h3>
+          <h3>Clientes ({serverTotal})</h3>
           {totalPages > 1 && (
             <span style={{ fontSize: 14, color: "var(--text-secondary)" }}>
               Página {page} de {totalPages}
