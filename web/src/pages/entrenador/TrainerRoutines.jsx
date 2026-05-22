@@ -10,7 +10,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   FiFileText, FiPlus, FiEdit, FiTrash2, FiCopy, FiSearch, FiX, FiFilter,
   FiAlertCircle, FiSave, FiChevronDown, FiChevronUp, FiLoader, FiImage,
-  FiBookOpen, FiCheck,
+  FiBookOpen, FiCheck, FiVideo, FiEye, FiChevronLeft, FiChevronRight,
 } from "react-icons/fi";
 import { GiMuscleUp, GiWeightLiftingUp, GiRunningShoe } from "react-icons/gi";
 import trainerService from "../../services/entrenador/trainerService";
@@ -25,7 +25,9 @@ const CATEGORY_ICONS = {
   Funcional:   <GiMuscleUp />,
   Movilidad:   <GiRunningShoe />,
 };
-const CATEGORIES   = ["Fuerza", "Hipertrofia", "Cardio", "Funcional", "Movilidad"];
+const CATEGORIES      = ["Fuerza", "Hipertrofia", "Cardio", "Funcional", "Movilidad"];
+const ROUTINES_PER_PAGE = 9;
+const EX_PER_PAGE       = 12;
 const DIFFICULTIES = ["Principiante", "Intermedio", "Avanzado"];
 const DIAS_SEMANA  = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 const GRUPOS_MUSCULARES = [
@@ -50,6 +52,112 @@ const emptyDay = () => ({
   day: "Lunes", muscleGroup: "",
   exercises: [{ name: "", sets: "3", reps: "12", peso: "", notes: "", imagenes: [] }],
 });
+
+/* ── Caché de blob-URLs de video (vive mientras la pestaña esté abierta) ── */
+const videoCache = new Map(); // cacheKey → blobURL
+
+/**
+ * Convierte un data-URL base64 de video en un blob-URL con caché.
+ * La clave combina exerciseId + sufijo del b64 para evitar colisiones.
+ */
+function getVideoBlobUrl(b64, exerciseId) {
+  if (!b64) return null;
+  const cacheKey = (exerciseId ?? "new") + "_" + b64.slice(-24);
+  if (videoCache.has(cacheKey)) return videoCache.get(cacheKey);
+  const [header, data] = b64.split(",");
+  const mime = header.match(/:(.*?);/)?.[1] || "video/webm";
+  const binary = atob(data);
+  const bytes  = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  const url = URL.createObjectURL(new Blob([bytes], { type: mime }));
+  videoCache.set(cacheKey, url);
+  return url;
+}
+
+/**
+ * Re-encoda el video a menor resolución (≤480p) y bitrate (400 kbps)
+ * usando Canvas + MediaRecorder nativo. Sin dependencias externas.
+ * Rechaza si la duración supera 15 segundos.
+ */
+async function processVideo(file) {
+  return new Promise((resolve, reject) => {
+    const url   = URL.createObjectURL(file);
+    const probe = document.createElement("video");
+    probe.preload = "metadata";
+    probe.muted   = true;
+    probe.src     = url;
+
+    probe.onloadedmetadata = () => {
+      const dur = probe.duration;
+      if (!isFinite(dur) || dur > 15) {
+        URL.revokeObjectURL(url);
+        reject(new Error(`Duración máxima: 15 s. Tu video dura ${Math.round(dur)} s.`));
+        return;
+      }
+
+      // Canvas con resolución reducida
+      const canvas = document.createElement("canvas");
+      const ratio  = Math.min(480 / (probe.videoWidth || 480), 1);
+      canvas.width  = Math.round((probe.videoWidth  || 480) * ratio);
+      canvas.height = Math.round((probe.videoHeight || 270) * ratio);
+      const ctx = canvas.getContext("2d");
+
+      // Seleccionar codec disponible
+      const mimeType =
+        MediaRecorder.isTypeSupported("video/webm;codecs=vp8")  ? "video/webm;codecs=vp8"  :
+        MediaRecorder.isTypeSupported("video/webm;codecs=vp9")  ? "video/webm;codecs=vp9"  :
+        MediaRecorder.isTypeSupported("video/mp4")              ? "video/mp4"               :
+        "video/webm";
+
+      const recorder = new MediaRecorder(canvas.captureStream(20), {
+        mimeType,
+        videoBitsPerSecond: 400_000, // ~750 KB para 15 s
+      });
+
+      const chunks = [];
+      recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+      recorder.onstop = () => {
+        URL.revokeObjectURL(url);
+        const blob   = new Blob(chunks, { type: mimeType });
+        const reader = new FileReader();
+        reader.onload  = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error("Error al leer el video comprimido"));
+        reader.readAsDataURL(blob);
+      };
+
+      let raf;
+      const drawFrame = () => {
+        if (probe.ended || probe.paused) {
+          cancelAnimationFrame(raf);
+          if (recorder.state !== "inactive") recorder.stop();
+          return;
+        }
+        ctx.drawImage(probe, 0, 0, canvas.width, canvas.height);
+        raf = requestAnimationFrame(drawFrame);
+      };
+
+      recorder.start(100);
+      probe.currentTime = 0;
+      probe.play()
+        .then(() => {
+          drawFrame();
+          probe.onended = () => {
+            cancelAnimationFrame(raf);
+            if (recorder.state !== "inactive") recorder.stop();
+          };
+        })
+        .catch(err => {
+          URL.revokeObjectURL(url);
+          reject(new Error("No se pudo reproducir el video para comprimirlo: " + err.message));
+        });
+    };
+
+    probe.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("No se pudo cargar el video"));
+    };
+  });
+}
 
 /* ── Compresión de imagen vía canvas ── */
 async function compressImage(file, maxW = 600, maxH = 400, quality = 0.75) {
@@ -145,6 +253,113 @@ function ImageSlots({ images = [], onChange }) {
 }
 
 /* ════════════════════════════════════════════
+   SUBCOMPONENTE: Slot de video (1 video, máx 15 s)
+════════════════════════════════════════════ */
+function VideoSlot({ video, onChange, exerciseId }) {
+  const inputRef  = useRef();
+  const [processing, setProcessing] = useState(false);
+  const [progress,   setProgress]   = useState("");
+  const [err,        setErr]        = useState(null);
+
+  const blobUrl = video ? getVideoBlobUrl(video, exerciseId) : null;
+
+  const handleFile = async (file) => {
+    if (!file) return;
+    setErr(null);
+    setProcessing(true);
+    setProgress("Analizando duración…");
+    try {
+      setProgress("Comprimiendo video (puede tardar hasta 20 s)…");
+      const b64 = await processVideo(file);
+      onChange(b64);
+      // pre-cachear el resultado
+      getVideoBlobUrl(b64, exerciseId);
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setProcessing(false);
+      setProgress("");
+    }
+  };
+
+  return (
+    <div style={{ marginTop: 14 }}>
+      <label style={{
+        fontSize: 11, fontWeight: 600, color: "var(--text-secondary)",
+        display: "flex", alignItems: "center", gap: 5, marginBottom: 6,
+      }}>
+        <FiVideo size={11} /> Video demostrativo (máx. 15 s · se comprime automáticamente)
+      </label>
+
+      {blobUrl ? (
+        <div style={{ position: "relative", display: "inline-block", maxWidth: "100%" }}>
+          <video
+            src={blobUrl}
+            controls
+            muted
+            playsInline
+            preload="metadata"
+            style={{
+              width: "100%", maxWidth: 280, maxHeight: 160, borderRadius: 8,
+              border: "1px solid var(--border)", background: "#000", display: "block",
+            }}
+          />
+          <button
+            onClick={() => onChange(null)}
+            title="Quitar video"
+            style={{
+              position: "absolute", top: 4, right: 4,
+              width: 20, height: 20, borderRadius: "50%",
+              background: "var(--danger)", color: "#fff", border: "none",
+              cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+            }}
+          >
+            <FiX size={10} />
+          </button>
+        </div>
+      ) : (
+        <div
+          onClick={() => !processing && inputRef.current?.click()}
+          style={{
+            padding: "12px 16px",
+            border: `1px dashed ${err ? "var(--danger)" : "var(--border)"}`,
+            borderRadius: 8, background: "var(--bg-input)",
+            cursor: processing ? "default" : "pointer",
+            display: "flex", alignItems: "center", gap: 10,
+            color: "var(--text-secondary)", fontSize: 12, userSelect: "none",
+          }}
+        >
+          {processing ? (
+            <>
+              <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
+                <FiLoader size={14} />
+              </motion.div>
+              <span>{progress}</span>
+            </>
+          ) : (
+            <>
+              <FiVideo size={14} style={{ flexShrink: 0 }} />
+              {err
+                ? <span style={{ color: "var(--danger)" }}>{err} — click para reintentar</span>
+                : <span>Subir video (MP4 / WebM · máx. 15 s)</span>
+              }
+            </>
+          )}
+        </div>
+      )}
+
+      <input
+        ref={inputRef}
+        type="file"
+        accept="video/mp4,video/webm,video/quicktime,video/*"
+        style={{ display: "none" }}
+        onChange={e => handleFile(e.target.files?.[0])}
+      />
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════
    SUBCOMPONENTE: Picker de ejercicios desde biblioteca
 ════════════════════════════════════════════ */
 function LibraryPicker({ exercises, onPick, onClose }) {
@@ -230,10 +445,10 @@ function LibraryPicker({ exercises, onPick, onClose }) {
 /* ════════════════════════════════════════════
    SUBCOMPONENTE: Formulario de ejercicio (biblioteca)
 ════════════════════════════════════════════ */
-function ExerciseFormModal({ initial, onSave, onClose, saving }) {
+function ExerciseFormModal({ initial, onSave, onClose, saving, exerciseId }) {
   const [form, setForm] = useState(initial || {
     nombre: "", descripcion: "", grupo_muscular: "", tipo: "",
-    series: "", repeticiones: "",
+    series: "", repeticiones: "", imagenes: [], video: null,
   });
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
   const label = { fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 5 };
@@ -252,7 +467,8 @@ function ExerciseFormModal({ initial, onSave, onClose, saving }) {
         initial={{ scale: 0.92, y: 16 }} animate={{ scale: 1, y: 0 }}
         style={{
           background: "var(--bg-card)", border: "1px solid var(--border)",
-          borderRadius: 16, padding: 28, width: "100%", maxWidth: 460,
+          borderRadius: 16, padding: 28, width: "100%", maxWidth: 500,
+          maxHeight: "92vh", overflowY: "auto",
         }}
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
@@ -309,6 +525,30 @@ function ExerciseFormModal({ initial, onSave, onClose, saving }) {
               value={form.descripcion} onChange={e => set("descripcion", e.target.value)}
               placeholder="Cómo ejecutar correctamente el ejercicio..." />
           </div>
+
+          {/* ── Media: imágenes + video ── */}
+          <div style={{
+            borderTop: "1px solid var(--border)", paddingTop: 14, marginTop: 4,
+          }}>
+            <p style={{ fontSize: 11, fontWeight: 700, color: "var(--text-secondary)",
+              textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 10 }}>
+              Material audiovisual
+            </p>
+
+            <label style={label}>
+              Imágenes de ejecución (máx. 3)
+            </label>
+            <ImageSlots
+              images={form.imagenes || []}
+              onChange={imgs => set("imagenes", imgs)}
+            />
+
+            <VideoSlot
+              video={form.video}
+              onChange={v => set("video", v)}
+              exerciseId={exerciseId}
+            />
+          </div>
         </div>
 
         <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
@@ -318,6 +558,261 @@ function ExerciseFormModal({ initial, onSave, onClose, saving }) {
           <button onClick={() => onSave(form)} className="btn-compact-primary"
             style={{ flex: 2, padding: 10, opacity: saving ? 0.7 : 1 }} disabled={saving}>
             <FiSave size={14} /> {saving ? "Guardando..." : "Guardar"}
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+/* ════════════════════════════════════════════
+   SUBCOMPONENTE: Paginación
+════════════════════════════════════════════ */
+function Pagination({ page, total, perPage, onPage }) {
+  const totalPages = Math.ceil(total / perPage);
+  if (totalPages <= 1) return null;
+
+  // Ventana de páginas visibles: primera, última, actual ± 2
+  const pages = [...new Set([
+    1,
+    ...Array.from({ length: Math.min(5, totalPages) }, (_, i) => Math.max(1, Math.min(totalPages, page - 2 + i))),
+    totalPages,
+  ])].sort((a, b) => a - b);
+
+  const btnBase = {
+    width: 32, height: 32, borderRadius: 7, border: "1px solid var(--border)",
+    cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+    fontSize: 13, transition: "all 0.15s",
+  };
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 5, marginTop: 18 }}>
+      <button
+        onClick={() => onPage(page - 1)} disabled={page === 1}
+        style={{ ...btnBase, background: page === 1 ? "var(--bg-input)" : "var(--bg-card)",
+          color: page === 1 ? "var(--text-tertiary)" : "var(--text-primary)", opacity: page === 1 ? 0.4 : 1 }}>
+        <FiChevronLeft size={14} />
+      </button>
+
+      {pages.map((p, idx) => {
+        const gap = idx > 0 && p - pages[idx - 1] > 1;
+        return (
+          <span key={p} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            {gap && <span style={{ color: "var(--text-tertiary)", fontSize: 12 }}>…</span>}
+            <button
+              onClick={() => onPage(p)}
+              style={{
+                ...btnBase,
+                background: p === page ? "var(--accent)" : "var(--bg-input)",
+                color:      p === page ? "#fff"          : "var(--text-secondary)",
+                borderColor: p === page ? "var(--accent)" : "var(--border)",
+                fontWeight: p === page ? 700 : 400,
+              }}>
+              {p}
+            </button>
+          </span>
+        );
+      })}
+
+      <button
+        onClick={() => onPage(page + 1)} disabled={page === totalPages}
+        style={{ ...btnBase, background: page === totalPages ? "var(--bg-input)" : "var(--bg-card)",
+          color: page === totalPages ? "var(--text-tertiary)" : "var(--text-primary)",
+          opacity: page === totalPages ? 0.4 : 1 }}>
+        <FiChevronRight size={14} />
+      </button>
+
+      <span style={{ fontSize: 11, color: "var(--text-tertiary)", marginLeft: 6 }}>
+        {page}/{totalPages}
+      </span>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════
+   SUBCOMPONENTE: Vista detalle de ejercicio
+════════════════════════════════════════════ */
+function ExerciseDetailModal({ exercise, onClose, onEdit }) {
+  const [imgIdx, setImgIdx] = useState(0);
+  const blobUrl = exercise.video ? getVideoBlobUrl(exercise.video, exercise.id) : null;
+  const imgs    = exercise.imagenes || [];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      style={{
+        position: "fixed", inset: 0, zIndex: 10100,
+        background: "rgba(0,0,0,0.82)", backdropFilter: "blur(6px)",
+        display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
+      }}
+      onClick={e => e.target === e.currentTarget && onClose()}
+    >
+      <motion.div
+        initial={{ scale: 0.92, y: 18 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.92, y: 18 }}
+        style={{
+          background: "var(--bg-card)", border: "1px solid var(--border)",
+          borderRadius: 18, width: "100%", maxWidth: 560,
+          maxHeight: "92vh", overflowY: "auto",
+          display: "flex", flexDirection: "column",
+        }}
+      >
+        {/* Header */}
+        <div style={{
+          padding: "20px 24px 16px", borderBottom: "1px solid var(--border)",
+          display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexShrink: 0,
+        }}>
+          <div>
+            <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>{exercise.nombre}</h3>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {exercise.grupo_muscular && (
+                <span style={{ padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600,
+                  background: "var(--accent)22", color: "var(--accent)" }}>
+                  {exercise.grupo_muscular}
+                </span>
+              )}
+              {exercise.tipo && (
+                <span style={{ padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600,
+                  background: "var(--bg-input)", color: "var(--text-secondary)" }}>
+                  {exercise.tipo}
+                </span>
+              )}
+              {exercise.series && (
+                <span style={{ padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600,
+                  background: "var(--success)22", color: "var(--success)" }}>
+                  {exercise.series} × {exercise.repeticiones || "—"}
+                </span>
+              )}
+            </div>
+          </div>
+          <button onClick={onClose}
+            style={{ background: "none", border: "none", cursor: "pointer",
+              color: "var(--text-secondary)", padding: 4, borderRadius: 6, flexShrink: 0 }}>
+            <FiX size={20} />
+          </button>
+        </div>
+
+        <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 20 }}>
+
+          {/* Galería de imágenes */}
+          {imgs.length > 0 && (
+            <div>
+              <p style={{ fontSize: 11, fontWeight: 700, color: "var(--text-secondary)",
+                textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 10 }}>
+                Cómo ejecutarlo
+              </p>
+              {/* Imagen principal */}
+              <div style={{
+                width: "100%", aspectRatio: "16/9", borderRadius: 10, overflow: "hidden",
+                background: "var(--bg-input)", border: "1px solid var(--border)",
+                marginBottom: 8, position: "relative",
+              }}>
+                <img src={imgs[imgIdx]} alt={`paso ${imgIdx + 1}`}
+                  style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                {imgs.length > 1 && (
+                  <>
+                    <button
+                      onClick={() => setImgIdx(i => (i - 1 + imgs.length) % imgs.length)}
+                      style={{
+                        position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)",
+                        background: "rgba(0,0,0,0.55)", border: "none", borderRadius: 6,
+                        color: "#fff", cursor: "pointer", padding: "6px 8px", lineHeight: 0,
+                      }}><FiChevronLeft size={16} /></button>
+                    <button
+                      onClick={() => setImgIdx(i => (i + 1) % imgs.length)}
+                      style={{
+                        position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)",
+                        background: "rgba(0,0,0,0.55)", border: "none", borderRadius: 6,
+                        color: "#fff", cursor: "pointer", padding: "6px 8px", lineHeight: 0,
+                      }}><FiChevronRight size={16} /></button>
+                  </>
+                )}
+                {/* Indicador de posición */}
+                {imgs.length > 1 && (
+                  <div style={{ position: "absolute", bottom: 8, left: "50%", transform: "translateX(-50%)",
+                    display: "flex", gap: 4 }}>
+                    {imgs.map((_, i) => (
+                      <button key={i} onClick={() => setImgIdx(i)}
+                        style={{
+                          width: i === imgIdx ? 18 : 6, height: 6, borderRadius: 3,
+                          background: i === imgIdx ? "#fff" : "rgba(255,255,255,0.4)",
+                          border: "none", cursor: "pointer", padding: 0,
+                          transition: "all 0.2s",
+                        }} />
+                    ))}
+                  </div>
+                )}
+              </div>
+              {/* Miniaturas */}
+              {imgs.length > 1 && (
+                <div style={{ display: "flex", gap: 8 }}>
+                  {imgs.map((src, i) => (
+                    <button key={i} onClick={() => setImgIdx(i)}
+                      style={{
+                        padding: 0, border: `2px solid ${i === imgIdx ? "var(--accent)" : "var(--border)"}`,
+                        borderRadius: 7, overflow: "hidden", cursor: "pointer",
+                        width: 64, height: 48, flexShrink: 0, transition: "border-color 0.15s",
+                      }}>
+                      <img src={src} alt={`min ${i+1}`}
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Video */}
+          {blobUrl && (
+            <div>
+              <p style={{ fontSize: 11, fontWeight: 700, color: "var(--text-secondary)",
+                textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 10 }}>
+                Video demostrativo
+              </p>
+              <video
+                src={blobUrl} controls playsInline preload="metadata"
+                style={{
+                  width: "100%", borderRadius: 10,
+                  border: "1px solid var(--border)", background: "#000",
+                  maxHeight: 280, display: "block",
+                }}
+              />
+            </div>
+          )}
+
+          {/* Descripción */}
+          {exercise.descripcion && (
+            <div>
+              <p style={{ fontSize: 11, fontWeight: 700, color: "var(--text-secondary)",
+                textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 8 }}>
+                Instrucciones
+              </p>
+              <p style={{ fontSize: 13, color: "var(--text-primary)", lineHeight: 1.65,
+                background: "var(--bg-input)", padding: "12px 14px", borderRadius: 8,
+                border: "1px solid var(--border)" }}>
+                {exercise.descripcion}
+              </p>
+            </div>
+          )}
+
+          {/* Sin media */}
+          {imgs.length === 0 && !blobUrl && !exercise.descripcion && (
+            <div style={{ textAlign: "center", padding: "24px 0", color: "var(--text-secondary)" }}>
+              <FiImage size={32} style={{ opacity: 0.3, marginBottom: 8 }} />
+              <p style={{ fontSize: 13 }}>Sin imágenes, video ni descripción añadidos.</p>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{
+          padding: "14px 24px", borderTop: "1px solid var(--border)",
+          display: "flex", gap: 10, flexShrink: 0,
+        }}>
+          <button onClick={onClose} className="btn-outline-small" style={{ flex: 1, padding: "9px 0" }}>
+            Cerrar
+          </button>
+          <button onClick={onEdit} className="btn-compact-primary" style={{ flex: 2, padding: "9px 0" }}>
+            <FiEdit size={14} /> Editar ejercicio
           </button>
         </div>
       </motion.div>
@@ -349,6 +844,10 @@ export default function TrainerRoutines() {
   const [expandedDay, setExpandedDay]       = useState(0);
   const [showLibraryPicker, setShowLibraryPicker] = useState(null); // {di, ei} | null
 
+  /* ── Paginación ── */
+  const [routinesPage, setRoutinesPage]     = useState(1);
+  const [exPage, setExPage]                 = useState(1);
+
   /* ── Estado: ejercicios ── */
   const [exercises, setExercises]           = useState([]);
   const [loadingE, setLoadingE]             = useState(false);
@@ -357,11 +856,13 @@ export default function TrainerRoutines() {
   const [showExForm, setShowExForm]         = useState(false);
   const [editingEx, setEditingEx]           = useState(null);
   const [savingEx, setSavingEx]             = useState(false);
+  const [viewingEx, setViewingEx]           = useState(null); // ejercicio en detalle
 
   /* ── Cargar rutinas ── */
   const loadRoutines = useCallback(async () => {
     try {
       setLoadingR(true); setErrorR(null);
+      setRoutinesPage(1); // resetear al buscar/filtrar
       const data = await trainerService.getRoutines({ category: filterCategory, search: searchTerm });
       setRoutines(data.routines || []);
       setCategoryCounts(data.categoryCounts || {});
@@ -382,6 +883,7 @@ export default function TrainerRoutines() {
   const loadExercises = useCallback(async () => {
     try {
       setLoadingE(true); setErrorE(null);
+      setExPage(1); // resetear al buscar
       const data = await trainerService.getExercises({ search: searchEx });
       setExercises(data.exercises || []);
     } catch (err) {
@@ -687,81 +1189,94 @@ export default function TrainerRoutines() {
                 </motion.div>
                 <p style={{ marginTop: 14 }}>Cargando rutinas…</p>
               </div>
-            ) : (
-              <motion.div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 14 }}
-                variants={cv} initial="hidden" animate="visible">
-                {routines.map(routine => (
-                  <motion.div key={routine.id} variants={iv} className="member-card-hover"
-                    style={{
-                      background: "var(--bg-input)", border: "1px solid var(--border)",
-                      borderRadius: 12, padding: 20, cursor: "pointer",
-                    }}
-                    onClick={() => setSelectedRoutine(routine)}
-                    whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                    {/* Header */}
-                    <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 12 }}>
-                      <div style={{
-                        width: 46, height: 46, background: "var(--bg-card)", borderRadius: 10,
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        fontSize: 22, color: "var(--accent)",
-                      }}>
-                        {CATEGORY_ICONS[routine.category] || <GiMuscleUp />}
-                      </div>
-                      <div>
-                        <h4 style={{ fontSize: 15, fontWeight: 600, marginBottom: 2 }}>{routine.name}</h4>
-                        <p style={{ fontSize: 11, color: "var(--text-secondary)" }}>
-                          {routine.category} · {routine.duration}
-                        </p>
-                      </div>
-                    </div>
-                    <p style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 12, lineHeight: 1.5 }}>
-                      {routine.description || "Sin descripción"}
-                    </p>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
-                      {[
-                        { label: "Ejercicios", value: routine.exercises, color: "var(--accent)" },
-                        { label: "Clientes",   value: routine.clients,   color: "var(--success)" },
-                      ].map(s => (
-                        <div key={s.label} style={{ background: "var(--bg-card)", padding: 8, borderRadius: 8, textAlign: "center" }}>
-                          <div style={{ color: "var(--text-secondary)", fontSize: 10, marginBottom: 3 }}>{s.label}</div>
-                          <div style={{ fontSize: 15, fontWeight: 700, color: s.color }}>{s.value}</div>
+            ) : (() => {
+              const pagedRoutines = routines.slice((routinesPage - 1) * ROUTINES_PER_PAGE, routinesPage * ROUTINES_PER_PAGE);
+              return (
+                <>
+                  <motion.div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 14 }}
+                    variants={cv} initial="hidden" animate="visible">
+                    {pagedRoutines.map(routine => (
+                      <motion.div key={routine.id} variants={iv} className="member-card-hover"
+                        style={{
+                          background: "var(--bg-input)", border: "1px solid var(--border)",
+                          borderRadius: 12, padding: 20,
+                        }}
+                        whileHover={{ scale: 1.01 }}>
+                        {/* Header */}
+                        <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 12 }}>
+                          <div style={{
+                            width: 46, height: 46, background: "var(--bg-card)", borderRadius: 10,
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            fontSize: 22, color: "var(--accent)",
+                          }}>
+                            {CATEGORY_ICONS[routine.category] || <GiMuscleUp />}
+                          </div>
+                          <div>
+                            <h4 style={{ fontSize: 15, fontWeight: 600, marginBottom: 2 }}>{routine.name}</h4>
+                            <p style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+                              {routine.category} · {routine.duration}
+                            </p>
+                          </div>
                         </div>
-                      ))}
-                    </div>
-                    <div style={{
-                      display: "flex", justifyContent: "space-between", alignItems: "center",
-                      paddingTop: 12, borderTop: "1px solid var(--border)",
-                    }}>
-                      <span style={{
-                        padding: "3px 9px",
-                        background: `${getDifficultyColor(routine.difficulty)}20`,
-                        color: getDifficultyColor(routine.difficulty),
-                        borderRadius: 6, fontSize: 11, fontWeight: 600,
-                      }}>
-                        {routine.difficulty}
-                      </span>
-                      <div style={{ display: "flex", gap: 6 }}>
-                        <motion.button className="icon-btn" style={{ padding: 6 }}
-                          onClick={e => openEdit(e, routine)} title="Editar"
-                          whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-                          <FiEdit size={13} />
-                        </motion.button>
-                        <motion.button className="icon-btn" style={{ padding: 6 }}
-                          onClick={e => handleDuplicate(e, routine.id, routine.name)} title="Duplicar"
-                          whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-                          <FiCopy size={13} />
-                        </motion.button>
-                        <motion.button className="icon-btn danger" style={{ padding: 6 }}
-                          onClick={e => handleDelete(e, routine.id, routine.name)} title="Eliminar"
-                          whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-                          <FiTrash2 size={13} />
-                        </motion.button>
-                      </div>
-                    </div>
+                        <p style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 12, lineHeight: 1.5 }}>
+                          {routine.description || "Sin descripción"}
+                        </p>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
+                          {[
+                            { label: "Ejercicios", value: routine.exercises, color: "var(--accent)" },
+                            { label: "Clientes",   value: routine.clients,   color: "var(--success)" },
+                          ].map(s => (
+                            <div key={s.label} style={{ background: "var(--bg-card)", padding: 8, borderRadius: 8, textAlign: "center" }}>
+                              <div style={{ color: "var(--text-secondary)", fontSize: 10, marginBottom: 3 }}>{s.label}</div>
+                              <div style={{ fontSize: 15, fontWeight: 700, color: s.color }}>{s.value}</div>
+                            </div>
+                          ))}
+                        </div>
+                        <div style={{
+                          display: "flex", justifyContent: "space-between", alignItems: "center",
+                          paddingTop: 12, borderTop: "1px solid var(--border)",
+                        }}>
+                          <span style={{
+                            padding: "3px 9px",
+                            background: `${getDifficultyColor(routine.difficulty)}20`,
+                            color: getDifficultyColor(routine.difficulty),
+                            borderRadius: 6, fontSize: 11, fontWeight: 600,
+                          }}>
+                            {routine.difficulty}
+                          </span>
+                          <div style={{ display: "flex", gap: 6 }}>
+                            <motion.button className="icon-btn" style={{ padding: 6 }}
+                              onClick={() => setSelectedRoutine(routine)} title="Ver detalle"
+                              whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                              <FiEye size={13} />
+                            </motion.button>
+                            <motion.button className="icon-btn" style={{ padding: 6 }}
+                              onClick={e => openEdit(e, routine)} title="Editar"
+                              whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                              <FiEdit size={13} />
+                            </motion.button>
+                            <motion.button className="icon-btn" style={{ padding: 6 }}
+                              onClick={e => handleDuplicate(e, routine.id, routine.name)} title="Duplicar"
+                              whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                              <FiCopy size={13} />
+                            </motion.button>
+                            <motion.button className="icon-btn danger" style={{ padding: 6 }}
+                              onClick={e => handleDelete(e, routine.id, routine.name)} title="Eliminar"
+                              whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                              <FiTrash2 size={13} />
+                            </motion.button>
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
                   </motion.div>
-                ))}
-              </motion.div>
-            )}
+                  <Pagination
+                    page={routinesPage} total={routines.length}
+                    perPage={ROUTINES_PER_PAGE} onPage={setRoutinesPage}
+                  />
+                </>
+              );
+            })()}
 
             {!loadingR && routines.length === 0 && (
               <div className="empty-state">
@@ -1116,59 +1631,103 @@ export default function TrainerRoutines() {
                   <FiPlus size={14} /> Crear primer ejercicio
                 </button>
               </div>
-            ) : (
-              <div className="custom-table-container" style={{ borderRadius: 0, border: "none" }}>
-                <table className="admin-table">
-                  <thead>
-                    <tr>
-                      <th>Nombre</th>
-                      <th>Grupo muscular</th>
-                      <th>Tipo</th>
-                      <th>Series × Reps</th>
-                      <th style={{ width: 80, textAlign: "center" }}>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {exercises.map(ex => (
-                      <tr key={ex.id}>
-                        <td className="font-bold">
-                          {ex.nombre}
-                          {ex.descripcion && (
-                            <div style={{ fontSize: 11, color: "var(--text-secondary)", fontWeight: 400, marginTop: 2 }}>
-                              {ex.descripcion.slice(0, 80)}{ex.descripcion.length > 80 ? "…" : ""}
-                            </div>
-                          )}
-                        </td>
-                        <td>{ex.grupo_muscular || "—"}</td>
-                        <td>{ex.tipo || "—"}</td>
-                        <td>
-                          {ex.series ? `${ex.series} × ${ex.repeticiones || "—"}` : "—"}
-                        </td>
-                        <td style={{ textAlign: "center" }}>
-                          <div style={{ display: "flex", gap: 6, justifyContent: "center" }}>
-                            <motion.button className="icon-btn" style={{ padding: 5 }}
-                              title="Editar"
-                              onClick={() => { setEditingEx(ex); setShowExForm(true); }}
-                              whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-                              <FiEdit size={13} />
-                            </motion.button>
-                            <motion.button className="icon-btn danger" style={{ padding: 5 }}
-                              title="Eliminar"
-                              onClick={() => handleDeleteEx(ex)}
-                              whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-                              <FiTrash2 size={13} />
-                            </motion.button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            ) : (() => {
+              const startIdx = (exPage - 1) * EX_PER_PAGE;
+              const pagedEx  = exercises.slice(startIdx, startIdx + EX_PER_PAGE);
+              return (
+                <>
+                  <div className="custom-table-container" style={{ borderRadius: 0, border: "none" }}>
+                    <table className="admin-table">
+                      <thead>
+                        <tr>
+                          <th>Nombre</th>
+                          <th>Grupo muscular</th>
+                          <th>Tipo</th>
+                          <th>Series × Reps</th>
+                          <th style={{ width: 110, textAlign: "center" }}>Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pagedEx.map(ex => (
+                          <tr key={ex.id}>
+                            <td className="font-bold">
+                              <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                                {ex.nombre}
+                                {(ex.imagenes?.length > 0) && (
+                                  <span title={`${ex.imagenes.length} imagen(es)`}
+                                    style={{ color: "var(--accent)", opacity: 0.75, lineHeight: 0 }}>
+                                    <FiImage size={12} />
+                                  </span>
+                                )}
+                                {ex.video && (
+                                  <span title="Tiene video" style={{ color: "var(--success)", opacity: 0.8, lineHeight: 0 }}>
+                                    <FiVideo size={12} />
+                                  </span>
+                                )}
+                              </div>
+                              {ex.descripcion && (
+                                <div style={{ fontSize: 11, color: "var(--text-secondary)", fontWeight: 400, marginTop: 2 }}>
+                                  {ex.descripcion.slice(0, 80)}{ex.descripcion.length > 80 ? "…" : ""}
+                                </div>
+                              )}
+                            </td>
+                            <td>{ex.grupo_muscular || "—"}</td>
+                            <td>{ex.tipo || "—"}</td>
+                            <td>{ex.series ? `${ex.series} × ${ex.repeticiones || "—"}` : "—"}</td>
+                            <td style={{ textAlign: "center" }}>
+                              <div style={{ display: "flex", gap: 5, justifyContent: "center" }}>
+                                <motion.button className="icon-btn" style={{ padding: 5 }}
+                                  title="Ver detalle"
+                                  onClick={() => setViewingEx(ex)}
+                                  whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                                  <FiEye size={13} />
+                                </motion.button>
+                                <motion.button className="icon-btn" style={{ padding: 5 }}
+                                  title="Editar"
+                                  onClick={() => { setEditingEx(ex); setShowExForm(true); }}
+                                  whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                                  <FiEdit size={13} />
+                                </motion.button>
+                                <motion.button className="icon-btn danger" style={{ padding: 5 }}
+                                  title="Eliminar"
+                                  onClick={() => handleDeleteEx(ex)}
+                                  whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                                  <FiTrash2 size={13} />
+                                </motion.button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div style={{ padding: "4px 16px 16px" }}>
+                    <Pagination
+                      page={exPage} total={exercises.length}
+                      perPage={EX_PER_PAGE} onPage={setExPage}
+                    />
+                  </div>
+                </>
+              );
+            })()}
           </motion.div>
 
-          {/* Modal ejercicio */}
+          {/* Modal detalle ejercicio */}
+          <AnimatePresence>
+            {viewingEx && (
+              <ExerciseDetailModal
+                exercise={viewingEx}
+                onClose={() => setViewingEx(null)}
+                onEdit={() => {
+                  setEditingEx(viewingEx);
+                  setShowExForm(true);
+                  setViewingEx(null);
+                }}
+              />
+            )}
+          </AnimatePresence>
+
+          {/* Modal crear / editar ejercicio */}
           <AnimatePresence>
             {showExForm && (
               <ExerciseFormModal
@@ -1179,7 +1738,10 @@ export default function TrainerRoutines() {
                   tipo:           editingEx.tipo || "",
                   series:         editingEx.series || "",
                   repeticiones:   editingEx.repeticiones || "",
+                  imagenes:       editingEx.imagenes || [],
+                  video:          editingEx.video || null,
                 } : null}
+                exerciseId={editingEx?.id}
                 onSave={handleSaveEx}
                 onClose={() => { setShowExForm(false); setEditingEx(null); }}
                 saving={savingEx}
