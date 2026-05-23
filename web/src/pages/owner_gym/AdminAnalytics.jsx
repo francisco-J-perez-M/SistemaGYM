@@ -71,7 +71,7 @@ const ErrorBox = ({ msg }) => (
 const LoadingSpinner = () => (
   <div style={{ textAlign: "center", padding: 48, color: "var(--text-secondary)" }}>
     <div style={{ fontSize: 32, marginBottom: 8 }}>⟳</div>
-    Cargando datos de Spark…
+    Cargando análisis…
   </div>
 );
 
@@ -139,9 +139,16 @@ function TabMapReduce() {
       ).sort((a, b) => a.periodo.localeCompare(b.periodo)).slice(-12)
     : [];
 
+  // Agrega ingresos por metodo_pago sumando todos los periodos
   const resumenMetodos = data
-    ? (data.resumen_ingresos || [])
-        .map(r => ({ name: r.metodo_pago, value: r.total_ingresos || 0 }))
+    ? Object.values(
+        (data.ingresos_por_periodo || []).reduce((acc, row) => {
+          const k = row.metodo_pago || "Sin especificar";
+          if (!acc[k]) acc[k] = { name: k, value: 0 };
+          acc[k].value += row.total_ingresos || 0;
+          return acc;
+        }, {})
+      )
     : [];
 
   const asistenciaDia = data
@@ -457,6 +464,22 @@ function TabRegresion() {
 // ─────────────────────────────────────────────────────────────────────────────
 // TAB: Cancelaciones
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Traduce los nombres de features técnicos a etiquetas legibles para el dueño
+const FEATURE_LABELS = {
+  dias_sin_asistir:        "Días sin asistir",
+  num_asistencias_ult60:   "Visitas en los últimos 2 meses",
+  tiene_membresia_activa:  "Membresía vigente",
+  total_pagos:             "Historial de pagos",
+  meses_activo:            "Tiempo como miembro",
+};
+
+const ACCION_POR_RIESGO = {
+  alto:  "Contactar urgente",
+  medio: "Hacer seguimiento",
+  bajo:  "Activo — sin acción",
+};
+
 function TabCancelaciones() {
   const [data, setData]         = useState(null);
   const [loading, setLoading]   = useState(true);
@@ -483,7 +506,7 @@ function TabCancelaciones() {
       const r = await fetch(`${API_BASE}/api/analytics/cancelaciones/train`, { method: "POST", headers });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || "Error");
-      setData(j); setTrainMsg("Modelo actualizado correctamente");
+      setData(j); setTrainMsg("Análisis actualizado correctamente");
     } catch (e) { setError(e.message); }
     finally { setTL(false); }
   };
@@ -491,27 +514,26 @@ function TabCancelaciones() {
   // ── Exportar reporte PDF via ventana de impresión ─────────────────────────
   const exportPDF = () => {
     if (!data) return;
-    const now = new Date().toLocaleString();
-    const acc = ((data.metricas?.accuracy || 0) * 100).toFixed(1);
-    const auc = ((data.metricas?.auc_roc || 0)).toFixed(3);
+    const now   = new Date().toLocaleString("es-MX");
     const preds = (data.predicciones || []).slice(0, 50);
+    const total = (data.resumen?.riesgo_alto||0) + (data.resumen?.riesgo_medio||0) + (data.resumen?.activos||0);
 
     const distRows = [
-      { label: "Riesgo Alto",   value: data.resumen?.riesgo_alto || 0,  color: "#ef4444" },
-      { label: "Riesgo Medio",  value: data.resumen?.riesgo_medio || 0, color: "#f59e0b" },
-      { label: "Activos",       value: data.resumen?.activos || 0,       color: "#10b981" },
+      { label: "Atención urgente",   value: data.resumen?.riesgo_alto  || 0, color: "#ef4444" },
+      { label: "Seguimiento",        value: data.resumen?.riesgo_medio || 0, color: "#f59e0b" },
+      { label: "Activos y estables", value: data.resumen?.activos      || 0, color: "#10b981" },
     ];
-    const featRows = (data.importancia_features || []).slice(0, 8);
+    const featRows = (data.importancia_features || []).slice(0, 5);
 
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
-<title>Reporte Cancelaciones IA — ${now}</title>
+<title>Reporte de Retención — ${now}</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: Arial, sans-serif; font-size: 12px; color: #1a1a1a; padding: 30px 40px; }
   h1 { font-size: 20px; color: #1a1a2e; margin-bottom: 4px; }
   .sub { color: #666; font-size: 11px; margin-bottom: 24px; }
-  h2 { font-size: 14px; color: #1a1a2e; margin: 20px 0 8px; border-bottom: 2px solid #6366f1; padding-bottom: 4px; }
-  .explain { background: #f5f5ff; border-left: 3px solid #6366f1; padding: 8px 12px; font-size: 11px; color: #444; margin-bottom: 12px; border-radius: 0 4px 4px 0; }
+  h2 { font-size: 14px; color: #1a1a2e; margin: 20px 0 8px; border-bottom: 2px solid #f59e0b; padding-bottom: 4px; }
+  .info { background: #fffbeb; border-left: 3px solid #f59e0b; padding: 8px 12px; font-size: 11px; color: #444; margin-bottom: 12px; border-radius: 0 4px 4px 0; }
   .kpis { display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
   .kpi { background: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 8px; padding: 12px 16px; flex: 1; min-width: 120px; }
   .kpi-v { font-size: 22px; font-weight: 700; color: #1a1a2e; }
@@ -520,42 +542,38 @@ function TabCancelaciones() {
   th { background: #1a1a2e; color: #fff; padding: 7px 10px; text-align: left; font-size: 11px; }
   td { padding: 6px 10px; border-bottom: 1px solid #eee; font-size: 11px; }
   tr:nth-child(even) td { background: #fafafa; }
-  .badge-alto  { background:#fee2e2; color:#b91c1c; border-radius:4px; padding:2px 8px; font-weight:700; }
-  .badge-medio { background:#fef3c7; color:#92400e; border-radius:4px; padding:2px 8px; font-weight:700; }
-  .badge-bajo  { background:#d1fae5; color:#065f46; border-radius:4px; padding:2px 8px; font-weight:700; }
-  .bar-wrap { background:#e5e7eb; border-radius:4px; height:12px; }
-  .bar { background:#6366f1; border-radius:4px; height:12px; }
+  .badge-alto  { background:#fee2e2; color:#b91c1c; border-radius:4px; padding:2px 8px; font-weight:700; font-size:10px; }
+  .badge-medio { background:#fef3c7; color:#92400e; border-radius:4px; padding:2px 8px; font-weight:700; font-size:10px; }
+  .badge-bajo  { background:#d1fae5; color:#065f46; border-radius:4px; padding:2px 8px; font-weight:700; font-size:10px; }
+  .bar-wrap { background:#e5e7eb; border-radius:4px; height:10px; }
+  .bar { border-radius:4px; height:10px; }
   footer { margin-top: 32px; font-size: 10px; color: #999; border-top: 1px solid #eee; padding-top: 8px; }
   @media print { body { padding: 20px; } }
 </style></head><body>
-<h1>Reporte de Riesgo de Cancelación — IA</h1>
-<p class="sub">Generado el ${now} &nbsp;|&nbsp; Algoritmo: Random Forest Classifier</p>
+<h1>Reporte de Retención de Miembros</h1>
+<p class="sub">Generado el ${now} &nbsp;|&nbsp; ${total} miembros analizados</p>
 
 <div class="kpis">
-  <div class="kpi"><div class="kpi-v" style="color:#ef4444">${data.resumen?.riesgo_alto || 0}</div><div class="kpi-l">Riesgo Alto</div></div>
-  <div class="kpi"><div class="kpi-v" style="color:#f59e0b">${data.resumen?.riesgo_medio || 0}</div><div class="kpi-l">Riesgo Medio</div></div>
-  <div class="kpi"><div class="kpi-v" style="color:#10b981">${data.resumen?.activos || 0}</div><div class="kpi-l">Activos Estables</div></div>
-  <div class="kpi"><div class="kpi-v" style="color:#6366f1">${acc}%</div><div class="kpi-l">Precisión Modelo</div></div>
-  <div class="kpi"><div class="kpi-v" style="color:#6366f1">${auc}</div><div class="kpi-l">AUC-ROC</div></div>
+  <div class="kpi"><div class="kpi-v" style="color:#ef4444">${data.resumen?.riesgo_alto || 0}</div><div class="kpi-l">Atención urgente</div></div>
+  <div class="kpi"><div class="kpi-v" style="color:#f59e0b">${data.resumen?.riesgo_medio || 0}</div><div class="kpi-l">Hacer seguimiento</div></div>
+  <div class="kpi"><div class="kpi-v" style="color:#10b981">${data.resumen?.activos || 0}</div><div class="kpi-l">Activos y estables</div></div>
+  <div class="kpi"><div class="kpi-v" style="color:#1a1a2e">${total}</div><div class="kpi-l">Total analizados</div></div>
 </div>
 
-<h2>¿Qué mide este modelo?</h2>
-<div class="explain">
-  El modelo <strong>Random Forest Classifier</strong> analiza el comportamiento de cada miembro para predecir la probabilidad de que
-  cancele o no renueve su membresía en los próximos días.<br><br>
-  <strong>Criterio de riesgo:</strong> un miembro se clasifica como "en riesgo" si lleva más de 21 días sin asistir
-  o si su membresía está vencida. El modelo aprende de 5 variables (features) y produce una probabilidad entre 0 y 1.<br><br>
-  <strong>Precisión (accuracy):</strong> porcentaje de predicciones correctas en el conjunto de prueba.<br>
-  <strong>AUC-ROC:</strong> capacidad del modelo de distinguir entre miembros en riesgo y activos (1.0 = perfecto, 0.5 = azar).
+<h2>¿Cómo funciona este análisis?</h2>
+<div class="info">
+  El sistema revisa automáticamente el historial de cada miembro — sus visitas, pagos y estado de membresía —
+  para detectar quiénes tienen mayor probabilidad de no renovar o dejar de asistir.<br><br>
+  <strong>Atención urgente:</strong> llevan más de 3 semanas sin venir o su membresía ya venció.<br>
+  <strong>Hacer seguimiento:</strong> señales tempranas de alejamiento; un contacto a tiempo puede retenerlos.
 </div>
 
-<h2>Distribución de Riesgo</h2>
+<h2>Distribución de tu base de miembros</h2>
 <table>
-  <thead><tr><th>Categoría</th><th>Miembros</th><th>%</th><th>Barra</th></tr></thead>
+  <thead><tr><th>Estado</th><th>Miembros</th><th>Del total</th><th>Proporción</th></tr></thead>
   <tbody>
     ${distRows.map(r => {
-      const total = (data.resumen?.riesgo_alto||0)+(data.resumen?.riesgo_medio||0)+(data.resumen?.activos||0);
-      const pct = total > 0 ? ((r.value / total)*100).toFixed(1) : "0.0";
+      const pct = total > 0 ? ((r.value / total) * 100).toFixed(1) : "0.0";
       return `<tr>
         <td><span style="color:${r.color};font-weight:700">${r.label}</span></td>
         <td>${r.value}</td><td>${pct}%</td>
@@ -565,48 +583,43 @@ function TabCancelaciones() {
   </tbody>
 </table>
 
-<h2>Importancia de Variables (Features)</h2>
-<div class="explain">
-  Indica qué tan decisiva es cada variable para la predicción. Valores más altos = mayor influencia en el resultado.
-  <ul style="margin-top:6px;padding-left:18px">
-    <li><strong>dias_sin_asistir</strong>: días desde la última asistencia registrada</li>
-    <li><strong>num_asistencias_ult60</strong>: cuántas veces asistió en los últimos 60 días</li>
-    <li><strong>tiene_membresia_activa</strong>: 1 si la membresía está vigente, 0 si venció</li>
-    <li><strong>total_pagos</strong>: total de pagos históricos del miembro</li>
-    <li><strong>meses_activo</strong>: meses desde que se registró en el gimnasio</li>
-  </ul>
-</div>
+<h2>¿Qué influye más en el riesgo?</h2>
+<div class="info">Factores ordenados por su peso en la detección de riesgo.</div>
 <table>
-  <thead><tr><th>Variable</th><th>Importancia</th><th>Barra</th></tr></thead>
+  <thead><tr><th>Factor</th><th>Peso</th><th>Barra</th></tr></thead>
   <tbody>
-    ${featRows.map(f => `<tr>
-      <td>${f.feature}</td><td>${(f.importancia*100).toFixed(1)}%</td>
-      <td><div class="bar-wrap"><div class="bar" style="width:${(f.importancia*100).toFixed(1)}%"></div></div></td>
-    </tr>`).join("")}
+    ${featRows.map(f => {
+      const label = FEATURE_LABELS[f.feature] || f.feature;
+      const pct   = (f.importancia * 100).toFixed(1);
+      return `<tr>
+        <td>${label}</td><td>${pct}%</td>
+        <td><div class="bar-wrap"><div class="bar" style="background:#f59e0b;width:${pct}%"></div></div></td>
+      </tr>`;
+    }).join("")}
   </tbody>
 </table>
 
-<h2>Miembros en Riesgo (top ${Math.min(50, preds.length)})</h2>
-<div class="explain">
-  Lista ordenada de mayor a menor probabilidad de cancelación. Prioriza contactar a los de <strong>Riesgo Alto</strong> primero.
-</div>
+<h2>Miembros prioritarios (top ${Math.min(50, preds.length)})</h2>
+<div class="info">Prioriza los de <strong>Atención urgente</strong>. Un mensaje o llamada puede hacer la diferencia.</div>
 <table>
-  <thead><tr><th>#</th><th>Miembro</th><th>Días sin asistir</th><th>Membresía activa</th><th>Prob. cancelación</th><th>Riesgo</th></tr></thead>
+  <thead><tr><th>#</th><th>Miembro</th><th>Sin visitar</th><th>Membresía</th><th>Nivel de riesgo</th><th>Acción sugerida</th></tr></thead>
   <tbody>
-    ${preds.map((p, i) => `<tr>
-      <td>${i+1}</td>
-      <td>${p.nombre || p.id_miembro}</td>
-      <td>${p.dias_sin_asistir ?? "—"}</td>
-      <td>${p.membresia_activa ? "Sí" : "No"}</td>
-      <td style="font-weight:700;color:${p.riesgo==="alto"?"#b91c1c":p.riesgo==="medio"?"#92400e":"#065f46"}">
-        ${((p.probabilidad||0)*100).toFixed(1)}%
-      </td>
-      <td><span class="badge-${p.riesgo}">${(p.riesgo||"").toUpperCase()}</span></td>
-    </tr>`).join("")}
+    ${preds.map((p, i) => {
+      const accion = p.riesgo === "alto" ? "Contactar urgente" : p.riesgo === "medio" ? "Hacer seguimiento" : "Sin acción";
+      const dias = p.dias_sin_asistir != null ? `${p.dias_sin_asistir} días` : "—";
+      return `<tr>
+        <td>${i + 1}</td>
+        <td>${p.nombre || p.id_miembro}</td>
+        <td>${dias}</td>
+        <td>${p.membresia_activa ? "Vigente" : "Vencida"}</td>
+        <td><span class="badge-${p.riesgo}">${p.riesgo === "alto" ? "URGENTE" : p.riesgo === "medio" ? "ATENCIÓN" : "ESTABLE"}</span></td>
+        <td style="color:${p.riesgo==="alto"?"#b91c1c":p.riesgo==="medio"?"#92400e":"#065f46"};font-weight:600">${accion}</td>
+      </tr>`;
+    }).join("")}
   </tbody>
 </table>
 
-<footer>GymPro — Análisis de Cancelaciones IA &nbsp;|&nbsp; ${now} &nbsp;|&nbsp; Random Forest · ${data.resumen?.total || 0} miembros analizados</footer>
+<footer>GymPro — Reporte de Retención &nbsp;|&nbsp; ${now} &nbsp;|&nbsp; ${total} miembros analizados</footer>
 </body></html>`;
 
     const win = window.open("", "_blank", "width=900,height=700");
@@ -618,33 +631,38 @@ function TabCancelaciones() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const distribucion = [
-    { name: "Riesgo Alto",  value: data?.resumen?.riesgo_alto || 0,  fill: DANGER  },
-    { name: "Riesgo Medio", value: data?.resumen?.riesgo_medio || 0, fill: WARNING },
-    { name: "Activos",      value: data?.resumen?.activos || 0,      fill: SUCCESS },
+    { name: "Atención urgente",   value: data?.resumen?.riesgo_alto  || 0, fill: DANGER  },
+    { name: "Hacer seguimiento",  value: data?.resumen?.riesgo_medio || 0, fill: WARNING },
+    { name: "Activos y estables", value: data?.resumen?.activos      || 0, fill: SUCCESS },
   ];
 
-  const importancia = (data?.importancia_features || [])
-    .map(f => ({ feature: f.feature, valor: parseFloat((f.importancia||0).toFixed(3)) }));
+  // Feature importance con etiquetas legibles
+  const importancia = (data?.importancia_features || []).map(f => ({
+    feature: FEATURE_LABELS[f.feature] || f.feature,
+    valor:   parseFloat((f.importancia || 0).toFixed(3)),
+  }));
 
-  const altaRiesgo = (data?.predicciones || [])
-    .filter(p => p.riesgo === "alto")
-    .slice(0, 10);
+  // Top miembros en riesgo (alto + medio)
+  const enRiesgo = (data?.predicciones || [])
+    .filter(p => p.riesgo === "alto" || p.riesgo === "medio")
+    .slice(0, 15);
 
   if (loading) return <LoadingSpinner />;
   if (error)   return <ErrorBox msg={error} />;
   if (!data)   return null;
 
+  const totalAnalizado = (data.resumen?.riesgo_alto || 0) + (data.resumen?.riesgo_medio || 0) + (data.resumen?.activos || 0);
+
   return (
     <div>
       {/* KPIs + acciones */}
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
-        <StatCard label="En riesgo alto"   value={data.resumen?.riesgo_alto || 0}  color={DANGER} />
-        <StatCard label="En riesgo medio"  value={data.resumen?.riesgo_medio || 0} color={WARNING} />
-        <StatCard label="Activos estables" value={data.resumen?.activos || 0}      color={SUCCESS} />
-        <StatCard label="Precisión (acc)"  value={`${((data.metricas?.accuracy||0)*100).toFixed(1)}%`} color={INFO} />
-        <StatCard label="AUC-ROC"          value={(data.metricas?.auc_roc||0).toFixed(3)} color={PURPLE} />
+        <StatCard label="Atención urgente"   value={data.resumen?.riesgo_alto  || 0} color={DANGER}  />
+        <StatCard label="Hacer seguimiento"  value={data.resumen?.riesgo_medio || 0} color={WARNING} />
+        <StatCard label="Activos y estables" value={data.resumen?.activos      || 0} color={SUCCESS} />
+        <StatCard label="Total analizados"   value={totalAnalizado}                  color={INFO}    />
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <TrainBtn loading={trainLoading} onClick={handleTrain} label="Reentrenar Random Forest" />
+          <TrainBtn loading={trainLoading} onClick={handleTrain} label="Actualizar análisis" />
           <button onClick={exportPDF}
             style={{ display: "flex", alignItems: "center", gap: 7, padding: "8px 16px", borderRadius: 8,
               background: "rgba(99,102,241,.15)", border: "1px solid rgba(99,102,241,.4)",
@@ -660,30 +678,30 @@ function TabCancelaciones() {
         </div>
       </div>
 
-      {/* Explicación del modelo */}
-      <div style={{ background: "rgba(99,102,241,.07)", border: "1px solid rgba(99,102,241,.2)",
+      {/* Explicación en lenguaje de negocio */}
+      <div style={{ background: "rgba(251,227,121,.07)", border: "1px solid rgba(251,227,121,.25)",
         borderRadius: 10, padding: "12px 16px", marginBottom: 20, fontSize: 13, color: "var(--text-secondary)",
-        lineHeight: 1.6 }}>
+        lineHeight: 1.7 }}>
         <strong style={{ color: "var(--text-primary)" }}>¿Qué estás viendo?</strong>{" "}
-        Este análisis usa un <strong>Random Forest Classifier</strong> entrenado con el historial de asistencia,
-        pagos y estado de membresía de tus miembros. El modelo predice la probabilidad de que un miembro
-        cancele o no renueve. Un miembro se considera "en riesgo" si lleva más de 21 días sin asistir
-        o si su membresía está vencida. La <strong>precisión</strong> indica qué tan acertado es el modelo
-        en datos de prueba; el <strong>AUC-ROC</strong> mide su capacidad de distinguir entre activos
-        y en riesgo (1.0 = perfecto).
+        El sistema revisó el historial de tus <strong style={{ color: "var(--text-primary)" }}>{totalAnalizado} miembros</strong> —
+        asistencias, pagos y estado de membresía — para detectar quiénes tienen mayor probabilidad de no renovar.
+        Los de <strong style={{ color: DANGER }}>Atención urgente</strong> llevan más de 3 semanas sin venir
+        o su membresía ya venció. Los de <strong style={{ color: WARNING }}>Seguimiento</strong> muestran señales
+        tempranas; un contacto a tiempo puede retenerlos.
       </div>
 
       <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
+        {/* Gráfica de pastel */}
         <div style={{ flex: 1, minWidth: 240 }}>
-          <SectionTitle>Distribución de riesgo</SectionTitle>
+          <SectionTitle>Estado de tu base de miembros</SectionTitle>
           <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "-4px 0 8px" }}>
-            Porcentaje de tu base de miembros por nivel de riesgo de cancelación.
+            Distribución actual de los {totalAnalizado} miembros analizados.
           </p>
           <ResponsiveContainer width="100%" height={200}>
             <PieChart>
               <Pie data={distribucion} dataKey="value" nameKey="name"
                    cx="50%" cy="50%" outerRadius={75}
-                   label={({ name, percent }) => `${(percent*100).toFixed(0)}%`}>
+                   label={({ percent }) => `${(percent * 100).toFixed(0)}%`}>
                 {distribucion.map((d, i) => <Cell key={i} fill={d.fill} />)}
               </Pie>
               <Tooltip />
@@ -692,65 +710,72 @@ function TabCancelaciones() {
           </ResponsiveContainer>
         </div>
 
+        {/* Factores de riesgo */}
         {importancia.length > 0 && (
           <div style={{ flex: 1, minWidth: 260 }}>
-            <SectionTitle>Importancia de variables (Random Forest)</SectionTitle>
+            <SectionTitle>¿Por qué están en riesgo?</SectionTitle>
             <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "-4px 0 8px" }}>
-              Qué tan determinante es cada variable para la predicción. Mayor valor = más influencia.
+              Factores que más influyen en detectar si un miembro podría irse.
             </p>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={importancia} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border-dark)" />
-                <XAxis type="number" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} />
-                <YAxis type="category" dataKey="feature" width={155}
+                <XAxis type="number" tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
+                       tickFormatter={v => `${(v * 100).toFixed(0)}%`} />
+                <YAxis type="category" dataKey="feature" width={180}
                        tick={{ fill: "var(--text-secondary)", fontSize: 11 }} />
-                <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="valor" name="Importancia" fill={PURPLE} radius={[0,4,4,0]} />
+                <Tooltip formatter={v => [`${(v * 100).toFixed(1)}%`, "Influencia"]} />
+                <Bar dataKey="valor" name="Influencia" fill={WARNING} radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         )}
       </div>
 
-      {altaRiesgo.length > 0 && (
+      {/* Tabla de miembros en riesgo */}
+      {enRiesgo.length > 0 && (
         <>
-          <SectionTitle>Miembros con mayor riesgo de cancelación</SectionTitle>
+          <SectionTitle>Miembros que necesitan atención</SectionTitle>
           <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "-8px 0 10px" }}>
-            Ordenados de mayor a menor probabilidad. Contáctalos para evitar que se vayan.
+            Ordenados por prioridad. Contacta primero a los de <strong style={{ color: DANGER }}>Atención urgente</strong>.
           </p>
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
                 <tr style={{ background: "var(--bg-input)" }}>
-                  {["Miembro","Días sin asistir","Membresía activa","Prob. cancelación","Riesgo"].map(h => (
+                  {["Miembro", "Sin visitar", "Membresía", "Estado", "Acción sugerida"].map(h => (
                     <th key={h} style={{ padding: "8px 12px", textAlign: "left", color: "var(--text-secondary)", fontWeight: 500 }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {altaRiesgo.map((p, i) => (
-                  <tr key={i} style={{ borderBottom: "1px solid var(--border-dark)" }}>
-                    <td style={{ padding: "8px 12px" }}>{p.nombre || p.id_miembro}</td>
-                    <td style={{ padding: "8px 12px" }}>{p.dias_sin_asistir ?? "—"}</td>
-                    <td style={{ padding: "8px 12px" }}>
-                      <span style={{ color: p.membresia_activa ? SUCCESS : DANGER, fontWeight: 600 }}>
-                        {p.membresia_activa ? "Sí" : "No"}
-                      </span>
-                    </td>
-                    <td style={{ padding: "8px 12px", color: DANGER, fontWeight: 600 }}>
-                      {((p.probabilidad || 0) * 100).toFixed(1)}%
-                    </td>
-                    <td style={{ padding: "8px 12px" }}>
-                      <span style={{
-                        background: p.riesgo === "alto" ? "rgba(255,77,77,0.15)" : "rgba(255,189,46,0.15)",
-                        color: p.riesgo === "alto" ? DANGER : WARNING,
-                        borderRadius: 6, padding: "2px 10px", fontWeight: 600, fontSize: 12,
-                      }}>
-                        {p.riesgo?.toUpperCase()}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                {enRiesgo.map((p, i) => {
+                  const isAlto   = p.riesgo === "alto";
+                  const badgeBg  = isAlto ? "rgba(255,77,77,0.15)" : "rgba(255,189,46,0.15)";
+                  const badgeFg  = isAlto ? DANGER : WARNING;
+                  const badgeTxt = isAlto ? "URGENTE" : "ATENCIÓN";
+                  return (
+                    <tr key={i} style={{ borderBottom: "1px solid var(--border-dark)" }}>
+                      <td style={{ padding: "8px 12px", fontWeight: 600 }}>{p.nombre || p.id_miembro}</td>
+                      <td style={{ padding: "8px 12px", color: p.dias_sin_asistir > 21 ? DANGER : "var(--text-primary)" }}>
+                        {p.dias_sin_asistir != null ? `${p.dias_sin_asistir} días` : "—"}
+                      </td>
+                      <td style={{ padding: "8px 12px" }}>
+                        <span style={{ color: p.membresia_activa ? SUCCESS : DANGER, fontWeight: 600 }}>
+                          {p.membresia_activa ? "Vigente" : "Vencida"}
+                        </span>
+                      </td>
+                      <td style={{ padding: "8px 12px" }}>
+                        <span style={{ background: badgeBg, color: badgeFg, borderRadius: 6, padding: "3px 10px", fontWeight: 700, fontSize: 11 }}>
+                          {badgeTxt}
+                        </span>
+                      </td>
+                      <td style={{ padding: "8px 12px", color: badgeFg, fontWeight: 600 }}>
+                        {ACCION_POR_RIESGO[p.riesgo] || "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -808,7 +833,7 @@ export default function AdminAnalytics() {
           Analytics Dashboard
         </h1>
         <p style={{ color: "var(--text-secondary)", fontSize: 14, marginTop: 6 }}>
-          Análisis distribuido con Apache Spark — datos en tiempo real con caché TTL
+          Análisis inteligente de tu gimnasio — datos en tiempo real con caché automático
         </p>
       </div>
 
