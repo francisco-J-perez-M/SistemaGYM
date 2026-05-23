@@ -274,7 +274,7 @@ export default function AnalyticsRegresion() {
       if (!r.ok) throw new Error(`Error ${r.status}`);
       const json = await r.json();
       setGlobalData(json);
-      setTrainMsg(json.mensaje || "Modelo reentrenado correctamente.");
+      setTrainMsg(json.mensaje || "Tendencias actualizadas correctamente.");
     } catch (e) {
       setGlobalError(e.message);
     } finally {
@@ -335,7 +335,7 @@ export default function AnalyticsRegresion() {
         <div>
           <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>Tendencias y Predicción</h2>
           <p style={{ color: "var(--text-secondary)", fontSize: 14 }}>
-            Regresión Lineal · Tendencia global y predicción individual por miembro
+            Tendencia de peso del gimnasio y proyección individual por miembro
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
@@ -354,7 +354,7 @@ export default function AnalyticsRegresion() {
                 <path d="M8 16H3v5"/>
               </svg>
             )}
-            {trainLoading ? "Entrenando..." : "Reentrenar modelo"}
+            {trainLoading ? "Actualizando..." : "Actualizar tendencias"}
           </button>
         </div>
       </div>
@@ -398,19 +398,19 @@ export default function AnalyticsRegresion() {
             </ResponsiveContainer>
           </div>
           <div className="stat-card" style={{ justifyContent: "center", alignItems: "center", gap: 10 }}>
-            <p style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--text-secondary)" }}>Precisión del modelo</p>
+            <p style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--text-secondary)" }}>Confiabilidad del análisis</p>
             <div style={{ fontSize: 52, fontWeight: 700, color: "var(--accent)", lineHeight: 1 }}>
               {r2 !== null ? r2.toFixed(2) : "—"}
             </div>
-            <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>Coeficiente R²</p>
+            <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>Qué tan precisa es la predicción</p>
             {r2 !== null && (
               <span style={{ padding: "4px 12px", borderRadius: 20, fontSize: 12, fontWeight: 600, background: r2 >= 0.8 ? "rgba(76,217,100,0.12)" : "rgba(255,189,46,0.12)", color: r2 >= 0.8 ? "var(--success-color)" : "var(--warning-color)" }}>
-                {r2 >= 0.9 ? "Excelente ajuste" : r2 >= 0.7 ? "Buen ajuste" : "Ajuste moderado"}
+                {r2 >= 0.9 ? "Muy confiable" : r2 >= 0.7 ? "Confiable" : "Moderadamente confiable"}
               </span>
             )}
             {rmse !== null && (
               <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-                RMSE: <strong style={{ color: "var(--text-primary)" }}>{parseFloat(rmse).toFixed(2)} kg</strong>
+                Margen de error: <strong style={{ color: "var(--text-primary)" }}>{parseFloat(rmse).toFixed(2)} kg</strong>
               </p>
             )}
           </div>

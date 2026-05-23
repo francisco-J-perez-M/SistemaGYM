@@ -63,7 +63,7 @@ export default function AnalyticsMapReduce() {
       if (!r.ok) throw new Error(`Error ${r.status}`);
       const json = await r.json();
       setData(json);
-      setTrainMsg(json.mensaje || "MapReduce re-ejecutado correctamente.");
+      setTrainMsg(json.mensaje || "Datos actualizados correctamente.");
     } catch (e) {
       setError(e.message);
     } finally {
@@ -78,8 +78,7 @@ export default function AnalyticsMapReduce() {
       <div className="dashboard-spinner" />
       <h3 style={{ marginTop: 24, marginBottom: 8, color: "var(--text-primary)" }}>Cargando análisis financiero...</h3>
       <p style={{ color: "var(--text-secondary)", maxWidth: 450, fontSize: 14, lineHeight: 1.5 }}>
-        Obteniendo los resultados del <b>MapReduce</b> desde la base de datos.
-        Si es la primera vez, los nodos de Spark se ejecutarán ahora.
+        Calculando ingresos y asistencia de tu gimnasio. Un momento por favor.
       </p>
     </div>
   );
@@ -142,7 +141,7 @@ export default function AnalyticsMapReduce() {
         <div>
           <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>Finanzas y Flujo</h2>
           <p style={{ color: "var(--text-secondary)", fontSize: 14 }}>
-            Análisis MapReduce · Ingresos y asistencia del gimnasio
+            Resumen de ingresos, pagos y asistencia de tu gimnasio
           </p>
         </div>
 
@@ -174,7 +173,7 @@ export default function AnalyticsMapReduce() {
                 <path d="M8 16H3v5"/>
               </svg>
             )}
-            {trainLoading ? "Procesando..." : "Reejecutar MapReduce"}
+            {trainLoading ? "Actualizando..." : "Actualizar datos"}
           </button>
         </div>
       </div>
