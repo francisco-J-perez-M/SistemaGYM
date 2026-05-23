@@ -80,10 +80,14 @@ export default function RegisterGym() {
         { ...gymData, tipo_gimnasio: selectedType },
         adminData,
       );
-      localStorage.setItem("access_token", res.access_token);
-      localStorage.setItem("user", JSON.stringify(res.admin));
+      localStorage.setItem("token", res.access_token);
+      localStorage.setItem("user", JSON.stringify({
+        ...res.admin,
+        primer_login: true,
+        id_gimnasio: res.gym?.id,
+      }));
       setSuccess(true);
-      setTimeout(() => navigate("/dashboard"), 1800);
+      setTimeout(() => navigate("/owner/bienvenida"), 1800);
     } catch (err) {
       setError(err.message);
     } finally {

@@ -7,6 +7,7 @@ import AuthPage    from "./components/auth/AuthPage";
 import RegisterGym from "./pages/publico/RegisterGym";
 
 // --- PÁGINAS DE OWNER GYM ---
+import OwnerOnboarding    from "./pages/owner_gym/OwnerOnboarding";
 import OwnerDashboard     from "./pages/owner_gym/OwnerDashboard";
 import OwnerStaff         from "./pages/owner_gym/OwnerStaff";
 import OwnerMemberships   from "./pages/owner_gym/OwnerMemberships";
@@ -71,7 +72,8 @@ function App() {
           {/* Ambas rutas apuntan al nuevo componente que maneja la vista internamente */}
           <Route path="/" element={<AuthPage />} />
           <Route path="/register" element={<AuthPage />} />
-          <Route path="/register-gym" element={<RegisterGym />} />
+          <Route path="/register-gym"     element={<RegisterGym />} />
+          <Route path="/owner/bienvenida" element={<OwnerOnboarding />} />
 
           {/* 2. RUTAS OWNER GYM */}
           <Route element={<Layout role="owner_gym" />}>
