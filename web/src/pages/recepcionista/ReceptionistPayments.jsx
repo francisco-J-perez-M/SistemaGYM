@@ -8,7 +8,7 @@ import {
 } from "react-icons/fi";
 import "../../css/CSSUnificado.css";
 
-const API_URL = "/api";
+const API_URL = "/api/recepcionista";
 
 const STATUS_BADGE = {
   completado: { bg: "rgba(34,197,94,0.15)",  color: "#22c55e" },
@@ -43,7 +43,7 @@ export default function ReceptionistPayments() {
     setError(null);
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.get(`${API_URL}/pagos/historial`, {
+      const res = await axios.get(`${API_URL}/payments`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const list = res.data.pagos || res.data || [];
