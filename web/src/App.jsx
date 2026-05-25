@@ -35,6 +35,7 @@ import UserHealth            from "./pages/miembro/UserHealth";
 import UserHealthUpdate      from "./pages/miembro/UserHealthUpdate";
 import UserMembershipRenewal from "./pages/miembro/UserMembershipRenewal";
 import UserWeightPrediction  from "./pages/miembro/UserWeightPrediction";
+import UserTraining          from "./pages/miembro/UserTraining";
 import CompleteProfile       from "./pages/miembro/CompleteProfile";
 
 // --- PÁGINAS DE ENTRENADOR ---
@@ -45,6 +46,7 @@ import TrainerSessions  from "./pages/entrenador/TrainerSessions";
 import TrainerRoutines  from "./pages/entrenador/TrainerRoutines";
 import TrainerReports   from "./pages/entrenador/TrainerReports";
 import TrainerProfile   from "./pages/entrenador/TrainerProfile";
+import TrainerRequests  from "./pages/entrenador/TrainerRequests";
 
 // --- PÁGINAS DE RECEPCIONISTA ---
 import ReceptionistDashboard    from "./pages/recepcionista/ReceptionistDashboard";
@@ -105,7 +107,8 @@ function App() {
             <Route path="/user/payments" element={<UserPayments />} />
             <Route path="/user/renew" element={<UserMembershipRenewal />} />
             <Route path="/user/profile" element={<UserProfile />} />
-            <Route path="/user/pos" element={<PointOfSale />} />
+            <Route path="/user/pos"      element={<PointOfSale />}   />
+            <Route path="/user/training" element={<UserTraining />}  />
             <Route path="/complete-profile" element={<CompleteProfile />} />
           </Route>
 
@@ -120,7 +123,8 @@ function App() {
             <Route path="/trainer/trainer-regresion" element={<TrainerRegresion />} />
             <Route path="/trainer/reports" element={<TrainerReports />} />
             <Route path="/trainer/profile" element={<TrainerProfile />} />
-            <Route path="/trainer/pos" element={<PointOfSale />} />
+            <Route path="/trainer/pos"      element={<PointOfSale />}    />
+            <Route path="/trainer/requests" element={<TrainerRequests />} />
           </Route>
 
           {/* 5. RUTAS RECEPCIONISTA */}

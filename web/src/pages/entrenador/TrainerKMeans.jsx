@@ -127,9 +127,14 @@ export default function TrainerKMeans() {
       const res   = await fetch(`${API_BASE}/api/analytics/kmeans?k=${k}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error(`Error ${res.status}`);
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        const err  = new Error(json.error || `Error ${res.status}`);
+        err.status = res.status;
+        throw err;
+      }
       setData(await res.json()); setPage(1);
-    } catch (e) { setError(e.message); }
+    } catch (e) { setError(e); }
     finally { setLoading(false); }
   }, []);
 
@@ -142,10 +147,15 @@ export default function TrainerKMeans() {
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ k: kValue, max_iter: 20 }),
       });
-      if (!res.ok) throw new Error(`Error ${res.status}`);
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        const err  = new Error(json.error || `Error ${res.status}`);
+        err.status = res.status;
+        throw err;
+      }
       setData(await res.json()); setPage(1);
       setSuccessMsg("Análisis actualizado correctamente con los datos más recientes.");
-    } catch (e) { setError(e.message); }
+    } catch (e) { setError(e); }
     finally { setTrainLoading(false); }
   }, [kValue]);
 
@@ -179,16 +189,36 @@ export default function TrainerKMeans() {
     </div>
   );
 
-  if (error && !data) return (
-    <div className="empty-state">
-      <FiAlertTriangle size={40} color="var(--danger)" style={{ marginBottom: 12 }} />
-      <h3>No se pudo cargar el análisis</h3>
-      <p style={{ color: "var(--text-secondary)" }}>{error}</p>
-      <button className="btn-compact-primary" style={{ marginTop: 16 }} onClick={() => fetchData(kValue)}>
-        Reintentar
-      </button>
-    </div>
-  );
+  if (error && !data) {
+    const sinDatos = error?.status === 400 || error?.message?.toLowerCase().includes("insuficiente");
+    return (
+      <div className="empty-state">
+        {sinDatos ? (
+          <>
+            <FiBarChart2 size={48} color="var(--accent)" style={{ marginBottom: 12 }} />
+            <h3 style={{ color: "var(--text-primary)" }}>Aún no hay datos suficientes</h3>
+            <p style={{ color: "var(--text-secondary)", maxWidth: 420, lineHeight: 1.6 }}>
+              El análisis de segmentación requiere al menos <strong>2 miembros</strong> con registros
+              de composición corporal (peso, grasa, IMC). Cuando haya suficientes datos, el análisis
+              se generará automáticamente.
+            </p>
+            <button className="btn-compact-primary" style={{ marginTop: 16 }} onClick={() => fetchData(kValue)}>
+              Revisar de nuevo
+            </button>
+          </>
+        ) : (
+          <>
+            <FiAlertTriangle size={40} color="var(--danger)" style={{ marginBottom: 12 }} />
+            <h3>No se pudo cargar el análisis</h3>
+            <p style={{ color: "var(--text-secondary)" }}>{error?.message || String(error)}</p>
+            <button className="btn-compact-primary" style={{ marginTop: 16 }} onClick={() => fetchData(kValue)}>
+              Reintentar
+            </button>
+          </>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="dashboard-content">
@@ -263,7 +293,7 @@ export default function TrainerKMeans() {
           display: "flex", alignItems: "center", gap: 8,
         }}>
           <FiAlertTriangle size={14} />
-          {error}
+          {error?.message || String(error)}
         </div>
       )}
 

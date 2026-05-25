@@ -2,9 +2,9 @@
  * POSCheckoutModal.jsx — Modal de confirmacion de cobro con seleccion
  * de miembro y datos segun metodo de pago (Efectivo / Tarjeta / Transferencia).
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { FiX, FiCheck, FiAlertCircle, FiCreditCard, FiRefreshCw, FiDollarSign, FiUser } from "react-icons/fi";
+import { FiX, FiCheck, FiAlertCircle, FiCreditCard, FiRefreshCw, FiDollarSign, FiUser, FiLock } from "react-icons/fi";
 import { registrarVenta } from "../../api/owner_gym";
 
 const fmt = (n) => `$${Number(n).toLocaleString("es-MX", { minimumFractionDigits: 2 })}`;
@@ -30,6 +30,19 @@ export default function CheckoutModal({ cart, miembros, onClose, onComplete }) {
   const [loading,    setLoading]  = useState(false);
   const [err,        setErr]      = useState("");
 
+  // Si el usuario autenticado es un Miembro, se auto-asigna la venta a él.
+  // lockedMiembro: { pgId: number, nombre: string } | null
+  const [lockedMiembro, setLockedMiembro] = useState(null);
+
+  useEffect(() => {
+    try {
+      const u = JSON.parse(localStorage.getItem("user") || "{}");
+      if (u.role === "Miembro" || u.role === "user") {
+        setLockedMiembro({ pgId: parseInt(u.id, 10), nombre: u.nombre || "" });
+      }
+    } catch { /* si no hay user en storage, no bloqueamos */ }
+  }, []);
+
   const total = cart.reduce((s, i) => s + i.precio * i.qty, 0);
 
   const handlePagar = async () => {
@@ -37,13 +50,21 @@ export default function CheckoutModal({ cart, miembros, onClose, onComplete }) {
     if (metodo === "Transferencia" && !referencia.trim()) { setErr("Ingresa la referencia de transferencia"); return; }
     setLoading(true); setErr("");
     try {
-      const miembroData = miembros.find(m => String(m.id) === String(miembro));
+      // Miembro auto-asignado (rol Miembro): usa el PG user ID para el lookup de email en backend.
+      // Selección manual (staff): usa el Mongo _id tal cual — se almacena en ventas sin conversión.
+      const id_miem   = lockedMiembro
+        ? lockedMiembro.pgId
+        : (miembro || null);
+      const nom_miem  = lockedMiembro
+        ? lockedMiembro.nombre
+        : (miembros.find(m => String(m.id) === String(miembro))?.nombre || "");
+
       const payload = {
         items:          cart.map(({ id, nombre, precio, qty, categoria }) => ({ id, nombre, precio, qty, categoria })),
         total,
         metodo_pago:    metodo,
-        id_miembro:     miembro ? Number(miembro) : null,
-        nombre_miembro: miembroData ? `${miembroData.nombre} ${miembroData.apellido || ""}`.trim() : "",
+        id_miembro:     id_miem,
+        nombre_miembro: nom_miem,
         numero_tarjeta: metodo === "Tarjeta"       ? tarjeta    : "",
         referencia:     metodo === "Transferencia" ? referencia : "",
       };
@@ -85,13 +106,40 @@ export default function CheckoutModal({ cart, miembros, onClose, onComplete }) {
           <div style={{ padding: "20px 22px", display: "flex", flexDirection: "column", gap: 14 }}>
             {/* Miembro */}
             <div>
-              <label style={labelSt}><FiUser style={{ display: "inline", marginRight: 4 }} size={11} />Miembro (opcional)</label>
-              <select style={inputSt} value={miembro} onChange={e => setMiembro(e.target.value)}>
-                <option value="">Venta sin miembro asociado</option>
-                {miembros.map(m => (
-                  <option key={m.id} value={m.id}>{m.nombre} {m.apellido}</option>
-                ))}
-              </select>
+              <label style={labelSt}>
+                <FiUser style={{ display: "inline", marginRight: 4 }} size={11} />
+                Miembro {lockedMiembro ? "" : "(opcional)"}
+              </label>
+
+              {lockedMiembro ? (
+                /* Compra propia: campo bloqueado, asignado automáticamente */
+                <div style={{
+                  ...inputSt,
+                  display: "flex", alignItems: "center", gap: 10,
+                  cursor: "default", userSelect: "none",
+                  border: "1px solid rgba(99,102,241,.4)",
+                  background: "rgba(99,102,241,.07)",
+                }}>
+                  <FiUser size={14} color="#6366f1" style={{ flexShrink: 0 }} />
+                  <span style={{ flex: 1, fontWeight: 600 }}>{lockedMiembro.nombre}</span>
+                  <span style={{
+                    display: "inline-flex", alignItems: "center", gap: 4,
+                    fontSize: 10, fontWeight: 700, color: "#6366f1",
+                    background: "rgba(99,102,241,.18)", borderRadius: 99,
+                    padding: "2px 8px", flexShrink: 0,
+                  }}>
+                    <FiLock size={9} /> Tú
+                  </span>
+                </div>
+              ) : (
+                /* Staff: selector libre de miembro */
+                <select style={inputSt} value={miembro} onChange={e => setMiembro(e.target.value)}>
+                  <option value="">Venta sin miembro asociado</option>
+                  {miembros.map(m => (
+                    <option key={m.id} value={m.id}>{m.nombre} {m.apellido}</option>
+                  ))}
+                </select>
+              )}
             </div>
 
             {/* Metodo de pago */}

@@ -75,9 +75,14 @@ function PredictionModal({ member, onClose }) {
       const res   = await fetch(`${API_BASE}/api/analytics/regresion/predecir/${id}?dias=${d}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error(`Error ${res.status}`);
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        const err  = new Error(json.error || `Error ${res.status}`);
+        err.status = res.status;
+        throw err;
+      }
       setData(await res.json());
-    } catch (e) { setError(e.message); }
+    } catch (e) { setError(e); }
     finally { setLoading(false); }
   }, [member]);
 
@@ -158,10 +163,20 @@ function PredictionModal({ member, onClose }) {
           {error && !loading && (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center",
               gap: 10, padding: "30px 20px", textAlign: "center" }}>
-              <FiAlertTriangle size={32} color="var(--danger)" />
-              <p style={{ color: "var(--text-secondary)", fontSize: 13 }}>{error}</p>
-              <p style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-                Es posible que este miembro no tenga suficientes registros de progreso físico.
+              {error?.status === 404 || error?.status === 400
+                ? <FiBarChart2 size={40} color="var(--accent)" />
+                : <FiAlertTriangle size={32} color="var(--danger)" />}
+              <p style={{ fontWeight: 600, color: "var(--text-primary)", fontSize: 14 }}>
+                {error?.status === 404
+                  ? "Sin registros de progreso"
+                  : error?.status === 400
+                  ? "Datos insuficientes"
+                  : "No se pudo cargar la predicción"}
+              </p>
+              <p style={{ color: "var(--text-secondary)", fontSize: 13, maxWidth: 340, lineHeight: 1.5 }}>
+                {error?.status === 404 || error?.status === 400
+                  ? "Este miembro aún no tiene suficientes registros de peso corporal para generar una predicción."
+                  : error?.message || String(error)}
               </p>
             </div>
           )}
@@ -293,9 +308,14 @@ export default function TrainerRegresion() {
       const r     = await fetch(`${API_BASE}/api/analytics/regresion`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!r.ok) throw new Error(`Error ${r.status}`);
+      if (!r.ok) {
+        const json = await r.json().catch(() => ({}));
+        const err  = new Error(json.error || `Error ${r.status}`);
+        err.status = r.status;
+        throw err;
+      }
       setGlobalData(await r.json());
-    } catch (e) { setGlobalError(e.message); }
+    } catch (e) { setGlobalError(e); }
     finally { setGlobalLoading(false); }
   }, []);
 
@@ -307,11 +327,16 @@ export default function TrainerRegresion() {
       const r     = await fetch(`${API_BASE}/api/analytics/regresion/train`, {
         method: "POST", headers: { Authorization: `Bearer ${token}` },
       });
-      if (!r.ok) throw new Error(`Error ${r.status}`);
+      if (!r.ok) {
+        const json = await r.json().catch(() => ({}));
+        const err  = new Error(json.error || `Error ${r.status}`);
+        err.status = r.status;
+        throw err;
+      }
       const json = await r.json();
       setGlobalData(json);
       setTrainMsg("Análisis actualizado con los datos más recientes.");
-    } catch (e) { setGlobalError(e.message); }
+    } catch (e) { setGlobalError(e); }
     finally { setTrainLoading(false); }
   }, []);
 
@@ -441,11 +466,29 @@ export default function TrainerRegresion() {
         </div>
       )}
       {globalError && (
-        <div style={{ marginBottom: 16, padding: "12px 16px", borderRadius: 8,
-          background: "rgba(255,77,77,0.10)", border: "1px solid var(--danger)",
-          color: "var(--danger)", fontSize: 13, display: "flex", alignItems: "center", gap: 8 }}>
-          <FiAlertTriangle size={14} /> {globalError}
-        </div>
+        globalError?.status === 400 || globalError?.message?.toLowerCase().includes("insuficiente")
+          ? (
+            <div style={{ marginBottom: 16, padding: "14px 18px", borderRadius: 10,
+              background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.3)",
+              color: "var(--text-secondary)", fontSize: 13, display: "flex", alignItems: "flex-start", gap: 10 }}>
+              <FiBarChart2 size={18} color="var(--accent)" style={{ flexShrink: 0 }} />
+              <div>
+                <p style={{ fontWeight: 600, color: "var(--text-primary)", marginBottom: 2 }}>
+                  Aún no hay suficientes datos para el análisis global
+                </p>
+                <p style={{ margin: 0, lineHeight: 1.5 }}>
+                  El modelo necesita registros de progreso de al menos varios miembros. Los datos aparecerán
+                  aquí automáticamente conforme los miembros registren su progreso físico.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div style={{ marginBottom: 16, padding: "12px 16px", borderRadius: 8,
+              background: "rgba(255,77,77,0.10)", border: "1px solid var(--danger)",
+              color: "var(--danger)", fontSize: 13, display: "flex", alignItems: "center", gap: 8 }}>
+              <FiAlertTriangle size={14} /> {globalError?.message || String(globalError)}
+            </div>
+          )
       )}
 
       {/* Overlay reentrenando */}
@@ -645,30 +688,50 @@ export default function TrainerRegresion() {
 
         {totalPages > 1 && (
           <div className="pagination-controls">
-            <button className="btn-outline-small"
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              <FiArrowLeft size={13} /> Anterior
-            </button>
-            <span className="page-info">Página {currentPage} de {totalPages}</span>
-            <button className="btn-outline-small"
-              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-              style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              Siguiente <FiArrowRight size={13} />
-            </button>
+     
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "14px 20px" }}>
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={currentPage <= 1}
+                style={{
+                  display: "flex", alignItems: "center", gap: 5,
+                  padding: "6px 12px", borderRadius: 8, fontSize: 13,
+                  border: "1px solid var(--border)", background: "var(--bg-input)",
+                  color: currentPage <= 1 ? "var(--text-muted)" : "var(--text-primary)",
+                  cursor: currentPage <= 1 ? "not-allowed" : "pointer",
+                }}
+              >
+                <FiArrowLeft size={13} /> Anterior
+              </button>
+              <span style={{ fontSize: 13, color: "var(--text-secondary)", padding: "0 8px" }}>
+                {currentPage} / {totalPages}
+              </span>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage >= totalPages}
+                style={{
+                  display: "flex", alignItems: "center", gap: 5,
+                  padding: "6px 12px", borderRadius: 8, fontSize: 13,
+                  border: "1px solid var(--border)", background: "var(--bg-input)",
+                  color: currentPage >= totalPages ? "var(--text-muted)" : "var(--text-primary)",
+                  cursor: currentPage >= totalPages ? "not-allowed" : "pointer",
+                }}
+              >
+                Siguiente <FiArrowRight size={13} />
+              </button>
+            </div>
           </div>
         )}
       </div>
 
       {/* ── Modal predicción individual ── */}
       {selectedMember && (
-        <PredictionModal member={selectedMember} onClose={() => setSelectedMember(null)} />
+        <PredictionModal
+          member={selectedMember}
+          onClose={() => setSelectedMember(null)}
+        />
       )}
 
-      {/* Spinner animation */}
-      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }

@@ -269,17 +269,26 @@ function TabVenta() {
   const [ventaData,   setVentaData]   = useState(null);
   const [detailProd,  setDetailProd]  = useState(null);
 
+  // Los miembros no necesitan cargar la lista de otros miembros:
+  // su venta se auto-asigna en el modal de checkout.
+  const isMiembroRole = (() => {
+    try {
+      const u = JSON.parse(localStorage.getItem("user") || "{}");
+      return u.role === "Miembro" || u.role === "user";
+    } catch { return false; }
+  })();
+
   const load = useCallback(async () => {
     setLoadingInit(true);
     try {
-      const [pr, mr] = await Promise.allSettled([
-        getProductos({ activos: true }),
-        getMiembros(),
-      ]);
+      const tasks = [getProductos({ activos: true })];
+      if (!isMiembroRole) tasks.push(getMiembros());
+
+      const [pr, mr] = await Promise.allSettled(tasks);
       if (pr.status === "fulfilled") setProductos(pr.value.data?.productos || []);
-      if (mr.status === "fulfilled") setMiembros(mr.value.data?.miembros   || []);
+      if (mr && mr.status === "fulfilled") setMiembros(mr.value.data?.miembros || []);
     } finally { setLoadingInit(false); }
-  }, []);
+  }, [isMiembroRole]);
 
   useEffect(() => { load(); }, [load]);
 

@@ -10,19 +10,23 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { FiEye, FiEyeOff, FiAlertTriangle, FiCheck, FiArrowLeft, FiArrowRight } from "react-icons/fi";
+import {
+  FaDumbbell, FaFire, FaLeaf, FaFistRaised,
+  FaBicycle, FaSwimmer, FaGem, FaCog,
+} from "react-icons/fa";
 import { registerGym } from "../../api/auth";
 import useTheme from "../../hooks/useTheme";
 
 // ── Catálogo de tipos (mirror del backend) ─────────────────────────────────
 const GYM_TYPES = [
-  { id: "gimnasio_tradicional", label: "Gimnasio Tradicional",  description: "Pesas, cardio y musculación libre",           icon: "💪" },
-  { id: "crossfit_functional",  label: "CrossFit / Funcional",  description: "WODs, clases y entrenamiento en grupo",        icon: "🔥" },
-  { id: "yoga_pilates",         label: "Yoga / Pilates",         description: "Clases grupales y sesiones privadas",          icon: "🧘" },
-  { id: "artes_marciales",      label: "Artes Marciales",        description: "BJJ, MMA, Karate, Boxeo y más",                icon: "🥋" },
-  { id: "spinning_cycling",     label: "Spinning / Ciclismo",    description: "Clases de spinning y ciclismo indoor",         icon: "🚴" },
-  { id: "natacion",             label: "Natación / Acuático",    description: "Carriles, cursos y competencias",              icon: "🏊" },
-  { id: "boutique_studio",      label: "Estudio Boutique",       description: "Clases premium con cupo limitado",             icon: "💎" },
-  { id: "otro",                 label: "Otro / Personalizado",   description: "Configura la plataforma desde cero",           icon: "⚙️" },
+  { id: "gimnasio_tradicional", label: "Gimnasio Tradicional",  description: "Pesas, cardio y musculación libre",           Icon: FaDumbbell  },
+  { id: "crossfit_functional",  label: "CrossFit / Funcional",  description: "WODs, clases y entrenamiento en grupo",        Icon: FaFire      },
+  { id: "yoga_pilates",         label: "Yoga / Pilates",         description: "Clases grupales y sesiones privadas",          Icon: FaLeaf      },
+  { id: "artes_marciales",      label: "Artes Marciales",        description: "BJJ, MMA, Karate, Boxeo y más",                Icon: FaFistRaised},
+  { id: "spinning_cycling",     label: "Spinning / Ciclismo",    description: "Clases de spinning y ciclismo indoor",         Icon: FaBicycle   },
+  { id: "natacion",             label: "Natación / Acuático",    description: "Carriles, cursos y competencias",              Icon: FaSwimmer   },
+  { id: "boutique_studio",      label: "Estudio Boutique",       description: "Clases premium con cupo limitado",             Icon: FaGem       },
+  { id: "otro",                 label: "Otro / Personalizado",   description: "Configura la plataforma desde cero",           Icon: FaCog       },
 ];
 
 const STEPS = ["Tipo", "Gimnasio", "Administrador"];
@@ -152,8 +156,8 @@ export default function RegisterGym() {
                   maxWidth: 260,
                 }}
               >
-                <div style={{ fontSize: 28, marginBottom: 6 }}>
-                  {GYM_TYPES.find(t => t.id === selectedType)?.icon}
+                <div style={{ marginBottom: 6 }}>
+                  {(() => { const T = GYM_TYPES.find(t => t.id === selectedType); return T ? <T.Icon size={28} color="var(--accent)" /> : null; })()}
                 </div>
                 <p style={{ color: "#fff", fontWeight: 600, margin: 0 }}>
                   {GYM_TYPES.find(t => t.id === selectedType)?.label}
@@ -274,7 +278,7 @@ export default function RegisterGym() {
                                 <FiCheck size={10} color="#fff" />
                               </motion.div>
                             )}
-                            <span style={{ fontSize: 28 }}>{tipo.icon}</span>
+                            <tipo.Icon size={28} color={isSelected ? "var(--accent)" : "var(--text-secondary, #aaa)"} />
                             <span style={{
                               fontSize: 12, fontWeight: 600,
                               color: isSelected ? "var(--accent)" : "var(--text-primary, #fff)",
