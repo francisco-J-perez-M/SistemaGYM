@@ -171,8 +171,13 @@ export default function OwnerStaff() {
       if (search) params.q  = search;
       const { data } = await getStaff(params);
       setStaff(data);
-    } catch {
-      toast.error("Error de conexión", "No se pudo cargar el staff.");
+    } catch (err) {
+      const status = err.response?.status;
+      // 401/403 es esperado en un gym recién registrado (sin staff aún)
+      if (status !== 401 && status !== 403) {
+        toast.error("Error de conexión", "No se pudo cargar el staff.");
+      }
+      setStaff([]);
     } finally {
       setLoading(false);
     }

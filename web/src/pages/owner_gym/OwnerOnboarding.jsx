@@ -1,36 +1,174 @@
 /**
  * OwnerOnboarding.jsx — Wizard de bienvenida para dueños de gimnasio.
  *
- * Se muestra únicamente en el primer login (primer_login === true en el JWT).
+ * Solo aparece en el primer login (primer_login === true en el JWT).
  * Pasos:
- *   1. Cambio de contraseña (obligatorio)
- *   2. Configuración del gimnasio (tipo, ubicación, horario, redes)
- *   3. Pantalla de éxito → redirige al dashboard
+ *   0 — Configuración del gimnasio (descripción, dirección, horario, redes)
+ *   1 — Pantalla de éxito → redirige al dashboard
+ *
+ * Nota: el tipo de establecimiento ya fue seleccionado al registrar el gimnasio.
+ * La contraseña ya fue creada en el mismo formulario de registro.
  */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  FiEye, FiEyeOff, FiCheck, FiArrowRight, FiArrowLeft,
-  FiAlertTriangle, FiSettings, FiUsers, FiTag, FiClipboard,
-  FiActivity, FiZap, FiFeather, FiShield, FiTarget, FiDroplet, FiStar,
+  FiCheck, FiArrowRight, FiArrowLeft,
+  FiAlertTriangle, FiUsers, FiTag, FiClipboard, FiClock,
 } from "react-icons/fi";
 import { completeOnboarding } from "../../api/auth";
 import "../../css/CSSUnificado.css";
 
-// ── Tipos de gimnasio (mirror de backend) ──────────────────────────────────
-const GYM_TYPES = [
-  { id: "gimnasio_tradicional", label: "Gimnasio Tradicional",  description: "Pesas, cardio y musculación libre",           Icon: FiActivity },
-  { id: "crossfit_functional",  label: "CrossFit / Funcional",  description: "WODs, clases y entrenamiento en grupo",        Icon: FiZap      },
-  { id: "yoga_pilates",         label: "Yoga / Pilates",         description: "Clases grupales y sesiones privadas",          Icon: FiFeather  },
-  { id: "artes_marciales",      label: "Artes Marciales",        description: "BJJ, MMA, Karate, Boxeo y más",                Icon: FiShield   },
-  { id: "spinning_cycling",     label: "Spinning / Ciclismo",    description: "Clases de spinning y ciclismo indoor",         Icon: FiTarget   },
-  { id: "natacion",             label: "Natación / Acuático",    description: "Carriles, cursos y competencias",              Icon: FiDroplet  },
-  { id: "boutique_studio",      label: "Estudio Boutique",       description: "Clases premium con cupo limitado",             Icon: FiStar     },
-  { id: "otro",                 label: "Otro / Personalizado",   description: "Configura la plataforma desde cero",           Icon: FiSettings },
-];
+/* ── Scrollbar personalizado para TimePicker ─────────────────────────────── */
+const TIMEPICKER_STYLE = `
+  .tp-col::-webkit-scrollbar { width: 4px; }
+  .tp-col::-webkit-scrollbar-track { background: transparent; }
+  .tp-col::-webkit-scrollbar-thumb { background: var(--border-dark); border-radius: 99px; }
+  .tp-col::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+`;
 
-const STEPS = ["Contraseña", "Mi Gimnasio", "¡Listo!"];
+/* ── TimePicker custom ────────────────────────────────────────────────────── */
+function TimePicker({ value, onChange }) {
+  const [open,    setOpen]   = useState(false);
+  const [openUp,  setOpenUp] = useState(false);   // flip hacia arriba si no cabe abajo
+  const ref     = useRef(null);
+  const dropRef = useRef(null);
+
+  const [hh, mm] = (value || "06:00").split(":").map(Number);
+
+  // Inyectar estilos de scrollbar una sola vez
+  useEffect(() => {
+    if (!document.getElementById("tp-scrollbar-style")) {
+      const tag = document.createElement("style");
+      tag.id = "tp-scrollbar-style";
+      tag.textContent = TIMEPICKER_STYLE;
+      document.head.appendChild(tag);
+    }
+  }, []);
+
+  // Cierra al clic afuera
+  useEffect(() => {
+    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+
+  // Detecta si el dropdown se saldría del viewport por abajo → abre hacia arriba
+  useEffect(() => {
+    if (!open || !ref.current) return;
+    const triggerRect = ref.current.getBoundingClientRect();
+    const spaceBelow  = window.innerHeight - triggerRect.bottom;
+    setOpenUp(spaceBelow < 230);   // 230px ≈ altura del dropdown
+  }, [open]);
+
+  const hours   = Array.from({ length: 24 }, (_, i) => i);
+  const minutes = [0, 15, 30, 45];
+  const fmt     = (n) => String(n).padStart(2, "0");
+  const display = `${fmt(hh)}:${fmt(mm)}`;
+
+  const select = (newH, newM) => { onChange(`${fmt(newH)}:${fmt(newM)}`); setOpen(false); };
+
+  const colStyle = {
+    display: "flex", flexDirection: "column", gap: 2,
+    maxHeight: 196, overflowY: "auto",
+    scrollbarWidth: "thin", scrollbarColor: "var(--border-dark) transparent",
+  };
+  const itemStyle = (active) => ({
+    padding: "7px 16px", borderRadius: 6, cursor: "pointer", fontSize: 13,
+    fontWeight: active ? 700 : 400, textAlign: "center",
+    background: active ? "var(--accent)" : "transparent",
+    color: active ? "var(--bg-dark, #0f1117)" : "var(--text-primary)",
+    transition: "background 0.15s", whiteSpace: "nowrap",
+  });
+
+  // Scroll automático al valor seleccionado al abrir
+  const hrRef = useRef(null);
+  useEffect(() => {
+    if (open && hrRef.current) {
+      const active = hrRef.current.querySelector("[data-active='true']");
+      if (active) active.scrollIntoView({ block: "center" });
+    }
+  }, [open]);
+
+  const dropPos = openUp
+    ? { bottom: "calc(100% + 6px)", top: "auto" }
+    : { top:    "calc(100% + 6px)", bottom: "auto" };
+
+  const motionInit = openUp ? { opacity: 0, y: 6 } : { opacity: 0, y: -6 };
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      {/* Trigger */}
+      <div
+        onClick={() => setOpen(o => !o)}
+        style={{
+          display: "flex", alignItems: "center", gap: 10,
+          padding: "10px 14px",
+          background: "var(--bg-input)",
+          border: `1px solid ${open ? "var(--accent)" : "var(--border-dark)"}`,
+          borderRadius: "var(--r-md, 8px)",
+          cursor: "pointer", userSelect: "none", transition: "border-color 0.2s",
+        }}
+      >
+        <FiClock size={14} style={{ color: "var(--accent)", flexShrink: 0 }} />
+        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", flex: 1 }}>
+          {display}
+        </span>
+      </div>
+
+      {/* Dropdown */}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            ref={dropRef}
+            initial={{ ...motionInit, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ ...motionInit, scale: 0.97 }}
+            transition={{ duration: 0.15 }}
+            style={{
+              position: "absolute", ...dropPos, left: 0, zIndex: 300,
+              background: "var(--bg-card)",
+              border: "1px solid var(--border-dark)",
+              borderRadius: 10,
+              boxShadow: "0 16px 40px rgba(0,0,0,0.6)",
+              display: "flex", overflow: "hidden", minWidth: 160,
+            }}
+          >
+            {/* Horas */}
+            <div ref={hrRef} className="tp-col" style={{ ...colStyle, borderRight: "1px solid var(--border-dark)", padding: "6px 4px" }}>
+              <span style={{ fontSize: 10, fontWeight: 700, color: "var(--text-secondary)", textAlign: "center", padding: "4px 0 6px", textTransform: "uppercase", letterSpacing: "0.5px", position: "sticky", top: 0, background: "var(--bg-card)" }}>Hora</span>
+              {hours.map(h => (
+                <div key={h} data-active={h === hh} style={itemStyle(h === hh)}
+                  onClick={() => select(h, mm)}
+                  onMouseEnter={e => { if (h !== hh) e.currentTarget.style.background = "var(--bg-hover)"; }}
+                  onMouseLeave={e => { if (h !== hh) e.currentTarget.style.background = "transparent"; }}
+                >
+                  {fmt(h)}
+                </div>
+              ))}
+            </div>
+
+            {/* Minutos */}
+            <div className="tp-col" style={{ ...colStyle, padding: "6px 4px" }}>
+              <span style={{ fontSize: 10, fontWeight: 700, color: "var(--text-secondary)", textAlign: "center", padding: "4px 0 6px", textTransform: "uppercase", letterSpacing: "0.5px", position: "sticky", top: 0, background: "var(--bg-card)" }}>Min</span>
+              {minutes.map(m => (
+                <div key={m} data-active={m === mm} style={itemStyle(m === mm)}
+                  onClick={() => select(hh, m)}
+                  onMouseEnter={e => { if (m !== mm) e.currentTarget.style.background = "var(--bg-hover)"; }}
+                  onMouseLeave={e => { if (m !== mm) e.currentTarget.style.background = "transparent"; }}
+                >
+                  {fmt(m)}
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+const STEPS = ["Mi Gimnasio", "¡Listo!"];
 
 const slide = {
   hidden:  { opacity: 0, x: 40 },
@@ -41,30 +179,22 @@ const slide = {
 export default function OwnerOnboarding() {
   const navigate = useNavigate();
 
-  // Leer datos del usuario desde localStorage
   const storedUser = (() => {
     try { return JSON.parse(localStorage.getItem("user") || "{}"); }
     catch { return {}; }
   })();
 
-  // Redirigir si ya completó el onboarding
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) { navigate("/"); return; }
     if (!storedUser.primer_login) navigate("/owner");
   }, []);
 
-  const [step, setStep]         = useState(0);
-  const [loading, setLoading]   = useState(false);
-  const [error, setError]       = useState("");
+  const [step,    setStep]    = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error,   setError]   = useState("");
 
-  // Paso 1 — contraseña
-  const [pass, setPass]         = useState({ nueva: "", confirmar: "" });
-  const [showPass, setShowPass] = useState({ nueva: false, confirmar: false });
-
-  // Paso 2 — gimnasio
-  const [tipoGym, setTipoGym]   = useState(null);
-  const [gymForm, setGymForm]   = useState({
+  const [gymForm, setGymForm] = useState({
     descripcion:      "",
     direccion:        "",
     horario_apertura: "06:00",
@@ -72,28 +202,17 @@ export default function OwnerOnboarding() {
     capacidad_maxima: "",
     instagram:        "",
     facebook:         "",
-    website:          "",
   });
 
   const gf = (field) => (val) => setGymForm(prev => ({ ...prev, [field]: val }));
 
-  // ── Paso 1: validar y avanzar ──────────────────────────────────────────────
-  const handlePassNext = () => {
-    if (pass.nueva.length < 8)              { setError("La contraseña debe tener al menos 8 caracteres"); return; }
-    if (pass.nueva !== pass.confirmar)      { setError("Las contraseñas no coinciden"); return; }
-    setError(""); setStep(1);
-  };
-
-  // ── Paso 2: enviar todo al backend ────────────────────────────────────────
   const handleSubmit = async () => {
-    if (!tipoGym) { setError("Selecciona el tipo de tu establecimiento"); return; }
     setError(""); setLoading(true);
-
     try {
       const res = await completeOnboarding({
-        nueva_password: pass.nueva,
+        // Sin nueva_password (ya se estableció en el registro)
+        // Sin tipo_gimnasio (ya se seleccionó al registrar el gimnasio)
         gym: {
-          tipo_gimnasio:    tipoGym,
           descripcion:      gymForm.descripcion,
           direccion:        gymForm.direccion,
           horario_apertura: gymForm.horario_apertura,
@@ -102,27 +221,23 @@ export default function OwnerOnboarding() {
           redes: {
             instagram: gymForm.instagram,
             facebook:  gymForm.facebook,
-            website:   gymForm.website,
           },
         },
       });
 
-      // Actualizar token y user en localStorage
       localStorage.setItem("token", res.access_token);
       localStorage.setItem("user", JSON.stringify({
         ...storedUser,
         primer_login: false,
       }));
 
-      setStep(2);
+      setStep(1);
     } catch (e) {
       setError(e.message);
     } finally {
       setLoading(false);
     }
   };
-
-  const irAlDashboard = () => navigate("/owner");
 
   const gymNombre = storedUser.nombre || "Administrador";
 
@@ -135,11 +250,9 @@ export default function OwnerOnboarding() {
       justifyContent: "center",
       padding: "24px 16px",
     }}>
-
-      {/* Card central */}
       <div style={{
         width: "100%",
-        maxWidth: step === 1 ? 660 : 480,
+        maxWidth: step === 0 ? 620 : 480,
         background: "var(--bg-card)",
         border: "1px solid var(--border-dark)",
         borderRadius: 20,
@@ -164,7 +277,7 @@ export default function OwnerOnboarding() {
                 background: i <= step ? "var(--accent)" : "var(--border-dark)",
                 transition: "background 0.4s",
               }} />
-              <span style={{ fontSize: 10, fontWeight: 600, color: i <= step ? "var(--accent)" : "var(--text-secondary)", letterSpacing: "0.5px", textTransform: "uppercase" }}>
+              <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.5px", textTransform: "uppercase", color: i <= step ? "var(--accent)" : "var(--text-secondary)" }}>
                 {label}
               </span>
             </div>
@@ -173,145 +286,45 @@ export default function OwnerOnboarding() {
 
         <AnimatePresence mode="wait">
 
-          {/* ── Paso 0: Contraseña ────────────────────────────────────────── */}
+          {/* ── Paso 0: Configuración del gimnasio ── */}
           {step === 0 && (
             <motion.div key="paso0" variants={slide} initial="hidden" animate="visible" exit="exit">
-              <div style={{ marginBottom: 24 }}>
-                <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 6 }}>
+              <div style={{ marginBottom: 20 }}>
+                <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 6 }}>
                   Bienvenido, {gymNombre.split(" ")[0]}
                 </h2>
-                <p style={{ color: "var(--text-secondary)", fontSize: 14, lineHeight: 1.6 }}>
-                  Por seguridad, establece una contraseña personal antes de empezar.
-                </p>
-              </div>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                {[
-                  { key: "nueva",     label: "Nueva contraseña",     placeholder: "Mínimo 8 caracteres" },
-                  { key: "confirmar", label: "Confirmar contraseña",  placeholder: "Repite la contraseña" },
-                ].map(({ key, label, placeholder }) => (
-                  <div key={key} className="form-group" style={{ margin: 0 }}>
-                    <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", letterSpacing: "0.5px", textTransform: "uppercase", marginBottom: 6, display: "block" }}>{label}</label>
-                    <div className="input-dark-container password-input-wrapper">
-                      <input
-                        type={showPass[key] ? "text" : "password"}
-                        placeholder={placeholder}
-                        value={pass[key]}
-                        onChange={e => setPass(p => ({ ...p, [key]: e.target.value }))}
-                        style={{ background: "transparent", border: "none", outline: "none", width: "100%", color: "var(--text-primary)", fontSize: 14 }}
-                      />
-                      <button type="button" className="password-toggle-btn" onClick={() => setShowPass(p => ({ ...p, [key]: !p[key] }))}>
-                        {showPass[key] ? <FiEye /> : <FiEyeOff />}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-
-                {/* Indicador de fortaleza */}
-                {pass.nueva && (
-                  <div style={{ display: "flex", gap: 4 }}>
-                    {[8, 12, 16].map((threshold, i) => (
-                      <div key={i} style={{
-                        flex: 1, height: 3, borderRadius: 2,
-                        background: pass.nueva.length >= threshold
-                          ? i === 0 ? "var(--danger-color)" : i === 1 ? "var(--warning-color)" : "var(--success-color)"
-                          : "var(--border-dark)",
-                        transition: "background 0.3s",
-                      }} />
-                    ))}
-                    <span style={{ fontSize: 11, color: "var(--text-secondary)", marginLeft: 8 }}>
-                      {pass.nueva.length < 8 ? "Muy corta" : pass.nueva.length < 12 ? "Aceptable" : pass.nueva.length < 16 ? "Buena" : "Excelente"}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {error && (
-                <div className="error-message" style={{ marginTop: 16 }}>
-                  <FiAlertTriangle style={{ marginRight: 6 }} />{error}
-                </div>
-              )}
-
-              <button
-                onClick={handlePassNext}
-                className="login-button"
-                style={{ marginTop: 24, width: "100%" }}
-              >
-                Continuar <FiArrowRight style={{ marginLeft: 8 }} />
-              </button>
-            </motion.div>
-          )}
-
-          {/* ── Paso 1: Configuración del gimnasio ───────────────────────── */}
-          {step === 1 && (
-            <motion.div key="paso1" variants={slide} initial="hidden" animate="visible" exit="exit">
-              <div style={{ marginBottom: 20 }}>
-                <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 6 }}>Configura tu gimnasio</h2>
                 <p style={{ color: "var(--text-secondary)", fontSize: 13, lineHeight: 1.6 }}>
-                  Esta información personaliza la plataforma para tu tipo de establecimiento.
+                  Completa la información de tu gimnasio para personalizar la plataforma.
                 </p>
               </div>
 
-              {/* Tipo de gimnasio */}
-              <p style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 10 }}>
-                Tipo de establecimiento
-              </p>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: 10, marginBottom: 20 }}>
-                {GYM_TYPES.map(tipo => {
-                  const sel = tipoGym === tipo.id;
-                  return (
-                    <motion.button
-                      key={tipo.id}
-                      type="button"
-                      whileHover={{ scale: 1.03 }}
-                      whileTap={{ scale: 0.97 }}
-                      onClick={() => { setTipoGym(tipo.id); setError(""); }}
-                      style={{
-                        padding: "12px 10px",
-                        borderRadius: 10,
-                        border: `2px solid ${sel ? "var(--accent)" : "var(--border-dark)"}`,
-                        background: sel ? "rgba(251,227,121,0.08)" : "var(--bg-input)",
-                        cursor: "pointer",
-                        textAlign: "center",
-                        display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
-                        position: "relative",
-                      }}
-                    >
-                      {sel && (
-                        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} style={{
-                          position: "absolute", top: 6, right: 6,
-                          width: 16, height: 16, borderRadius: "50%",
-                          background: "var(--accent)", display: "flex", alignItems: "center", justifyContent: "center",
-                        }}>
-                          <FiCheck size={9} color="#000" />
-                        </motion.div>
-                      )}
-                      <tipo.Icon size={24} color={sel ? "var(--accent)" : "var(--text-secondary)"} />
-                      <span style={{ fontSize: 11, fontWeight: 600, color: sel ? "var(--accent)" : "var(--text-primary)", lineHeight: 1.3 }}>
-                        {tipo.label}
-                      </span>
-                    </motion.button>
-                  );
-                })}
-              </div>
-
-              {/* Campos de información */}
+              {/* Campos del gimnasio */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 {[
-                  { field: "descripcion",      label: "Descripción",      type: "text",   placeholder: "El mejor gym de la ciudad",    full: true },
-                  { field: "direccion",         label: "Dirección",        type: "text",   placeholder: "Av. Principal 123, Ciudad",    full: true },
-                  { field: "horario_apertura",  label: "Apertura",         type: "time",   placeholder: "06:00",                        full: false },
-                  { field: "horario_cierre",    label: "Cierre",           type: "time",   placeholder: "22:00",                        full: false },
-                  { field: "capacidad_maxima",  label: "Capacidad máxima", type: "number", placeholder: "Ej. 80 personas",              full: false },
-                  { field: "instagram",         label: "Instagram",        type: "text",   placeholder: "@migym",                       full: false },
-                  { field: "facebook",          label: "Facebook",         type: "text",   placeholder: "fb.com/migym",                 full: false },
-                  { field: "website",           label: "Sitio web",        type: "url",    placeholder: "https://migym.mx",             full: true },
+                  { field: "descripcion",     label: "Descripción",      type: "text",   placeholder: "El mejor gym de la ciudad",  full: true  },
+                  { field: "direccion",        label: "Dirección",        type: "text",   placeholder: "Av. Principal 123, Ciudad",  full: true  },
+                  { field: "capacidad_maxima", label: "Capacidad máxima", type: "number", placeholder: "Ej. 80 personas",           full: false },
+                  { field: "instagram",        label: "Instagram",        type: "text",   placeholder: "@migym",                    full: false },
+                  { field: "facebook",         label: "Facebook",         type: "text",   placeholder: "fb.com/migym",              full: false },
                 ].map(({ field, label, type, placeholder, full }) => (
                   <div key={field} style={{ gridColumn: full ? "1 / -1" : "auto" }}>
-                    <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", letterSpacing: "0.5px", textTransform: "uppercase", marginBottom: 5, display: "block" }}>
+                    <label style={{
+                      fontSize: 11, fontWeight: 600, color: "var(--text-secondary)",
+                      letterSpacing: "0.5px", textTransform: "uppercase",
+                      marginBottom: 5, display: "block",
+                    }}>
                       {label}
                     </label>
-                    <div className="input-dark-container" style={{ padding: "10px 14px" }}>
+                    <div style={{
+                      padding: "10px 14px",
+                      background: "var(--bg-input)",
+                      border: "1px solid var(--border-dark)",
+                      borderRadius: "var(--r-md, 8px)",
+                      transition: "border-color 0.2s",
+                    }}
+                      onFocusCapture={e => e.currentTarget.style.borderColor = "var(--accent)"}
+                      onBlurCapture={e => e.currentTarget.style.borderColor = "var(--border-dark)"}
+                    >
                       <input
                         type={type}
                         placeholder={placeholder}
@@ -321,6 +334,26 @@ export default function OwnerOnboarding() {
                         style={{ background: "transparent", border: "none", outline: "none", width: "100%", color: "var(--text-primary)", fontSize: 13 }}
                       />
                     </div>
+                  </div>
+                ))}
+
+                {/* Horario — TimePicker custom */}
+                {[
+                  { field: "horario_apertura", label: "Apertura" },
+                  { field: "horario_cierre",   label: "Cierre"   },
+                ].map(({ field, label }) => (
+                  <div key={field}>
+                    <label style={{
+                      fontSize: 11, fontWeight: 600, color: "var(--text-secondary)",
+                      letterSpacing: "0.5px", textTransform: "uppercase",
+                      marginBottom: 5, display: "block",
+                    }}>
+                      {label}
+                    </label>
+                    <TimePicker
+                      value={gymForm[field]}
+                      onChange={v => gf(field)(v)}
+                    />
                   </div>
                 ))}
               </div>
@@ -334,15 +367,15 @@ export default function OwnerOnboarding() {
               <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
                 <button
                   type="button"
-                  onClick={() => { setError(""); setStep(0); }}
+                  onClick={() => navigate("/owner")}
                   style={{
+                    display: "flex", alignItems: "center", gap: 6,
                     padding: "13px 18px", borderRadius: 10,
                     background: "transparent", border: "1px solid var(--border-dark)",
-                    color: "var(--text-secondary)", cursor: "pointer", fontSize: 14,
-                    display: "flex", alignItems: "center", gap: 6,
+                    color: "var(--text-secondary)", cursor: "pointer", fontSize: 13, fontWeight: 600,
                   }}
                 >
-                  <FiArrowLeft /> Atrás
+                  <FiArrowLeft size={14} /> Omitir
                 </button>
                 <button
                   onClick={handleSubmit}
@@ -359,18 +392,15 @@ export default function OwnerOnboarding() {
             </motion.div>
           )}
 
-          {/* ── Paso 2: ¡Listo! ──────────────────────────────────────────── */}
-          {step === 2 && (
-            <motion.div
-              key="paso2"
-              initial={{ scale: 0.85, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
+          {/* ── Paso 1: ¡Listo! ── */}
+          {step === 1 && (
+            <motion.div key="paso1"
+              initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
               transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
               style={{ textAlign: "center", padding: "8px 0 16px" }}
             >
               <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
+                initial={{ scale: 0 }} animate={{ scale: 1 }}
                 transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
                 style={{
                   width: 72, height: 72, borderRadius: "50%",
@@ -393,10 +423,8 @@ export default function OwnerOnboarding() {
                   { Icon: FiTag,       text: "Crea los planes de membresía de tu gimnasio" },
                   { Icon: FiClipboard, text: "Agrega tus primeros miembros" },
                 ].map((item, i) => (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
+                  <motion.div key={i}
+                    initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.3 + i * 0.1 }}
                     style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 13 }}
                   >
@@ -407,7 +435,7 @@ export default function OwnerOnboarding() {
               </div>
 
               <motion.button
-                onClick={irAlDashboard}
+                onClick={() => navigate("/owner")}
                 className="login-button"
                 whileHover={{ scale: 1.02, y: -2 }}
                 whileTap={{ scale: 0.98 }}

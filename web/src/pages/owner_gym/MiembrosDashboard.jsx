@@ -257,11 +257,12 @@ export default function MiembrosDashboard() {
       setTotalPages(data.pages);
       if (data.miembros.length === 0 && page > 1) setPage(page - 1);
     } catch (err) {
-      if (err.response?.status === 401) {
-        toast.error("Sesión expirada", "Por favor, inicia sesión nuevamente.");
-      } else {
+      const status = err.response?.status;
+      // 401/403 en un gym nuevo es normal (sin datos aún), no es un error de sesión
+      if (status !== 401 && status !== 403) {
         toast.error("Error de conexión", "No se pudieron cargar los miembros.");
       }
+      setMiembros([]);
     } finally {
       setLoading(false);
     }

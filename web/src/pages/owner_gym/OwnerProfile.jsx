@@ -1,7 +1,20 @@
 import { useEffect, useState } from "react";
 import Swal from "sweetalert2";
-import { FiSave, FiInfo } from "react-icons/fi";
+import { FiSave, FiInfo, FiAlertCircle, FiRefreshCw } from "react-icons/fi";
 import { getOwnerPerfil, updateOwnerPerfil } from "../../api/owner_gym";
+
+/* ── Tipos de gimnasio (deben coincidir con backend GYM_TYPES) ── */
+const GYM_TYPES_OPTIONS = [
+  { value: "",                    label: "Sin especificar" },
+  { value: "gimnasio_tradicional", label: "Gimnasio Tradicional" },
+  { value: "crossfit_functional",  label: "CrossFit / Funcional" },
+  { value: "yoga_pilates",         label: "Yoga / Pilates" },
+  { value: "artes_marciales",      label: "Artes Marciales" },
+  { value: "spinning_cycling",     label: "Spinning / Ciclismo" },
+  { value: "natacion",             label: "Natación / Acuático" },
+  { value: "boutique_studio",      label: "Estudio Boutique" },
+  { value: "otro",                 label: "Otro / Personalizado" },
+];
 
 const S = {
   page:  { padding: "28px 32px", background: "var(--bg-dark,#0f1117)", minHeight: "100vh", color: "var(--text-primary,#f1f5f9)", fontFamily: "Inter,system-ui,sans-serif" },
@@ -20,17 +33,30 @@ const S = {
 const PLAN_COLOR = { basico: "#64748b", pro: "#6366f1", enterprise: "#f59e0b" };
 
 export default function OwnerProfile() {
-  const [perfil,  setPerfil]  = useState(null);
-  const [form,    setForm]    = useState({});
-  const [saving,  setSaving]  = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [perfil,    setPerfil]    = useState(null);
+  const [form,      setForm]      = useState({});
+  const [saving,    setSaving]    = useState(false);
+  const [loading,   setLoading]   = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
-  useEffect(() => {
+  const loadPerfil = () => {
+    setLoading(true);
+    setLoadError(false);
     getOwnerPerfil()
-      .then(({ data }) => { setPerfil(data); setForm({ nombre: data.nombre, email_contacto: data.email_contacto || "", telefono: data.telefono || "", tipo_gimnasio: data.tipo_gimnasio || "" }); })
-      .catch(() => Swal.fire("Error", "No se pudo cargar el perfil", "error"))
+      .then(({ data }) => {
+        setPerfil(data);
+        setForm({
+          nombre:        data.nombre           || "",
+          email_contacto: data.email_contacto  || "",
+          telefono:      data.telefono         || "",
+          tipo_gimnasio: data.tipo_gimnasio    || "",
+        });
+      })
+      .catch(() => setLoadError(true))
       .finally(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(() => { loadPerfil(); }, []);
 
   const handleChange = (e) => setForm(f => ({ ...f, [e.target.name]: e.target.value }));
 
@@ -47,7 +73,21 @@ export default function OwnerProfile() {
     } finally { setSaving(false); }
   };
 
-  if (loading) return <div style={{ ...S.page, display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b" }}>Cargando…</div>;
+  if (loading) return (
+    <div style={{ ...S.page, display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b" }}>
+      Cargando…
+    </div>
+  );
+
+  if (loadError) return (
+    <div style={{ ...S.page, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, color: "#64748b" }}>
+      <FiAlertCircle size={36} color="#475569" />
+      <p style={{ margin: 0, fontSize: 14 }}>No se pudo cargar el perfil del gimnasio</p>
+      <button onClick={loadPerfil} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 18px", background: "var(--accent-dim)", border: "1px solid var(--accent)", color: "var(--accent-soft)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
+        <FiRefreshCw size={13} /> Reintentar
+      </button>
+    </div>
+  );
 
   return (
     <div style={S.page}>
@@ -94,14 +134,9 @@ export default function OwnerProfile() {
           <div style={S.field}>
             <label style={S.label}>Tipo de Establecimiento</label>
             <select style={{ ...S.input, appearance: "none" }} name="tipo_gimnasio" value={form.tipo_gimnasio || ""} onChange={handleChange}>
-              <option value="">Sin especificar</option>
-              <option value="gym">Gimnasio tradicional</option>
-              <option value="crossfit">CrossFit / Funcional</option>
-              <option value="yoga">Yoga / Pilates</option>
-              <option value="boxeo">Artes marciales / Boxeo</option>
-              <option value="natacion">Natación</option>
-              <option value="spinning">Spinning / Ciclismo</option>
-              <option value="otro">Otro</option>
+              {GYM_TYPES_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
             </select>
           </div>
 
