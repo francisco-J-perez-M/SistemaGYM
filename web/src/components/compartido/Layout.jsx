@@ -182,7 +182,7 @@ export default function Layout({ role = "owner_gym" }) {
         width: "100vw",
         height: "100vh",
         overflow: "hidden",
-        background: "var(--bg-dark, #0f1117)",
+        background: "var(--bg-main)",
       }}
     >
       {showSidebar && (

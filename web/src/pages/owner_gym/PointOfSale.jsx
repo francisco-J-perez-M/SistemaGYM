@@ -27,28 +27,28 @@ const fmt = (n) => `$${Number(n).toLocaleString("es-MX", { minimumFractionDigits
 const LOW_STOCK = 5; // umbral de "stock bajo"
 
 const CAT_COLORS = {
-  Suplementos: "#6366f1", Accesorios: "#10b981", Snacks: "#eab308",
-  Bebidas: "#38bdf8",     Ropa: "#f472b6",        General: "#94a3b8",
+  Suplementos: "var(--accent)", Accesorios: "var(--success)", Snacks: "var(--warning)",
+  Bebidas: "#38bdf8",     Ropa: "#f472b6",        General: "var(--text-secondary)",
 };
-const catColor = (cat) => CAT_COLORS[cat] || "#94a3b8";
+const catColor = (cat) => CAT_COLORS[cat] || "var(--text-secondary)";
 
 /* ── Estilos compartidos ─────────────────── */
 const cardSt = (extra = {}) => ({
-  background: "var(--bg-card, #1a1d2e)",
-  border: "1px solid var(--border, rgba(255,255,255,.08))",
+  background: "var(--bg-card)",
+  border: "1px solid var(--border)",
   borderRadius: 12, ...extra,
 });
 const inputSt = {
   boxSizing: "border-box", padding: "8px 12px",
-  background: "var(--bg-dark, #0f1117)",
-  border: "1px solid var(--border, rgba(255,255,255,.12))",
-  borderRadius: 8, color: "var(--text-primary, #f1f5f9)", fontSize: 13, outline: "none",
+  background: "var(--bg-input)",
+  border: "1px solid var(--border)",
+  borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none",
 };
 const filterBtnSt = (active) => ({
-  padding: "5px 12px", borderRadius: 99, border: active ? "none" : "1px solid var(--border, rgba(255,255,255,.08))",
+  padding: "5px 12px", borderRadius: 99, border: active ? "none" : "1px solid var(--border)",
   cursor: "pointer", fontSize: 12, fontWeight: 600,
-  background: active ? "#6366f1" : "var(--bg-card, #1a1d2e)",
-  color: active ? "#fff" : "var(--text-secondary, #94a3b8)",
+  background: active ? "var(--accent)" : "var(--bg-card)",
+  color: active ? "#fff" : "var(--text-secondary)",
 });
 
 /* ── StockAlertBar ───────────────────────── */
@@ -72,7 +72,7 @@ function StockAlertBar({ productos }) {
         style={{
           width: "100%", display: "flex", alignItems: "center", gap: 8,
           padding: "9px 14px", background: "none", border: "none", cursor: "pointer",
-          color: sinStock.length ? "#ef4444" : "#eab308", textAlign: "left",
+          color: sinStock.length ? "var(--danger)" : "var(--warning)", textAlign: "left",
         }}
       >
         {sinStock.length
@@ -95,7 +95,7 @@ function StockAlertBar({ productos }) {
           {sinStock.map(p => (
             <span key={p.id} style={{
               fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 99,
-              background: "rgba(239,68,68,.15)", color: "#ef4444",
+              background: "rgba(239,68,68,.15)", color: "var(--danger)",
               border: "1px solid rgba(239,68,68,.25)",
             }}>
               {p.nombre} — Sin stock
@@ -104,7 +104,7 @@ function StockAlertBar({ productos }) {
           {stockBajo.map(p => (
             <span key={p.id} style={{
               fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 99,
-              background: "rgba(234,179,8,.15)", color: "#eab308",
+              background: "rgba(234,179,8,.15)", color: "var(--warning)",
               border: "1px solid rgba(234,179,8,.25)",
             }}>
               {p.nombre} — {p.stock} ud.
@@ -168,7 +168,7 @@ function TabProductos() {
           {cats.map(c => <button key={c} style={filterBtnSt(catFilter === c)} onClick={() => setCatFilter(c)}>{c}</button>)}
         </div>
         <button onClick={() => setModalProd({})}
-          style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, background: "#6366f1", border: "none", color: "#fff", cursor: "pointer", fontSize: 13, fontWeight: 700 }}>
+          style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, background: "var(--accent)", border: "none", color: "#fff", cursor: "pointer", fontSize: 13, fontWeight: 700 }}>
           <FiPlus size={14} /> Nuevo producto
         </button>
       </div>
@@ -199,20 +199,20 @@ function TabProductos() {
                   <span style={{ fontSize: 10, color: catColor(p.categoria), fontWeight: 700, textTransform: "uppercase" }}>{p.categoria}</span>
                   <p style={{ margin: "4px 0 6px", fontSize: 13, fontWeight: 600, color: "var(--text-primary)", lineHeight: 1.3 }}>{p.nombre}</p>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: p.stock === 0 || p.stock <= LOW_STOCK ? 6 : 0 }}>
-                    <span style={{ fontSize: 16, fontWeight: 800, color: "#10b981" }}>{fmt(p.precio)}</span>
-                    <span style={{ fontSize: 11, color: p.stock === 0 ? "#ef4444" : p.stock <= LOW_STOCK ? "#eab308" : "var(--text-secondary)", fontWeight: p.stock <= LOW_STOCK ? 700 : 400 }}>
+                    <span style={{ fontSize: 16, fontWeight: 800, color: "var(--success)" }}>{fmt(p.precio)}</span>
+                    <span style={{ fontSize: 11, color: p.stock === 0 ? "var(--danger)" : p.stock <= LOW_STOCK ? "var(--warning)" : "var(--text-secondary)", fontWeight: p.stock <= LOW_STOCK ? 700 : 400 }}>
                       Stock: {p.stock}
                     </span>
                   </div>
                   {p.stock === 0 && (
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 10, fontWeight: 700,
-                      color: "#ef4444", background: "rgba(239,68,68,.12)", borderRadius: 99, padding: "2px 8px" }}>
+                      color: "var(--danger)", background: "rgba(239,68,68,.12)", borderRadius: 99, padding: "2px 8px" }}>
                       <FiXCircle size={9} /> Sin stock — reabastecer
                     </span>
                   )}
                   {p.stock > 0 && p.stock <= LOW_STOCK && (
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 10, fontWeight: 700,
-                      color: "#eab308", background: "rgba(234,179,8,.12)", borderRadius: 99, padding: "2px 8px" }}>
+                      color: "var(--warning)", background: "rgba(234,179,8,.12)", borderRadius: 99, padding: "2px 8px" }}>
                       <FiAlertTriangle size={9} /> Stock bajo
                     </span>
                   )}
@@ -225,11 +225,11 @@ function TabProductos() {
                   <FiEdit2 size={11} /> Editar
                 </button>
                 <button onClick={() => handleToggle(p.id)}
-                  style={{ flex: 1, padding: "5px 0", borderRadius: 6, border: "none", background: p.activo ? "rgba(239,68,68,.12)" : "rgba(16,185,129,.12)", color: p.activo ? "#ef4444" : "#10b981", cursor: "pointer", fontSize: 12 }}>
+                  style={{ flex: 1, padding: "5px 0", borderRadius: 6, border: "none", background: p.activo ? "rgba(239,68,68,.12)" : "rgba(16,185,129,.12)", color: p.activo ? "var(--danger)" : "var(--success)", cursor: "pointer", fontSize: 12 }}>
                   {p.activo ? "Desactivar" : "Activar"}
                 </button>
                 <button onClick={() => handleDelete(p.id, p.nombre)}
-                  style={{ padding: "5px 8px", borderRadius: 6, border: "none", background: "rgba(239,68,68,.1)", color: "#ef4444", cursor: "pointer" }}>
+                  style={{ padding: "5px 8px", borderRadius: 6, border: "none", background: "rgba(239,68,68,.1)", color: "var(--danger)", cursor: "pointer" }}>
                   <FiTrash2 size={12} />
                 </button>
               </div>
@@ -348,7 +348,7 @@ function TabVenta() {
                       onClick={() => !noStock && addToCart(p)}
                       style={{ ...cardSt({
                         padding: "14px", position: "relative",
-                        borderTop: `3px solid ${noStock ? "#ef4444" : catColor(p.categoria)}`,
+                        borderTop: `3px solid ${noStock ? "var(--danger)" : catColor(p.categoria)}`,
                         transition: "transform .15s",
                         cursor: noStock ? "not-allowed" : "pointer",
                         opacity: noStock ? 0.55 : 1,
@@ -365,8 +365,8 @@ function TabVenta() {
                           alignItems: "center", justifyContent: "center", gap: 4,
                           pointerEvents: "none",
                         }}>
-                          <FiXCircle size={22} color="#ef4444" />
-                          <span style={{ fontSize: 12, fontWeight: 700, color: "#ef4444" }}>Sin stock</span>
+                          <FiXCircle size={22} color="var(--danger)" />
+                          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--danger)" }}>Sin stock</span>
                         </div>
                       )}
 
@@ -400,16 +400,16 @@ function TabVenta() {
                       {/* Badge stock bajo */}
                       {lowStock && (
                         <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 10, fontWeight: 700,
-                          color: "#eab308", background: "rgba(234,179,8,.15)", borderRadius: 99,
+                          color: "var(--warning)", background: "rgba(234,179,8,.15)", borderRadius: 99,
                           padding: "1px 7px", marginBottom: 4 }}>
                           <FiAlertTriangle size={9} /> Stock bajo: {p.stock}
                         </span>
                       )}
 
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <span style={{ fontSize: 15, fontWeight: 800, color: "#10b981" }}>{fmt(p.precio)}</span>
+                        <span style={{ fontSize: 15, fontWeight: 800, color: "var(--success)" }}>{fmt(p.precio)}</span>
                         {inCart && !maxInCart && <span style={{ fontSize: 11, background: catColor(p.categoria), color: "#fff", borderRadius: 99, padding: "1px 7px", fontWeight: 700 }}>x{inCart.qty}</span>}
-                        {maxInCart && <span style={{ fontSize: 10, color: "#eab308", fontWeight: 700 }}>Máx.</span>}
+                        {maxInCart && <span style={{ fontSize: 10, color: "var(--warning)", fontWeight: 700 }}>Máx.</span>}
                       </div>
                     </div>
                   );
@@ -422,11 +422,11 @@ function TabVenta() {
         <div style={{ ...cardSt({ padding: "16px", width: 270, flexShrink: 0, display: "flex", flexDirection: "column" }) }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexShrink: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <FiShoppingCart size={15} color="#6366f1" />
+              <FiShoppingCart size={15} color="var(--accent)" />
               <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>Carrito</span>
-              {itemCount > 0 && <span style={{ background: "#6366f1", color: "#fff", borderRadius: 99, fontSize: 10, fontWeight: 700, padding: "1px 7px" }}>{itemCount}</span>}
+              {itemCount > 0 && <span style={{ background: "var(--accent)", color: "#fff", borderRadius: 99, fontSize: 10, fontWeight: 700, padding: "1px 7px" }}>{itemCount}</span>}
             </div>
-            {cart.length > 0 && <button onClick={() => setCart([])} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 11 }}>Limpiar</button>}
+            {cart.length > 0 && <button onClick={() => setCart([])} style={{ background: "none", border: "none", color: "var(--danger)", cursor: "pointer", fontSize: 11 }}>Limpiar</button>}
           </div>
 
           <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 7, marginBottom: 10 }}>
@@ -439,7 +439,7 @@ function TabVenta() {
               <div key={item.id} style={{ background: "var(--bg-input, rgba(255,255,255,.04))", borderRadius: 8, padding: "8px 10px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
                   <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)", flex: 1, lineHeight: 1.3 }}>{item.nombre}</span>
-                  <button onClick={() => setQty(item.id, -item.qty)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", marginLeft: 4 }}>
+                  <button onClick={() => setQty(item.id, -item.qty)} style={{ background: "none", border: "none", color: "var(--danger)", cursor: "pointer", marginLeft: 4 }}>
                     <FiTrash2 size={11} />
                   </button>
                 </div>
@@ -459,7 +459,7 @@ function TabVenta() {
                       <FiPlus size={10} />
                     </button>
                   </div>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "#10b981" }}>{fmt(item.precio * item.qty)}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "var(--success)" }}>{fmt(item.precio * item.qty)}</span>
                 </div>
               </div>
             ))}
@@ -468,11 +468,11 @@ function TabVenta() {
           <div style={{ borderTop: "1px solid var(--border)", paddingTop: 12, flexShrink: 0 }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
               <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>Total</span>
-              <span style={{ fontSize: 20, fontWeight: 800, color: "#f1f5f9" }}>{fmt(total)}</span>
+              <span style={{ fontSize: 20, fontWeight: 800, color: "var(--text-primary)" }}>{fmt(total)}</span>
             </div>
             <button disabled={!cart.length} onClick={() => setCheckout(true)}
               style={{ width: "100%", padding: "11px 0", borderRadius: 10, border: "none",
-                background: cart.length ? "#6366f1" : "var(--bg-input, rgba(255,255,255,.05))",
+                background: cart.length ? "var(--accent)" : "var(--bg-input, rgba(255,255,255,.05))",
                 color: cart.length ? "#fff" : "var(--text-secondary)",
                 fontSize: 14, fontWeight: 700, cursor: cart.length ? "pointer" : "not-allowed",
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
@@ -510,10 +510,10 @@ function TabVenta() {
    TAB: HISTORIAL DE VENTAS
 ══════════════════════════════════════════ */
 const METODO_COLOR = {
-  Efectivo:      "#10b981",
-  Tarjeta:       "#6366f1",
+  Efectivo:      "var(--success)",
+  Tarjeta:       "var(--accent)",
   Transferencia: "#38bdf8",
-  QR:            "#f59e0b",
+  QR:            "var(--warning)",
 };
 
 function TabHistorial() {
@@ -565,7 +565,7 @@ function TabHistorial() {
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {ventas.map((v) => {
             const isOpen = detail === v.id;
-            const color  = METODO_COLOR[v.metodo_pago] || "#94a3b8";
+            const color  = METODO_COLOR[v.metodo_pago] || "var(--text-secondary)";
             return (
               <div key={v.id}
                 onClick={() => setDetail(isOpen ? null : v.id)}
@@ -585,7 +585,7 @@ function TabHistorial() {
                           : <span style={{ color: "var(--text-secondary)", fontSize: 12 }}>Venta directa</span>
                         }
                       </div>
-                      <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>{fmtDate(v.fecha)}</div>
+                      <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginTop: 2 }}>{fmtDate(v.fecha)}</div>
                     </div>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
@@ -596,18 +596,18 @@ function TabHistorial() {
                       style={{
                         display: "flex", alignItems: "center", gap: 5,
                         padding: "5px 10px", borderRadius: 7,
-                        border: "1px solid var(--border, rgba(255,255,255,.12))",
+                        border: "1px solid var(--border)",
                         background: "transparent", color: "var(--text-secondary)",
                         cursor: "pointer", fontSize: 12, fontWeight: 600,
                         transition: "all .15s",
                       }}
-                      onMouseEnter={e => { e.currentTarget.style.borderColor = "#6366f1"; e.currentTarget.style.color = "#818cf8"; }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.color = "var(--accent-soft)"; }}
                       onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,.12)"; e.currentTarget.style.color = "var(--text-secondary)"; }}
                     >
                       <FiFileText size={13} /> Ticket
                     </button>
                     <div style={{ textAlign: "right" }}>
-                      <div style={{ fontSize: 16, fontWeight: 800, color: "#10b981" }}>{fmtMoney(v.total)}</div>
+                      <div style={{ fontSize: 16, fontWeight: 800, color: "var(--success)" }}>{fmtMoney(v.total)}</div>
                       <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 7px", borderRadius: 99,
                         background: `${color}18`, color }}>
                         {v.metodo_pago}
@@ -618,14 +618,14 @@ function TabHistorial() {
 
                 {/* Detalle expandido */}
                 {isOpen && (
-                  <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--border, rgba(255,255,255,.08))" }}>
-                    <div style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase", marginBottom: 6, letterSpacing: ".06em" }}>
+                  <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--border)" }}>
+                    <div style={{ fontSize: 10, color: "var(--text-tertiary)", textTransform: "uppercase", marginBottom: 6, letterSpacing: ".06em" }}>
                       # {v.id?.slice(-8).toUpperCase()}
                     </div>
                     {(v.items || []).map((it, i) => (
                       <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4 }}>
-                        <span style={{ color: "var(--text-primary)" }}>{it.nombre} <span style={{ color: "#64748b" }}>x{it.qty}</span></span>
-                        <span style={{ color: "#10b981", fontWeight: 700 }}>{fmtMoney(it.precio * it.qty)}</span>
+                        <span style={{ color: "var(--text-primary)" }}>{it.nombre} <span style={{ color: "var(--text-tertiary)" }}>x{it.qty}</span></span>
+                        <span style={{ color: "var(--success)", fontWeight: 700 }}>{fmtMoney(it.precio * it.qty)}</span>
                       </div>
                     ))}
                   </div>
@@ -640,13 +640,13 @@ function TabHistorial() {
       {pages > 1 && (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginTop: 20 }}>
           <button onClick={() => load(page - 1)} disabled={page === 1 || loading}
-            style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, color: page === 1 ? "#334155" : "#94a3b8",
+            style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, color: page === 1 ? "#334155" : "var(--text-secondary)",
               cursor: page === 1 ? "not-allowed" : "pointer", padding: "6px 12px", display: "flex", alignItems: "center", gap: 4, fontSize: 13 }}>
             <FiChevronLeft size={13} /> Anterior
           </button>
-          <span style={{ fontSize: 12, color: "#64748b" }}>Página {page} de {pages}</span>
+          <span style={{ fontSize: 12, color: "var(--text-tertiary)" }}>Página {page} de {pages}</span>
           <button onClick={() => load(page + 1)} disabled={page === pages || loading}
-            style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, color: page === pages ? "#334155" : "#94a3b8",
+            style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, color: page === pages ? "#334155" : "var(--text-secondary)",
               cursor: page === pages ? "not-allowed" : "pointer", padding: "6px 12px", display: "flex", alignItems: "center", gap: 4, fontSize: 13 }}>
             Siguiente <FiChevronRight size={13} />
           </button>
@@ -682,15 +682,15 @@ export default function PointOfSale() {
   const tabBtn = (active) => ({
     padding: "7px 18px", borderRadius: 8, border: "none", cursor: "pointer",
     fontSize: 13, fontWeight: 600,
-    background: active ? "#6366f1" : "transparent",
-    color: active ? "#fff" : "var(--text-secondary, #94a3b8)",
+    background: active ? "var(--accent)" : "transparent",
+    color: active ? "#fff" : "var(--text-secondary)",
   });
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden", background: "var(--bg-dark, #0f1117)" }}>
-      <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 28px", borderBottom: "1px solid var(--border, rgba(255,255,255,.08))", flexShrink: 0 }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden", background: "var(--bg-input)" }}>
+      <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 28px", borderBottom: "1px solid var(--border)", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <FiShoppingCart size={20} color="#6366f1" />
+          <FiShoppingCart size={20} color="var(--accent)" />
           <div>
             <h1 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Punto de Venta</h1>
             <p style={{ fontSize: 11, color: "var(--text-secondary)", margin: "1px 0 0" }}>
@@ -698,7 +698,7 @@ export default function PointOfSale() {
             </p>
           </div>
         </div>
-        <div style={{ display: "flex", gap: 4, background: "var(--bg-card, #1a1d2e)", borderRadius: 10, padding: 4 }}>
+        <div style={{ display: "flex", gap: 4, background: "var(--bg-card)", borderRadius: 10, padding: 4 }}>
           <button style={tabBtn(tab === "venta")}    onClick={() => setTab("venta")}>
             <FiShoppingCart size={13} style={{ marginRight: 6 }} />Nueva Venta
           </button>

@@ -152,20 +152,4 @@ export default function ProductoModal({ producto, onClose, onSaved }) {
               </div>
             </div>
             {err && (
-              <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(239,68,68,.12)", border: "1px solid rgba(239,68,68,.3)", borderRadius: 8, padding: "8px 12px", color: "var(--danger)", fontSize: 12 }}>
-                <FiAlertCircle size={14} /> {err}
-              </div>
-            )}
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, paddingTop: 6, borderTop: "1px solid var(--border)" }}>
-              <button type="button" onClick={onClose} style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid var(--border)", background: "transparent", color: "var(--text-secondary)", cursor: "pointer", fontSize: 14 }}>Cancelar</button>
-              <button type="submit" disabled={saving} style={{ padding: "8px 20px", borderRadius: 8, background: "var(--accent)", border: "none", color: "#fff", cursor: "pointer", fontSize: 14, fontWeight: 700, opacity: saving ? 0.7 : 1 }}>
-                {saving ? "Guardando…" : producto ? "Actualizar" : "Crear producto"}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </>,
-    document.body
-  );
-}
+              <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(239,68,68,.12)", border: "1px solid rgba(239,68,68,.3)", borderRadius: 8, padding: "8px 12px", color: "var(--danger)", 

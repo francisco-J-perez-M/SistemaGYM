@@ -31,14 +31,14 @@ import "../../css/CSSUnificado.css";
 
 // ─── Paleta de colores ────────────────────────────────────────────────────────
 const COLORS = {
-  primary:   "#6366f1",
-  success:   "#22c55e",
-  warning:   "#f59e0b",
-  danger:    "#ef4444",
-  muted:     "#64748b",
-  personal:  "#6366f1",
-  grupal:    "#22c55e",
-  consulta:  "#f59e0b",
+  primary:   "var(--accent)",
+  success:   "var(--success)",
+  warning:   "var(--warning)",
+  danger:    "var(--danger)",
+  muted:     "var(--text-tertiary)",
+  personal:  "var(--accent)",
+  grupal:    "var(--success)",
+  consulta:  "var(--warning)",
 };
 
 const TYPE_COLORS = {

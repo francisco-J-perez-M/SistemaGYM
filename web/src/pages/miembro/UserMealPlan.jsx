@@ -64,7 +64,7 @@ export default function UserMealPlan() {
             <p>Organiza tus comidas y cumple tus macros diarios</p>
           </div>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--primary-color, #10b981)' }}>
+            <div style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--primary-color, var(--success))' }}>
               {dailyTotals.cals} <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>kcal</span>
             </div>
             <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Objetivo Diario</div>
@@ -86,7 +86,7 @@ export default function UserMealPlan() {
             key={day}
             onClick={() => setSelectedDay(day)}
             style={{
-              background: selectedDay === day ? 'var(--primary-color, #10b981)' : 'var(--card-bg, #1f2937)',
+              background: selectedDay === day ? 'var(--primary-color, var(--success))' : 'var(--card-bg, #1f2937)',
               color: selectedDay === day ? '#fff' : 'var(--text-secondary)',
               border: '1px solid var(--border-dark, #374151)',
               borderRadius: '20px',
@@ -131,7 +131,7 @@ export default function UserMealPlan() {
           width: '50px', height: '50px', 
           borderRadius: '50%', background: 'var(--input-bg-dark)', 
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: 'var(--primary-color, #10b981)'
+          color: 'var(--primary-color, var(--success))'
         }}>
           <FiActivity size={24} />
         </div>
@@ -142,7 +142,7 @@ export default function UserMealPlan() {
           </div>
           <div style={{ height: '8px', background: 'var(--input-bg-dark)', borderRadius: '4px', overflow: 'hidden' }}>
             <motion.div 
-              style={{ height: '100%', background: 'var(--primary-color, #10b981)' }}
+              style={{ height: '100%', background: 'var(--primary-color, var(--success))' }}
               initial={{ width: 0 }}
               animate={{ width: `${progress}%` }}
               transition={{ duration: 0.5 }}
@@ -188,8 +188,8 @@ export default function UserMealPlan() {
                     <div style={{ 
                       width: '40px', height: '40px', 
                       borderRadius: '12px', 
-                      background: checkedMeals.has(meal.id) ? '#10b98120' : 'var(--input-bg-dark)',
-                      color: checkedMeals.has(meal.id) ? '#10b981' : 'var(--text-primary)',
+                      background: checkedMeals.has(meal.id) ? 'var(--success)20' : 'var(--input-bg-dark)',
+                      color: checkedMeals.has(meal.id) ? 'var(--success)' : 'var(--text-primary)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       marginBottom: '8px',
                       fontSize: '20px'
@@ -219,7 +219,7 @@ export default function UserMealPlan() {
                     {/* Macros Mini Grid */}
                     <div style={{ display: 'flex', gap: '12px', fontSize: '12px', color: 'var(--text-secondary)' }}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <FiPieChart size={10} color="#f59e0b" /> {meal.cals} kcal
+                        <FiPieChart size={10} color="var(--warning)" /> {meal.cals} kcal
                       </span>
                       <span>Prot: <b>{meal.protein}g</b></span>
                       <span>Carb: <b>{meal.carbs}g</b></span>
@@ -235,7 +235,7 @@ export default function UserMealPlan() {
                       width: '40px', height: '40px',
                       borderRadius: '50%',
                       border: checkedMeals.has(meal.id) ? 'none' : '2px solid var(--border-dark)',
-                      background: checkedMeals.has(meal.id) ? '#10b981' : 'transparent',
+                      background: checkedMeals.has(meal.id) ? 'var(--success)' : 'transparent',
                       color: '#fff',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       cursor: 'pointer'

@@ -12,22 +12,21 @@ code {
     monospace;
 }
 
-/* ── Select global — tema oscuro consistente en todo el sistema ─────────────
-   Aplica a cualquier <select> que NO esté ya procesado por .input-dark-container.
+/* ── Select global — responde al tema activo ────────────────────────────────
    Usa appearance:none + chevron SVG embebido para eliminar el default del browser.
    ─────────────────────────────────────────────────────────────────────────── */
 select {
   -webkit-appearance: none;
   -moz-appearance:    none;
   appearance:         none;
-  background-color:   rgba(255, 255, 255, 0.04);
+  background-color:   var(--bg-input);
   background-image:   url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2394a3b8' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat:  no-repeat;
   background-position: right 10px center;
-  border:             1px solid rgba(255, 255, 255, 0.1);
+  border:             1px solid var(--border);
   border-radius:      8px;
   padding:            8px 32px 8px 12px;
-  color:              #f1f5f9;
+  color:              var(--text-primary);
   font-family:        inherit;
   font-size:          13px;
   cursor:             pointer;
@@ -36,18 +35,18 @@ select {
 }
 
 select:hover {
-  border-color: rgba(255, 255, 255, 0.2);
-  background-color: rgba(255, 255, 255, 0.07);
+  border-color: var(--border-hover);
+  background-color: var(--bg-hover);
 }
 
 select:focus {
-  border-color: #6366f1;
-  background-color: rgba(99, 102, 241, 0.08);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+  border-color: var(--accent);
+  background-color: var(--bg-input);
+  box-shadow: 0 0 0 3px var(--accent-dim);
 }
 
 select option {
-  background-color: #1a1d2e;
-  color:            #f1f5f9;
+  background-color: var(--bg-card);
+  color:            var(--text-primary);
   padding:          8px 12px;
 }

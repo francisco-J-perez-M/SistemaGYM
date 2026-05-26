@@ -12,14 +12,14 @@ const nowStr = () => new Date().toLocaleString("es-MX", { dateStyle: "medium", t
 
 const inputSt = {
   width: "100%", boxSizing: "border-box", padding: "9px 12px",
-  background: "var(--bg-dark, #0f1117)",
-  border: "1px solid var(--border, rgba(255,255,255,.12))",
-  borderRadius: 8, color: "var(--text-primary, #f1f5f9)", fontSize: 14, outline: "none",
+  background: "var(--bg-input)",
+  border: "1px solid var(--border)",
+  borderRadius: 8, color: "var(--text-primary)", fontSize: 14, outline: "none",
 };
 const labelSt = {
   display: "block", fontSize: 11, fontWeight: 600,
   textTransform: "uppercase", letterSpacing: ".06em",
-  color: "var(--text-secondary, #94a3b8)", marginBottom: 5,
+  color: "var(--text-secondary)", marginBottom: 5,
 };
 
 export default function CheckoutModal({ cart, miembros, onClose, onComplete }) {
@@ -80,24 +80,24 @@ export default function CheckoutModal({ cart, miembros, onClose, onComplete }) {
     <>
       <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 9992, background: "rgba(0,0,0,.65)", backdropFilter: "blur(4px)" }} />
       <div style={{ position: "fixed", inset: 0, zIndex: 9993, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, pointerEvents: "none" }}>
-        <div style={{ background: "var(--bg-card, #1a1d2e)", border: "1px solid var(--border, rgba(255,255,255,.08))", borderRadius: 12, padding: 0, maxWidth: 460, width: "100%", pointerEvents: "auto", boxShadow: "0 24px 60px rgba(0,0,0,.5)" }}>
+        <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: 0, maxWidth: 460, width: "100%", pointerEvents: "auto", boxShadow: "0 24px 60px rgba(0,0,0,.5)" }}>
           {/* Header */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "18px 22px", borderBottom: "1px solid var(--border, rgba(255,255,255,.08))" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "18px 22px", borderBottom: "1px solid var(--border)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <FiDollarSign size={18} color="#6366f1" />
+              <FiDollarSign size={18} color="var(--accent)" />
               <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>Confirmar cobro</h3>
             </div>
             <button onClick={onClose} style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}><FiX size={18} /></button>
           </div>
 
           {/* Resumen de items */}
-          <div style={{ padding: "14px 22px", borderBottom: "1px solid var(--border, rgba(255,255,255,.08))", maxHeight: 160, overflowY: "auto" }}>
+          <div style={{ padding: "14px 22px", borderBottom: "1px solid var(--border)", maxHeight: 160, overflowY: "auto" }}>
             {cart.map(item => (
               <div key={item.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5, fontSize: 13 }}>
                 <span style={{ color: "var(--text-primary)" }}>
                   {item.nombre} <span style={{ color: "var(--text-secondary)" }}>x{item.qty}</span>
                 </span>
-                <span style={{ color: "#10b981", fontWeight: 700 }}>{fmt(item.precio * item.qty)}</span>
+                <span style={{ color: "var(--success)", fontWeight: 700 }}>{fmt(item.precio * item.qty)}</span>
               </div>
             ))}
           </div>
@@ -117,15 +117,15 @@ export default function CheckoutModal({ cart, miembros, onClose, onComplete }) {
                   ...inputSt,
                   display: "flex", alignItems: "center", gap: 10,
                   cursor: "default", userSelect: "none",
-                  border: "1px solid rgba(99,102,241,.4)",
+                  border: "1px solid var(--border-hover)",
                   background: "rgba(99,102,241,.07)",
                 }}>
-                  <FiUser size={14} color="#6366f1" style={{ flexShrink: 0 }} />
+                  <FiUser size={14} color="var(--accent)" style={{ flexShrink: 0 }} />
                   <span style={{ flex: 1, fontWeight: 600 }}>{lockedMiembro.nombre}</span>
                   <span style={{
                     display: "inline-flex", alignItems: "center", gap: 4,
-                    fontSize: 10, fontWeight: 700, color: "#6366f1",
-                    background: "rgba(99,102,241,.18)", borderRadius: 99,
+                    fontSize: 10, fontWeight: 700, color: "var(--accent)",
+                    background: "var(--accent-dim)", borderRadius: 99,
                     padding: "2px 8px", flexShrink: 0,
                   }}>
                     <FiLock size={9} /> Tú
@@ -153,7 +153,7 @@ export default function CheckoutModal({ cart, miembros, onClose, onComplete }) {
                 ].map(m => (
                   <button key={m.id} type="button" onClick={() => { setMetodo(m.id); setErr(""); }}
                     style={{ flex: 1, padding: "8px 4px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600,
-                      background: metodo === m.id ? "#6366f1" : "var(--bg-input, rgba(255,255,255,.05))",
+                      background: metodo === m.id ? "var(--accent)" : "var(--bg-input, rgba(255,255,255,.05))",
                       color: metodo === m.id ? "#fff" : "var(--text-secondary)" }}>
                     {m.label}
                   </button>
@@ -176,20 +176,20 @@ export default function CheckoutModal({ cart, miembros, onClose, onComplete }) {
             )}
 
             {err && (
-              <div style={{ display: "flex", gap: 8, alignItems: "center", background: "rgba(239,68,68,.12)", border: "1px solid rgba(239,68,68,.3)", borderRadius: 8, padding: "8px 12px", color: "#ef4444", fontSize: 12 }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", background: "rgba(239,68,68,.12)", border: "1px solid rgba(239,68,68,.3)", borderRadius: 8, padding: "8px 12px", color: "var(--danger)", fontSize: 12 }}>
                 <FiAlertCircle size={14} /> {err}
               </div>
             )}
 
             {/* Total + boton */}
-            <div style={{ borderTop: "1px solid var(--border, rgba(255,255,255,.08))", paddingTop: 14 }}>
+            <div style={{ borderTop: "1px solid var(--border)", paddingTop: 14 }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 14 }}>
                 <span style={{ fontSize: 14, color: "var(--text-secondary)" }}>Total a cobrar</span>
-                <span style={{ fontSize: 24, fontWeight: 800, color: "#f1f5f9" }}>{fmt(total)}</span>
+                <span style={{ fontSize: 24, fontWeight: 800, color: "var(--text-primary)" }}>{fmt(total)}</span>
               </div>
               <button onClick={handlePagar} disabled={loading}
                 style={{ width: "100%", padding: "12px 0", borderRadius: 10, border: "none",
-                  background: loading ? "#4f46e5" : "#6366f1", color: "#fff",
+                  background: loading ? "#4f46e5" : "var(--accent)", color: "#fff",
                   fontSize: 15, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer",
                   display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: loading ? 0.8 : 1 }}>
                 {loading ? "Procesando..." : <><FiCheck size={16} /> Confirmar cobro</>}

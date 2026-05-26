@@ -9,13 +9,13 @@ import {
   FiFileText, FiMail, FiLogOut, FiActivity, FiLock, FiCreditCard,
   FiShoppingCart, FiBookOpen, FiCpu, FiPieChart, FiChevronDown,
   FiChevronLeft, FiChevronRight, FiGlobe, FiPackage, FiServer,
-  FiAlertTriangle,
+  FiSliders,
 } from "react-icons/fi";
-import { GiMuscleUp, GiFruitBowl, GiPineTree, GiMeal } from "react-icons/gi";
+import { GiMuscleUp, GiFruitBowl, GiMeal } from "react-icons/gi";
 
 // ── Palette (sin CSS externo) ─────────────────────────────────
 const P = {
-  bg:        "var(--bg-sidebar, #151820)",
+  bg:        "var(--bg-sidebar, var(--bg-card, #151820))",
   bgHover:   "var(--bg-hover, #1e2233)",
   bgActive:  "var(--accent-dim, rgba(99,102,241,.18))",
   accent:    "var(--accent, #6366f1)",
@@ -146,7 +146,7 @@ const ROLE_LABELS = {
 const THEMES = [
   { id: "light",  label: "Claro",    icon: <FiSun />    },
   { id: "dark",   label: "Oscuro",   icon: <FiMoon />   },
-  { id: "forest", label: "Bosque",   icon: <GiPineTree /> },
+  { id: "forest", label: "Bosque",   icon: <FiStar /> },
   { id: "nebula", label: "Nebulosa", icon: <FiStar />   },
 ];
 
@@ -397,7 +397,7 @@ export default function Sidebar({
     },
   };
 
-  const currentThemeIcon = THEMES.find(t => t.id === theme)?.icon || <FiStar />;
+  const currentThemeIcon = <FiSliders size={15} />;
 
   return (
     <aside style={S.aside}>

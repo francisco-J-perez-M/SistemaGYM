@@ -360,7 +360,7 @@ const SeccionHistorial = ({ titulo, items, color, icon: Icon, emptyText }) => (
         {items.map((item, idx) => (
           <div key={idx} style={{ 
             padding: '12px',
-            background: 'var(--bg-dark)',
+            background: 'var(--bg-input)',
             borderRadius: '8px',
             display: 'flex',
             alignItems: 'center',
@@ -560,7 +560,7 @@ export default function UserHealthProgress() {
             style={{ 
               display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px',
               background: 'var(--accent)', border: 'none', borderRadius: '8px',
-              cursor: 'pointer', color: 'var(--bg-dark)', fontWeight: '600'
+              cursor: 'pointer', color: 'var(--bg-input)', fontWeight: '600'
             }}
           >
             <FiEdit2 />
@@ -758,7 +758,7 @@ export default function UserHealthProgress() {
                   <button 
                     onClick={() => navigate('/user-health-update')}
                     style={{
-                      padding: '12px 24px', background: 'var(--accent)', color: 'var(--bg-dark)',
+                      padding: '12px 24px', background: 'var(--accent)', color: 'var(--bg-input)',
                       border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600'
                     }}
                   >
@@ -850,7 +850,7 @@ export default function UserHealthProgress() {
                                     alignItems: 'flex-start',
                                     gap: '10px',
                                     padding: '12px',
-                                    background: 'var(--bg-dark)',
+                                    background: 'var(--bg-input)',
                                     borderRadius: '8px'
                                   }}
                                 >

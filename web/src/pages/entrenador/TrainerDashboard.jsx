@@ -22,14 +22,14 @@ function fechaHoy() {
 }
 
 const STATUS_META = {
-  scheduled:   { label: "Programada",  color: "#6366f1", bg: "rgba(99,102,241,.12)" },
-  "in-progress":{ label: "En curso",   color: "#f59e0b", bg: "rgba(245,158,11,.12)" },
-  completed:   { label: "Completada",  color: "#22c55e", bg: "rgba(34,197,94,.12)"  },
-  cancelled:   { label: "Cancelada",   color: "#ef4444", bg: "rgba(239,68,68,.12)"  },
+  scheduled:   { label: "Programada",  color: "var(--accent)", bg: "var(--accent-dim)" },
+  "in-progress":{ label: "En curso",   color: "var(--warning)", bg: "rgba(245,158,11,.12)" },
+  completed:   { label: "Completada",  color: "var(--success)", bg: "rgba(34,197,94,.12)"  },
+  cancelled:   { label: "Cancelada",   color: "var(--danger)", bg: "rgba(239,68,68,.12)"  },
 };
 
 /* ── KPI Card ── */
-function KpiCard({ icon, label, value, sub, accent = "#6366f1" }) {
+function KpiCard({ icon, label, value, sub, accent = "var(--accent)" }) {
   return (
     <div className="stat-card" style={{ padding: "20px 22px", gap: 4 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
@@ -110,7 +110,7 @@ function SessionRow({ s, showDate = false }) {
 }
 
 /* ── Acceso rápido ── */
-function QuickLink({ icon, label, to, color = "#6366f1" }) {
+function QuickLink({ icon, label, to, color = "var(--accent)" }) {
   const navigate = useNavigate();
   return (
     <button
@@ -191,14 +191,14 @@ export default function TrainerDashboard() {
               label="Clientes activos"
               value={stats.total_clients ?? "—"}
               sub="Asignados a ti"
-              accent="#6366f1"
+              accent="var(--accent)"
             />
             <KpiCard
               icon={<FiCalendar size={16} />}
               label="Sesiones hoy"
               value={stats.sessions_today ?? "—"}
               sub={stats.sessions_today === 1 ? "sesión programada" : "sesiones programadas"}
-              accent="#f59e0b"
+              accent="var(--warning)"
             />
             <KpiCard
               icon={<FiActivity size={16} />}
@@ -212,7 +212,7 @@ export default function TrainerDashboard() {
               label="Completadas"
               value={`${stats.completion_rate ?? 0}%`}
               sub="tasa de completación"
-              accent="#22c55e"
+              accent="var(--success)"
             />
           </>
         )}
@@ -225,12 +225,12 @@ export default function TrainerDashboard() {
         <div className="stat-card" style={{ padding: "20px 22px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>
-              <FiClock size={14} style={{ marginRight: 8, verticalAlign: "middle", color: "#f59e0b" }} />
+              <FiClock size={14} style={{ marginRight: 8, verticalAlign: "middle", color: "var(--warning)" }} />
               Sesiones de hoy
             </h3>
             <span style={{
               fontSize: 11, fontWeight: 700, padding: "2px 10px",
-              borderRadius: 999, background: "rgba(245,158,11,.12)", color: "#f59e0b",
+              borderRadius: 999, background: "rgba(245,158,11,.12)", color: "var(--warning)",
             }}>
               {loading ? "—" : today_sessions.length}
             </span>
@@ -262,7 +262,7 @@ export default function TrainerDashboard() {
           <div className="stat-card" style={{ padding: "20px 22px", flex: 1 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
               <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>
-                <FiCalendar size={14} style={{ marginRight: 8, verticalAlign: "middle", color: "#6366f1" }} />
+                <FiCalendar size={14} style={{ marginRight: 8, verticalAlign: "middle", color: "var(--accent)" }} />
                 Próximas sesiones
               </h3>
             </div>
@@ -292,11 +292,11 @@ export default function TrainerDashboard() {
               Accesos rápidos
             </h3>
             <div style={{ display: "flex", gap: 10 }}>
-              <QuickLink icon={<FiUsers />}    label="Clientes"  to="/trainer/clients"  color="#6366f1" />
-              <QuickLink icon={<FiCalendar />} label="Agenda"    to="/trainer/schedule" color="#f59e0b" />
+              <QuickLink icon={<FiUsers />}    label="Clientes"  to="/trainer/clients"  color="var(--accent)" />
+              <QuickLink icon={<FiCalendar />} label="Agenda"    to="/trainer/schedule" color="var(--warning)" />
               <QuickLink icon={<FiBookOpen />} label="Rutinas"   to="/trainer/routines" color="#14b8a6" />
-              <QuickLink icon={<FiBarChart2 />}label="Reportes"  to="/trainer/reports"  color="#22c55e" />
-              <QuickLink icon={<FiUser />}     label="Perfil"    to="/trainer/profile"  color="#94a3b8" />
+              <QuickLink icon={<FiBarChart2 />}label="Reportes"  to="/trainer/reports"  color="var(--success)" />
+              <QuickLink icon={<FiUser />}     label="Perfil"    to="/trainer/profile"  color="var(--text-secondary)" />
             </div>
           </div>
 

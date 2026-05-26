@@ -26,8 +26,8 @@ const IcoWarning   = () => <svg width="14" height="14" viewBox="0 0 24 24" fill=
 /* ── Helpers ───────────────────────────────────────────────────────────────── */
 const fmtDate = (iso) => iso ? new Date(iso).toLocaleString() : "—";
 const typeBadge = (t) => {
-  const m = { full: ["COMPLETO", "#6366f1"], differential: ["DIFERENCIAL", "#f59e0b"], incremental: ["INCREMENTAL", "#10b981"] };
-  const [label, color] = m[t] || [t?.toUpperCase(), "#94a3b8"];
+  const m = { full: ["COMPLETO", "var(--accent)"], differential: ["DIFERENCIAL", "var(--warning)"], incremental: ["INCREMENTAL", "var(--success)"] };
+  const [label, color] = m[t] || [t?.toUpperCase(), "var(--text-secondary)"];
   return <span style={{ background: color + "22", color, borderRadius: 6, padding: "2px 10px", fontSize: 11, fontWeight: 700 }}>{label}</span>;
 };
 
@@ -133,8 +133,8 @@ function TabGenerar({ summary, onRefresh }) {
                 onClick={() => setBtype(t.id)}
                 style={{
                   flex: 1, minWidth: 130, padding: "12px 10px", borderRadius: 10, cursor: t.disabled ? "not-allowed" : "pointer",
-                  border: btype === t.id ? "2px solid #6366f1" : "1px solid var(--border)",
-                  background: btype === t.id ? "rgba(99,102,241,.12)" : "transparent",
+                  border: btype === t.id ? "2px solid var(--accent)" : "1px solid var(--border)",
+                  background: btype === t.id ? "var(--accent-dim)" : "transparent",
                   color: t.disabled ? "var(--text-secondary)" : "var(--text-primary)",
                   opacity: t.disabled ? 0.45 : 1, transition: "all .2s",
                 }}>
@@ -162,7 +162,7 @@ function TabGenerar({ summary, onRefresh }) {
           <h3 style={{ margin: 0, fontSize: 15 }}>Monitor</h3>
           <div style={{
             width: 110, height: 110, borderRadius: "50%",
-            background: `conic-gradient(#6366f1 ${progress * 3.6}deg, var(--bg-dark) ${progress * 3.6}deg)`,
+            background: `conic-gradient(var(--accent) ${progress * 3.6}deg, var(--bg-input) ${progress * 3.6}deg)`,
             display: "flex", alignItems: "center", justifyContent: "center",
           }}>
             <div style={{ width: 90, height: 90, borderRadius: "50%", background: "var(--bg-card)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 22, color: "var(--text-primary)" }}>
@@ -174,7 +174,7 @@ function TabGenerar({ summary, onRefresh }) {
           </p>
           {!running && lastFile && (
             <button onClick={() => triggerDownload(lastFile)}
-              style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 18px", borderRadius: 8, background: "#10b981", border: "none", color: "#fff", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>
+              style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 18px", borderRadius: 8, background: "var(--success)", border: "none", color: "#fff", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>
               <IcoDownload /> Descargar JSON
             </button>
           )}
@@ -302,7 +302,7 @@ function TabRestaurar({ summary, onRefresh }) {
                         <button
                           disabled={restoring === bk.filename}
                           onClick={() => handleRestore(bk)}
-                          style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 12px", borderRadius: 6, border: "1px solid rgba(245,158,11,.4)", background: "rgba(245,158,11,.1)", color: "#f59e0b", cursor: "pointer", fontSize: 12, fontWeight: 700, opacity: restoring === bk.filename ? 0.6 : 1 }}>
+                          style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 12px", borderRadius: 6, border: "1px solid rgba(245,158,11,.4)", background: "rgba(245,158,11,.1)", color: "var(--warning)", cursor: "pointer", fontSize: 12, fontWeight: 700, opacity: restoring === bk.filename ? 0.6 : 1 }}>
                           <IcoRestore /> {restoring === bk.filename ? "Restaurando…" : "Restaurar"}
                         </button>
                       </div>
@@ -357,8 +357,8 @@ export default function BackupsDashboard() {
               style={{
                 display: "flex", alignItems: "center", gap: 8,
                 padding: "10px 18px", background: "none", border: "none", cursor: "pointer",
-                borderBottom: tab === t.id ? "2px solid #6366f1" : "2px solid transparent",
-                color: tab === t.id ? "#818cf8" : "var(--text-secondary)",
+                borderBottom: tab === t.id ? "2px solid var(--accent)" : "2px solid transparent",
+                color: tab === t.id ? "var(--accent-soft)" : "var(--text-secondary)",
                 fontWeight: tab === t.id ? 700 : 500, fontSize: 14, transition: "all .2s",
               }}>
               {t.icon} {t.label}

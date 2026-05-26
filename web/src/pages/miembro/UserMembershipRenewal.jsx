@@ -255,7 +255,7 @@ export default function UserMembershipRenewal() {
                         display: 'flex', 
                         alignItems: 'center', 
                         justifyContent: 'center', 
-                        color: 'var(--bg-dark)' 
+                        color: 'var(--bg-input)' 
                       }}
                     >
                       <FiCheck />
@@ -364,7 +364,7 @@ export default function UserMembershipRenewal() {
                           display: 'flex', 
                           alignItems: 'center', 
                           justifyContent: 'center', 
-                          color: 'var(--bg-dark)' 
+                          color: 'var(--bg-input)' 
                         }}>
                           <FiCheck size={14} />
                         </div>
@@ -430,7 +430,7 @@ export default function UserMembershipRenewal() {
                   width: '100%',
                   padding: '16px',
                   background: processing || !selectedPlan || !selectedPaymentMethod ? 'var(--border-dark)' : 'var(--accent)',
-                  color: 'var(--bg-dark)',
+                  color: 'var(--bg-input)',
                   border: 'none',
                   borderRadius: '12px',
                   fontSize: '16px',

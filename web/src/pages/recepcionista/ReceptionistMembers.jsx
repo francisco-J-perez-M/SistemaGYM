@@ -11,10 +11,10 @@ import "../../css/CSSUnificado.css";
 const API_URL = "/api/recepcionista";
 
 const BADGE_STYLES = {
-  activa:     { bg: "rgba(34,197,94,0.15)",  color: "#22c55e", icon: <FiCheckCircle size={12} /> },
-  vencida:    { bg: "rgba(239,68,68,0.15)",   color: "#ef4444", icon: <FiXCircle size={12} /> },
-  por_vencer: { bg: "rgba(234,179,8,0.15)",   color: "#eab308", icon: <FiAlertCircle size={12} /> },
-  sin_membresia: { bg: "rgba(100,116,139,0.15)", color: "#64748b", icon: <FiUser size={12} /> },
+  activa:     { bg: "rgba(34,197,94,0.15)",  color: "var(--success)", icon: <FiCheckCircle size={12} /> },
+  vencida:    { bg: "rgba(239,68,68,0.15)",   color: "var(--danger)", icon: <FiXCircle size={12} /> },
+  por_vencer: { bg: "rgba(234,179,8,0.15)",   color: "var(--warning)", icon: <FiAlertCircle size={12} /> },
+  sin_membresia: { bg: "rgba(100,116,139,0.15)", color: "var(--text-tertiary)", icon: <FiUser size={12} /> },
 };
 
 function StatusBadge({ status }) {
@@ -118,9 +118,9 @@ export default function ReceptionistMembers() {
       <div className="kpi-grid" style={{ marginBottom: "24px" }}>
         {[
           { label: "Total Miembros", value: stats.total,      color: "var(--accent-soft)", icon: <FiUsers /> },
-          { label: "Activos",        value: stats.activos,    color: "#22c55e",            icon: <FiCheckCircle /> },
-          { label: "Por Vencer",     value: stats.por_vencer, color: "#eab308",            icon: <FiAlertCircle /> },
-          { label: "Vencidos",       value: stats.vencidos,   color: "#ef4444",            icon: <FiXCircle /> },
+          { label: "Activos",        value: stats.activos,    color: "var(--success)",            icon: <FiCheckCircle /> },
+          { label: "Por Vencer",     value: stats.por_vencer, color: "var(--warning)",            icon: <FiAlertCircle /> },
+          { label: "Vencidos",       value: stats.vencidos,   color: "var(--danger)",            icon: <FiXCircle /> },
         ].map((kpi, i) => (
           <motion.div
             key={kpi.label}
@@ -166,7 +166,7 @@ export default function ReceptionistMembers() {
             Cargando…
           </p>
         ) : error ? (
-          <p style={{ color: "#ef4444", textAlign: "center", padding: "32px" }}>{error}</p>
+          <p style={{ color: "var(--danger)", textAlign: "center", padding: "32px" }}>{error}</p>
         ) : filtered.length === 0 ? (
           <p style={{ color: "var(--text-secondary)", textAlign: "center", padding: "32px" }}>
             No se encontraron miembros.

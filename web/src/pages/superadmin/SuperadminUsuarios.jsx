@@ -4,8 +4,8 @@ import Swal from "sweetalert2";
 import { getUsuarios, toggleUsuario, impersonar } from "../../api/superadmin";
 
 const card = (extra = {}) => ({
-  background: "var(--bg-card, #1a1d2e)",
-  border: "1px solid var(--border, rgba(255,255,255,.08))",
+  background: "var(--bg-card)",
+  border: "1px solid var(--border)",
   borderRadius: 14,
   padding: "20px 22px",
   ...extra,
@@ -13,10 +13,10 @@ const card = (extra = {}) => ({
 
 const badge = (type = "pos") => {
   const map = {
-    pos:  { bg: "rgba(16,185,129,.15)", color: "#10b981" },
-    neg:  { bg: "rgba(239,68,68,.15)", color: "#ef4444" },
-    info: { bg: "rgba(99,102,241,.15)", color: "#818cf8" },
-    warn: { bg: "rgba(234,179,8,.15)", color: "#eab308" },
+    pos:  { bg: "rgba(16,185,129,.15)", color: "var(--success)" },
+    neg:  { bg: "rgba(239,68,68,.15)", color: "var(--danger)" },
+    info: { bg: "var(--accent-dim)", color: "var(--accent-soft)" },
+    warn: { bg: "rgba(234,179,8,.15)", color: "var(--warning)" },
   };
   const c = map[type] || map.info;
   return { display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 9px", borderRadius: 99, fontSize: 11, fontWeight: 700, background: c.bg, color: c.color };
@@ -24,10 +24,10 @@ const badge = (type = "pos") => {
 
 const btnStyle = (variant = "primary") => {
   const v = {
-    primary: { background: "var(--accent, #6366f1)", color: "#fff" },
-    ghost:   { background: "rgba(255,255,255,.06)",  color: "var(--text-secondary, #94a3b8)" },
-    danger:  { background: "rgba(239,68,68,.1)",     color: "#ef4444" },
-    success: { background: "rgba(16,185,129,.1)",    color: "#10b981" },
+    primary: { background: "var(--accent, var(--accent))", color: "#fff" },
+    ghost:   { background: "rgba(255,255,255,.06)",  color: "var(--text-secondary)" },
+    danger:  { background: "rgba(239,68,68,.1)",     color: "var(--danger)" },
+    success: { background: "rgba(16,185,129,.1)",    color: "var(--success)" },
     purple:  { background: "rgba(168,85,247,.1)",    color: "#a855f7" },
   };
   return { border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "opacity .15s", ...(v[variant] || v.primary) };
@@ -80,18 +80,18 @@ export default function SuperadminUsuarios() {
       icon: "warning",
       showCancelButton: true,
       confirmButtonText: user.activo ? "Desactivar" : "Activar",
-      confirmButtonColor: user.activo ? "#ef4444" : "#10b981",
+      confirmButtonColor: user.activo ? "var(--danger)" : "var(--success)",
       cancelButtonText: "Cancelar",
-      background: "var(--bg-card, #1e2233)",
-      color: "var(--text-primary, #f1f5f9)",
+      background: "var(--bg-card)",
+      color: "var(--text-primary)",
     });
     if (!isConfirmed) return;
     try {
       await toggleUsuario(user.id);
       setUsers(prev => prev.map(u => u.id === user.id ? { ...u, activo: !u.activo } : u));
-      Swal.fire({ icon: "success", title: user.activo ? "Usuario desactivado" : "Usuario activado", timer: 1500, showConfirmButton: false, background: "var(--bg-card, #1e2233)", color: "var(--text-primary, #f1f5f9)" });
+      Swal.fire({ icon: "success", title: user.activo ? "Usuario desactivado" : "Usuario activado", timer: 1500, showConfirmButton: false, background: "var(--bg-card)", color: "var(--text-primary)" });
     } catch (e) {
-      Swal.fire({ icon: "error", title: "Error", text: e?.response?.data?.msg || "No se pudo cambiar", background: "var(--bg-card, #1e2233)", color: "var(--text-primary, #f1f5f9)" });
+      Swal.fire({ icon: "error", title: "Error", text: e?.response?.data?.msg || "No se pudo cambiar", background: "var(--bg-card)", color: "var(--text-primary)" });
     }
   };
 
@@ -100,15 +100,15 @@ export default function SuperadminUsuarios() {
       title: `Impersonar a "${user.nombre}"`,
       html: `
         <p style="margin-bottom:8px">Iniciarás sesión como este usuario por <strong>1 hora</strong>.</p>
-        <p style="color:#eab308;font-size:13px">⚠️ Esta acción queda registrada en el log de auditoría.</p>
+        <p style="color:var(--warning);font-size:13px">⚠️ Esta acción queda registrada en el log de auditoría.</p>
       `,
       icon: "warning",
       showCancelButton: true,
       confirmButtonText: "Continuar",
       confirmButtonColor: "#a855f7",
       cancelButtonText: "Cancelar",
-      background: "var(--bg-card, #1e2233)",
-      color: "var(--text-primary, #f1f5f9)",
+      background: "var(--bg-card)",
+      color: "var(--text-primary)",
     });
     if (!isConfirmed) return;
 
@@ -129,7 +129,7 @@ export default function SuperadminUsuarios() {
       const dest = ROUTE_FOR_ROLE[(targetUser.role || "").toLowerCase()] || "/dashboard";
       navigate(dest, { replace: true });
     } catch (e) {
-      Swal.fire({ icon: "error", title: "Error", text: e?.response?.data?.msg || "No se pudo impersonar", background: "var(--bg-card, #1e2233)", color: "var(--text-primary, #f1f5f9)" });
+      Swal.fire({ icon: "error", title: "Error", text: e?.response?.data?.msg || "No se pudo impersonar", background: "var(--bg-card)", color: "var(--text-primary)" });
     }
   };
 
@@ -138,10 +138,10 @@ export default function SuperadminUsuarios() {
   const fmtDate = (d) => d ? new Date(d).toLocaleDateString("es-MX") : "—";
 
   return (
-    <div style={{ padding: "28px 32px", minHeight: "100vh", background: "var(--bg-dark, #0f1117)", fontFamily: "inherit" }}>
+    <div style={{ padding: "28px 32px", minHeight: "100vh", background: "var(--bg-input)", fontFamily: "inherit" }}>
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 800, color: "var(--text-primary, #f1f5f9)", marginBottom: 4 }}>Usuarios</h1>
-        <p style={{ fontSize: 14, color: "var(--text-secondary, #94a3b8)" }}>{total} usuarios en la plataforma</p>
+        <h1 style={{ fontSize: 24, fontWeight: 800, color: "var(--text-primary)", marginBottom: 4 }}>Usuarios</h1>
+        <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>{total} usuarios en la plataforma</p>
       </div>
 
       {/* Filters */}
@@ -151,12 +151,12 @@ export default function SuperadminUsuarios() {
           onChange={e => setFilter(f => ({ ...f, q: e.target.value }))}
           onKeyDown={e => e.key === "Enter" && load(1, { ...filter, q: e.target.value })}
           placeholder="Buscar por nombre o email…"
-          style={{ flex: 1, minWidth: 220, background: "var(--bg-card, #1a1d2e)", border: "1px solid var(--border, rgba(255,255,255,.08))", borderRadius: 8, padding: "8px 14px", color: "var(--text-primary, #f1f5f9)", fontSize: 13 }}
+          style={{ flex: 1, minWidth: 220, background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, padding: "8px 14px", color: "var(--text-primary)", fontSize: 13 }}
         />
         <select
           value={filter.rol}
           onChange={e => { const v = { ...filter, rol: e.target.value }; setFilter(v); load(1, v); }}
-          style={{ background: "var(--bg-card, #1a1d2e)", border: "1px solid var(--border, rgba(255,255,255,.08))", borderRadius: 8, padding: "8px 12px", color: "var(--text-primary, #f1f5f9)", fontSize: 13 }}
+          style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, padding: "8px 12px", color: "var(--text-primary)", fontSize: 13 }}
         >
           <option value="">Todos los roles</option>
           <option value="superadmin">Superadmin</option>
@@ -169,7 +169,7 @@ export default function SuperadminUsuarios() {
         <select
           value={filter.activo}
           onChange={e => { const v = { ...filter, activo: e.target.value }; setFilter(v); load(1, v); }}
-          style={{ background: "var(--bg-card, #1a1d2e)", border: "1px solid var(--border, rgba(255,255,255,.08))", borderRadius: 8, padding: "8px 12px", color: "var(--text-primary, #f1f5f9)", fontSize: 13 }}
+          style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, padding: "8px 12px", color: "var(--text-primary)", fontSize: 13 }}
         >
           <option value="">Todos</option>
           <option value="true">Activos</option>
@@ -189,34 +189,34 @@ export default function SuperadminUsuarios() {
           <thead>
             <tr style={{ background: "rgba(255,255,255,.03)" }}>
               {["Usuario", "Email", "Rol", "Gimnasio", "Estado", "Creado", "Acciones"].map(h => (
-                <th key={h} style={{ textAlign: "left", padding: "12px 16px", color: "var(--text-secondary, #94a3b8)", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: ".06em", borderBottom: "1px solid var(--border, rgba(255,255,255,.08))", whiteSpace: "nowrap" }}>{h}</th>
+                <th key={h} style={{ textAlign: "left", padding: "12px 16px", color: "var(--text-secondary)", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: ".06em", borderBottom: "1px solid var(--border)", whiteSpace: "nowrap" }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} style={{ padding: 40, textAlign: "center", color: "var(--text-secondary, #94a3b8)" }}>Cargando…</td></tr>
+              <tr><td colSpan={7} style={{ padding: 40, textAlign: "center", color: "var(--text-secondary)" }}>Cargando…</td></tr>
             ) : users.length === 0 ? (
-              <tr><td colSpan={7} style={{ padding: 40, textAlign: "center", color: "var(--text-secondary, #94a3b8)" }}>Sin resultados</td></tr>
+              <tr><td colSpan={7} style={{ padding: 40, textAlign: "center", color: "var(--text-secondary)" }}>Sin resultados</td></tr>
             ) : users.map(u => (
               <tr key={u.id} style={{ borderBottom: "1px solid var(--border, rgba(255,255,255,.04))" }}>
                 <td style={{ padding: "12px 16px" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={{ width: 30, height: 30, borderRadius: "50%", background: "var(--accent-dim, rgba(99,102,241,.18))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "var(--accent, #6366f1)", flexShrink: 0 }}>
+                    <div style={{ width: 30, height: 30, borderRadius: "50%", background: "var(--accent-dim, var(--accent-dim))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "var(--accent, var(--accent))", flexShrink: 0 }}>
                       {(u.nombre || "U").charAt(0).toUpperCase()}
                     </div>
-                    <span style={{ fontWeight: 600, color: "var(--text-primary, #f1f5f9)" }}>{u.nombre}</span>
+                    <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{u.nombre}</span>
                   </div>
                 </td>
-                <td style={{ padding: "12px 16px", color: "var(--text-secondary, #94a3b8)" }}>{u.email}</td>
+                <td style={{ padding: "12px 16px", color: "var(--text-secondary)" }}>{u.email}</td>
                 <td style={{ padding: "12px 16px" }}>
                   <span style={badge(ROL_BADGE[u.rol?.toLowerCase()] || "info")}>{u.rol || "—"}</span>
                 </td>
-                <td style={{ padding: "12px 16px", color: "var(--text-secondary, #94a3b8)" }}>{u.gimnasio || "—"}</td>
+                <td style={{ padding: "12px 16px", color: "var(--text-secondary)" }}>{u.gimnasio || "—"}</td>
                 <td style={{ padding: "12px 16px" }}>
                   <span style={badge(u.activo ? "pos" : "neg")}>{u.activo ? "Activo" : "Inactivo"}</span>
                 </td>
-                <td style={{ padding: "12px 16px", color: "var(--text-secondary, #94a3b8)" }}>{fmtDate(u.created_at)}</td>
+                <td style={{ padding: "12px 16px", color: "var(--text-secondary)" }}>{fmtDate(u.created_at)}</td>
                 <td style={{ padding: "12px 16px" }}>
                   <div style={{ display: "flex", gap: 6 }}>
                     {u.rol?.toLowerCase() !== "superadmin" && (
@@ -241,7 +241,7 @@ export default function SuperadminUsuarios() {
       {pages > 1 && (
         <div style={{ display: "flex", justifyContent: "center", gap: 8, marginTop: 20 }}>
           <button style={btnStyle("ghost")} disabled={page === 1} onClick={() => load(page - 1)}>← Anterior</button>
-          <span style={{ padding: "7px 14px", fontSize: 13, color: "var(--text-secondary, #94a3b8)" }}>{page} / {pages}</span>
+          <span style={{ padding: "7px 14px", fontSize: 13, color: "var(--text-secondary)" }}>{page} / {pages}</span>
           <button style={btnStyle("ghost")} disabled={page === pages} onClick={() => load(page + 1)}>Siguiente →</button>
         </div>
       )}
@@ -249,7 +249,7 @@ export default function SuperadminUsuarios() {
       {/* Impersonation notice */}
       <div style={{ marginTop: 24, padding: "12px 16px", background: "rgba(168,85,247,.08)", border: "1px solid rgba(168,85,247,.2)", borderRadius: 10 }}>
         <p style={{ fontSize: 12, color: "#a855f7", fontWeight: 600, marginBottom: 4 }}>ℹ️ Impersonación de usuarios</p>
-        <p style={{ fontSize: 12, color: "var(--text-secondary, #94a3b8)" }}>
+        <p style={{ fontSize: 12, color: "var(--text-secondary)" }}>
           Genera un token temporal de 1 hora. La sesión queda registrada con el campo <code style={{ background: "rgba(255,255,255,.06)", padding: "1px 5px", borderRadius: 4 }}>impersonated_by</code> para auditoría. Para volver al superadmin, cierra sesión y vuelve a iniciar con tus credenciales.
         </p>
       </div>

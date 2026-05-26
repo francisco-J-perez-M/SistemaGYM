@@ -84,7 +84,7 @@ export default function AnalyticsMapReduce() {
   );
 
   if (error) {
-    const isNoData = error.includes("401") || error.includes("403") || error.includes("404");
+    const isNoData = error.includes("400") || error.includes("401") || error.includes("403") || error.includes("404");
     return (
       <div className="empty-state">
         {isNoData ? (
@@ -100,7 +100,7 @@ export default function AnalyticsMapReduce() {
           </>
         ) : (
           <>
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: "#ef4444", marginBottom: 12 }}>
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--danger)", marginBottom: 12 }}>
               <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
             </svg>
             <h3 style={{ color: "var(--text-secondary)", margin: "0 0 8px" }}>Error al cargar datos</h3>

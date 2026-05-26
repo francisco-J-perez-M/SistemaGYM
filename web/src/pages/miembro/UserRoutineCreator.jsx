@@ -321,7 +321,7 @@ export default function UserRoutineCreator() {
                           setRoutine(nuevaRutina);
                         }}
                         style={{
-                          background: 'var(--bg-dark)',
+                          background: 'var(--bg-input)',
                           border: '1px solid var(--border-dark)',
                           borderRadius: '6px',
                           padding: '8px',
@@ -341,7 +341,7 @@ export default function UserRoutineCreator() {
                         style={{ 
                           padding: '8px 16px', 
                           background: 'var(--accent)', 
-                          color: 'var(--bg-dark)', 
+                          color: 'var(--bg-input)', 
                           border: 'none', 
                           borderRadius: '8px', 
                           cursor: 'pointer', 
@@ -382,7 +382,7 @@ export default function UserRoutineCreator() {
                         gridTemplateColumns: '2fr 1fr 1fr auto', 
                         gap: '12px', 
                         padding: '12px', 
-                        background: 'var(--bg-dark)', 
+                        background: 'var(--bg-input)', 
                         borderRadius: '8px', 
                         marginBottom: '10px' 
                       }}

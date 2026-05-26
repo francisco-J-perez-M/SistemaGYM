@@ -44,7 +44,7 @@ const overlayStyle = {
 
 const cardStyle = {
   background: "#1a1a2e",
-  border: "1px solid rgba(255,255,255,0.08)",
+  border: "1px solid var(--border)",
   borderRadius: 16,
   width: "100%",
   maxWidth: 620,
@@ -78,7 +78,7 @@ const iconWrapStyle = (editing) => ({
   background: editing
     ? "rgba(245, 158, 11, 0.15)"
     : "rgba(99, 102, 241, 0.15)",
-  color: editing ? "#f59e0b" : "#818cf8",
+  color: editing ? "var(--warning)" : "var(--accent-soft)",
   flexShrink: 0,
 });
 
