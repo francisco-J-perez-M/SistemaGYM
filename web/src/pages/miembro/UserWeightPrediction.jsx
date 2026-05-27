@@ -118,25 +118,33 @@ export default function UserWeightPrediction() {
     fetchPrediction(newDias);
   };
 
+  // Helper: extrae el valor numérico de un item de progreso/predicción
+  // Soporta { peso_predicho_kg }, { peso }, { valor }, o número directo
+  const _pesoVal = (item) => {
+    if (item == null) return null;
+    if (typeof item === "number") return item;
+    const v = item.peso_predicho_kg ?? item.peso ?? item.valor;
+    return (v != null && !Number.isNaN(Number(v))) ? Number(v) : null;
+  };
+
   // Construir datos del gráfico
   const buildChartData = () => {
     if (!data) return [];
-    const historial = data.historial_peso || [];
+    const historial    = data.historial_peso       || [];
     const predicciones = data.predicciones_futuras || [];
 
     const histData = historial.map((item, i) => ({
-      label: item.fecha || item.mes || `M${i + 1}`,
-      real: item.peso ?? item.valor ?? (typeof item === "number" ? item : null),
+      label:      item.fecha || item.mes || `M${i + 1}`,
+      real:       _pesoVal(item),
       prediccion: null,
     }));
 
     const predData = predicciones.map((item, i) => ({
-      label: item.fecha || item.mes || `F+${i + 1}`,
-      real: null,
-      prediccion: item.peso ?? item.valor ?? (typeof item === "number" ? item : null),
+      label:      item.fecha_estimada || item.fecha || item.mes || `+${item.dias_desde_hoy ?? i + 1}d`,
+      real:       null,
+      prediccion: _pesoVal(item),
     }));
 
-    // Conectar desde el último punto real
     if (histData.length > 0 && predData.length > 0) {
       return [
         ...histData,
@@ -150,19 +158,13 @@ export default function UserWeightPrediction() {
   const chartData = buildChartData();
 
   // Estadísticas rápidas
-  const historial = data?.historial_peso || [];
+  const historial    = data?.historial_peso       || [];
   const predicciones = data?.predicciones_futuras || [];
-  const pesoActual = historial.length > 0
-    ? (historial[historial.length - 1]?.peso ?? historial[historial.length - 1]?.valor ?? historial[historial.length - 1])
-    : null;
-  const pesoInicial = historial.length > 0
-    ? (historial[0]?.peso ?? historial[0]?.valor ?? historial[0])
-    : null;
-  const pesoMeta = predicciones.length > 0
-    ? (predicciones[predicciones.length - 1]?.peso ?? predicciones[predicciones.length - 1]?.valor ?? predicciones[predicciones.length - 1])
-    : null;
-  const cambioReal = pesoActual !== null && pesoInicial !== null ? (pesoActual - pesoInicial) : null;
-  const cambioEstimado = pesoMeta !== null && pesoActual !== null ? (pesoMeta - pesoActual) : null;
+  const pesoActual   = _pesoVal(historial[historial.length - 1] ?? null);
+  const pesoInicial  = _pesoVal(historial[0] ?? null);
+  const pesoMeta     = _pesoVal(predicciones[predicciones.length - 1] ?? null);
+  const cambioReal      = (pesoActual != null && pesoInicial != null) ? (pesoActual - pesoInicial)  : null;
+  const cambioEstimado  = (pesoMeta   != null && pesoActual  != null) ? (pesoMeta   - pesoActual)   : null;
 
   const tendencia = data?.tendencia || "";
   const tConfig = TENDENCIA_CONFIG[tendencia];
@@ -226,9 +228,9 @@ export default function UserWeightPrediction() {
   return (
     <div className="dashboard-content">
       <div style={{ marginBottom: 24 }}>
-        <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>Mi predicción de peso</h2>
+        <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>¿Cómo va tu peso?</h2>
         <p style={{ color: "var(--text-secondary)", fontSize: 14 }}>
-          Análisis de IA basado en tu historial registrado
+          Basado en tus registros anteriores, esto es lo que puedes esperar
         </p>
       </div>
 
@@ -267,27 +269,33 @@ export default function UserWeightPrediction() {
               </div>
             </div>
             <div className="stat-card" style={{ padding: 16 }}>
-              <h3>Meta estimada</h3>
+              <h3>¿A dónde llegarás?</h3>
               <div className="stat-value" style={{ fontSize: 22 }}>
-                {pesoMeta !== null ? `${parseFloat(pesoMeta).toFixed(1)} kg` : "—"}
+                {pesoMeta != null ? `${pesoMeta.toFixed(1)} kg` : "—"}
               </div>
+              <p style={{ fontSize: 11, color: "var(--text-secondary)", margin: "4px 0 0" }}>
+                peso estimado al final del período
+              </p>
             </div>
             <div className="stat-card" style={{ padding: 16 }}>
-              <h3>Cambio estimado</h3>
+              <h3>Diferencia esperada</h3>
               <div
                 className="stat-value"
                 style={{
                   fontSize: 22,
-                  color: cambioEstimado === null ? "var(--text-primary)"
+                  color: cambioEstimado == null ? "var(--text-primary)"
                     : cambioEstimado < 0 ? "var(--success-color)"
                     : cambioEstimado > 0 ? "var(--danger-color)"
                     : "var(--warning-color)",
                 }}
               >
-                {cambioEstimado !== null
-                  ? `${cambioEstimado > 0 ? "+" : ""}${parseFloat(cambioEstimado).toFixed(1)} kg`
+                {cambioEstimado != null
+                  ? `${cambioEstimado > 0 ? "+" : ""}${cambioEstimado.toFixed(1)} kg`
                   : "—"}
               </div>
+              <p style={{ fontSize: 11, color: "var(--text-secondary)", margin: "4px 0 0" }}>
+                {cambioEstimado == null ? "" : cambioEstimado < 0 ? "bajarás este peso" : cambioEstimado > 0 ? "subirías este peso" : "sin cambios significativos"}
+              </p>
             </div>
           </div>
 
@@ -295,7 +303,7 @@ export default function UserWeightPrediction() {
           <div className="stat-card" style={{
             flexDirection: "row", alignItems: "center", gap: 10, padding: "12px 16px", flexWrap: "wrap",
           }}>
-            <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>Proyección:</span>
+            <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>Ver a cuánto tiempo:</span>
             {DIAS_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
@@ -318,17 +326,17 @@ export default function UserWeightPrediction() {
       {/* Gráfico principal */}
       <div className="chart-card" style={{ marginBottom: 16 }}>
         <div className="chart-header" style={{ marginBottom: 16 }}>
-          <h3>Historial real y proyección de IA</h3>
+          <h3>Tu peso: lo que pasó y lo que se espera</h3>
         </div>
 
         <div style={{ display: "flex", gap: 20, marginBottom: 14, fontSize: 12, color: "var(--text-secondary)", flexWrap: "wrap" }}>
           <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{ width: 24, height: 3, background: "#38bdf8", borderRadius: 2, display: "inline-block" }} />
-            Historial real (datos medidos)
+            Lo que ya registraste
           </span>
           <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{ width: 24, height: 0, borderTop: "3px dashed #a78bfa", display: "inline-block" }} />
-            Predicción IA (estimación futura)
+            Lo que podría pasar si sigues igual
           </span>
         </div>
 
@@ -384,9 +392,9 @@ export default function UserWeightPrediction() {
           <circle cx="12" cy="16" r="1" fill="currentColor" />
         </svg>
         <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6, margin: 0 }}>
-          <strong style={{ color: "var(--warning-color)" }}>Aviso importante: </strong>
+          <strong style={{ color: "var(--warning-color)" }}>Ten en cuenta: </strong>
           {disclaimer ||
-            "Esta predicción es una estimación calculada por inteligencia artificial basada en tu historial de peso registrado. No constituye un diagnóstico médico ni un plan nutricional. Los resultados reales pueden variar según factores como dieta, niveles de estrés, hidratación y actividad física. Consulta a tu entrenador o nutriólogo para un seguimiento personalizado."}
+            "Esto es una estimación basada en tus registros anteriores. Tu peso real puede ser diferente dependiendo de cómo comas, duermas, te ejercites y otros factores del día a día. Usa esto como una guía, no como un número definitivo. Si quieres un plan más preciso, habla con tu entrenador o nutriólogo."}
         </p>
       </div>
     </div>
