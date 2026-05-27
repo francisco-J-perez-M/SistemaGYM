@@ -1,65 +1,103 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
-import { FiUser, FiMail, FiPhone, FiCalendar, FiMapPin, FiEdit2, FiSave, FiCamera, FiAlertCircle } from "react-icons/fi";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  FiUser, FiMail, FiPhone, FiCalendar, FiMapPin,
+  FiEdit2, FiSave, FiCamera, FiAlertCircle, FiX,
+  FiActivity, FiAward, FiTarget, FiTrendingUp, FiCheckCircle,
+} from "react-icons/fi";
 import "../../css/CSSUnificado.css";
 
+/* ── campo editable reutilizable ────────────────────────────────── */
+function InfoField({ icon, label, value, field, editing, editedData, onChange }) {
+  return (
+    <div style={{
+      display: "flex", alignItems: "flex-start", gap: 12,
+      padding: "14px 16px", borderRadius: 10,
+      background: "var(--bg-input)", border: "1px solid var(--border)",
+    }}>
+      <div style={{
+        width: 34, height: 34, borderRadius: 8, flexShrink: 0,
+        background: "rgba(99,102,241,.12)", color: "var(--accent)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}>
+        {icon}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase",
+          letterSpacing: ".05em", color: "var(--text-secondary)", marginBottom: 4 }}>
+          {label}
+        </div>
+        {editing ? (
+          <input
+            type="text"
+            value={editedData[field] || ""}
+            onChange={e => onChange(field, e.target.value)}
+            style={{
+              width: "100%", padding: "6px 10px",
+              background: "var(--bg-card)", border: "1px solid var(--accent)",
+              borderRadius: 7, color: "var(--text-primary)", fontSize: 14,
+              outline: "none",
+            }}
+          />
+        ) : (
+          <div style={{ fontSize: 14, fontWeight: 500, color: value ? "var(--text-primary)" : "var(--text-secondary)" }}>
+            {value || "Sin especificar"}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── stat pill ──────────────────────────────────────────────────── */
+function StatPill({ icon, value, label, color }) {
+  return (
+    <div style={{
+      flex: 1, minWidth: 90, padding: "14px 12px", borderRadius: 12, textAlign: "center",
+      background: `${color}15`, border: `1px solid ${color}30`,
+    }}>
+      <div style={{ color, marginBottom: 4 }}>{icon}</div>
+      <div style={{ fontSize: 22, fontWeight: 800, color }}>{value ?? "—"}</div>
+      <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>{label}</div>
+    </div>
+  );
+}
+
+/* ── Niveles / objetivos ─── */
+const NIVELES    = ["Principiante", "Intermedio", "Avanzado"];
+const GENEROS    = ["Masculino", "Femenino", "Otro", "Prefiero no decir"];
+const OBJETIVOS  = ["Perder peso", "Ganar músculo", "Mantener peso", "Mejorar resistencia", "Flexibilidad"];
+
 export default function UserProfile() {
-  const navigate = useNavigate();
-  const [user, setUser] = useState(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [profileData, setProfileData] = useState({
-    nombre: "",
-    email: "",
-    telefono: "",
-    fechaNacimiento: "",
-    direccion: "",
-    genero: "",
-    peso: "",
-    altura: "",
-    objetivo: "",
-    nivelExperiencia: "",
-    fotoPerfil: null,
-    mesesActivo: 0,
-    totalEntrenamientos: 0
-  });
-  const [editedData, setEditedData] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
-  const [successMessage, setSuccessMessage] = useState(null);
+  const navigate    = useNavigate();
+  const [user,       setUser]      = useState(null);
+  const [profile,    setProfile]   = useState({});
+  const [edited,     setEdited]    = useState({});
+  const [isEditing,  setIsEditing] = useState(false);
+  const [loading,    setLoading]   = useState(true);
+  const [saving,     setSaving]    = useState(false);
+  const [toast,      setToast]     = useState(null); // { type: "ok"|"err", msg }
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (!storedUser) {
-      navigate("/", { replace: true });
-      return;
-    }
-    setUser(JSON.parse(storedUser));
+    const stored = localStorage.getItem("user");
+    if (!stored) { navigate("/", { replace: true }); return; }
+    setUser(JSON.parse(stored));
     fetchProfile();
   }, []);
 
   const fetchProfile = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem("token");
-      
-      const response = await fetch("/api/user/profile", {
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json"
-        }
+      const res = await fetch("/api/user/profile", {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       });
-
-      if (!response.ok) throw new Error("Error al cargar perfil");
-
-      const data = await response.json();
-      setProfileData(data);
-      setEditedData(data);
-      setError(null);
-    } catch (err) {
-      console.error("Error:", err);
-      setError("No se pudo cargar el perfil");
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setProfile(data);
+      setEdited(data);
+    } catch {
+      showToast("err", "No se pudo cargar el perfil");
     } finally {
       setLoading(false);
     }
@@ -68,76 +106,57 @@ export default function UserProfile() {
   const handleSave = async () => {
     try {
       setSaving(true);
-      setError(null);
-      const token = localStorage.getItem("token");
-      
-      const response = await fetch("/api/user/profile", {
+      const res = await fetch("/api/user/profile", {
         method: "PUT",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(editedData)
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}`, "Content-Type": "application/json" },
+        body: JSON.stringify(edited),
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Error al guardar");
-      }
-
-      const data = await response.json();
-      setProfileData(editedData);
+      if (!res.ok) throw new Error((await res.json()).error || "Error al guardar");
+      setProfile(edited);
       setIsEditing(false);
-      setSuccessMessage("Perfil actualizado correctamente");
-      
-      // Actualizar usuario en localStorage
-      const storedUser = JSON.parse(localStorage.getItem("user"));
-      storedUser.nombre = editedData.nombre;
-      storedUser.email = editedData.email;
-      localStorage.setItem("user", JSON.stringify(storedUser));
-      
-      setTimeout(() => setSuccessMessage(null), 3000);
-    } catch (err) {
-      console.error("Error:", err);
-      setError(err.message);
+      // sync localStorage
+      const u = JSON.parse(localStorage.getItem("user") || "{}");
+      u.nombre = edited.nombre; u.email = edited.email;
+      localStorage.setItem("user", JSON.stringify(u));
+      showToast("ok", "Perfil actualizado correctamente");
+    } catch (e) {
+      showToast("err", e.message);
     } finally {
       setSaving(false);
     }
   };
 
-  const handlePhotoUpload = async (event) => {
-    const file = event.target.files[0];
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files[0];
     if (!file) return;
-
-    try {
-      const token = localStorage.getItem("token");
-      const formData = new FormData();
-      formData.append("foto", file);
-
-      const response = await fetch("/api/user/profile/photo", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`
-        },
-        body: formData
-      });
-
-      if (!response.ok) throw new Error("Error al subir foto");
-
-      const data = await response.json();
-      setProfileData({ ...profileData, fotoPerfil: data.fotoPerfil });
-      setSuccessMessage("Foto actualizada correctamente");
-      setTimeout(() => setSuccessMessage(null), 3000);
-    } catch (err) {
-      console.error("Error:", err);
-      setError("No se pudo subir la foto");
+    const fd = new FormData();
+    fd.append("foto", file);
+    const res = await fetch("/api/user/profile/photo", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      body: fd,
+    });
+    if (res.ok) {
+      const d = await res.json();
+      setProfile(p => ({ ...p, fotoPerfil: d.fotoPerfil }));
+      showToast("ok", "Foto actualizada");
     }
   };
 
-  const getInitials = () => {
-    if (!profileData.nombre) return "U";
-    return profileData.nombre.split(" ").map(n => n[0]).join("").toUpperCase();
+  const showToast = (type, msg) => {
+    setToast({ type, msg });
+    setTimeout(() => setToast(null), 3500);
   };
+
+  const change = (field, val) => setEdited(p => ({ ...p, [field]: val }));
+
+  const initials = () => {
+    const n = profile.nombre || user?.nombre || "U";
+    return n.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
+  };
+
+  const levelColor  = { Principiante: "#22c55e", Intermedio: "#f59e0b", Avanzado: "#ef4444" };
+  const nivel       = profile.nivelExperiencia || "Principiante";
 
   if (!user) return null;
 
@@ -145,13 +164,11 @@ export default function UserProfile() {
     return (
       <div className="dashboard-layout">
         <div className="main-wrapper">
-          <header className="top-header">
-            <h2 className="page-title">Mi Perfil</h2>
-          </header>
-          <main className="dashboard-content">
-            <div style={{ textAlign: 'center', padding: '40px' }}>
-              <div className="spinner" style={{ margin: '0 auto 20px' }}></div>
-              <p>Cargando perfil...</p>
+          <header className="top-header"><h2 className="page-title">Mi Perfil</h2></header>
+          <main className="dashboard-content" style={{ display:"flex", justifyContent:"center", paddingTop:80 }}>
+            <div style={{ textAlign:"center", color:"var(--text-secondary)" }}>
+              <div className="dashboard-spinner" style={{ margin:"0 auto 16px" }} />
+              <p>Cargando perfil…</p>
             </div>
           </main>
         </div>
@@ -162,187 +179,295 @@ export default function UserProfile() {
   return (
     <div className="dashboard-layout">
       <div className="main-wrapper">
+        {/* Toast */}
+        <AnimatePresence>
+          {toast && (
+            <motion.div
+              key="toast"
+              initial={{ opacity:0, y:-20 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:-20 }}
+              style={{
+                position: "fixed", top: 20, right: 20, zIndex: 999,
+                padding: "12px 20px", borderRadius: 12,
+                background: toast.type === "ok" ? "rgba(34,197,94,.15)" : "rgba(239,68,68,.15)",
+                border: `1px solid ${toast.type === "ok" ? "rgba(34,197,94,.4)" : "rgba(239,68,68,.4)"}`,
+                color: toast.type === "ok" ? "#4ade80" : "#f87171",
+                display: "flex", alignItems: "center", gap: 10, fontWeight: 600, fontSize: 14,
+                backdropFilter: "blur(10px)",
+              }}
+            >
+              {toast.type === "ok" ? <FiCheckCircle /> : <FiAlertCircle />}
+              {toast.msg}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <header className="top-header">
           <h2 className="page-title">Mi Perfil</h2>
+          <div style={{ display:"flex", gap:8 }}>
+            {isEditing ? (
+              <>
+                <motion.button
+                  whileTap={{ scale:.96 }}
+                  onClick={() => { setIsEditing(false); setEdited(profile); }}
+                  style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 16px",
+                    background:"var(--bg-input)", border:"1px solid var(--border)",
+                    borderRadius:9, color:"var(--text-secondary)", fontWeight:600, cursor:"pointer", fontSize:13 }}
+                >
+                  <FiX size={14} /> Cancelar
+                </motion.button>
+                <motion.button
+                  whileTap={{ scale:.96 }}
+                  onClick={handleSave}
+                  disabled={saving}
+                  style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 18px",
+                    background:"var(--accent)", border:"none",
+                    borderRadius:9, color:"#fff", fontWeight:700, cursor:"pointer", fontSize:13,
+                    opacity: saving ? .7 : 1 }}
+                >
+                  <FiSave size={14} /> {saving ? "Guardando…" : "Guardar"}
+                </motion.button>
+              </>
+            ) : (
+              <motion.button
+                whileTap={{ scale:.96 }}
+                onClick={() => setIsEditing(true)}
+                style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 18px",
+                  background:"var(--accent)", border:"none",
+                  borderRadius:9, color:"#fff", fontWeight:700, cursor:"pointer", fontSize:13 }}
+              >
+                <FiEdit2 size={14} /> Editar perfil
+              </motion.button>
+            )}
+          </div>
         </header>
-        
+
         <main className="dashboard-content">
-          {/* Mensajes */}
-          {error && (
-            <div style={{ 
-              padding: '15px', 
-              background: 'rgba(255, 59, 48, 0.1)', 
-              borderRadius: '8px', 
-              marginBottom: '20px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              color: 'var(--error-color)'
-            }}>
-              <FiAlertCircle />
-              <span>{error}</span>
-            </div>
-          )}
+          {/* ── Hero Banner ────────────────────────────────────── */}
+          <motion.div
+            initial={{ opacity:0, y:-12 }} animate={{ opacity:1, y:0 }}
+            style={{
+              borderRadius: 18, overflow:"hidden", marginBottom: 20,
+              background: "linear-gradient(135deg, var(--accent) 0%, #7c3aed 60%, #1e1b4b 100%)",
+              position: "relative",
+            }}
+          >
+            {/* Decorative circles */}
+            <div style={{ position:"absolute", top:-40, right:-40, width:200, height:200, borderRadius:"50%", background:"rgba(255,255,255,.05)" }} />
+            <div style={{ position:"absolute", bottom:-60, left:60, width:160, height:160, borderRadius:"50%", background:"rgba(255,255,255,.04)" }} />
 
-          {successMessage && (
-            <div style={{ 
-              padding: '15px', 
-              background: 'rgba(76, 217, 100, 0.1)', 
-              borderRadius: '8px', 
-              marginBottom: '20px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              color: 'var(--success-color)'
-            }}>
-              <FiSave />
-              <span>{successMessage}</span>
-            </div>
-          )}
-
-          <div className="charts-row">
-            {/* Card de perfil */}
-            <motion.div 
-              className="chart-card" 
-              style={{ maxWidth: '400px' }} 
-              initial={{ opacity: 0, x: -20 }} 
-              animate={{ opacity: 1, x: 0 }}
-            >
-              <div style={{ textAlign: 'center', padding: '30px 20px' }}>
-                <div style={{ position: 'relative', display: 'inline-block', marginBottom: '20px' }}>
-                  {profileData.fotoPerfil ? (
-                    <img 
-                      src={`/api/static/uploads/${profileData.fotoPerfil}`}
-                      alt="Perfil"
-                      style={{
-                        width: '120px',
-                        height: '120px',
-                        borderRadius: '50%',
-                        objectFit: 'cover',
-                        border: '3px solid var(--accent)'
-                      }}
-                    />
-                  ) : (
-                    <div className="avatar" style={{ width: '120px', height: '120px', fontSize: '36px' }}>
-                      {getInitials()}
-                    </div>
-                  )}
-                  
-                  <label htmlFor="photo-upload">
-                    <motion.div 
-                      whileHover={{ scale: 1.1 }} 
-                      style={{
-                        position: 'absolute',
-                        bottom: '5px',
-                        right: '5px',
-                        background: 'var(--accent)',
-                        border: 'none',
-                        borderRadius: '50%',
-                        width: '36px',
-                        height: '36px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      <FiCamera color="var(--bg-input)" />
-                    </motion.div>
-                  </label>
-                  <input 
-                    id="photo-upload"
-                    type="file" 
-                    accept="image/*"
-                    onChange={handlePhotoUpload}
-                    style={{ display: 'none' }}
+            <div style={{ position:"relative", padding:"32px 28px", display:"flex", gap:24, alignItems:"center", flexWrap:"wrap" }}>
+              {/* Avatar */}
+              <div style={{ position:"relative", flexShrink:0 }}>
+                {profile.fotoPerfil ? (
+                  <img
+                    src={`/api/static/uploads/${profile.fotoPerfil}`}
+                    alt="foto"
+                    style={{ width:96, height:96, borderRadius:"50%", objectFit:"cover",
+                      border:"3px solid rgba(255,255,255,.4)" }}
                   />
-                </div>
-                
-                <h2 style={{ marginBottom: '8px' }}>{profileData.nombre}</h2>
-                <p style={{ color: 'var(--text-secondary)', marginBottom: '20px' }}>Miembro Premium</p>
-                
-                <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-                  <div style={{ flex: 1, padding: '15px', background: 'var(--bg-input-dark)', borderRadius: '8px' }}>
-                    <div style={{ fontSize: '24px', fontWeight: '700', color: 'var(--accent)' }}>
-                      {profileData.mesesActivo}
-                    </div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Meses activo</div>
+                ) : (
+                  <div style={{
+                    width:96, height:96, borderRadius:"50%", fontSize:30, fontWeight:800,
+                    color:"#fff", background:"rgba(255,255,255,.15)",
+                    border:"3px solid rgba(255,255,255,.3)",
+                    display:"flex", alignItems:"center", justifyContent:"center",
+                    backdropFilter:"blur(4px)",
+                  }}>
+                    {initials()}
                   </div>
-                  <div style={{ flex: 1, padding: '15px', background: 'var(--bg-input-dark)', borderRadius: '8px' }}>
-                    <div style={{ fontSize: '24px', fontWeight: '700', color: 'var(--success-color)' }}>
-                      {profileData.totalEntrenamientos}
-                    </div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Entrenamientos</div>
+                )}
+                <label htmlFor="photo-upload" style={{ cursor:"pointer" }}>
+                  <motion.div
+                    whileHover={{ scale:1.1 }}
+                    style={{
+                      position:"absolute", bottom:2, right:2,
+                      width:28, height:28, borderRadius:"50%",
+                      background:"rgba(255,255,255,.9)",
+                      display:"flex", alignItems:"center", justifyContent:"center",
+                      boxShadow:"0 2px 8px rgba(0,0,0,.3)",
+                    }}
+                  >
+                    <FiCamera size={13} color="#6366f1" />
+                  </motion.div>
+                </label>
+                <input id="photo-upload" type="file" accept="image/*" onChange={handlePhotoUpload} style={{ display:"none" }} />
+              </div>
+
+              {/* Name + info */}
+              <div style={{ flex:1, minWidth:0 }}>
+                {isEditing ? (
+                  <input
+                    value={edited.nombre || ""}
+                    onChange={e => change("nombre", e.target.value)}
+                    style={{
+                      fontSize:24, fontWeight:800, background:"rgba(255,255,255,.1)",
+                      border:"1px solid rgba(255,255,255,.3)", borderRadius:8, color:"#fff",
+                      padding:"4px 10px", width:"100%", marginBottom:6, outline:"none",
+                    }}
+                  />
+                ) : (
+                  <h2 style={{ fontSize:26, fontWeight:800, color:"#fff", margin:"0 0 4px" }}>
+                    {profile.nombre || user?.nombre || "Sin nombre"}
+                  </h2>
+                )}
+                <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
+                  <span style={{
+                    fontSize:12, fontWeight:700, padding:"3px 10px", borderRadius:20,
+                    background:"rgba(255,255,255,.15)", color:"rgba(255,255,255,.9)",
+                  }}>
+                    Miembro
+                  </span>
+                  <span style={{
+                    fontSize:12, fontWeight:700, padding:"3px 10px", borderRadius:20,
+                    background:`${levelColor[nivel]}30`, color:levelColor[nivel],
+                    border:`1px solid ${levelColor[nivel]}50`,
+                  }}>
+                    {nivel}
+                  </span>
+                  {profile.objetivo && (
+                    <span style={{ fontSize:12, color:"rgba(255,255,255,.7)" }}>
+                      🎯 {profile.objetivo}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* ── Stats row ─────────────────────────────────────── */}
+          <motion.div
+            initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ delay:.1 }}
+            style={{ display:"flex", gap:12, marginBottom:20, flexWrap:"wrap" }}
+          >
+            <StatPill icon={<FiAward size={16}/>}     value={profile.mesesActivo}         label="Meses activo"      color="#6366f1" />
+            <StatPill icon={<FiActivity size={16}/>}  value={profile.totalEntrenamientos} label="Entrenamientos"    color="#22c55e" />
+            <StatPill icon={<FiTrendingUp size={16}/>} value={profile.peso ? `${profile.peso} kg` : null} label="Peso actual" color="#f59e0b" />
+            <StatPill icon={<FiTarget size={16}/>}    value={profile.altura ? `${profile.altura} cm` : null} label="Altura" color="#06b6d4" />
+          </motion.div>
+
+          {/* ── Info grid ─────────────────────────────────────── */}
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(300px, 1fr))", gap:16 }}>
+
+            {/* Información de contacto */}
+            <motion.div
+              className="chart-card"
+              initial={{ opacity:0, x:-12 }} animate={{ opacity:1, x:0 }} transition={{ delay:.15 }}
+              style={{ padding:20 }}
+            >
+              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:16 }}>
+                <div style={{ width:32, height:32, borderRadius:8, background:"rgba(99,102,241,.12)",
+                  display:"flex", alignItems:"center", justifyContent:"center", color:"var(--accent)" }}>
+                  <FiUser size={15} />
+                </div>
+                <h3 style={{ margin:0, fontSize:15, fontWeight:700 }}>Información personal</h3>
+              </div>
+              <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                <InfoField icon={<FiMail size={15}/>}    label="Email"            field="email"         value={profile.email}         editing={isEditing} editedData={edited} onChange={change} />
+                <InfoField icon={<FiPhone size={15}/>}   label="Teléfono"         field="telefono"      value={profile.telefono}      editing={isEditing} editedData={edited} onChange={change} />
+                <InfoField icon={<FiCalendar size={15}/>} label="Fecha de nacimiento" field="fechaNacimiento" value={profile.fechaNacimiento} editing={isEditing} editedData={edited} onChange={change} />
+                <InfoField icon={<FiMapPin size={15}/>}  label="Dirección"        field="direccion"     value={profile.direccion}     editing={isEditing} editedData={edited} onChange={change} />
+
+                {/* Género — select en modo edición */}
+                <div style={{ display:"flex", alignItems:"flex-start", gap:12, padding:"14px 16px",
+                  borderRadius:10, background:"var(--bg-input)", border:"1px solid var(--border)" }}>
+                  <div style={{ width:34, height:34, borderRadius:8, flexShrink:0,
+                    background:"rgba(99,102,241,.12)", color:"var(--accent)",
+                    display:"flex", alignItems:"center", justifyContent:"center" }}>
+                    <FiUser size={15}/>
+                  </div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontSize:11, fontWeight:600, textTransform:"uppercase",
+                      letterSpacing:".05em", color:"var(--text-secondary)", marginBottom:4 }}>Género</div>
+                    {isEditing ? (
+                      <select value={edited.genero || ""} onChange={e=>change("genero",e.target.value)}
+                        style={{ width:"100%", padding:"6px 10px", background:"var(--bg-card)",
+                          border:"1px solid var(--accent)", borderRadius:7, color:"var(--text-primary)", fontSize:14 }}>
+                        <option value="">Sin especificar</option>
+                        {GENEROS.map(g=><option key={g} value={g}>{g}</option>)}
+                      </select>
+                    ) : (
+                      <div style={{ fontSize:14, fontWeight:500, color: profile.genero ? "var(--text-primary)" : "var(--text-secondary)" }}>
+                        {profile.genero || "Sin especificar"}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
             </motion.div>
 
-            {/* Card de información */}
-            <motion.div 
-              className="chart-card" 
-              style={{ flex: 1 }} 
-              initial={{ opacity: 0, x: 20 }} 
-              animate={{ opacity: 1, x: 0 }}
+            {/* Datos físicos y objetivo */}
+            <motion.div
+              className="chart-card"
+              initial={{ opacity:0, x:12 }} animate={{ opacity:1, x:0 }} transition={{ delay:.2 }}
+              style={{ padding:20 }}
             >
-              <div className="chart-header">
-                <h3>Información Personal</h3>
-                <motion.button 
-                  className="btn-outline-small" 
-                  onClick={() => {
-                    if (isEditing) {
-                      handleSave();
-                    } else {
-                      setIsEditing(true);
-                      setEditedData(profileData);
-                    }
-                  }}
-                  whileHover={{ scale: 1.05 }}
-                  disabled={saving}
-                >
-                  {saving ? (
-                    <>Guardando...</>
-                  ) : isEditing ? (
-                    <><FiSave style={{ marginRight: 6 }} />Guardar</>
-                  ) : (
-                    <><FiEdit2 style={{ marginRight: 6 }} />Editar</>
-                  )}
-                </motion.button>
+              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:16 }}>
+                <div style={{ width:32, height:32, borderRadius:8, background:"rgba(34,197,94,.12)",
+                  display:"flex", alignItems:"center", justifyContent:"center", color:"#22c55e" }}>
+                  <FiActivity size={15} />
+                </div>
+                <h3 style={{ margin:0, fontSize:15, fontWeight:700 }}>Datos físicos</h3>
               </div>
-              
-              <div style={{ padding: '20px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px' }}>
-                {[
-                  { icon: <FiMail />, label: "Email", field: "email", type: "email" },
-                  { icon: <FiPhone />, label: "Teléfono", field: "telefono", type: "tel" },
-                  { icon: <FiCalendar />, label: "Fecha de Nacimiento", field: "fechaNacimiento", type: "text" },
-                  { icon: <FiMapPin />, label: "Dirección", field: "direccion", type: "text" },
-                  { icon: <FiUser />, label: "Género", field: "genero", type: "text" },
-                  { icon: <FiUser />, label: "Nivel", field: "nivelExperiencia", type: "text" }
-                ].map((field, idx) => (
-                  <div key={idx} style={{ background: 'var(--bg-input-dark)', padding: '15px', borderRadius: '8px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', color: 'var(--text-secondary)', fontSize: '13px' }}>
-                      {field.icon}
-                      <span>{field.label}</span>
-                    </div>
+              <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                <InfoField icon={<FiActivity size={15}/>} label="Peso (kg)"  field="peso"   value={profile.peso}   editing={isEditing} editedData={edited} onChange={change} />
+                <InfoField icon={<FiActivity size={15}/>} label="Altura (cm)" field="altura" value={profile.altura} editing={isEditing} editedData={edited} onChange={change} />
+
+                {/* Objetivo — select */}
+                <div style={{ display:"flex", alignItems:"flex-start", gap:12, padding:"14px 16px",
+                  borderRadius:10, background:"var(--bg-input)", border:"1px solid var(--border)" }}>
+                  <div style={{ width:34, height:34, borderRadius:8, flexShrink:0,
+                    background:"rgba(245,158,11,.12)", color:"#f59e0b",
+                    display:"flex", alignItems:"center", justifyContent:"center" }}>
+                    <FiTarget size={15}/>
+                  </div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontSize:11, fontWeight:600, textTransform:"uppercase",
+                      letterSpacing:".05em", color:"var(--text-secondary)", marginBottom:4 }}>Objetivo</div>
                     {isEditing ? (
-                      <input 
-                        type={field.type}
-                        value={editedData[field.field] || ""}
-                        onChange={(e) => setEditedData({ ...editedData, [field.field]: e.target.value })}
-                        style={{
-                          width: '100%',
-                          padding: '8px',
-                          background: 'var(--bg-input)',
-                          border: '1px solid var(--border-dark)',
-                          borderRadius: '6px',
-                          color: 'var(--text-primary)'
-                        }}
-                      />
+                      <select value={edited.objetivo || ""} onChange={e=>change("objetivo",e.target.value)}
+                        style={{ width:"100%", padding:"6px 10px", background:"var(--bg-card)",
+                          border:"1px solid var(--accent)", borderRadius:7, color:"var(--text-primary)", fontSize:14 }}>
+                        <option value="">Sin especificar</option>
+                        {OBJETIVOS.map(o=><option key={o} value={o}>{o}</option>)}
+                      </select>
                     ) : (
-                      <div style={{ fontWeight: '500' }}>{profileData[field.field] || "No especificado"}</div>
+                      <div style={{ fontSize:14, fontWeight:500, color: profile.objetivo ? "var(--text-primary)" : "var(--text-secondary)" }}>
+                        {profile.objetivo || "Sin especificar"}
+                      </div>
                     )}
                   </div>
-                ))}
+                </div>
+
+                {/* Nivel */}
+                <div style={{ display:"flex", alignItems:"flex-start", gap:12, padding:"14px 16px",
+                  borderRadius:10, background:"var(--bg-input)", border:"1px solid var(--border)" }}>
+                  <div style={{ width:34, height:34, borderRadius:8, flexShrink:0,
+                    background:"rgba(99,102,241,.12)", color:"var(--accent)",
+                    display:"flex", alignItems:"center", justifyContent:"center" }}>
+                    <FiAward size={15}/>
+                  </div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontSize:11, fontWeight:600, textTransform:"uppercase",
+                      letterSpacing:".05em", color:"var(--text-secondary)", marginBottom:4 }}>Nivel de experiencia</div>
+                    {isEditing ? (
+                      <select value={edited.nivelExperiencia || ""} onChange={e=>change("nivelExperiencia",e.target.value)}
+                        style={{ width:"100%", padding:"6px 10px", background:"var(--bg-card)",
+                          border:"1px solid var(--accent)", borderRadius:7, color:"var(--text-primary)", fontSize:14 }}>
+                        <option value="">Sin especificar</option>
+                        {NIVELES.map(n=><option key={n} value={n}>{n}</option>)}
+                      </select>
+                    ) : (
+                      <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                        <span style={{ fontSize:14, fontWeight:600, color: levelColor[nivel] || "var(--text-primary)" }}>
+                          {profile.nivelExperiencia || "Sin especificar"}
+                        </span>
+                        {profile.nivelExperiencia && (
+                          <span style={{ width:8, height:8, borderRadius:"50%", background: levelColor[nivel], flexShrink:0 }}/>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </motion.div>
           </div>
