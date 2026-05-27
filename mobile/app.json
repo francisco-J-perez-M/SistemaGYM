@@ -32,15 +32,7 @@
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store",
-      [
-        "expo-splash-screen",
-        {
-          "backgroundColor": "#0f0f1a",
-          "image": "./assets/splash.png",
-          "imageWidth": 200
-        }
-      ]
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true
