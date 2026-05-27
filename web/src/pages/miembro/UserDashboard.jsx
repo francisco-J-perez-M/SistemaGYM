@@ -2,11 +2,11 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  FiActivity, FiTrendingUp, FiZap, FiTarget, FiAward,
-  FiCalendar, FiCheckCircle, FiAlertTriangle, FiChevronRight,
-  FiUser, FiHeart, FiBarChart2, FiBook, FiCoffee, FiDollarSign
+  FiActivity, FiTrendingUp, FiTrendingDown, FiZap, FiAward,
+  FiCalendar, FiCheckCircle, FiAlertTriangle,
+  FiUser, FiHeart, FiBarChart2, FiBook, FiCoffee, FiDollarSign,
+  FiMoon, FiShield,
 } from "react-icons/fi";
-import { IoMdCheckmarkCircle } from "react-icons/io";
 import "../../css/CSSUnificado.css";
 
 const DIAS = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
@@ -23,12 +23,12 @@ const QUICK_LINKS = [
 ];
 
 const OBJETIVO_LABELS = {
-  "Pérdida de peso":           { emoji: "⚖️", color: "#ef4444" },
-  "Ganancia muscular":         { emoji: "💪", color: "#6366f1" },
-  "Tonificación muscular":     { emoji: "✨", color: "#8b5cf6" },
-  "Mejorar resistencia":       { emoji: "🏃", color: "#f59e0b" },
-  "Rehabilitación / Salud":    { emoji: "🏥", color: "#22c55e" },
-  "Mantenimiento físico":      { emoji: "⚡", color: "#06b6d4" },
+  "Pérdida de peso":           { Icon: FiTrendingDown, color: "#ef4444" },
+  "Ganancia muscular":         { Icon: FiActivity,     color: "#6366f1" },
+  "Tonificación muscular":     { Icon: FiZap,          color: "#8b5cf6" },
+  "Mejorar resistencia":       { Icon: FiHeart,        color: "#f59e0b" },
+  "Rehabilitación / Salud":    { Icon: FiShield,       color: "#22c55e" },
+  "Mantenimiento físico":      { Icon: FiAward,        color: "#06b6d4" },
 };
 
 const NIVEL_LABELS = { Principiante: "#22c55e", Intermedio: "#f59e0b", Avanzado: "#ef4444" };
@@ -43,8 +43,6 @@ export default function UserDashboard() {
   const [membership,    setMembership]    = useState(null);
   const [profile,       setProfile]       = useState(null);
   const [loading,       setLoading]       = useState(true);
-  const [checkinToast,  setCheckinToast]  = useState(false);
-  const [checkinDone,   setCheckinDone]   = useState(false);
 
   const token = () => localStorage.getItem("token");
 
@@ -80,24 +78,6 @@ export default function UserDashboard() {
     finally { setLoading(false); }
   };
 
-  const handleCheckin = async () => {
-    try {
-      const res = await fetch("/api/user/checkin", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token()}`, "Content-Type": "application/json" },
-      });
-      if (res.ok) {
-        setCheckinToast(true);
-        setCheckinDone(true);
-        setTimeout(() => setCheckinToast(false), 3000);
-        loadAll();
-      } else {
-        const d = await res.json();
-        if (d.message?.includes("Ya registraste")) setCheckinDone(true);
-      }
-    } catch(e) { console.error(e); }
-  };
-
   const toggleExercise = (i) => {
     const ex = [...todayWorkout.exercises];
     ex[i] = { ...ex[i], completed: !ex[i].completed };
@@ -121,35 +101,17 @@ export default function UserDashboard() {
 
   const objetivo = profile?.objetivo || "";
   const nivel    = profile?.nivelExperiencia || "";
-  const objMeta  = OBJETIVO_LABELS[objetivo] || { emoji: "🎯", color: "var(--accent)" };
+  const objMeta  = OBJETIVO_LABELS[objetivo] || { Icon: FiAward, color: "var(--accent)" };
 
   return (
     <div className="dashboard-layout">
-
-      {/* Toast check-in */}
-      <AnimatePresence>
-        {checkinToast && (
-          <motion.div
-            initial={{ opacity:0, y:-50 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:-50 }}
-            style={{
-              position:"fixed", top:20, right:20, zIndex:9999,
-              display:"flex", alignItems:"center", gap:10,
-              padding:"12px 20px", borderRadius:10,
-              background:"#22c55e", color:"#fff", fontWeight:600, fontSize:14,
-              boxShadow:"0 4px 20px rgba(0,0,0,.3)",
-            }}
-          >
-            <IoMdCheckmarkCircle size={20} /> ¡Check-in registrado!
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       <div className="main-wrapper">
         {/* ── Header ───────────────────────────────── */}
         <header className="top-header">
           <div>
             <h2 className="page-title" style={{ marginBottom:2 }}>
-              Hola, {user?.nombre?.split(" ")[0] ?? "Miembro"} 👋
+              Hola, {user?.nombre?.split(" ")[0] ?? "Miembro"}
             </h2>
             <p style={{ fontSize:13, color:"var(--text-secondary)", margin:0 }}>
               {new Date().toLocaleDateString("es-MX",{weekday:"long",day:"numeric",month:"long"})}
@@ -157,23 +119,6 @@ export default function UserDashboard() {
           </div>
 
           <div style={{ display:"flex", gap:10, alignItems:"center" }}>
-            {/* Check-in button */}
-            <motion.button
-              whileHover={{ scale: checkinDone ? 1 : 1.03 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={checkinDone ? undefined : handleCheckin}
-              style={{
-                padding:"9px 16px", borderRadius:9, border:"none",
-                background: checkinDone ? "rgba(34,197,94,.12)" : "#22c55e",
-                color: checkinDone ? "#4ade80" : "#fff",
-                fontWeight:600, fontSize:13, cursor: checkinDone ? "default" : "pointer",
-                display:"flex", alignItems:"center", gap:7,
-              }}
-            >
-              <FiCheckCircle size={15} />
-              {checkinDone ? "Asistencia registrada" : "Registrar asistencia"}
-            </motion.button>
-
             {/* Avatar */}
             <div style={{
               width:38, height:38, borderRadius:"50%", overflow:"hidden",
@@ -228,7 +173,9 @@ export default function UserDashboard() {
               }}
             >
               <div style={{ display:"flex", alignItems:"center", gap:14 }}>
-                <div style={{ fontSize:36 }}>{objMeta.emoji}</div>
+                <div style={{ width:48, height:48, borderRadius:12, background:`${objMeta.color}20`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                  <objMeta.Icon size={22} color={objMeta.color}/>
+                </div>
                 <div>
                   <div style={{ fontSize:12, color:"var(--text-secondary)", marginBottom:2, fontWeight:600, textTransform:"uppercase", letterSpacing:".06em" }}>Tu objetivo</div>
                   <div style={{ fontSize:18, fontWeight:700, color:"var(--text-primary)" }}>{objetivo}</div>
@@ -277,10 +224,10 @@ export default function UserDashboard() {
           {/* ── KPI cards ───────────────────────────── */}
           <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))", gap:14, marginBottom:24 }}>
             {[
-              { icon:<FiZap/>,        label:"Racha",        value:stats?.streakDays ?? 0,   unit:"días",    color:"#f59e0b" },
-              { icon:<FiActivity/>,   label:"Entrenam.",    value:stats?.totalWorkouts ?? 0, unit:"este mes",color:"#6366f1" },
-              { icon:<FiTarget/>,     label:"Calorías",     value:(stats?.caloriesBurned ?? 0).toLocaleString(), unit:"quemadas",color:"#ef4444" },
-              { icon:<FiTrendingUp/>, label:"Peso actual",  value:stats?.currentWeight > 0 ? stats.currentWeight.toFixed(1) : "—", unit:"kg", color:"#22c55e" },
+              { icon:<FiZap/>,          label:"Racha",       value:stats?.streakDays ?? 0,   unit:"días",    color:"#f59e0b" },
+              { icon:<FiActivity/>,     label:"Entrenam.",   value:stats?.totalWorkouts ?? 0, unit:"este mes",color:"#6366f1" },
+              { icon:<FiTrendingDown/>, label:"Calorías",    value:(stats?.caloriesBurned ?? 0).toLocaleString(), unit:"quemadas",color:"#ef4444" },
+              { icon:<FiTrendingUp/>,   label:"Peso actual", value:stats?.currentWeight > 0 ? stats.currentWeight.toFixed(1) : "—", unit:"kg", color:"#22c55e" },
             ].map((k, i) => (
               <motion.div
                 key={k.label}
@@ -320,7 +267,9 @@ export default function UserDashboard() {
               <div style={{ padding:"0 4px" }}>
                 {todayWorkout.exercises.length === 0 ? (
                   <div style={{ padding:"32px", textAlign:"center", color:"var(--text-secondary)" }}>
-                    <div style={{ fontSize:36, marginBottom:10 }}>😴</div>
+                    <div style={{ width:52, height:52, borderRadius:14, background:"rgba(100,116,139,.1)", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 12px" }}>
+                      <FiMoon size={24} color="#64748b"/>
+                    </div>
                     <p>Día de descanso — tu cuerpo necesita recuperarse.</p>
                   </div>
                 ) : (
@@ -499,9 +448,12 @@ export default function UserDashboard() {
                       border:"1px solid var(--border)", borderRadius:10, fontSize:13,
                     }}
                   >
-                    <span style={{ fontSize:20 }}>
-                      {a.icon === "FaFire" ? "🔥" : a.icon === "FaDumbbell" ? "💪" : a.icon === "FaTrophy" ? "🏆" : "⚡"}
-                    </span>
+                    <div style={{ width:36, height:36, borderRadius:9, background:`${a.color}18`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, color:a.color }}>
+                      {a.icon === "FaFire"    ? <FiZap size={16}/>
+                      : a.icon === "FaDumbbell" ? <FiActivity size={16}/>
+                      : a.icon === "FaTrophy"   ? <FiAward size={16}/>
+                      : <FiZap size={16}/>}
+                    </div>
                     <div>
                       <div style={{ fontWeight:700, color:"var(--text-primary)" }}>{a.title}</div>
                       <div style={{ fontSize:11, color:"var(--text-secondary)" }}>{a.description}</div>
