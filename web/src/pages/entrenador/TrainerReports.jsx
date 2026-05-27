@@ -518,7 +518,7 @@ export default function TrainerReports() {
               {monthlyData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={monthlyData} barGap={4} barCategoryGap="28%">
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,.06)" vertical={false}/>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false}/>
                     <XAxis dataKey="month" tick={{ fontSize:11, fill:"var(--text-secondary)" }} axisLine={false} tickLine={false}/>
                     <YAxis tick={{ fontSize:10, fill:"var(--text-secondary)" }} axisLine={false} tickLine={false} allowDecimals={false}/>
                     <RechartTooltip content={<CustomTooltip/>}/>
@@ -610,7 +610,7 @@ export default function TrainerReports() {
                 <>
                   <ResponsiveContainer width="100%" height={140}>
                     <BarChart data={sessionTypes} layout="vertical" barSize={22}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,.05)" horizontal={false}/>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false}/>
                       <XAxis type="number" tick={{ fontSize:10, fill:"var(--text-secondary)" }} axisLine={false} tickLine={false} allowDecimals={false}/>
                       <YAxis type="category" dataKey="tipo" tick={{ fontSize:11, fill:"var(--text-secondary)" }} axisLine={false} tickLine={false} width={70}/>
                       <RechartTooltip content={<CustomTooltip/>}/>

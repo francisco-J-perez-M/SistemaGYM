@@ -3,6 +3,14 @@ import Swal from "sweetalert2";
 import { FiSave, FiInfo, FiAlertCircle, FiRefreshCw } from "react-icons/fi";
 import { getOwnerPerfil, updateOwnerPerfil } from "../../api/owner_gym";
 
+const getSwalTheme = () => {
+  const s = getComputedStyle(document.documentElement);
+  return {
+    background: s.getPropertyValue("--bg-card").trim() || "#1e2233",
+    color:      s.getPropertyValue("--text-primary").trim() || "#f1f5f9",
+  };
+};
+
 /* ── Tipos de gimnasio (deben coincidir con backend GYM_TYPES) ── */
 const GYM_TYPES_OPTIONS = [
   { value: "",                    label: "Sin especificar" },
@@ -17,17 +25,17 @@ const GYM_TYPES_OPTIONS = [
 ];
 
 const S = {
-  page:  { padding: "28px 32px", background: "var(--bg-dark,#0f1117)", minHeight: "100vh", color: "var(--text-primary,#f1f5f9)", fontFamily: "Inter,system-ui,sans-serif" },
+  page:  { padding: "28px 32px", background: "var(--bg-main)", minHeight: "100vh", color: "var(--text-primary,#f1f5f9)", fontFamily: "Inter,system-ui,sans-serif" },
   title: { fontSize: 24, fontWeight: 700, margin: "0 0 4px" },
   sub:   { fontSize: 13, color: "var(--text-secondary,#94a3b8)", marginBottom: 28 },
-  card:  { background: "var(--bg-card,#1e2233)", border: "1px solid var(--border,rgba(255,255,255,.08))", borderRadius: 12, padding: "28px 32px", maxWidth: 640 },
+  card:  { background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: "28px 32px", maxWidth: 640 },
   label: { display: "block", fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".05em", color: "var(--text-secondary,#94a3b8)", marginBottom: 6 },
-  input: { width: "100%", padding: "10px 14px", background: "var(--bg-dark,#0f1117)", border: "1px solid var(--border,rgba(255,255,255,.12))", borderRadius: 8, color: "var(--text-primary,#f1f5f9)", fontSize: 14, outline: "none", boxSizing: "border-box", transition: "border-color .2s" },
+  input: { width: "100%", padding: "10px 14px", background: "var(--bg-main)", border: "1px solid var(--border,rgba(255,255,255,.12))", borderRadius: 8, color: "var(--text-primary,#f1f5f9)", fontSize: 14, outline: "none", boxSizing: "border-box", transition: "border-color .2s" },
   field: { marginBottom: 20 },
   row:   { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 },
   btn:   { display: "flex", alignItems: "center", gap: 8, padding: "10px 22px", background: "#6366f122", border: "1px solid #6366f144", borderRadius: 8, color: "#818cf8", cursor: "pointer", fontSize: 14, fontWeight: 600, marginTop: 8 },
   badge: (c) => ({ display: "inline-block", padding: "3px 12px", borderRadius: 20, fontSize: 12, fontWeight: 600, background: `${c}22`, color: c }),
-  readonly: { padding: "10px 14px", background: "var(--bg-dark,#0f1117)", border: "1px solid rgba(255,255,255,.04)", borderRadius: 8, color: "var(--text-tertiary,#64748b)", fontSize: 14 },
+  readonly: { padding: "10px 14px", background: "var(--bg-main)", border: "1px solid rgba(255,255,255,.04)", borderRadius: 8, color: "var(--text-tertiary,#64748b)", fontSize: 14 },
 };
 
 const PLAN_COLOR = { basico: "#64748b", pro: "#6366f1", enterprise: "#f59e0b" };
@@ -67,7 +75,7 @@ export default function OwnerProfile() {
     try {
       const { data } = await updateOwnerPerfil(form);
       setPerfil(data);
-      Swal.fire({ icon: "success", title: "Perfil actualizado", timer: 1500, showConfirmButton: false, background: "#1e2233", color: "#f1f5f9" });
+      Swal.fire({ icon: "success", title: "Perfil actualizado", timer: 1500, showConfirmButton: false, ...getSwalTheme() });
     } catch (e) {
       Swal.fire("Error", e.response?.data?.msg || "No se pudo guardar", "error");
     } finally { setSaving(false); }
@@ -96,7 +104,7 @@ export default function OwnerProfile() {
 
       <div style={S.card}>
         {/* Info de solo lectura */}
-        <div style={{ display: "flex", gap: 16, marginBottom: 24, padding: "14px 18px", background: "var(--bg-dark,#0f1117)", borderRadius: 10, border: "1px solid rgba(255,255,255,.06)", alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 16, marginBottom: 24, padding: "14px 18px", background: "var(--bg-main)", borderRadius: 10, border: "1px solid rgba(255,255,255,.06)", alignItems: "center" }}>
           <FiInfo color="#6366f1" size={18} />
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 12, color: "#94a3b8" }}>Plan activo</div>

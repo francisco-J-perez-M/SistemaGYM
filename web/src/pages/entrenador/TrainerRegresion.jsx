@@ -257,7 +257,7 @@ function PredictionModal({ member, onClose }) {
               {/* Gráfico */}
               <ResponsiveContainer width="100%" height={240}>
                 <LineChart data={chartData} margin={{ top: 5, right: 16, left: 0, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                   <XAxis dataKey="label" tick={{ fill: "var(--text-secondary)", fontSize: 10 }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => `${v.toFixed(0)} kg`} />
                   <Tooltip content={<ChartTooltip />} />
@@ -522,7 +522,7 @@ export default function TrainerRegresion() {
             </p>
             <ResponsiveContainer width="100%" height={200}>
               <LineChart data={tendenciaGlobal} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="mes" tick={{ fill: "var(--text-secondary)", fontSize: 10 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => `${v.toFixed(0)} kg`} />
                 <Tooltip content={<ChartTooltip />} />

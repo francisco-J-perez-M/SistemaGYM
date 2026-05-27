@@ -86,10 +86,10 @@ export default function SuperadminSuscripciones() {
     const { value: formValues } = await Swal.fire({
       title: `Cambiar estado · ${sub.gimnasio}`,
       html: `
-        <select id="swal-estado" style="width:100%;padding:8px;margin-bottom:10px;border-radius:6px;background:#1e2233;color:var(--text-primary);border:1px solid rgba(255,255,255,.1)">
+        <select id="swal-estado" style="width:100%;padding:8px;margin-bottom:10px;border-radius:6px;background:var(--bg-input);color:var(--text-primary);border:1px solid var(--border)">
           ${opciones}
         </select>
-        <input id="swal-razon" placeholder="Razón (opcional)" style="width:100%;padding:8px;border-radius:6px;background:#1e2233;color:var(--text-primary);border:1px solid rgba(255,255,255,.1);box-sizing:border-box">
+        <input id="swal-razon" placeholder="Razón (opcional)" style="width:100%;padding:8px;border-radius:6px;background:var(--bg-input);color:var(--text-primary);border:1px solid var(--border);box-sizing:border-box">
       `,
       showCancelButton: true,
       confirmButtonText: "Cambiar",
@@ -121,7 +121,7 @@ export default function SuperadminSuscripciones() {
 
     const { value } = await Swal.fire({
       title: `Cambiar plan · ${sub.gimnasio}`,
-      html: `<select id="swal-plan" style="width:100%;padding:8px;border-radius:6px;background:#1e2233;color:var(--text-primary);border:1px solid rgba(255,255,255,.1)">${opciones}</select>`,
+      html: `<select id="swal-plan" style="width:100%;padding:8px;border-radius:6px;background:var(--bg-input);color:var(--text-primary);border:1px solid var(--border)">${opciones}</select>`,
       showCancelButton: true,
       confirmButtonText: "Cambiar plan",
       confirmButtonColor: "var(--accent)",
@@ -188,7 +188,7 @@ export default function SuperadminSuscripciones() {
       <div style={card({ padding: 0, overflow: "hidden" })}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
-            <tr style={{ background: "rgba(255,255,255,.03)" }}>
+            <tr style={{ background: "var(--bg-input)" }}>
               {["Gimnasio", "Plan", "Estado", "Inicio", "Próximo Cobro", "Acciones"].map(h => (
                 <th key={h} style={{ textAlign: "left", padding: "12px 16px", color: "var(--text-secondary)", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: ".06em", borderBottom: "1px solid var(--border)", whiteSpace: "nowrap" }}>{h}</th>
               ))}

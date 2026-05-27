@@ -313,7 +313,7 @@ export default function AnalyticsMapReduce() {
           </div>
           <ResponsiveContainer width="100%" height={220}>
             <LineChart data={lineData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)"/>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)"/>
               <XAxis dataKey="mes" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false}/>
               <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}/>
               <Tooltip content={<CustomTooltip prefix="$"/>}/>
@@ -359,7 +359,7 @@ export default function AnalyticsMapReduce() {
           <div className="chart-header"><h3>Asistencia por día de la semana</h3></div>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={asistenciaDiaOrdenada} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false}/>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false}/>
               <XAxis type="number" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false}/>
               <YAxis type="category" dataKey="dia" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false} width={80}/>
               <Tooltip content={<CustomTooltip suffix=" visitas"/>}/>
@@ -376,7 +376,7 @@ export default function AnalyticsMapReduce() {
           <div className="chart-header"><h3>Asistencia por mes</h3></div>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={asistenciaMesNorm} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)"/>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)"/>
               <XAxis dataKey="mes" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false}/>
               <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false}/>
               <Tooltip content={<CustomTooltip suffix=" visitas"/>}/>

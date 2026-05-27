@@ -7,7 +7,7 @@ const fmt = (n) =>
   new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(n ?? 0);
 
 const S = {
-  page:   { padding: "28px 32px", background: "var(--bg-dark,#0f1117)", minHeight: "100vh", color: "var(--text-primary,#f1f5f9)", fontFamily: "Inter,system-ui,sans-serif" },
+  page:   { padding: "28px 32px", background: "var(--bg-main)", minHeight: "100vh", color: "var(--text-primary,#f1f5f9)", fontFamily: "Inter,system-ui,sans-serif" },
   header: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 },
   title:  { fontSize: 24, fontWeight: 700, margin: 0 },
   sub:    { fontSize: 13, color: "var(--text-secondary,#94a3b8)", marginTop: 4 },
@@ -22,12 +22,19 @@ const S = {
   iconBtn:(c) => ({ background: "none", border: "none", color: c, cursor: "pointer", fontSize: 18, padding: 4, display: "flex", alignItems: "center" }),
 };
 
-const SWAL_OPTS = { background: "#1e2233", color: "#f1f5f9" };
+const getSwalTheme = () => {
+  const s = getComputedStyle(document.documentElement);
+  return {
+    background: s.getPropertyValue("--bg-card").trim() || "#1e2233",
+    color:      s.getPropertyValue("--text-primary").trim() || "#f1f5f9",
+  };
+};
+const SWAL_OPTS = getSwalTheme;
 
 async function formDialog(initial = {}) {
   const { value } = await Swal.fire({
     title: initial.id ? "Editar Membresía" : "Nueva Membresía",
-    ...SWAL_OPTS,
+    ...SWAL_OPTS(),
     html: `
       <input id="m-nombre"   class="swal2-input" placeholder="Nombre del plan" value="${initial.nombre || ""}">
       <input id="m-precio"   class="swal2-input" placeholder="Precio (MXN)" type="number" min="0" step="0.01" value="${initial.precio || ""}">
@@ -70,7 +77,7 @@ export default function OwnerMemberships() {
     }
     try {
       await crearMembresia(form);
-      Swal.fire({ icon: "success", title: "Membresía creada", timer: 1400, showConfirmButton: false, ...SWAL_OPTS });
+      Swal.fire({ icon: "success", title: "Membresía creada", timer: 1400, showConfirmButton: false, ...SWAL_OPTS() });
       load();
     } catch (e) { Swal.fire("Error", e.response?.data?.msg || "Error al crear", "error"); }
   };
@@ -80,7 +87,7 @@ export default function OwnerMemberships() {
     if (!form) return;
     try {
       await editarMembresia(m.id, form);
-      Swal.fire({ icon: "success", title: "Actualizada", timer: 1400, showConfirmButton: false, ...SWAL_OPTS });
+      Swal.fire({ icon: "success", title: "Actualizada", timer: 1400, showConfirmButton: false, ...SWAL_OPTS() });
       load();
     } catch (e) { Swal.fire("Error", e.response?.data?.msg || "Error al editar", "error"); }
   };
@@ -98,12 +105,12 @@ export default function OwnerMemberships() {
       text: "Solo se puede eliminar si no tiene miembros asociados.",
       icon: "warning", showCancelButton: true,
       confirmButtonColor: "#ef4444", confirmButtonText: "Eliminar",
-      ...SWAL_OPTS,
+      ...SWAL_OPTS(),
     });
     if (!isConfirmed) return;
     try {
       await eliminarMembresia(m.id);
-      Swal.fire({ icon: "success", title: "Eliminada", timer: 1400, showConfirmButton: false, ...SWAL_OPTS });
+      Swal.fire({ icon: "success", title: "Eliminada", timer: 1400, showConfirmButton: false, ...SWAL_OPTS() });
       load();
     } catch (e) { Swal.fire("No se puede eliminar", e.response?.data?.msg || "Error", "error"); }
   };

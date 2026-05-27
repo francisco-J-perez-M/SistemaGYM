@@ -18,7 +18,7 @@ const fmt = (n) =>
 const S = {
   page: {
     padding: "28px 32px",
-    background: "var(--bg-dark,#0f1117)",
+    background: "var(--bg-main)",
     minHeight: "100vh",
     color: "var(--text-primary,var(--text-primary))",
     fontFamily: "Inter, system-ui, sans-serif",
@@ -31,7 +31,7 @@ const S = {
   sub:   { fontSize: 13, color: "var(--text-secondary,var(--text-secondary))", marginTop: 4 },
   refreshBtn: {
     display: "flex", alignItems: "center", gap: 6, padding: "8px 16px",
-    background: "var(--bg-card,#1e2233)", border: "1px solid var(--border,rgba(255,255,255,.08))",
+    background: "var(--bg-card)", border: "1px solid var(--border)",
     borderRadius: 8, color: "var(--text-secondary,var(--text-secondary))", cursor: "pointer",
     fontSize: 13, transition: "all .2s",
   },
@@ -40,8 +40,8 @@ const S = {
     gap: 16, marginBottom: 28,
   },
   card: {
-    background: "var(--bg-card,#1e2233)",
-    border: "1px solid var(--border,rgba(255,255,255,.08))",
+    background: "var(--bg-card)",
+    border: "1px solid var(--border)",
     borderRadius: 12, padding: "20px 22px",
   },
   cardLabel: { fontSize: 12, color: "var(--text-secondary,var(--text-secondary))", textTransform: "uppercase", letterSpacing: ".06em" },
@@ -51,8 +51,8 @@ const S = {
     display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 24,
   },
   section: {
-    background: "var(--bg-card,#1e2233)",
-    border: "1px solid var(--border,rgba(255,255,255,.08))",
+    background: "var(--bg-card)",
+    border: "1px solid var(--border)",
     borderRadius: 12, padding: "20px 22px",
   },
   sectionTitle: { fontSize: 15, fontWeight: 600, marginBottom: 16, color: "var(--text-primary,var(--text-primary))" },
@@ -66,7 +66,7 @@ const S = {
   },
   actIcon: {
     width: 36, height: 36, borderRadius: "50%",
-    background: "var(--bg-dark,#0f1117)",
+    background: "var(--bg-main)",
     display: "flex", alignItems: "center", justifyContent: "center",
     fontSize: 16, flexShrink: 0,
   },
@@ -83,7 +83,7 @@ function KpiCard({ label, value, sub, icon, accent = "var(--accent)", loading })
         <span style={{ color: accent, fontSize: 20 }}>{icon}</span>
       </div>
       {loading
-        ? <div style={{ height: 36, background: "var(--bg-dark,#0f1117)", borderRadius: 6, margin: "8px 0 4px", animation: "pulse 1.5s infinite" }} />
+        ? <div style={{ height: 36, background: "var(--bg-main)", borderRadius: 6, margin: "8px 0 4px", animation: "pulse 1.5s infinite" }} />
         : <div style={S.cardValue}>{value}</div>
       }
       {sub && <div style={S.cardSub}>{sub}</div>}
@@ -115,12 +115,12 @@ function Pager({ page, total, onChange }) {
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, marginTop: 12, paddingTop: 10, borderTop: "1px solid var(--border,rgba(255,255,255,.06))" }}>
       <button onClick={() => onChange(page - 1)} disabled={page === 1}
-        style={{ background: "none", border: "1px solid var(--border,rgba(255,255,255,.1))", borderRadius: 6, color: page === 1 ? "#334155" : "var(--text-secondary)", cursor: page === 1 ? "not-allowed" : "pointer", padding: "4px 8px", display: "flex", alignItems: "center" }}>
+        style={{ background: "none", border: "1px solid var(--border,rgba(255,255,255,.1))", borderRadius: 6, color: page === 1 ? "var(--border)" : "var(--text-secondary)", cursor: page === 1 ? "not-allowed" : "pointer", padding: "4px 8px", display: "flex", alignItems: "center" }}>
         <FiChevronLeft size={13} />
       </button>
       <span style={{ fontSize: 12, color: "var(--text-tertiary)" }}>{page} / {total}</span>
       <button onClick={() => onChange(page + 1)} disabled={page === total}
-        style={{ background: "none", border: "1px solid var(--border,rgba(255,255,255,.1))", borderRadius: 6, color: page === total ? "#334155" : "var(--text-secondary)", cursor: page === total ? "not-allowed" : "pointer", padding: "4px 8px", display: "flex", alignItems: "center" }}>
+        style={{ background: "none", border: "1px solid var(--border,rgba(255,255,255,.1))", borderRadius: 6, color: page === total ? "var(--border)" : "var(--text-secondary)", cursor: page === total ? "not-allowed" : "pointer", padding: "4px 8px", display: "flex", alignItems: "center" }}>
         <FiChevronRight size={13} />
       </button>
     </div>
@@ -254,7 +254,7 @@ export default function OwnerDashboard() {
           <div style={S.sectionTitle}>Ingresos últimos 6 meses</div>
           <ResponsiveContainer width="100%" height={220}>
             <LineChart data={ingresos} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,.06)" />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
               <XAxis dataKey="label" tick={{ fill: "var(--text-tertiary)", fontSize: 11 }} />
               <YAxis tick={{ fill: "var(--text-tertiary)", fontSize: 11 }} tickFormatter={(v) => `$${(v/1000).toFixed(0)}k`} />
               <Tooltip content={<CustomTooltip />} />
@@ -270,7 +270,7 @@ export default function OwnerDashboard() {
           <div style={S.sectionTitle}>Total por mes</div>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={ingresos} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,.06)" />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
               <XAxis dataKey="label" tick={{ fill: "var(--text-tertiary)", fontSize: 11 }} />
               <YAxis tick={{ fill: "var(--text-tertiary)", fontSize: 11 }} tickFormatter={(v) => `$${(v/1000).toFixed(0)}k`} />
               <Tooltip content={<CustomTooltip />} />
@@ -293,7 +293,7 @@ export default function OwnerDashboard() {
           </div>
           {loading
             ? [1,2,3,4].map(i => (
-                <div key={i} style={{ height: 44, background: "var(--bg-dark,#0f1117)", borderRadius: 6, marginBottom: 8, opacity: 0.5 }} />
+                <div key={i} style={{ height: 44, background: "var(--bg-main)", borderRadius: 6, marginBottom: 8, opacity: 0.5 }} />
               ))
             : actividad.length === 0
               ? <p style={{ color: "var(--text-tertiary)", fontSize: 13 }}>Sin actividad reciente</p>
@@ -361,7 +361,7 @@ export default function OwnerDashboard() {
 
           {loading
             ? [1,2,3].map(i => (
-                <div key={i} style={{ height: 52, background: "var(--bg-dark,#0f1117)", borderRadius: 8, marginBottom: 8, opacity: 0.5 }} />
+                <div key={i} style={{ height: 52, background: "var(--bg-main)", borderRadius: 8, marginBottom: 8, opacity: 0.5 }} />
               ))
             : alertas.length === 0
               ? (

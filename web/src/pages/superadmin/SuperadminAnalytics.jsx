@@ -375,7 +375,7 @@ function Pagination({ total, page, setPage, pageSize = PAGE_SIZE }) {
       key={label}
       onClick={() => !disabled && setPage(target)}
       style={{
-        border: "1px solid rgba(255,255,255,.1)", borderRadius: 6, padding: "4px 10px",
+        border: "1px solid var(--border)", borderRadius: 6, padding: "4px 10px",
         background: page === target ? "var(--accent, var(--accent))" : "rgba(255,255,255,.04)",
         color: disabled ? "rgba(255,255,255,.2)" : (page === target ? "#fff" : "var(--text-secondary)"),
         fontSize: 12, fontWeight: 600, cursor: disabled ? "not-allowed" : "pointer",
@@ -393,7 +393,7 @@ function Pagination({ total, page, setPage, pageSize = PAGE_SIZE }) {
       {visible.map((p, i, arr) => {
         const prev = arr[i - 1];
         return [
-          prev && p - prev > 1 ? <span key={`gap-${p}`} style={{ color: "rgba(255,255,255,.2)", fontSize: 12 }}>…</span> : null,
+          prev && p - prev > 1 ? <span key={`gap-${p}`} style={{ color: "var(--text-secondary)", fontSize: 12 }}>…</span> : null,
           btn(p, p, false),
         ];
       })}
@@ -487,7 +487,7 @@ function CrecimientoTable({ data }) {
               <td style={{ padding: "8px 12px", color: "var(--text-secondary)" }}>{r.periodo}</td>
               <td style={{ padding: "8px 12px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <div style={{ flex: 1, height: 5, background: "rgba(255,255,255,.06)", borderRadius: 99, overflow: "hidden", maxWidth: 100 }}>
+                  <div style={{ flex: 1, height: 5, background: "var(--bg-input)", borderRadius: 99, overflow: "hidden", maxWidth: 100 }}>
                     <div style={{ width: `${Math.min((r.nuevos_miembros / 50) * 100, 100)}%`, height: "100%", background: "var(--accent-soft)", borderRadius: 99 }} />
                   </div>
                   <span style={{ color: "var(--accent-soft)", fontWeight: 700 }}>{r.nuevos_miembros}</span>

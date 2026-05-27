@@ -104,7 +104,8 @@ function App() {
             <Route path="/user/prediction"   element={<UserWeightPrediction />} />
             <Route path="/user/body-metrics" element={<UserBodyProgress />} />
             <Route path="/user/meal-plan"    element={<UserMealPlan />} />
-            <Route path="/user/recipes"      element={<UserRecipes />} />
+            <Route path="/user/nutrition"    element={<UserMealPlan />} />
+            <Route path="/user/recipes"      element={<UserMealPlan />} />
             <Route path="/user/health"       element={<UserHealth />} />
             <Route path="/user-health-update" element={<UserHealthUpdate />} />
             <Route path="/user/payments"     element={<UserPayments />} />

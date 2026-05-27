@@ -168,7 +168,7 @@ export default function ProductoDetailModal({ producto, onClose, onAddToCart }) 
               { label: "Estado",    value: producto.activo ? "Activo" : "Inactivo", color: producto.activo ? "var(--success)" : "var(--danger)" },
             ].map(({ label, value, color: c }) => (
               <div key={label} style={{
-                flex: 1, minWidth: 100, background: "rgba(255,255,255,.04)",
+                flex: 1, minWidth: 100, background: "var(--bg-input)",
                 borderRadius: 10, padding: "10px 14px", textAlign: "center",
               }}>
                 <div style={{ fontSize: 10, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 4 }}>{label}</div>
