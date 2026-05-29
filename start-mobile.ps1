@@ -1,79 +1,78 @@
-# start-mobile.ps1 — Arranca el contenedor mobile con la IP LAN correcta
+# start-mobile.ps1 -- Inicia GymPro Mobile (Expo) localmente con Node.js
 #
 # Uso:
-#   .\start-mobile.ps1            # detecta IP automáticamente
-#   .\start-mobile.ps1 -rebuild   # reconstruye la imagen antes de arrancar
-#   .\start-mobile.ps1 -ip 192.168.1.45  # fuerza una IP específica
+#   .\start-mobile.ps1              # instala deps si faltan y arranca Metro
+#   .\start-mobile.ps1 -install     # fuerza reinstalacion de node_modules
+#   .\start-mobile.ps1 -ip 192.168.1.45  # fuerza IP de la API
 #
-# Por qué es necesario:
-#   Docker Desktop en Windows resuelve "host.docker.internal" como 192.168.65.254
-#   (IP interna de la VM de Docker), NO la IP WiFi/LAN de la máquina Windows.
-#   Un teléfono físico en la misma red WiFi NO puede alcanzar 192.168.65.254.
-#   Este script detecta la IP real del adaptador WiFi o Ethernet activo y la
-#   pasa como HOST_IP al contenedor, overrideando la detección automática.
+# Requisitos: Node.js >= 20 instalado en Windows (nodejs.org)
 
 param(
-    [switch]$rebuild,
+    [switch]$install,
     [string]$ip = ""
 )
 
-# ── Detectar IP LAN real ───────────────────────────────────────────────────────
-if ($ip -eq "") {
-    Write-Host "[start-mobile] Detectando IP LAN..." -ForegroundColor Cyan
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
 
-    # Obtener todas las IPs de adaptadores activos, excluyendo loopback y VPN típicas
+# -- Verificar Node.js ----------------------------------------------------------
+if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
+    Write-Host "[start-mobile] ERROR: Node.js no encontrado." -ForegroundColor Red
+    Write-Host "  Descarga e instala desde: https://nodejs.org/en/download" -ForegroundColor Yellow
+    exit 1
+}
+$nodeVersion = (node --version)
+Write-Host "[start-mobile] Node.js $nodeVersion detectado." -ForegroundColor Green
+
+# -- Detectar IP LAN real -------------------------------------------------------
+if ($ip -eq "") {
     $candidates = Get-NetIPAddress -AddressFamily IPv4 `
         | Where-Object {
             $_.InterfaceAlias -notmatch "Loopback|WSL|vEthernet|Hyper-V|VirtualBox|vmnet|Tailscale|ZeroTier" `
             -and $_.PrefixOrigin -ne "WellKnown" `
             -and $_.IPAddress -ne "127.0.0.1" `
             -and $_.IPAddress -notmatch "^169\.254\." `
-            -and $_.IPAddress -notmatch "^192\.168\.65\." `
-            -and $_.IPAddress -notmatch "^172\.(1[6-9]|2[0-9]|3[01])\."
+            -and $_.IPAddress -notmatch "^192\.168\.65\."
         } | Sort-Object InterfaceMetric
 
-    if ($candidates.Count -eq 0) {
-        Write-Host "[start-mobile] ERROR: No se encontró ninguna IP LAN válida." -ForegroundColor Red
-        Write-Host "  Usa:  .\start-mobile.ps1 -ip 192.168.1.X" -ForegroundColor Yellow
+    $best = $candidates | Where-Object { $_.InterfaceAlias -match "Wi-Fi|WiFi|Wireless" } | Select-Object -First 1
+    if (-not $best) { $best = $candidates | Where-Object { $_.InterfaceAlias -match "Ethernet" } | Select-Object -First 1 }
+    if (-not $best) { $best = $candidates | Select-Object -First 1 }
+
+    if (-not $best) {
+        Write-Host "[start-mobile] ERROR: No se encontro una IP LAN valida." -ForegroundColor Red
+        Write-Host "  Usa: .\start-mobile.ps1 -ip 192.168.X.X" -ForegroundColor Yellow
         exit 1
     }
-
-    # Preferir WiFi (Wi-Fi) > Ethernet > cualquier otra
-    $best = $candidates | Where-Object { $_.InterfaceAlias -match "Wi-Fi|WiFi|Wireless" } | Select-Object -First 1
-    if (-not $best) {
-        $best = $candidates | Where-Object { $_.InterfaceAlias -match "Ethernet" } | Select-Object -First 1
-    }
-    if (-not $best) {
-        $best = $candidates | Select-Object -First 1
-    }
-
     $ip = $best.IPAddress
-    Write-Host "[start-mobile] Usando IP: $ip  (adaptador: $($best.InterfaceAlias))" -ForegroundColor Green
+    Write-Host "[start-mobile] IP detectada: $ip  ($($best.InterfaceAlias))" -ForegroundColor Green
 } else {
-    Write-Host "[start-mobile] IP forzada por parámetro: $ip" -ForegroundColor Yellow
-}
-
-# ── Validar formato IP ─────────────────────────────────────────────────────────
-if ($ip -notmatch '^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$') {
-    Write-Host "[start-mobile] ERROR: '$ip' no es una IPv4 válida." -ForegroundColor Red
-    exit 1
+    Write-Host "[start-mobile] IP forzada: $ip" -ForegroundColor Yellow
 }
 
 Write-Host ""
-Write-Host "  La app móvil usará:  http://$ip`:8080/api" -ForegroundColor White
-Write-Host "  Metro bundler en:    http://$ip`:8081" -ForegroundColor White
-Write-Host "  Escanea el QR con Expo Go en tu teléfono (misma red WiFi)." -ForegroundColor White
+Write-Host "  API:    http://${ip}:8080/api" -ForegroundColor White
+Write-Host "  Metro:  http://${ip}:8081" -ForegroundColor White
+Write-Host "  Escanea el QR con Expo Go (misma red WiFi)." -ForegroundColor White
 Write-Host ""
 
-# ── Arrancar contenedor ────────────────────────────────────────────────────────
-$env:HOST_IP = $ip
+# -- Instalar dependencias si es necesario --------------------------------------
+$mobileDir = Join-Path $PSScriptRoot "mobile"
+$nodeModules = Join-Path $mobileDir "node_modules"
 
-if ($rebuild) {
-    Write-Host "[start-mobile] Reconstruyendo imagen..." -ForegroundColor Cyan
-    docker compose build mobile
-    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+if ($install -or -not (Test-Path $nodeModules)) {
+    Write-Host "[start-mobile] Instalando dependencias npm..." -ForegroundColor Cyan
+    Push-Location $mobileDir
+    npm install --legacy-peer-deps
+    if ($LASTEXITCODE -ne 0) { Pop-Location; exit $LASTEXITCODE }
+    Pop-Location
 }
 
-Write-Host "[start-mobile] Arrancando contenedor mobile..." -ForegroundColor Cyan
-docker compose up mobile
+# -- Arrancar Metro -------------------------------------------------------------
+# EXPO_PUBLIC_API_BASE_URL es leida por constants/Api.ts si hostUri no resuelve bien
+$env:EXPO_PUBLIC_API_BASE_URL = "http://${ip}:8080/api"
 
+Write-Host "[start-mobile] Arrancando Metro Bundler..." -ForegroundColor Cyan
+Push-Location $mobileDir
+npx expo start --host lan
+Pop-Location

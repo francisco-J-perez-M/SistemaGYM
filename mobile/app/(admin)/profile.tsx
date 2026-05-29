@@ -1,10 +1,10 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
 import { useAuth } from '../../hooks/useAuth';
+import { toStr } from '../../utils/format';
 import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
 
@@ -19,20 +19,23 @@ export default function AdminProfileScreen() {
     ]);
   };
 
-  const nombre   = user?.nombre ?? 'Administrador';
-  const initials = nombre.split(' ').slice(0, 2).map((n: string) => n[0]).join('').toUpperCase();
-  const roleLabel = user?.role === 'owner_gym' ? 'Owner / Propietario' : user?.role === 'superadmin' ? 'Super Admin' : 'Administrador';
+  const nombre    = toStr(user?.nombre, 'Administrador');
+  const initials  = nombre.split(' ').slice(0, 2).map((n) => n[0]).join('').toUpperCase();
+  const roleLabel = user?.role === 'owner_gym'   ? 'Owner / Propietario'
+                  : user?.role === 'superadmin'  ? 'Super Admin'
+                  : 'Administrador';
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-      <LinearGradient colors={['#1e1b4b', '#312e81', Colors.background]} style={[styles.hero, { paddingTop: insets.top + 20 }]}>
-        <LinearGradient colors={Colors.gradientAccent} style={styles.avatar}>
+      {/* Hero — sin LinearGradient */}
+      <View style={[styles.hero, { paddingTop: insets.top + 20 }]}>
+        <View style={styles.avatar}>
           <Text style={styles.initials}>{initials}</Text>
-        </LinearGradient>
+        </View>
         <Text style={styles.name}>{nombre}</Text>
         <Badge label={roleLabel} color="accent" />
-        <Text style={styles.email}>{user?.email}</Text>
-      </LinearGradient>
+        <Text style={styles.email}>{toStr(user?.email)}</Text>
+      </View>
 
       <View style={styles.body}>
         <Card>
@@ -40,7 +43,7 @@ export default function AdminProfileScreen() {
             <Ionicons name="mail-outline" size={16} color={Colors.accent} />
             <View>
               <Text style={styles.infoLabel}>Correo</Text>
-              <Text style={styles.infoValue}>{user?.email}</Text>
+              <Text style={styles.infoValue}>{toStr(user?.email)}</Text>
             </View>
           </View>
           <View style={styles.infoRow}>
@@ -50,7 +53,7 @@ export default function AdminProfileScreen() {
               <Text style={styles.infoValue}>{roleLabel}</Text>
             </View>
           </View>
-          {user?.plan && (
+          {user?.plan ? (
             <View style={styles.infoRow}>
               <Ionicons name="ribbon-outline" size={16} color={Colors.accent} />
               <View>
@@ -58,7 +61,7 @@ export default function AdminProfileScreen() {
                 <Text style={styles.infoValue}>{user.plan}</Text>
               </View>
             </View>
-          )}
+          ) : null}
         </Card>
 
         <Card>
@@ -84,8 +87,15 @@ export default function AdminProfileScreen() {
 
 const styles = StyleSheet.create({
   screen:   { flex: 1, backgroundColor: Colors.background },
-  hero:     { alignItems: 'center', paddingBottom: 32, paddingHorizontal: 24, gap: 8 },
-  avatar:   { width: 90, height: 90, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
+  hero:     {
+    alignItems: 'center', paddingBottom: 32, paddingHorizontal: 24, gap: 8,
+    backgroundColor: '#1e1b4b',
+  },
+  avatar:   {
+    width: 90, height: 90, borderRadius: 28,
+    backgroundColor: Colors.accent, alignItems: 'center', justifyContent: 'center',
+    marginBottom: 4,
+  },
   initials: { color: '#fff', fontSize: 32, fontWeight: '800' },
   name:     { color: Colors.text, fontSize: 22, fontWeight: '700' },
   email:    { color: Colors.textSecondary, fontSize: 13 },

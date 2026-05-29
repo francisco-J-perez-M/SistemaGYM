@@ -56,37 +56,61 @@ if (__DEV__) {
   console.log('[GymPro] API_BASE_URL →', API_BASE_URL);
 }
 
+/**
+ * ENDPOINTS — rutas relativas a API_BASE_URL (/api).
+ *
+ * Correspondencia con blueprints Flask:
+ *
+ *  Auth       auth_bp             url_prefix="/api/auth"
+ *  Member     user_*_bp           urls hardcodeadas como /api/user/...
+ *  Trainer    trainer_bp          url_prefix="/api/trainer"
+ *  Owner Gym  owner_*_bp          url_prefix="/api/owner_gym"
+ *  Shared     miembros_bp / pagos url hardcodeada /api/miembros, /api/pagos
+ *  Shared     notificaciones_bp   url_prefix="/api/notificaciones"
+ */
 export const ENDPOINTS = {
-  // Auth
-  LOGIN:             '/login',
-  REGISTER:          '/register',
+  // ── Auth ──────────────────────────────────────────────────────────────────
+  LOGIN:              '/auth/login',
+  REGISTER:           '/auth/register',
 
-  // Member
-  USER_DASHBOARD:    '/user/dashboard',
-  USER_CHECKIN:      '/user/checkin',
-  USER_PROFILE:      '/user/profile',
-  USER_MEMBERSHIP:   '/user/membership',
-  MEMBERSHIP_PLANS:  '/user/membership/plans',
-  MEMBERSHIP_RENEW:  '/user/membership/renew',
-  USER_PROGRESS:     '/user/progress',
-  BODY_PROGRESS:     '/user/body-progress',
-  WORKOUT_COMPLETE:  '/user/workout/complete',
+  // ── Miembro ───────────────────────────────────────────────────────────────
+  USER_DASHBOARD:     '/user/dashboard',        // GET  /api/user/dashboard
+  USER_CHECKIN:       '/user/checkin',           // POST /api/user/checkin
+  USER_PROFILE:       '/user/profile',           // GET  /api/user/profile
+  USER_MEMBERSHIP:    '/user/membership',        // GET  /api/user/membership
+  MEMBERSHIP_PLANS:   '/user/membership/plans',  // GET  /api/user/membership/plans
+  MEMBERSHIP_RENEW:   '/user/membership/renew',  // POST /api/user/membership/renew
+  USER_PROGRESS:      '/user/progress',          // POST /api/user/progress
+  BODY_PROGRESS:      '/user/body-progress',     // GET/POST /api/user/body-progress
+  WORKOUT_COMPLETE:   '/user/workout/complete',  // POST /api/user/workout/complete
+  USER_ROUTINES:      '/user/routines',          // GET  /api/user/routines (user_routines_bp prefix=/api/user)
 
-  // Nutrition
-  DIETAS:            '/user/nutrition/dietas',
-  RECETAS:           '/user/nutrition/recetas',
+  // Nutrición
+  DIETAS:             '/user/nutrition/dietas',  // GET /api/user/nutrition/dietas
+  RECETAS:            '/user/nutrition/recetas', // GET /api/user/nutrition/recetas
 
-  // Trainer
-  TRAINER_DASHBOARD: '/trainer/dashboard',
-  TRAINER_CLIENTS:   '/trainer/clients',
-  TRAINER_PROFILE:   '/trainer/profile',
-  TRAINER_ROUTINES:  '/trainer/routines',
-  TRAINER_SCHEDULE:  '/trainer/schedule',
+  // ── Entrenador ────────────────────────────────────────────────────────────
+  // trainer_bp: url_prefix="/api/trainer"
+  TRAINER_DASHBOARD:  '/trainer/dashboard',      // GET /api/trainer/dashboard
+  TRAINER_CLIENTS:    '/trainer/clients',        // GET /api/trainer/clients  (paginado)
+  TRAINER_PROFILE:    '/trainer/profile',        // GET /api/trainer/profile
+  TRAINER_ROUTINES:   '/trainer/routines',       // GET /api/trainer/routines
+  TRAINER_SCHEDULE:   '/trainer/schedule',       // GET /api/trainer/schedule
+  TRAINER_SESSIONS:   '/trainer/sessions',       // GET /api/trainer/sessions
+  TRAINER_MEMBERS:    '/trainer/members',        // GET /api/trainer/members
 
-  // Admin / Owner
-  ADMIN_KPIS:        '/dashboard/kpis',
-  MIEMBROS:          '/miembros',
-  PAGOS:             '/pagos',
-  MEMBRESIAS:        '/membresias',
-  NOTIFICACIONES:    '/notificaciones',
+  // ── Owner Gym / Admin ─────────────────────────────────────────────────────
+  // owner_*_bp: url_prefix="/api/owner_gym"
+  ADMIN_KPIS:         '/owner_gym/dashboard',    // GET /api/owner_gym/dashboard (estructura anidada)
+  OWNER_PROFILE:      '/owner_gym/perfil',       // GET /api/owner_gym/perfil
+  OWNER_STAFF:        '/owner_gym/staff',        // GET /api/owner_gym/staff
+  OWNER_MEMBRESIAS:   '/owner_gym/membresias',   // GET /api/owner_gym/membresias (tipos de membresía)
+
+  // Rutas compartidas sin prefix (url hardcodeada)
+  MIEMBROS:           '/miembros',               // GET /api/miembros  (paginado)
+  PAGOS:              '/pagos',                  // GET /api/pagos     (paginado)
+  MEMBRESIAS:         '/membresias',             // GET /api/membresias (tipos generales)
+
+  // Notificaciones
+  NOTIFICACIONES:     '/notificaciones',         // GET /api/notificaciones
 } as const;

@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
+import { toArray } from '../../utils/format';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
@@ -27,7 +28,7 @@ export default function TrainerRoutinesScreen() {
     <View style={[styles.screen, { paddingTop: insets.top + 16 }]}>
       <View style={styles.header}>
         <Text style={styles.title} accessibilityRole="header">Rutinas asignadas</Text>
-        <Text style={styles.sub}>{(data ?? []).length} rutinas creadas</Text>
+        <Text style={styles.sub}>{toArray(data).length} rutinas creadas</Text>
       </View>
 
       <FlatList

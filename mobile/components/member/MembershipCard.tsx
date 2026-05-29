@@ -1,8 +1,9 @@
+// LinearGradient eliminado: requireNativeViewManager falla en RN 0.85 new arch (Fabric).
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
+import { toDateStr, toStr } from '../../utils/format';
 import type { Membership } from '../../types';
 
 interface Props { membership: Membership | null }
@@ -14,12 +15,7 @@ export default function MembershipCard({ membership }: Props) {
   const color    = isUrgent ? Colors.warning : Colors.success;
 
   return (
-    <LinearGradient
-      colors={['#1e1b4b', '#312e81']}
-      style={styles.card}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-    >
+    <View style={styles.card}>
       <View style={styles.topRow}>
         <View style={styles.iconWrap}>
           <Ionicons name="card-outline" size={20} color={Colors.accent} />
@@ -36,27 +32,28 @@ export default function MembershipCard({ membership }: Props) {
         </View>
       </View>
 
-      <Text style={styles.plan}>{membership.plan}</Text>
+      <Text style={styles.plan}>{toStr(membership.plan, 'Plan')}</Text>
 
       <View style={styles.bottomRow}>
         <View>
           <Text style={styles.miniLabel}>Vence</Text>
-          <Text style={styles.miniVal}>{membership.fecha_fin}</Text>
+          <Text style={styles.miniVal}>{toDateStr(membership.fecha_fin) || toStr(membership.fecha_fin)}</Text>
         </View>
         <View style={styles.daysBox}>
           <Text style={[styles.daysNum, { color }]}>{membership.dias_restantes}</Text>
           <Text style={styles.daysLabel}>días restantes</Text>
         </View>
       </View>
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 20,
-    padding:      20,
-    gap:          10,
+    borderRadius:    20,
+    padding:         20,
+    gap:             10,
+    backgroundColor: '#1e1b4b',
   },
   topRow: {
     flexDirection:  'row',
@@ -64,28 +61,18 @@ const styles = StyleSheet.create({
     alignItems:     'center',
   },
   iconWrap: {
-    width:  36,
-    height: 36,
-    borderRadius: 10,
+    width: 36, height: 36, borderRadius: 10,
     backgroundColor: 'rgba(108,99,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center',
   },
   statusPill: {
-    flexDirection: 'row',
-    alignItems:    'center',
-    paddingHorizontal: 10,
-    paddingVertical:    4,
-    borderRadius:  20,
-    gap:           5,
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 10, paddingVertical: 4,
+    borderRadius: 20, gap: 5,
   },
   dot:        { width: 6, height: 6, borderRadius: 3 },
   statusText: { fontSize: 12, fontWeight: '600' },
-  plan: {
-    color:      '#fff',
-    fontSize:   20,
-    fontWeight: '700',
-  },
+  plan:       { color: '#fff', fontSize: 20, fontWeight: '700' },
   bottomRow: {
     flexDirection:  'row',
     justifyContent: 'space-between',

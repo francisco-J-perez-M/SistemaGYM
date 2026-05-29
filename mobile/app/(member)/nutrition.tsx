@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
+import { toArray } from '../../utils/format';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
@@ -76,14 +77,14 @@ export default function NutritionScreen() {
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={loadingD} onRefresh={refetchD} tintColor={Colors.accent} />}
         >
-          {(dietas ?? []).length === 0 ? (
+          {toArray(dietas).length === 0 ? (
             <View style={styles.empty}>
               <Ionicons name="nutrition-outline" size={44} color={Colors.textMuted} />
               <Text style={styles.emptyText}>No tienes planes alimenticios aún.</Text>
               <Text style={styles.emptyHint}>Contacta a tu entrenador para que te asigne uno.</Text>
             </View>
           ) : (
-            (dietas ?? []).map((d) => (
+            toArray(dietas).map((d) => (
               <Card key={d._id} style={styles.dietCard}>
                 <View style={styles.dietTop}>
                   <View style={styles.dietIconBox}>

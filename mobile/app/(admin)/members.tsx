@@ -7,19 +7,20 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
+import { toDateStr, toInitial, toStr, matchesSearch, toArray } from '../../utils/format';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Badge from '../../components/ui/Badge';
-import type { MiembroAdmin } from '../../types';
+import type { MiembrosResponse } from '../../types';
 
 export default function AdminMembersScreen() {
   const insets = useSafeAreaInsets();
-  const { data, loading, refetch } = useFetch<MiembroAdmin[]>(ENDPOINTS.MIEMBROS);
+  // API devuelve { miembros: [...], total: N, pages: N, current_page: N }
+  const { data, loading, refetch } = useFetch<MiembrosResponse>(ENDPOINTS.MIEMBROS);
   const [search, setSearch] = useState('');
 
-  const filtered = (data ?? []).filter(
-    (m) =>
-      m.nombre.toLowerCase().includes(search.toLowerCase()) ||
-      m.email.toLowerCase().includes(search.toLowerCase())
+  const allMembers = toArray(data?.miembros);
+  const filtered   = allMembers.filter(
+    (m) => matchesSearch(m, ['nombre', 'email'], search)
   );
 
   if (loading) return <LoadingSpinner fullScreen message="Cargando miembros…" />;
@@ -28,7 +29,7 @@ export default function AdminMembersScreen() {
     <View style={[styles.screen, { paddingTop: insets.top + 16 }]}>
       <View style={styles.header}>
         <Text style={styles.title} accessibilityRole="header">Miembros</Text>
-        <Text style={styles.sub}>{(data ?? []).length} miembros registrados</Text>
+        <Text style={styles.sub}>{data?.total ?? allMembers.length} miembros registrados</Text>
 
         <View style={styles.searchBox}>
           <Ionicons name="search-outline" size={18} color={Colors.textSecondary} />
@@ -63,13 +64,13 @@ export default function AdminMembersScreen() {
         renderItem={({ item: m }) => (
           <View style={styles.memberCard} accessible accessibilityLabel={`Miembro: ${m.nombre}`}>
             <View style={styles.avatar}>
-              <Text style={styles.initial}>{m.nombre.charAt(0).toUpperCase()}</Text>
+              <Text style={styles.initial}>{toInitial(m.nombre)}</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.nombre}>{m.nombre}</Text>
-              <Text style={styles.email}>{m.email}</Text>
-              {m.membresia && <Text style={styles.membresia}>{m.membresia}</Text>}
-              {m.fecha_ingreso && <Text style={styles.fecha}>Ingreso: {m.fecha_ingreso.slice(0, 10)}</Text>}
+              <Text style={styles.nombre}>{toStr(m.nombre)}</Text>
+              <Text style={styles.email}>{toStr(m.email)}</Text>
+              {m.membresia ? <Text style={styles.membresia}>{toStr(m.membresia)}</Text> : null}
+              {m.fecha_ingreso ? <Text style={styles.fecha}>Ingreso: {toDateStr(m.fecha_ingreso)}</Text> : null}
             </View>
             <Badge
               label={m.estado ?? 'Activo'}

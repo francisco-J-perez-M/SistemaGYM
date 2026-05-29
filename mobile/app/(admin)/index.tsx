@@ -1,35 +1,52 @@
 /**
- * Dashboard del Administrador / Owner — KPIs del gimnasio + alertas.
+ * Dashboard del Owner Gym / Admin — KPIs del gimnasio + miembros recientes.
+ *
+ * Endpoint: GET /api/owner_gym/dashboard
+ * Respuesta: OwnerDashboard (estructura anidada con miembros, ingresos, staff)
+ *
+ * El endpoint /api/miembros devuelve respuesta paginada { miembros: [...], total, pages }
+ * Extraemos el array con data?.miembros.
  */
 import React from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
 import { useAuth } from '../../hooks/useAuth';
+import { toArray, toFirstName, toInitial, toStr } from '../../utils/format';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import StatCard from '../../components/admin/StatCard';
 import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
-import type { AdminKPI, MiembroAdmin } from '../../types';
+import type { OwnerDashboard, MiembrosResponse } from '../../types';
 
 export default function AdminDashboardScreen() {
   const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
-  const { data: kpis,    loading: loadingK, refetch } = useFetch<AdminKPI>(ENDPOINTS.ADMIN_KPIS);
-  const { data: miembros, loading: loadingM }          = useFetch<MiembroAdmin[]>(ENDPOINTS.MIEMBROS);
-  const loading = loadingK || loadingM;
 
+  // Dashboard KPIs — estructura anidada del owner_gym
+  const { data: dash, loading: loadingK, refetch } = useFetch<OwnerDashboard>(ENDPOINTS.ADMIN_KPIS);
+  // Miembros paginados — extraemos el array del wrapper
+  const { data: miembrosData, loading: loadingM } = useFetch<MiembrosResponse>(ENDPOINTS.MIEMBROS);
+
+  const loading = loadingK || loadingM;
   if (loading) return <LoadingSpinner fullScreen message="Cargando panel…" />;
 
-  const nombre     = user?.nombre?.split(' ')[0] ?? 'Admin';
-  const porVencer  = (miembros ?? []).filter((m) => m.estado === 'por_vencer').slice(0, 5);
-  const recientes  = (miembros ?? []).slice(0, 5);
+  const nombre    = toFirstName(user?.nombre, 'Admin');
+  const miembros  = toArray(miembrosData?.miembros);
+  const recientes = miembros.slice(0, 5);
+
+  // KPIs extraídos de la estructura anidada
+  const totalMiembros = dash?.miembros?.total ?? 0;
+  const nuevosMes     = dash?.miembros?.nuevos_mes ?? 0;
+  const porVencer     = dash?.miembros?.por_vencer ?? 0;
+  const ingresosMes   = dash?.ingresos?.mes_actual ?? 0;
+  const variacion     = dash?.ingresos?.variacion_pct ?? 0;
+  const entrenadores  = dash?.staff?.entrenadores ?? 0;
 
   return (
     <ScrollView
@@ -54,8 +71,8 @@ export default function AdminDashboardScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Hero banner */}
-      <LinearGradient colors={['#1e1b4b', '#312e81']} style={styles.heroBanner} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+      {/* Hero banner (sin LinearGradient — falla en Fabric antes de registrarse) */}
+      <View style={styles.heroBanner}>
         <View style={styles.heroIcon}>
           <Ionicons name="business-outline" size={28} color={Colors.accent} />
         </View>
@@ -64,70 +81,48 @@ export default function AdminDashboardScreen() {
           <Text style={styles.heroSub}>Gestión del gimnasio</Text>
         </View>
         <Badge label={user?.role === 'owner_gym' ? 'Owner' : 'Admin'} color="accent" />
-      </LinearGradient>
+      </View>
 
-      {/* KPIs */}
+      {/* KPIs — mapeados desde la estructura real de /owner_gym/dashboard */}
       <View style={styles.kpiGrid}>
         <StatCard
           label="Total miembros"
-          value={kpis?.total_miembros ?? 0}
+          value={totalMiembros}
           icon={<Ionicons name="people-outline" size={20} color={Colors.accent} />}
           color={Colors.accent}
         />
         <StatCard
           label="Nuevos este mes"
-          value={kpis?.nuevos_mes ?? 0}
+          value={nuevosMes}
           icon={<Ionicons name="person-add-outline" size={20} color={Colors.success} />}
           color={Colors.success}
-          trend={kpis?.nuevos_mes ? 12 : undefined}
         />
         <StatCard
           label="Ingresos mes"
-          value={kpis?.ingresos_mes ? `$${kpis.ingresos_mes.toLocaleString()}` : '$0'}
+          value={ingresosMes > 0 ? `$${Math.round(ingresosMes).toLocaleString()}` : '$0'}
           icon={<Ionicons name="cash-outline" size={20} color={Colors.warning} />}
           color={Colors.warning}
-        />
-        <StatCard
-          label="Membresías activas"
-          value={kpis?.membresias_activas ?? 0}
-          icon={<Ionicons name="card-outline" size={20} color={Colors.info} />}
-          color={Colors.info}
-        />
-        <StatCard
-          label="Asistencias hoy"
-          value={kpis?.asistencias_hoy ?? 0}
-          icon={<Ionicons name="location-outline" size={20} color={Colors.purple} />}
-          color={Colors.purple}
+          trend={variacion !== 0 ? variacion : undefined}
         />
         <StatCard
           label="Por vencer"
-          value={kpis?.por_vencer ?? 0}
+          value={porVencer}
           icon={<Ionicons name="warning-outline" size={20} color={Colors.error} />}
           color={Colors.error}
         />
+        <StatCard
+          label="Entrenadores"
+          value={entrenadores}
+          icon={<Ionicons name="barbell-outline" size={20} color={Colors.info} />}
+          color={Colors.info}
+        />
+        <StatCard
+          label="Activos"
+          value={dash?.miembros?.activos ?? 0}
+          icon={<Ionicons name="checkmark-circle-outline" size={20} color={Colors.purple} />}
+          color={Colors.purple}
+        />
       </View>
-
-      {/* Membresías por vencer */}
-      {porVencer.length > 0 && (
-        <Card>
-          <View style={styles.alertRow}>
-            <Ionicons name="warning-outline" size={18} color={Colors.warning} />
-            <Text style={styles.sectionTitle}>Membresías por vencer</Text>
-          </View>
-          {porVencer.map((m) => (
-            <View key={m._id} style={styles.memberRow}>
-              <View style={styles.memberAvatar}>
-                <Text style={styles.memberInitial}>{m.nombre.charAt(0).toUpperCase()}</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.memberName}>{m.nombre}</Text>
-                <Text style={styles.memberEmail}>{m.email}</Text>
-              </View>
-              <Badge label="Por vencer" color="warning" />
-            </View>
-          ))}
-        </Card>
-      )}
 
       {/* Miembros recientes */}
       <Card>
@@ -141,14 +136,14 @@ export default function AdminDashboardScreen() {
           recientes.map((m) => (
             <View key={m._id} style={styles.memberRow}>
               <View style={styles.memberAvatar}>
-                <Text style={styles.memberInitial}>{m.nombre.charAt(0).toUpperCase()}</Text>
+                <Text style={styles.memberInitial}>{toInitial(m.nombre)}</Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.memberName}>{m.nombre}</Text>
-                <Text style={styles.memberEmail}>{m.email}</Text>
+                <Text style={styles.memberName}>{toStr(m.nombre)}</Text>
+                <Text style={styles.memberEmail}>{toStr(m.email)}</Text>
               </View>
               <Badge
-                label={m.estado ?? 'Activo'}
+                label={toStr(m.estado, 'Activo')}
                 color={m.estado === 'Activo' ? 'success' : 'warning'}
               />
             </View>
@@ -166,15 +161,17 @@ const styles = StyleSheet.create({
   title:    { color: Colors.text, fontSize: 22, fontWeight: '700' },
   sub:      { color: Colors.textSecondary, fontSize: 13 },
   logoutBtn:{ padding: 8 },
-  heroBanner: { flexDirection: 'row', alignItems: 'center', borderRadius: 18, padding: 16, gap: 12 },
+  heroBanner: {
+    flexDirection: 'row', alignItems: 'center', borderRadius: 18,
+    padding: 16, gap: 12, backgroundColor: '#1e1b4b',
+  },
   heroIcon: {
     width: 50, height: 50, borderRadius: 16,
     backgroundColor: 'rgba(108,99,255,0.2)', alignItems: 'center', justifyContent: 'center',
   },
-  heroTitle:  { color: '#fff', fontSize: 16, fontWeight: '700' },
-  heroSub:    { color: 'rgba(255,255,255,0.6)', fontSize: 12 },
-  kpiGrid:    { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  alertRow:   { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  heroTitle:    { color: '#fff', fontSize: 16, fontWeight: '700' },
+  heroSub:      { color: 'rgba(255,255,255,0.6)', fontSize: 12 },
+  kpiGrid:      { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   sectionTitle: { color: Colors.text, fontSize: 16, fontWeight: '700', marginBottom: 12 },
   memberRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,

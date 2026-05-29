@@ -6,10 +6,15 @@ WORKDIR /app
 # Herramientas de red para detectar la IP del host (ip, getent)
 RUN apk add --no-cache git curl iproute2 bind-tools
 
+# CACHEBUST se pasa desde docker compose build para forzar reinstalación
+# de dependencias cuando package.json cambia pero Docker no lo detecta.
+# Uso: docker compose build --build-arg CACHEBUST=$(date +%s) mobile
+ARG CACHEBUST=1
+
 # Copiar manifiestos antes para aprovechar cache de capas
 COPY package.json ./
 
-# Instalar dependencias
+# Instalar dependencias (ARG antes invalida la cache si CACHEBUST cambia)
 RUN npm install --legacy-peer-deps
 
 # Copiar el resto del proyecto

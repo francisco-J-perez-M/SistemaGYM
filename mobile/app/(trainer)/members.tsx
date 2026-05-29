@@ -1,3 +1,9 @@
+/**
+ * Pantalla Mis Clientes — lista de clientes del entrenador.
+ *
+ * GET /api/trainer/clients → {clients:[{id,name,goal,sessionsTotal,attendance,streak,status}], pagination}
+ * Campos reales: id (no _id), name (no nombre), goal (no objetivo), attendance (% asistencia)
+ */
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, RefreshControl,
@@ -7,19 +13,24 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
+import { toInitial, toStr, toArray } from '../../utils/format';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
-import type { TrainerClient } from '../../types';
+import Badge from '../../components/ui/Badge';
+import type { TrainerClientsResponse, TrainerClientAPI } from '../../types';
 
 export default function TrainerMembersScreen() {
   const insets = useSafeAreaInsets();
-  const { data: clients, loading, refetch } = useFetch<TrainerClient[]>(ENDPOINTS.TRAINER_CLIENTS);
+  // API devuelve {clients:[{id,name,goal,...}], pagination}
+  const { data, loading, refetch } = useFetch<TrainerClientsResponse>(ENDPOINTS.TRAINER_CLIENTS);
   const [search, setSearch] = useState('');
 
-  const filtered = (clients ?? []).filter(
-    (c) =>
-      c.nombre.toLowerCase().includes(search.toLowerCase()) ||
-      c.email.toLowerCase().includes(search.toLowerCase())
-  );
+  const allClients = toArray(data?.clients);
+  const filtered   = allClients.filter((c) => {
+    if (!search) return true;
+    const term = search.toLowerCase();
+    return toStr(c.name).toLowerCase().includes(term) ||
+           toStr(c.goal).toLowerCase().includes(term);
+  });
 
   if (loading) return <LoadingSpinner fullScreen message="Cargando clientes…" />;
 
@@ -27,13 +38,13 @@ export default function TrainerMembersScreen() {
     <View style={[styles.screen, { paddingTop: insets.top + 16 }]}>
       <View style={styles.header}>
         <Text style={styles.title} accessibilityRole="header">Mis Clientes</Text>
-        <Text style={styles.sub}>{(clients ?? []).length} clientes asignados</Text>
+        <Text style={styles.sub}>{data?.pagination?.total ?? allClients.length} clientes asignados</Text>
 
         <View style={styles.searchBox} accessibilityLabel="Buscar cliente">
           <Ionicons name="search-outline" size={18} color={Colors.textSecondary} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Buscar por nombre o correo…"
+            placeholder="Buscar por nombre u objetivo…"
             placeholderTextColor={Colors.textMuted}
             value={search}
             onChangeText={setSearch}
@@ -50,34 +61,34 @@ export default function TrainerMembersScreen() {
 
       <FlatList
         data={filtered}
-        keyExtractor={(c) => c._id}
+        keyExtractor={(c) => c.id}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={refetch} tintColor={Colors.accent} />}
         ListEmptyComponent={
           <View style={styles.empty}>
             <Ionicons name="people-outline" size={40} color={Colors.textMuted} />
-            <Text style={styles.emptyText}>{search ? 'Sin resultados' : 'No tienes clientes asignados.'}</Text>
+            <Text style={styles.emptyText}>
+              {search ? 'Sin resultados' : 'No tienes clientes asignados.'}
+            </Text>
           </View>
         }
-        renderItem={({ item: c }) => (
-          <View style={styles.clientCard} accessible accessibilityLabel={`Cliente: ${c.nombre}`}>
+        renderItem={({ item: c }: { item: TrainerClientAPI }) => (
+          <View style={styles.clientCard} accessible accessibilityLabel={`Cliente: ${c.name}`}>
             <View style={styles.clientAvatar}>
-              <Text style={styles.clientInitial}>{c.nombre.charAt(0).toUpperCase()}</Text>
+              <Text style={styles.clientInitial}>{toInitial(c.name)}</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.clientName}>{c.nombre}</Text>
-              <Text style={styles.clientEmail}>{c.email}</Text>
-              {c.objetivo && <Text style={styles.clientGoal}>{c.objetivo}</Text>}
+              <Text style={styles.clientName}>{toStr(c.name)}</Text>
+              {c.goal ? <Text style={styles.clientGoal}>{toStr(c.goal)}</Text> : null}
+              <Text style={styles.clientStats}>
+                {c.sessionsTotal} sesiones · {c.attendance ?? 0}% asist. · {c.streak ?? 0} días racha
+              </Text>
             </View>
-            {c.progreso !== undefined && (
-              <View style={styles.progressWrap}>
-                <Text style={styles.progressPct}>{c.progreso}%</Text>
-                <View style={styles.progressBar}>
-                  <View style={[styles.progressFill, { width: `${c.progreso}%` as any }]} />
-                </View>
-              </View>
-            )}
+            <Badge
+              label={c.status === 'active' ? 'Activo' : c.status === 'at_risk' ? 'En riesgo' : 'Inactivo'}
+              color={c.status === 'active' ? 'success' : c.status === 'at_risk' ? 'warning' : 'error'}
+            />
           </View>
         )}
       />
@@ -110,10 +121,6 @@ const styles = StyleSheet.create({
   },
   clientInitial: { color: Colors.accent, fontSize: 18, fontWeight: '700' },
   clientName:    { color: Colors.text, fontSize: 15, fontWeight: '600' },
-  clientEmail:   { color: Colors.textSecondary, fontSize: 12 },
-  clientGoal:    { color: Colors.accent, fontSize: 11, marginTop: 2 },
-  progressWrap:  { alignItems: 'flex-end', gap: 4 },
-  progressPct:   { color: Colors.accent, fontSize: 13, fontWeight: '700' },
-  progressBar:   { width: 60, height: 4, backgroundColor: Colors.border, borderRadius: 2, overflow: 'hidden' },
-  progressFill:  { height: '100%', backgroundColor: Colors.accent, borderRadius: 2 },
+  clientGoal:    { color: Colors.accent, fontSize: 11, marginTop: 1 },
+  clientStats:   { color: Colors.textSecondary, fontSize: 11, marginTop: 2 },
 });
