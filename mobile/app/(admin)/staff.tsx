@@ -33,14 +33,16 @@ interface StaffResponse {
 
 export default function StaffScreen() {
   const insets = useSafeAreaInsets();
-  const { data, loading, refetch } = useFetch<StaffResponse>(ENDPOINTS.OWNER_STAFF);
+  const { data, loading, refetch } = useFetch<StaffMember[] | StaffResponse>(ENDPOINTS.OWNER_STAFF);
 
   if (loading) return <LoadingSpinner fullScreen message="Cargando staff…" />;
 
-  // La API puede devolver { staff: [...] } o listas separadas por rol
+  // GET /api/owner_gym/staff → array crudo [u.to_dict(), ...]
+  const raw = data as any;
   const staff: StaffMember[] = toArray(
-    data?.staff ??
-    [...toArray(data?.entrenadores), ...toArray(data?.recepcionistas)]
+    Array.isArray(raw)
+      ? raw
+      : raw?.staff ?? [...toArray(raw?.entrenadores), ...toArray(raw?.recepcionistas)]
   );
 
   return (

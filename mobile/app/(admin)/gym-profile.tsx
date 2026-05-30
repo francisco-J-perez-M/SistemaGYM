@@ -50,7 +50,7 @@ function InfoRow({ icon, label, value }: InfoRowProps) {
 
 export default function GymProfileScreen() {
   const insets = useSafeAreaInsets();
-  const { data, loading, refetch } = useFetch<GymProfile>(ENDPOINTS.OWNER_GYM_PROFILE  // /api/owner_gym/perfil → devuelve Gimnasio.to_dict());
+  const { data, loading, refetch } = useFetch<GymProfile>(ENDPOINTS.OWNER_GYM_PROFILE);
 
   if (loading) return <LoadingSpinner fullScreen message="Cargando perfil del gym…" />;
 

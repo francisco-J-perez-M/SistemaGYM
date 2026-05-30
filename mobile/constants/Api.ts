@@ -114,6 +114,8 @@ export const ENDPOINTS = {
   // Notificaciones
   NOTIFICACIONES:     '/notificaciones',         // GET /api/notificaciones
   // Trainer — Solicitudes PT (no existe endpoint dedicado en el backend; pantalla usa graceful fallback)
+  TRAINER_SESSIONS:     '/trainer/sessions',    // GET/POST /api/trainer/sessions
+  TRAINER_EXERCISES:     '/trainer/exercises',   // GET /api/trainer/exercises
   TRAINER_PT_REQUESTS:  '/trainer/pt-requests',  // placeholder — endpoint pendiente en backend
 
   // Owner Gym — Perfil del Gym (GET /api/owner_gym/perfil devuelve datos del gimnasio)
