@@ -1,48 +1,64 @@
-import { Tabs } from 'expo-router';
+/**
+ * Layout del Entrenador — Drawer lateral izquierdo colapsible.
+ *
+ * Pantallas:
+ *   index        → Dashboard principal
+ *   members      → Mis Clientes
+ *   pt-requests  → Solicitudes PT
+ *   schedule     → Agenda
+ *   routines     → Rutinas
+ *   profile      → Perfil
+ */
+import React from 'react';
+import { Drawer } from 'expo-router/drawer';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
-import { Platform } from 'react-native';
+import CustomDrawer from '../../components/navigation/CustomDrawer';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
-const TABS: { name: string; label: string; icon: IconName; iconActive: IconName }[] = [
-  { name: 'index',    label: 'Panel',     icon: 'grid-outline',    iconActive: 'grid'     },
-  { name: 'members',  label: 'Clientes',  icon: 'people-outline',  iconActive: 'people'   },
-  { name: 'routines', label: 'Rutinas',   icon: 'barbell-outline', iconActive: 'barbell'  },
-  { name: 'profile',  label: 'Perfil',    icon: 'person-outline',  iconActive: 'person'   },
+interface Screen { name: string; title: string; icon: IconName; iconActive: IconName }
+
+const SCREENS: Screen[] = [
+  { name: 'index',       title: 'Dashboard',       icon: 'grid-outline',    iconActive: 'grid'    },
+  { name: 'members',     title: 'Mis Clientes',    icon: 'people-outline',  iconActive: 'people'  },
+  { name: 'pt-requests', title: 'Solicitudes PT',  icon: 'hand-left-outline', iconActive: 'hand-left' },
+  { name: 'schedule',    title: 'Agenda',           icon: 'calendar-outline',iconActive: 'calendar'},
+  { name: 'routines',    title: 'Rutinas',          icon: 'barbell-outline', iconActive: 'barbell' },
+  { name: 'profile',     title: 'Perfil',           icon: 'person-outline',  iconActive: 'person'  },
 ];
 
 export default function TrainerLayout() {
   return (
-    <Tabs
+    <Drawer
+      drawerContent={(props) => <CustomDrawer {...props} />}
       screenOptions={{
-        headerShown:             false,
-        tabBarStyle: {
-          backgroundColor:  Colors.card,
-          borderTopColor:   Colors.border,
-          borderTopWidth:   1,
-          height:           Platform.OS === 'ios' ? 82 : 64,
-          paddingBottom:    Platform.OS === 'ios' ? 24 : 8,
-          paddingTop:       8,
-        },
-        tabBarActiveTintColor:   Colors.accent,
-        tabBarInactiveTintColor: Colors.textSecondary,
-        tabBarLabelStyle:        { fontSize: 10, fontWeight: '600' },
-        tabBarHideOnKeyboard:    true,
+        headerShown:             true,
+        headerStyle:             { backgroundColor: Colors.card },
+        headerTintColor:         Colors.text,
+        headerTitleStyle:        { fontWeight: '700', fontSize: 18, color: Colors.text },
+        headerShadowVisible:     false,
+        drawerStyle:             { backgroundColor: Colors.background, width: 280 },
+        drawerActiveTintColor:   Colors.accent,
+        drawerInactiveTintColor: Colors.textSecondary,
+        drawerItemStyle:         { borderRadius: 12 },
+        drawerLabelStyle:        { fontSize: 14, fontWeight: '500', marginLeft: -4 },
+        overlayColor:            'rgba(0,0,0,0.55)',
+        swipeEnabled:            true,
       }}
     >
-      {TABS.map(({ name, label, icon, iconActive }) => (
-        <Tabs.Screen
+      {SCREENS.map(({ name, title, icon, iconActive }) => (
+        <Drawer.Screen
           key={name}
           name={name}
           options={{
-            title: label,
-            tabBarIcon: ({ focused, color }) => (
-              <Ionicons name={focused ? iconActive : icon} size={22} color={color} accessibilityLabel={label} />
+            title,
+            drawerIcon: ({ focused, color }) => (
+              <Ionicons name={focused ? iconActive : icon} size={22} color={color} />
             ),
           }}
         />
       ))}
-    </Tabs>
+    </Drawer>
   );
 }

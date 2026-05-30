@@ -113,4 +113,30 @@ export const ENDPOINTS = {
 
   // Notificaciones
   NOTIFICACIONES:     '/notificaciones',         // GET /api/notificaciones
+  // Trainer — Solicitudes PT (no existe endpoint dedicado en el backend; pantalla usa graceful fallback)
+  TRAINER_PT_REQUESTS:  '/trainer/pt-requests',  // placeholder — endpoint pendiente en backend
+
+  // Owner Gym — Perfil del Gym (GET /api/owner_gym/perfil devuelve datos del gimnasio)
+  OWNER_GYM_PROFILE:    '/owner_gym/perfil',      // GET /api/owner_gym/perfil
+  OWNER_PRODUCTOS:      '/owner_gym/productos',    // GET /api/owner_gym/productos
+  OWNER_VENTAS:         '/ventas',                 // GET /api/ventas (ventas_bp hardcoded)
+  OWNER_STAFF:          '/owner_gym/staff',        // GET /api/owner_gym/staff
+
+  // Member — POS
+  // El catálogo de productos es compartido (owner_gym/productos).
+  // Las ventas se crean/consultan vía /api/ventas (misma ruta que admin).
+  USER_PRODUCTOS:       '/owner_gym/productos',    // GET /api/owner_gym/productos (catálogo visible al miembro)
+  USER_VENTAS:          '/ventas',                 // GET /api/ventas (historial filtrado por gimnasio)
+  USER_COMPRAR:         '/ventas',                 // POST /api/ventas (registrar compra)
+
+  // Member — Entrenamiento (training_bp en /api/user/training)
+  USER_TRAINERS_LIST:   '/user/training/trainers', // GET /api/user/training/trainers
+  USER_ASSIGNED_ROUTINES: '/user/training/assigned-routines', // GET /api/user/training/assigned-routines
+  USER_CHAT_BASE:       '/user/training/chat',     // GET|POST /api/user/training/chat/<trainer_id>
+  USER_PT_REQUEST:      '/user/training/pt-request', // GET|POST /api/user/training/pt-request
+
+  // Aliases legacy (mantenidos para no romper otras pantallas)
+  USER_TRAINER:         '/user/training/trainers',
+  USER_CHAT:            '/user/training/chat',
+  USER_SEND_MSG:        '/user/training/chat',
 } as const;
