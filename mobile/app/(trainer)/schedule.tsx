@@ -85,9 +85,11 @@ interface NewSessionForm {
 
 const TIPOS_SESION = ['Personal', 'Grupal', 'Evaluación', 'Rehabilitación'];
 
-function FormField({ label, value, onChange, placeholder, keyboardType, multiline }: {
+function FormField({ label, value, onChange, placeholder, keyboardType, multiline, fStyles, colors }: {
   label: string; value: string; onChange: (v: string) => void;
   placeholder?: string; keyboardType?: any; multiline?: boolean;
+  fStyles: ReturnType<typeof make_fStyles>;
+  colors: ReturnType<typeof useColors>;
 }) {
   return (
     <View style={fStyles.field}>
@@ -299,13 +301,17 @@ export default function ScheduleScreen() {
                 </TouchableOpacity>
               </View>
               <FormField label="Hora de inicio (HH:MM)" value={form.hora_inicio}
-                onChange={setField('hora_inicio')} placeholder="08:00" />
+                onChange={setField('hora_inicio')} placeholder="08:00"
+                fStyles={fStyles} colors={colors} />
               <FormField label="Duración (minutos)" value={form.duracion_minutos}
-                onChange={setField('duracion_minutos')} keyboardType="numeric" />
+                onChange={setField('duracion_minutos')} keyboardType="numeric"
+                fStyles={fStyles} colors={colors} />
               <FormField label="Nombre de la sesión (opcional)" value={form.nombre_sesion}
-                onChange={setField('nombre_sesion')} placeholder="Ej: Día de pecho" />
+                onChange={setField('nombre_sesion')} placeholder="Ej: Día de pecho"
+                fStyles={fStyles} colors={colors} />
               <FormField label="Notas (opcional)" value={form.notas}
-                onChange={setField('notas')} multiline />
+                onChange={setField('notas')} multiline
+                fStyles={fStyles} colors={colors} />
 
               {/* Tipo */}
               <Text style={fStyles.label}>Tipo de sesión</Text>
@@ -371,6 +377,8 @@ export default function ScheduleScreen() {
                 selectedDate={form.fecha}
                 onSelect={(d) => { setField('fecha')(d); setShowCal(false); }}
                 onClose={() => setShowCal(false)}
+                colors={colors}
+                calStyles={calStyles}
               />
             )}
           </View>
@@ -385,10 +393,12 @@ const DAYS   = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
                 'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
-function InlineCalendar({ selectedDate, onSelect, onClose }: {
+function InlineCalendar({ selectedDate, onSelect, onClose, colors, calStyles }: {
   selectedDate: string;
   onSelect: (d: string) => void;
   onClose: () => void;
+  colors: ReturnType<typeof useColors>;
+  calStyles: ReturnType<typeof make_calStyles>;
 }) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);

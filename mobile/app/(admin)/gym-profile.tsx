@@ -37,7 +37,7 @@ interface GymProfile {
 }
 
 interface InfoRowProps { icon: string; label: string; value: string }
-function InfoRow({ icon, label, value }: InfoRowProps) {
+function InfoRow({ icon, label, value, styles, colors }: InfoRowProps & { styles: ReturnType<typeof make_styles>; colors: ReturnType<typeof useColors> }) {
   return (
     <View style={styles.infoRow}>
       <Ionicons name={icon as any} size={16} color={colors.accent} />
@@ -84,10 +84,14 @@ export default function GymProfileScreen() {
         {/* Información general */}
         <Card>
           <Text style={styles.sectionTitle}>Información general</Text>
-          {gym.direccion    && <InfoRow icon="location-outline"  label="Dirección"  value={toStr(gym.direccion)} />}
-          {gym.telefono     && <InfoRow icon="call-outline"       label="Teléfono"   value={toStr(gym.telefono)} />}
-          {(gym.email_contacto ?? gym.email) && <InfoRow icon="mail-outline" label="Correo" value={toStr(gym.email_contacto ?? gym.email)} />}
-          {gym.capacidad    && <InfoRow icon="people-outline"     label="Capacidad"  value={`${gym.capacidad} personas`} />}
+          {gym.direccion    && <InfoRow icon="location-outline"  label="Dirección"  value={toStr(gym.direccion)}
+              styles={styles} colors={colors} />}
+          {gym.telefono     && <InfoRow icon="call-outline"       label="Teléfono"   value={toStr(gym.telefono)}
+              styles={styles} colors={colors} />}
+          {(gym.email_contacto ?? gym.email) && <InfoRow icon="mail-outline" label="Correo" value={toStr(gym.email_contacto ?? gym.email)}
+              styles={styles} colors={colors} />}
+          {gym.capacidad    && <InfoRow icon="people-outline"     label="Capacidad"  value={`${gym.capacidad} personas`}
+              styles={styles} colors={colors} />}
           {(gym.descripcion ?? gym.tipo_gimnasio) && (
             <View style={styles.descBox}>
               <Text style={styles.descLabel}>Descripción</Text>
@@ -121,13 +125,16 @@ export default function GymProfileScreen() {
           <Card>
             <Text style={styles.sectionTitle}>Redes sociales</Text>
             {gym.redes_sociales.instagram && (
-              <InfoRow icon="logo-instagram" label="Instagram" value={toStr(gym.redes_sociales.instagram)} />
+              <InfoRow icon="logo-instagram" label="Instagram" value={toStr(gym.redes_sociales.instagram)}
+              styles={styles} colors={colors} />
             )}
             {gym.redes_sociales.facebook && (
-              <InfoRow icon="logo-facebook" label="Facebook" value={toStr(gym.redes_sociales.facebook)} />
+              <InfoRow icon="logo-facebook" label="Facebook" value={toStr(gym.redes_sociales.facebook)}
+              styles={styles} colors={colors} />
             )}
             {gym.redes_sociales.web && (
-              <InfoRow icon="globe-outline" label="Sitio web" value={toStr(gym.redes_sociales.web)} />
+              <InfoRow icon="globe-outline" label="Sitio web" value={toStr(gym.redes_sociales.web)}
+              styles={styles} colors={colors} />
             )}
           </Card>
         )}

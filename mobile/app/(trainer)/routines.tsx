@@ -261,9 +261,9 @@ export default function TrainerRoutinesScreen() {
 
               {/* Stats row */}
               <View style={styles.statsRow}>
-                <StatPill icon="barbell-outline"   label={`${r.exercises} ejercicios`} />
-                <StatPill icon="flash-outline"      label={r.difficulty} color={diffColor === 'error' ? colors.error : diffColor === 'warning' ? colors.warning : colors.success} />
-                <StatPill icon="time-outline"       label={r.lastUsed ?? 'Nunca'} />
+                <StatPill icon="barbell-outline"   label={`${r.exercises} ejercicios`} styles={styles} colors={colors} />
+                <StatPill icon="flash-outline"      label={r.difficulty} color={diffColor === 'error' ? colors.error : diffColor === 'warning' ? colors.warning : colors.success} styles={styles} colors={colors} />
+                <StatPill icon="time-outline"       label={r.lastUsed ?? 'Nunca'} styles={styles} colors={colors} />
               </View>
 
               {/* Descripción */}
@@ -309,7 +309,11 @@ export default function TrainerRoutinesScreen() {
   );
 }
 
-function StatPill({ icon, label, color }: { icon: string; label: string; color?: string }) {
+function StatPill({ icon, label, color, styles, colors }: {
+  icon: string; label: string; color?: string;
+  styles: ReturnType<typeof make_styles>;
+  colors: ReturnType<typeof useColors>;
+}) {
   return (
     <View style={styles.statPill}>
       <Ionicons name={icon as any} size={12} color={color ?? colors.textSecondary} />
