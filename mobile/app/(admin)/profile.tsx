@@ -204,7 +204,7 @@ function make_fieldS(colors: ReturnType<typeof useColors>) {
 function make_styles(colors: ReturnType<typeof useColors>) {
   return StyleSheet.create({
   screen:  { flex: 1, backgroundColor: colors.background },
-  hero:    { alignItems: 'center', paddingBottom: 28, paddingHorizontal: 24, gap: 6, backgroundColor: '#1e1b4b' },
+  hero:    { alignItems: 'center', paddingBottom: 28, paddingHorizontal: 24, gap: 6, backgroundColor: colors.heroTop },
   avatar:  { width: 84, height: 84, borderRadius: 26, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
   initials:{ color: '#fff', fontSize: 32, fontWeight: '800' },
   name:    { color: colors.text, fontSize: 22, fontWeight: '700', textAlign: 'center' },

@@ -148,7 +148,7 @@ function make_styles(colors: ReturnType<typeof useColors>) {
   screen: { flex: 1, backgroundColor: colors.background },
   hero: {
     alignItems: 'center', paddingBottom: 32, paddingHorizontal: 24, gap: 8,
-    backgroundColor: '#1e1b4b',
+    backgroundColor: colors.heroTop,
   },
   avatar: {
     width: 80, height: 80, borderRadius: 24,

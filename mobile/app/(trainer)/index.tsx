@@ -142,7 +142,7 @@ function make_styles(colors: ReturnType<typeof useColors>) {
   greeting: { color: colors.text, fontSize: 22, fontWeight: '700' },
   sub:      { color: colors.textSecondary, fontSize: 13 },
   logoutBtn:{ padding: 8 },
-  heroBanner: { flexDirection: 'row', alignItems: 'center', borderRadius: 18, padding: 16, gap: 12, backgroundColor: '#1e1b4b' },
+  heroBanner: { flexDirection: 'row', alignItems: 'center', borderRadius: 18, padding: 16, gap: 12, backgroundColor: colors.heroTop },
   heroIcon: {
     width: 50, height: 50, borderRadius: 16,
     backgroundColor: 'rgba(108,99,255,0.2)', alignItems: 'center', justifyContent: 'center',

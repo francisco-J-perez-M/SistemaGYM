@@ -167,7 +167,7 @@ function make_styles(colors: ReturnType<typeof useColors>) {
   logoutBtn:{ padding: 8 },
   heroBanner: {
     flexDirection: 'row', alignItems: 'center', borderRadius: 18,
-    padding: 16, gap: 12, backgroundColor: '#1e1b4b',
+    padding: 16, gap: 12, backgroundColor: colors.heroTop,
   },
   heroIcon: {
     width: 50, height: 50, borderRadius: 16,
