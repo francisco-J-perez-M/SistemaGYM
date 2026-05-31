@@ -22,6 +22,7 @@ import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
 import Input from '../../components/ui/Input';
+import RoutineDetailModal, { type RoutineForModal } from '../../components/routines/RoutineDetailModal';
 
 // ── Types reales del API ──────────────────────────────────────────────────────
 interface ExerciseItem {
@@ -87,6 +88,7 @@ export default function TrainerRoutinesScreen() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [catFilter,  setCatFilter]  = useState<string>('Todas');
   const [exSearch,   setExSearch]   = useState('');
+  const [selectedRoutine, setSelectedRoutine] = useState<RoutineForModal | null>(null);
 
   const { data, loading, refetch } = useFetch<RoutinesResponse>(ENDPOINTS.TRAINER_ROUTINES);
   const { data: exData, loading: loadingEx, refetch: refetchEx } =
@@ -237,6 +239,15 @@ export default function TrainerRoutinesScreen() {
                 </View>
                 <View style={styles.cardActions}>
                   <Badge label={r.active ? 'Activa' : 'Inactiva'} color={r.active ? 'success' : 'warning'} />
+                  <TouchableOpacity
+                    onPress={() => setSelectedRoutine(r as RoutineForModal)}
+                    style={styles.verBtn}
+                    accessibilityLabel={`Ver detalle de ${r.name}`}
+                    accessibilityRole="button"
+                  >
+                    <Ionicons name="eye-outline" size={14} color="#fff" />
+                    <Text style={styles.verBtnText}>Ver</Text>
+                  </TouchableOpacity>
                   <Ionicons
                     name={isOpen ? 'chevron-up' : 'chevron-down'}
                     size={18}
@@ -285,6 +296,12 @@ export default function TrainerRoutinesScreen() {
         }}
       />
       </>}
+      <RoutineDetailModal
+        visible={!!selectedRoutine}
+        routine={selectedRoutine}
+        onClose={() => setSelectedRoutine(null)}
+        mode="trainer"
+      />
     </View>
   );
 }
@@ -350,4 +367,6 @@ const styles = StyleSheet.create({
   exCardName:  { color: Colors.text, fontSize: 14, fontWeight: '700' },
   exCardMeta:  { color: Colors.accent, fontSize: 12, marginTop: 2 },
   exCardDesc:  { color: Colors.textSecondary, fontSize: 12, marginTop: 4 },
+  verBtn:      { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: Colors.accent, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
+  verBtnText:  { color: '#fff', fontSize: 12, fontWeight: '700' },
 });

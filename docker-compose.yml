@@ -59,10 +59,11 @@ services:
       start_period: 20s
     networks:
       - gympro
-    # Puerto expuesto al host para herramientas de gestión (Compass, mongosh local)
-    # Usa 27019 para evitar conflicto con MongoDB local (27017) y MongoDB Compass (27018)
+    # Puerto expuesto al host para MongoDB Compass / mongosh local
+    # Rangos excluidos por Hyper-V: 26935-27034 y 27046-27145
+    # → se usa 27035 que está libre entre ambos rangos excluidos
     ports:
-      - "27019:27017"
+      - "27035:27017"
 
   # ── Redis ────────────────────────────────────────────────────────────────────
   redis:
