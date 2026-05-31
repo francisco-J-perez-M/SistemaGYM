@@ -5,36 +5,57 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
 import { useAuthStore } from '../store/authStore';
-import { Colors } from '../constants/Colors';
+import { useAccessibilityStore } from '../store/accessibilityStore';
+import { useColors } from '../hooks/useColors';
 
-// Mantener splash visible hasta hidratar sesión
 SplashScreen.preventAutoHideAsync();
 
+function AppContent() {
+  const colors      = useColors();
+  const resolvedTheme = useAccessibilityStore((s) => s.resolvedTheme());
+  const reduceMotion  = useAccessibilityStore((s) => s.reduceMotion);
+
+  return (
+    <>
+      <StatusBar
+        style={resolvedTheme === 'light' ? 'dark' : 'light'}
+        backgroundColor={colors.background}
+      />
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          animation:   reduceMotion ? 'none' : 'fade',
+          contentStyle: { backgroundColor: colors.background },
+        }}
+      >
+        <Stack.Screen name="(auth)"    options={{ headerShown: false }} />
+        <Stack.Screen name="(member)"  options={{ headerShown: false }} />
+        <Stack.Screen name="(trainer)" options={{ headerShown: false }} />
+        <Stack.Screen name="(admin)"   options={{ headerShown: false }} />
+      </Stack>
+    </>
+  );
+}
+
 export default function RootLayout() {
-  const hydrate = useAuthStore((s) => s.hydrate);
-  const loading = useAuthStore((s) => s.loading);
+  const hydrate    = useAuthStore((s) => s.hydrate);
+  const hydrateA11y = useAccessibilityStore((s) => s.hydrate);
 
   useEffect(() => {
-    hydrate().then(() => {
-      // expo-splash-screen v31+ usa hide() sync; v0.x usaba hideAsync().
+    // Cargar prefs de accesibilidad y auth en paralelo
+    Promise.all([hydrate(), hydrateA11y()]).finally(() => {
       if (typeof (SplashScreen as any).hide === 'function') {
         (SplashScreen as any).hide();
       } else {
         SplashScreen.hideAsync();
       }
     });
-  }, [hydrate]);
+  }, [hydrate, hydrateA11y]);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <StatusBar style="light" backgroundColor={Colors.background} />
-        <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
-          <Stack.Screen name="(auth)"    options={{ headerShown: false }} />
-          <Stack.Screen name="(member)"  options={{ headerShown: false }} />
-          <Stack.Screen name="(trainer)" options={{ headerShown: false }} />
-          <Stack.Screen name="(admin)"   options={{ headerShown: false }} />
-        </Stack>
+        <AppContent />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
