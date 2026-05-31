@@ -2,13 +2,14 @@
  * Punto de Venta — Miembro
  * Tabs: Productos (ver + comprar) | Mi historial de compras
  */
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
+import { useColors } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
 import { toStr, toArray, toDateStr } from '../../utils/format';
@@ -38,6 +39,8 @@ interface Compra {
 interface Cart { [id: string]: { producto: Producto; cantidad: number } }
 
 export default function MemberPOSScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => make_styles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<Tab>('productos');
   const [cart, setCart] = useState<Cart>({});
@@ -134,7 +137,7 @@ export default function MemberPOSScreen() {
             <Ionicons
               name={t === 'productos' ? 'cube-outline' : 'receipt-outline'}
               size={16}
-              color={tab === t ? Colors.accent : Colors.textSecondary}
+              color={tab === t ? colors.accent : colors.textSecondary}
             />
             <Text style={[styles.tabLabel, tab === t && styles.tabLabelActive]}>
               {t === 'productos' ? 'Productos' : 'Mis compras'}
@@ -157,10 +160,10 @@ export default function MemberPOSScreen() {
             numColumns={2}
             columnWrapperStyle={{ gap: 12 }}
             contentContainerStyle={styles.grid}
-            refreshControl={<RefreshControl refreshing={loadingP} onRefresh={refetchP} tintColor={Colors.accent} />}
+            refreshControl={<RefreshControl refreshing={loadingP} onRefresh={refetchP} tintColor={colors.accent} />}
             ListEmptyComponent={
               <View style={styles.empty}>
-                <Ionicons name="cube-outline" size={44} color={Colors.textMuted} />
+                <Ionicons name="cube-outline" size={44} color={colors.textMuted} />
                 <Text style={styles.emptyText}>No hay productos disponibles.</Text>
               </View>
             }
@@ -170,10 +173,10 @@ export default function MemberPOSScreen() {
               return (
                 <View style={[styles.productCard, outOfStock && styles.productCardDisabled]}>
                   <View style={styles.productIconBox}>
-                    <Ionicons name="cube-outline" size={26} color={outOfStock ? Colors.textMuted : Colors.accent} />
+                    <Ionicons name="cube-outline" size={26} color={outOfStock ? colors.textMuted : colors.accent} />
                   </View>
                   <Text style={styles.productName} numberOfLines={2}>{toStr(p.nombre)}</Text>
-                  <Text style={[styles.productPrice, outOfStock && { color: Colors.textMuted }]}>
+                  <Text style={[styles.productPrice, outOfStock && { color: colors.textMuted }]}>
                     ${p.precio}
                   </Text>
                   {p.stock != null && (
@@ -197,7 +200,7 @@ export default function MemberPOSScreen() {
                         onPress={() => removeFromCart(p._id)}
                         accessibilityLabel="Quitar uno"
                       >
-                        <Ionicons name="remove" size={16} color={Colors.accent} />
+                        <Ionicons name="remove" size={16} color={colors.accent} />
                       </TouchableOpacity>
                       <Text style={styles.qtyNum}>{inCart}</Text>
                       <TouchableOpacity
@@ -205,7 +208,7 @@ export default function MemberPOSScreen() {
                         onPress={() => addToCart(p)}
                         accessibilityLabel="Agregar uno más"
                       >
-                        <Ionicons name="add" size={16} color={Colors.accent} />
+                        <Ionicons name="add" size={16} color={colors.accent} />
                       </TouchableOpacity>
                     </View>
                   )}
@@ -238,17 +241,17 @@ export default function MemberPOSScreen() {
           keyExtractor={(c, i) => c._id ?? String(i)}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={loadingH} onRefresh={refetchH} tintColor={Colors.accent} />}
+          refreshControl={<RefreshControl refreshing={loadingH} onRefresh={refetchH} tintColor={colors.accent} />}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Ionicons name="receipt-outline" size={44} color={Colors.textMuted} />
+              <Ionicons name="receipt-outline" size={44} color={colors.textMuted} />
               <Text style={styles.emptyText}>No tienes compras registradas aún.</Text>
             </View>
           }
           renderItem={({ item: c }) => (
             <View style={styles.compraCard}>
               <View style={styles.compraIconBox}>
-                <Ionicons name="receipt-outline" size={18} color={Colors.accent} />
+                <Ionicons name="receipt-outline" size={18} color={colors.accent} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.compraFecha}>{toDateStr(c.fecha)}</Text>
@@ -265,28 +268,29 @@ export default function MemberPOSScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen:  { flex: 1, backgroundColor: Colors.background },
+function make_styles(colors: ReturnType<typeof useColors>) {
+  return StyleSheet.create({
+  screen:  { flex: 1, backgroundColor: colors.background },
   tabBar:  { flexDirection: 'row', paddingHorizontal: 16, paddingTop: 12, gap: 8 },
   tabBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 6, paddingVertical: 10, borderRadius: 12,
-    backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, position: 'relative',
+    backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, position: 'relative',
   },
-  tabBtnActive:  { backgroundColor: 'rgba(108,99,255,0.15)', borderColor: Colors.accent },
-  tabLabel:      { color: Colors.textSecondary, fontSize: 13, fontWeight: '600' },
-  tabLabelActive:{ color: Colors.accent },
+  tabBtnActive:  { backgroundColor: 'rgba(108,99,255,0.15)', borderColor: colors.accent },
+  tabLabel:      { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
+  tabLabelActive:{ color: colors.accent },
   cartBadge: {
     position: 'absolute', top: -6, right: -6,
-    backgroundColor: Colors.error, borderRadius: 10, minWidth: 20, height: 20,
+    backgroundColor: colors.error, borderRadius: 10, minWidth: 20, height: 20,
     alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4,
   },
   cartBadgeText: { color: '#fff', fontSize: 11, fontWeight: '800' },
   grid:    { padding: 16, gap: 12, paddingBottom: 100 },
   list:    { padding: 16, gap: 10, paddingBottom: 32 },
   productCard: {
-    flex: 1, backgroundColor: Colors.card, borderRadius: 16,
-    padding: 14, gap: 6, borderWidth: 1, borderColor: Colors.border,
+    flex: 1, backgroundColor: colors.card, borderRadius: 16,
+    padding: 14, gap: 6, borderWidth: 1, borderColor: colors.border,
   },
   productCardDisabled: { opacity: 0.5 },
   productIconBox: {
@@ -294,12 +298,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(108,99,255,0.1)',
     alignItems: 'center', justifyContent: 'center', marginBottom: 2,
   },
-  productName:  { color: Colors.text, fontSize: 13, fontWeight: '600' },
-  productPrice: { color: Colors.accent, fontSize: 17, fontWeight: '800' },
-  productStock: { color: Colors.textMuted, fontSize: 11 },
+  productName:  { color: colors.text, fontSize: 13, fontWeight: '600' },
+  productPrice: { color: colors.accent, fontSize: 17, fontWeight: '800' },
+  productStock: { color: colors.textMuted, fontSize: 11 },
   addBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
-    backgroundColor: Colors.accent, borderRadius: 10, paddingVertical: 8,
+    backgroundColor: colors.accent, borderRadius: 10, paddingVertical: 8,
   },
   addBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
   qtyRow: {
@@ -307,27 +311,28 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(108,99,255,0.1)', borderRadius: 10, paddingHorizontal: 4, paddingVertical: 4,
   },
   qtyBtn:  { padding: 4 },
-  qtyNum:  { color: Colors.accent, fontSize: 16, fontWeight: '700', minWidth: 20, textAlign: 'center' },
+  qtyNum:  { color: colors.accent, fontSize: 16, fontWeight: '700', minWidth: 20, textAlign: 'center' },
   checkoutBtn: {
     position: 'absolute', bottom: 20, left: 20, right: 20,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-    backgroundColor: Colors.accent, borderRadius: 16, paddingVertical: 16,
-    shadowColor: Colors.accent, shadowOpacity: 0.4, shadowRadius: 10, elevation: 8,
+    backgroundColor: colors.accent, borderRadius: 16, paddingVertical: 16,
+    shadowColor: colors.accent, shadowOpacity: 0.4, shadowRadius: 10, elevation: 8,
   },
   checkoutText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   compraCard: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 12,
-    backgroundColor: Colors.card, borderRadius: 14, padding: 14,
-    borderWidth: 1, borderColor: Colors.border,
+    backgroundColor: colors.card, borderRadius: 14, padding: 14,
+    borderWidth: 1, borderColor: colors.border,
   },
   compraIconBox: {
     width: 38, height: 38, borderRadius: 10,
     backgroundColor: 'rgba(108,99,255,0.1)',
     alignItems: 'center', justifyContent: 'center',
   },
-  compraFecha: { color: Colors.textSecondary, fontSize: 12, marginBottom: 4 },
-  compraItem:  { color: Colors.text, fontSize: 13 },
-  compraTotal: { color: Colors.accent, fontSize: 18, fontWeight: '800', marginLeft: 'auto' },
+  compraFecha: { color: colors.textSecondary, fontSize: 12, marginBottom: 4 },
+  compraItem:  { color: colors.text, fontSize: 13 },
+  compraTotal: { color: colors.accent, fontSize: 18, fontWeight: '800', marginLeft: 'auto' },
   empty:       { alignItems: 'center', paddingVertical: 60, gap: 12 },
-  emptyText:   { color: Colors.textMuted, fontSize: 14, fontWeight: '600', textAlign: 'center' },
+  emptyText:   { color: colors.textMuted, fontSize: 14, fontWeight: '600', textAlign: 'center' },
 });
+}

@@ -3,7 +3,7 @@
  * GET /api/owner_gym/perfil → Gimnasio.to_dict() (nombre, email_contacto, telefono, tipo_gimnasio)
  * PUT /api/owner_gym/perfil → { nombre, email_contacto, telefono, tipo_gimnasio }
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   Alert, TextInput, RefreshControl,
@@ -11,6 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
+import { useColors } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
 import { toStr } from '../../utils/format';
@@ -43,7 +44,7 @@ function Field({ label, value, onChangeText, editing, keyboardType, multiline }:
           value={value} onChangeText={onChangeText}
           keyboardType={keyboardType ?? 'default'}
           multiline={multiline} numberOfLines={multiline ? 3 : 1}
-          placeholderTextColor={Colors.textMuted}
+          placeholderTextColor={colors.textMuted}
           accessibilityLabel={label}
         />
       ) : (
@@ -54,6 +55,9 @@ function Field({ label, value, onChangeText, editing, keyboardType, multiline }:
 }
 
 export default function AdminProfileScreen() {
+  const colors = useColors();
+  const fieldS = useMemo(() => make_fieldS(colors), [colors]);
+  const styles = useMemo(() => make_styles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
 
@@ -109,7 +113,7 @@ export default function AdminProfileScreen() {
       style={styles.screen}
       contentContainerStyle={{ paddingBottom: 40 }}
       showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={loadingGym} onRefresh={refetchGym} tintColor={Colors.accent} />}
+      refreshControl={<RefreshControl refreshing={loadingGym} onRefresh={refetchGym} tintColor={colors.accent} />}
     >
       {/* Hero */}
       <View style={[styles.hero, { paddingTop: insets.top + 20 }]}>
@@ -133,7 +137,7 @@ export default function AdminProfileScreen() {
               label="Editar perfil del Gym"
               variant="secondary"
               onPress={() => setEditing(true)}
-              icon={<Ionicons name="pencil-outline" size={16} color={Colors.accent} />}
+              icon={<Ionicons name="pencil-outline" size={16} color={colors.accent} />}
               style={{ flex: 1 }}
             />
           )}
@@ -152,14 +156,14 @@ export default function AdminProfileScreen() {
         <Card>
           <Text style={styles.sectionTitle}>Cuenta del propietario</Text>
           <View style={styles.infoRow}>
-            <Ionicons name="mail-outline" size={16} color={Colors.accent} />
+            <Ionicons name="mail-outline" size={16} color={colors.accent} />
             <View>
               <Text style={styles.infoLabel}>Correo de acceso</Text>
               <Text style={styles.infoValue}>{toStr(user?.email)}</Text>
             </View>
           </View>
           <View style={styles.infoRow}>
-            <Ionicons name="shield-outline" size={16} color={Colors.accent} />
+            <Ionicons name="shield-outline" size={16} color={colors.accent} />
             <View>
               <Text style={styles.infoLabel}>Rol</Text>
               <Text style={styles.infoValue}>{roleLabel}</Text>
@@ -170,9 +174,9 @@ export default function AdminProfileScreen() {
         {/* Cerrar sesión */}
         <Card>
           <TouchableOpacity style={styles.logoutRow} onPress={handleLogout} accessibilityRole="button">
-            <View style={styles.logoutIcon}><Ionicons name="log-out-outline" size={20} color={Colors.error} /></View>
+            <View style={styles.logoutIcon}><Ionicons name="log-out-outline" size={20} color={colors.error} /></View>
             <Text style={styles.logoutText}>Cerrar sesión</Text>
-            <Ionicons name="chevron-forward" size={18} color={Colors.error} />
+            <Ionicons name="chevron-forward" size={18} color={colors.error} />
           </TouchableOpacity>
         </Card>
         <Text style={styles.version}>GymPro Mobile v1.0.0</Text>
@@ -181,30 +185,34 @@ export default function AdminProfileScreen() {
   );
 }
 
-const fieldS = StyleSheet.create({
-  row:        { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.border },
-  label:      { color: Colors.textSecondary, fontSize: 11, marginBottom: 4 },
-  value:      { color: Colors.text, fontSize: 14, fontWeight: '600' },
-  input:      { color: Colors.text, fontSize: 14, backgroundColor: 'rgba(108,99,255,0.06)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: Colors.border },
+function make_fieldS(colors: ReturnType<typeof useColors>) {
+  return StyleSheet.create({
+  row:        { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
+  label:      { color: colors.textSecondary, fontSize: 11, marginBottom: 4 },
+  value:      { color: colors.text, fontSize: 14, fontWeight: '600' },
+  input:      { color: colors.text, fontSize: 14, backgroundColor: 'rgba(108,99,255,0.06)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: colors.border },
   inputMulti: { minHeight: 72, textAlignVertical: 'top' },
 });
+}
 
-const styles = StyleSheet.create({
-  screen:  { flex: 1, backgroundColor: Colors.background },
+function make_styles(colors: ReturnType<typeof useColors>) {
+  return StyleSheet.create({
+  screen:  { flex: 1, backgroundColor: colors.background },
   hero:    { alignItems: 'center', paddingBottom: 28, paddingHorizontal: 24, gap: 6, backgroundColor: '#1e1b4b' },
-  avatar:  { width: 84, height: 84, borderRadius: 26, backgroundColor: Colors.accent, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
+  avatar:  { width: 84, height: 84, borderRadius: 26, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
   initials:{ color: '#fff', fontSize: 32, fontWeight: '800' },
-  name:    { color: Colors.text, fontSize: 22, fontWeight: '700', textAlign: 'center' },
-  email:   { color: Colors.textSecondary, fontSize: 13 },
-  plan:    { color: Colors.accent, fontSize: 12 },
+  name:    { color: colors.text, fontSize: 22, fontWeight: '700', textAlign: 'center' },
+  email:   { color: colors.textSecondary, fontSize: 13 },
+  plan:    { color: colors.accent, fontSize: 12 },
   body:    { padding: 20, gap: 16 },
   editBar: { flexDirection: 'row', gap: 10 },
-  sectionTitle: { color: Colors.text, fontSize: 14, fontWeight: '700', marginBottom: 4 },
-  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.border },
-  infoLabel:{ color: Colors.textSecondary, fontSize: 11 },
-  infoValue:{ color: Colors.text, fontSize: 14, fontWeight: '600' },
+  sectionTitle: { color: colors.text, fontSize: 14, fontWeight: '700', marginBottom: 4 },
+  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
+  infoLabel:{ color: colors.textSecondary, fontSize: 11 },
+  infoValue:{ color: colors.text, fontSize: 14, fontWeight: '600' },
   logoutRow:{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
-  logoutIcon:{ width: 36, height: 36, borderRadius: 10, backgroundColor: Colors.errorBg, alignItems: 'center', justifyContent: 'center' },
-  logoutText:{ flex: 1, color: Colors.error, fontSize: 15, fontWeight: '600' },
-  version:  { color: Colors.textMuted, fontSize: 12, textAlign: 'center' },
+  logoutIcon:{ width: 36, height: 36, borderRadius: 10, backgroundColor: colors.errorBg, alignItems: 'center', justifyContent: 'center' },
+  logoutText:{ flex: 1, color: colors.error, fontSize: 15, fontWeight: '600' },
+  version:  { color: colors.textMuted, fontSize: 12, textAlign: 'center' },
 });
+}

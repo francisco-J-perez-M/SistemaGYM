@@ -4,13 +4,14 @@
  * GET /api/trainer/clients → {clients:[{id,name,goal,sessionsTotal,attendance,streak,status}], pagination}
  * Campos reales: id (no _id), name (no nombre), goal (no objetivo), attendance (% asistencia)
  */
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
+import { useColors } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
 import { toInitial, toStr, toArray } from '../../utils/format';
@@ -19,6 +20,8 @@ import Badge from '../../components/ui/Badge';
 import type { TrainerClientsResponse, TrainerClientAPI } from '../../types';
 
 export default function TrainerMembersScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => make_styles(colors), [colors]);
   const insets = useSafeAreaInsets();
   // API devuelve {clients:[{id,name,goal,...}], pagination}
   const { data, loading, refetch } = useFetch<TrainerClientsResponse>(ENDPOINTS.TRAINER_CLIENTS);
@@ -41,11 +44,11 @@ export default function TrainerMembersScreen() {
         <Text style={styles.sub}>{data?.pagination?.total ?? allClients.length} clientes asignados</Text>
 
         <View style={styles.searchBox} accessibilityLabel="Buscar cliente">
-          <Ionicons name="search-outline" size={18} color={Colors.textSecondary} />
+          <Ionicons name="search-outline" size={18} color={colors.textSecondary} />
           <TextInput
             style={styles.searchInput}
             placeholder="Buscar por nombre u objetivo…"
-            placeholderTextColor={Colors.textMuted}
+            placeholderTextColor={colors.textMuted}
             value={search}
             onChangeText={setSearch}
             returnKeyType="search"
@@ -53,7 +56,7 @@ export default function TrainerMembersScreen() {
           />
           {search.length > 0 && (
             <TouchableOpacity onPress={() => setSearch('')} accessibilityLabel="Limpiar búsqueda">
-              <Ionicons name="close-circle" size={18} color={Colors.textSecondary} />
+              <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
             </TouchableOpacity>
           )}
         </View>
@@ -64,10 +67,10 @@ export default function TrainerMembersScreen() {
         keyExtractor={(c) => c.id}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={refetch} tintColor={Colors.accent} />}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={refetch} tintColor={colors.accent} />}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Ionicons name="people-outline" size={40} color={Colors.textMuted} />
+            <Ionicons name="people-outline" size={40} color={colors.textMuted} />
             <Text style={styles.emptyText}>
               {search ? 'Sin resultados' : 'No tienes clientes asignados.'}
             </Text>
@@ -96,31 +99,33 @@ export default function TrainerMembersScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen:  { flex: 1, backgroundColor: Colors.background },
+function make_styles(colors: ReturnType<typeof useColors>) {
+  return StyleSheet.create({
+  screen:  { flex: 1, backgroundColor: colors.background },
   header:  { paddingHorizontal: 20, gap: 6, paddingBottom: 12 },
-  title:   { color: Colors.text, fontSize: 26, fontWeight: '700' },
-  sub:     { color: Colors.textSecondary, fontSize: 13, marginBottom: 8 },
+  title:   { color: colors.text, fontSize: 26, fontWeight: '700' },
+  sub:     { color: colors.textSecondary, fontSize: 13, marginBottom: 8 },
   searchBox: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: Colors.card, borderRadius: 12, borderWidth: 1, borderColor: Colors.border,
+    backgroundColor: colors.card, borderRadius: 12, borderWidth: 1, borderColor: colors.border,
     paddingHorizontal: 14, paddingVertical: 10,
   },
-  searchInput: { flex: 1, color: Colors.text, fontSize: 14 },
+  searchInput: { flex: 1, color: colors.text, fontSize: 14 },
   list: { padding: 20, gap: 10, paddingBottom: 32 },
   empty: { alignItems: 'center', paddingVertical: 40, gap: 10 },
-  emptyText: { color: Colors.textMuted, fontSize: 14 },
+  emptyText: { color: colors.textMuted, fontSize: 14 },
   clientCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: Colors.card, borderRadius: 14, padding: 14,
-    borderWidth: 1, borderColor: Colors.border,
+    backgroundColor: colors.card, borderRadius: 14, padding: 14,
+    borderWidth: 1, borderColor: colors.border,
   },
   clientAvatar: {
     width: 44, height: 44, borderRadius: 14,
     backgroundColor: 'rgba(108,99,255,0.15)', alignItems: 'center', justifyContent: 'center',
   },
-  clientInitial: { color: Colors.accent, fontSize: 18, fontWeight: '700' },
-  clientName:    { color: Colors.text, fontSize: 15, fontWeight: '600' },
-  clientGoal:    { color: Colors.accent, fontSize: 11, marginTop: 1 },
-  clientStats:   { color: Colors.textSecondary, fontSize: 11, marginTop: 2 },
+  clientInitial: { color: colors.accent, fontSize: 18, fontWeight: '700' },
+  clientName:    { color: colors.text, fontSize: 15, fontWeight: '600' },
+  clientGoal:    { color: colors.accent, fontSize: 11, marginTop: 1 },
+  clientStats:   { color: colors.textSecondary, fontSize: 11, marginTop: 2 },
 });
+}

@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, TextInput, Text, StyleSheet, TouchableOpacity,
   TextInputProps, ViewStyle,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
+import { useColors } from '../../hooks/useColors';
 
 interface Props extends TextInputProps {
   label?:        string;
@@ -18,6 +19,8 @@ export default function Input({
   label, error, leftIcon, secure = false,
   containerStyle, style, ...rest
 }: Props) {
+  const colors = useColors();
+  const styles = useMemo(() => make_styles(colors), [colors]);
   const [showPass, setShowPass] = useState(false);
 
   return (
@@ -31,7 +34,7 @@ export default function Input({
         {leftIcon && <View style={styles.leftIcon}>{leftIcon}</View>}
         <TextInput
           style={[styles.input, leftIcon ? { paddingLeft: 0 } : undefined, style]}
-          placeholderTextColor={Colors.textMuted}
+          placeholderTextColor={colors.textMuted}
           secureTextEntry={secure && !showPass}
           accessibilityLabel={label}
           accessibilityHint={rest.placeholder}
@@ -47,7 +50,7 @@ export default function Input({
             <Ionicons
               name={showPass ? 'eye-off-outline' : 'eye-outline'}
               size={20}
-              color={Colors.textSecondary}
+              color={colors.textSecondary}
             />
           </TouchableOpacity>
         )}
@@ -61,10 +64,11 @@ export default function Input({
   );
 }
 
-const styles = StyleSheet.create({
+function make_styles(colors: ReturnType<typeof useColors>) {
+  return StyleSheet.create({
   container: { marginBottom: 16 },
   label: {
-    color:        Colors.textSecondary,
+    color:        colors.textSecondary,
     fontSize:     13,
     fontWeight:   '500',
     marginBottom: 6,
@@ -73,26 +77,27 @@ const styles = StyleSheet.create({
   inputRow: {
     flexDirection:   'row',
     alignItems:      'center',
-    backgroundColor: Colors.inputBg,
+    backgroundColor: colors.inputBg,
     borderRadius:    12,
     borderWidth:     1,
-    borderColor:     Colors.border,
+    borderColor:     colors.border,
     paddingHorizontal: 14,
   },
   inputError: {
-    borderColor: Colors.error,
+    borderColor: colors.error,
   },
   leftIcon: { marginRight: 10 },
   input: {
     flex:       1,
-    color:      Colors.text,
+    color:      colors.text,
     fontSize:   15,
     paddingVertical: 14,
   },
   eyeBtn: { padding: 4 },
   errorText: {
-    color:     Colors.error,
+    color:     colors.error,
     fontSize:  12,
     marginTop: 4,
   },
 });
+}

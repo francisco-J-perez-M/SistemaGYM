@@ -3,13 +3,14 @@
  * GET /api/trainer/pt-requests → solicitudes de entrenamiento personal
  * POST /api/trainer/pt-requests/:id/accept|reject
  */
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
+import { useColors } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
 import { toStr, toDateStr, toArray } from '../../utils/format';
@@ -44,6 +45,8 @@ const BADGE_COLOR: Record<Estado, 'warning' | 'success' | 'error'> = {
 };
 
 export default function PTRequestsScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => make_styles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const [filter, setFilter] = useState<Filter>('todas');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -111,10 +114,10 @@ export default function PTRequestsScreen() {
         keyExtractor={(r) => r._id}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={refetch} tintColor={Colors.accent} />}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={refetch} tintColor={colors.accent} />}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Ionicons name="hand-left-outline" size={44} color={Colors.textMuted} />
+            <Ionicons name="hand-left-outline" size={44} color={colors.textMuted} />
             <Text style={styles.emptyText}>Sin solicitudes {filter !== 'todas' ? `"${filter}"` : ''}.</Text>
           </View>
         }
@@ -141,7 +144,7 @@ export default function PTRequestsScreen() {
 
               {r.mensaje ? (
                 <View style={styles.msgBox}>
-                  <Ionicons name="chatbubble-outline" size={14} color={Colors.textSecondary} />
+                  <Ionicons name="chatbubble-outline" size={14} color={colors.textSecondary} />
                   <Text style={styles.msgText} numberOfLines={3}>{r.mensaje}</Text>
                 </View>
               ) : null}
@@ -163,8 +166,8 @@ export default function PTRequestsScreen() {
                     disabled={actionLoading === r._id}
                     accessibilityLabel="Rechazar solicitud"
                   >
-                    <Ionicons name="close-outline" size={16} color={Colors.error} />
-                    <Text style={[styles.actionBtnText, { color: Colors.error }]}>Rechazar</Text>
+                    <Ionicons name="close-outline" size={16} color={colors.error} />
+                    <Text style={[styles.actionBtnText, { color: colors.error }]}>Rechazar</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -176,47 +179,49 @@ export default function PTRequestsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen:  { flex: 1, backgroundColor: Colors.background },
+function make_styles(colors: ReturnType<typeof useColors>) {
+  return StyleSheet.create({
+  screen:  { flex: 1, backgroundColor: colors.background },
   header:  { paddingHorizontal: 20, gap: 2, paddingBottom: 12 },
-  title:   { color: Colors.text, fontSize: 26, fontWeight: '700' },
-  sub:     { color: Colors.textSecondary, fontSize: 13 },
+  title:   { color: colors.text, fontSize: 26, fontWeight: '700' },
+  sub:     { color: colors.textSecondary, fontSize: 13 },
   filterRow: {
     flexDirection: 'row', flexWrap: 'wrap', gap: 8,
     paddingHorizontal: 20, paddingBottom: 12,
   },
   filterChip: {
     paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20,
-    backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border,
+    backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
   },
-  filterChipActive:  { backgroundColor: Colors.accent, borderColor: Colors.accent },
-  filterText:        { color: Colors.textSecondary, fontSize: 13, fontWeight: '600' },
+  filterChipActive:  { backgroundColor: colors.accent, borderColor: colors.accent },
+  filterText:        { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
   filterTextActive:  { color: '#fff' },
   list:   { paddingHorizontal: 20, gap: 12, paddingBottom: 32 },
   empty:  { alignItems: 'center', paddingVertical: 60, gap: 10 },
-  emptyText: { color: Colors.textMuted, fontSize: 14, fontWeight: '600' },
+  emptyText: { color: colors.textMuted, fontSize: 14, fontWeight: '600' },
   card:    { gap: 10 },
   cardTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   avatarBox: {
     width: 44, height: 44, borderRadius: 14,
-    backgroundColor: Colors.accent, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center',
   },
   avatarInitials: { color: '#fff', fontSize: 18, fontWeight: '800' },
-  memberName:  { color: Colors.text, fontSize: 15, fontWeight: '700' },
-  memberEmail: { color: Colors.textSecondary, fontSize: 12 },
-  dateText:    { color: Colors.textMuted, fontSize: 11, marginTop: 2 },
+  memberName:  { color: colors.text, fontSize: 15, fontWeight: '700' },
+  memberEmail: { color: colors.textSecondary, fontSize: 12 },
+  dateText:    { color: colors.textMuted, fontSize: 11, marginTop: 2 },
   msgBox: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 8,
-    backgroundColor: Colors.backgroundAlt ?? Colors.card,
+    backgroundColor: colors.backgroundAlt ?? colors.card,
     borderRadius: 10, padding: 10,
   },
-  msgText: { color: Colors.textSecondary, fontSize: 13, flex: 1, lineHeight: 18 },
+  msgText: { color: colors.textSecondary, fontSize: 13, flex: 1, lineHeight: 18 },
   actions: { flexDirection: 'row', gap: 10 },
   actionBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 6, paddingVertical: 10, borderRadius: 12,
   },
-  acceptBtn: { backgroundColor: Colors.accent },
-  rejectBtn: { backgroundColor: Colors.errorBg, borderWidth: 1, borderColor: Colors.error },
+  acceptBtn: { backgroundColor: colors.accent },
+  rejectBtn: { backgroundColor: colors.errorBg, borderWidth: 1, borderColor: colors.error },
   actionBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
 });
+}

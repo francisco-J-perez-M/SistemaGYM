@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
+import { useColors } from '../../hooks/useColors';
 import type { Exercise } from '../../types';
 
 interface Props {
@@ -11,6 +12,8 @@ interface Props {
 }
 
 export default function WorkoutRow({ exercise, index, onToggle }: Props) {
+  const colors = useColors();
+  const styles = useMemo(() => make_styles(colors), [colors]);
   return (
     <TouchableOpacity
       style={[styles.row, exercise.completed && styles.rowDone]}
@@ -34,19 +37,20 @@ export default function WorkoutRow({ exercise, index, onToggle }: Props) {
       <Ionicons
         name="barbell-outline"
         size={18}
-        color={exercise.completed ? Colors.success : Colors.textMuted}
+        color={exercise.completed ? colors.success : colors.textMuted}
       />
     </TouchableOpacity>
   );
 }
 
-const styles = StyleSheet.create({
+function make_styles(colors: ReturnType<typeof useColors>) {
+  return StyleSheet.create({
   row: {
     flexDirection:   'row',
     alignItems:      'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: colors.border,
     gap: 12,
   },
   rowDone: { opacity: 0.65 },
@@ -55,27 +59,28 @@ const styles = StyleSheet.create({
     height:          24,
     borderRadius:    8,
     borderWidth:     2,
-    borderColor:     Colors.border,
+    borderColor:     colors.border,
     alignItems:      'center',
     justifyContent:  'center',
   },
   checkDone: {
-    backgroundColor: Colors.success,
-    borderColor:     Colors.success,
+    backgroundColor: colors.success,
+    borderColor:     colors.success,
   },
   info: { flex: 1 },
   name: {
-    color:      Colors.text,
+    color:      colors.text,
     fontSize:   14,
     fontWeight: '600',
   },
   nameDone: {
     textDecorationLine: 'line-through',
-    color:              Colors.textSecondary,
+    color:              colors.textSecondary,
   },
   sets: {
-    color:    Colors.accent,
+    color:    colors.accent,
     fontSize: 12,
     marginTop: 2,
   },
 });
+}

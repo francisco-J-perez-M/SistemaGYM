@@ -6,13 +6,14 @@
  * GET /api/trainer/clients   → {clients:[{id,name,goal,sessionsTotal,attendance,streak,status}],
  *                               pagination}
  */
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
+import { useColors } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
 import { useAuth } from '../../hooks/useAuth';
@@ -24,6 +25,8 @@ import Badge from '../../components/ui/Badge';
 import type { TrainerDashboard, TrainerClientsResponse, TrainerClientAPI } from '../../types';
 
 export default function TrainerDashboardScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => make_styles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
   const { data,          loading,   refetch } = useFetch<TrainerDashboard>(ENDPOINTS.TRAINER_DASHBOARD);
@@ -44,7 +47,7 @@ export default function TrainerDashboardScreen() {
       style={styles.screen}
       contentContainerStyle={[styles.content, { paddingTop: insets.top + 16 }]}
       showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={loading} onRefresh={refetch} tintColor={Colors.accent} />}
+      refreshControl={<RefreshControl refreshing={loading} onRefresh={refetch} tintColor={colors.accent} />}
     >
       {/* Header */}
       <View style={styles.topBar}>
@@ -58,14 +61,14 @@ export default function TrainerDashboardScreen() {
           accessibilityLabel="Cerrar sesión"
           accessibilityRole="button"
         >
-          <Ionicons name="log-out-outline" size={22} color={Colors.textSecondary} />
+          <Ionicons name="log-out-outline" size={22} color={colors.textSecondary} />
         </TouchableOpacity>
       </View>
 
       {/* Hero banner */}
       <View style={styles.heroBanner}>
         <View style={styles.heroIcon}>
-          <Ionicons name="fitness-outline" size={28} color={Colors.accent} />
+          <Ionicons name="fitness-outline" size={28} color={colors.accent} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.heroTitle}>{toStr(data?.trainer_name ?? user?.nombre, 'Entrenador')}</Text>
@@ -79,26 +82,26 @@ export default function TrainerDashboardScreen() {
         <StatCard
           label="Total clientes"
           value={totalClients}
-          icon={<Ionicons name="people-outline" size={20} color={Colors.accent} />}
-          color={Colors.accent}
+          icon={<Ionicons name="people-outline" size={20} color={colors.accent} />}
+          color={colors.accent}
         />
         <StatCard
           label="Sesiones hoy"
           value={sessionsToday}
-          icon={<Ionicons name="checkmark-circle-outline" size={20} color={Colors.success} />}
-          color={Colors.success}
+          icon={<Ionicons name="checkmark-circle-outline" size={20} color={colors.success} />}
+          color={colors.success}
         />
         <StatCard
           label="Sesiones / semana"
           value={sessionsWeek}
-          icon={<Ionicons name="calendar-outline" size={20} color={Colors.warning} />}
-          color={Colors.warning}
+          icon={<Ionicons name="calendar-outline" size={20} color={colors.warning} />}
+          color={colors.warning}
         />
         <StatCard
           label="% Completado"
           value={`${completionRate}%`}
-          icon={<Ionicons name="trending-up-outline" size={20} color={Colors.info} />}
-          color={Colors.info}
+          icon={<Ionicons name="trending-up-outline" size={20} color={colors.info} />}
+          color={colors.info}
         />
       </View>
 
@@ -107,7 +110,7 @@ export default function TrainerDashboardScreen() {
         <Text style={styles.sectionTitle}>Clientes recientes</Text>
         {clients.slice(0, 5).length === 0 ? (
           <View style={styles.empty}>
-            <Ionicons name="people-outline" size={32} color={Colors.textMuted} />
+            <Ionicons name="people-outline" size={32} color={colors.textMuted} />
             <Text style={styles.emptyText}>No tienes clientes asignados aún.</Text>
           </View>
         ) : (
@@ -131,12 +134,13 @@ export default function TrainerDashboardScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen:   { flex: 1, backgroundColor: Colors.background },
+function make_styles(colors: ReturnType<typeof useColors>) {
+  return StyleSheet.create({
+  screen:   { flex: 1, backgroundColor: colors.background },
   content:  { padding: 20, gap: 16, paddingBottom: 32 },
   topBar:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  greeting: { color: Colors.text, fontSize: 22, fontWeight: '700' },
-  sub:      { color: Colors.textSecondary, fontSize: 13 },
+  greeting: { color: colors.text, fontSize: 22, fontWeight: '700' },
+  sub:      { color: colors.textSecondary, fontSize: 13 },
   logoutBtn:{ padding: 8 },
   heroBanner: { flexDirection: 'row', alignItems: 'center', borderRadius: 18, padding: 16, gap: 12, backgroundColor: '#1e1b4b' },
   heroIcon: {
@@ -146,16 +150,17 @@ const styles = StyleSheet.create({
   heroTitle: { color: '#fff', fontSize: 16, fontWeight: '700' },
   heroSub:   { color: 'rgba(255,255,255,0.6)', fontSize: 12 },
   kpiGrid:   { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  sectionTitle: { color: Colors.text, fontSize: 16, fontWeight: '700', marginBottom: 12 },
-  clientRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  sectionTitle: { color: colors.text, fontSize: 16, fontWeight: '700', marginBottom: 12 },
+  clientRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
   clientAvatar: {
     width: 38, height: 38, borderRadius: 12,
     backgroundColor: 'rgba(108,99,255,0.15)', alignItems: 'center', justifyContent: 'center',
   },
-  clientInitial: { color: Colors.accent, fontSize: 16, fontWeight: '700' },
-  clientName:    { color: Colors.text, fontSize: 14, fontWeight: '600' },
-  clientMeta:    { color: Colors.textSecondary, fontSize: 12 },
-  lastSession:   { color: Colors.textMuted, fontSize: 11 },
+  clientInitial: { color: colors.accent, fontSize: 16, fontWeight: '700' },
+  clientName:    { color: colors.text, fontSize: 14, fontWeight: '600' },
+  clientMeta:    { color: colors.textSecondary, fontSize: 12 },
+  lastSession:   { color: colors.textMuted, fontSize: 11 },
   empty: { alignItems: 'center', paddingVertical: 20, gap: 8 },
-  emptyText: { color: Colors.textMuted, fontSize: 13 },
+  emptyText: { color: colors.textMuted, fontSize: 13 },
 });
+}

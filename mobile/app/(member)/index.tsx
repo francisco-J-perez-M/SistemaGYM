@@ -2,13 +2,14 @@
  * Dashboard del Miembro.
  * Muestra: saludo, racha, KPIs, membresía, rutina de hoy, logros.
  */
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
+import { useColors } from '../../hooks/useColors';
 import { useFetch } from '../../hooks/useFetch';
 import { useAuth } from '../../hooks/useAuth';
 import { toFirstName } from '../../utils/format';
@@ -22,6 +23,8 @@ import type { DashboardData, Exercise } from '../../types';
 import api from '../../services/api';
 
 export default function MemberDashboard() {
+  const colors = useColors();
+  const styles = useMemo(() => make_styles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { data, loading, error, refetch } = useFetch<DashboardData>(ENDPOINTS.USER_DASHBOARD);
@@ -72,8 +75,8 @@ export default function MemberDashboard() {
         <RefreshControl
           refreshing={loading}
           onRefresh={refetch}
-          tintColor={Colors.accent}
-          colors={[Colors.accent]}
+          tintColor={colors.accent}
+          colors={[colors.accent]}
         />
       }
     >
@@ -97,7 +100,7 @@ export default function MemberDashboard() {
           <Ionicons
             name={checkinDone ? 'checkmark-circle' : 'location-outline'}
             size={22}
-            color={checkinDone ? Colors.success : Colors.accent}
+            color={checkinDone ? colors.success : colors.accent}
           />
         </TouchableOpacity>
       </View>
@@ -167,7 +170,7 @@ export default function MemberDashboard() {
                 >
                   {done && <Ionicons name="checkmark" size={12} color="#fff" />}
                 </View>
-                <Text style={[styles.dayLabel, isToday && { color: Colors.accent }]}>
+                <Text style={[styles.dayLabel, isToday && { color: colors.accent }]}>
                   {day}
                 </Text>
               </View>
@@ -182,11 +185,11 @@ export default function MemberDashboard() {
           <Text style={styles.sectionTitle}>
             Hoy — {data?.todayWorkout?.type ?? 'Sin rutina'}
           </Text>
-          <Ionicons name="barbell-outline" size={18} color={Colors.accent} />
+          <Ionicons name="barbell-outline" size={18} color={colors.accent} />
         </View>
         {workoutExercises.length === 0 ? (
           <View style={styles.emptyWorkout}>
-            <Ionicons name="moon-outline" size={32} color={Colors.textMuted} />
+            <Ionicons name="moon-outline" size={32} color={colors.textMuted} />
             <Text style={styles.emptyText}>Día de descanso o sin rutina asignada</Text>
           </View>
         ) : (
@@ -224,23 +227,24 @@ export default function MemberDashboard() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen:  { flex: 1, backgroundColor: Colors.background },
+function make_styles(colors: ReturnType<typeof useColors>) {
+  return StyleSheet.create({
+  screen:  { flex: 1, backgroundColor: colors.background },
   content: { padding: 20, gap: 16, paddingBottom: 32 },
   topBar: {
     flexDirection:  'row',
     justifyContent: 'space-between',
     alignItems:     'center',
   },
-  greeting:    { color: Colors.text, fontSize: 26, fontWeight: '700' },
-  subGreeting: { color: Colors.textSecondary, fontSize: 13, marginTop: 2 },
+  greeting:    { color: colors.text, fontSize: 26, fontWeight: '700' },
+  subGreeting: { color: colors.textSecondary, fontSize: 13, marginTop: 2 },
   checkinBtn: {
     width:           44,
     height:          44,
     borderRadius:    14,
-    backgroundColor: Colors.card,
+    backgroundColor: colors.card,
     borderWidth:     1,
-    borderColor:     Colors.border,
+    borderColor:     colors.border,
     alignItems:      'center',
     justifyContent:  'center',
   },
@@ -267,7 +271,7 @@ const styles = StyleSheet.create({
     marginBottom:   12,
   },
   sectionTitle: {
-    color:        Colors.text,
+    color:        colors.text,
     fontSize:     16,
     fontWeight:   '700',
     marginBottom: 12,
@@ -282,19 +286,19 @@ const styles = StyleSheet.create({
     height:          32,
     borderRadius:    16,
     borderWidth:     2,
-    borderColor:     Colors.border,
+    borderColor:     colors.border,
     alignItems:      'center',
     justifyContent:  'center',
   },
-  dayCirDone:  { backgroundColor: Colors.success, borderColor: Colors.success },
-  dayCirToday: { borderColor: Colors.accent },
-  dayLabel: { color: Colors.textSecondary, fontSize: 11 },
+  dayCirDone:  { backgroundColor: colors.success, borderColor: colors.success },
+  dayCirToday: { borderColor: colors.accent },
+  dayLabel: { color: colors.textSecondary, fontSize: 11 },
   emptyWorkout: {
     alignItems:   'center',
     paddingVertical: 24,
     gap:          8,
   },
-  emptyText: { color: Colors.textMuted, fontSize: 13 },
+  emptyText: { color: colors.textMuted, fontSize: 13 },
   achievementList: { gap: 12 },
   achievement: {
     flexDirection: 'row',
@@ -308,6 +312,7 @@ const styles = StyleSheet.create({
     alignItems:     'center',
     justifyContent: 'center',
   },
-  achTitle: { color: Colors.text, fontSize: 14, fontWeight: '600' },
-  achDesc:  { color: Colors.textSecondary, fontSize: 12 },
+  achTitle: { color: colors.text, fontSize: 14, fontWeight: '600' },
+  achDesc:  { color: colors.textSecondary, fontSize: 12 },
 });
+}

@@ -1,7 +1,7 @@
 /**
  * Pantalla Perfil del Miembro — datos personales y cierre de sesión.
  */
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   Alert, TextInput, RefreshControl,
@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 // LinearGradient eliminado — puede fallar en Fabric (new arch) antes de registrarse
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
+import { useColors } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
 import { useAuth } from '../../hooks/useAuth';
@@ -30,6 +31,8 @@ interface ProfileData {
 }
 
 export default function ProfileScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => make_styles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
   const { data, loading, refetch } = useFetch<ProfileData>(ENDPOINTS.USER_PROFILE);
@@ -75,7 +78,7 @@ export default function ProfileScreen() {
       style={styles.screen}
       contentContainerStyle={{ paddingBottom: 40 }}
       showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={loading} onRefresh={refetch} tintColor={Colors.accent} />}
+      refreshControl={<RefreshControl refreshing={loading} onRefresh={refetch} tintColor={colors.accent} />}
     >
       {/* Hero banner — sin LinearGradient */}
       <View style={[styles.hero, { paddingTop: insets.top + 20 }]}>
@@ -106,7 +109,7 @@ export default function ProfileScreen() {
                 accessibilityLabel="Editar perfil"
                 accessibilityRole="button"
               >
-                <Ionicons name="pencil-outline" size={16} color={Colors.accent} />
+                <Ionicons name="pencil-outline" size={16} color={colors.accent} />
                 <Text style={styles.editBtnText}>Editar</Text>
               </TouchableOpacity>
             )}
@@ -119,7 +122,7 @@ export default function ProfileScreen() {
                 style={styles.input}
                 value={nombre}
                 onChangeText={setNombre}
-                placeholderTextColor={Colors.textMuted}
+                placeholderTextColor={colors.textMuted}
                 accessibilityLabel="Nombre completo"
               />
               <Text style={styles.inputLabel}>Teléfono</Text>
@@ -128,7 +131,7 @@ export default function ProfileScreen() {
                 value={telefono}
                 onChangeText={setTelefono}
                 keyboardType="phone-pad"
-                placeholderTextColor={Colors.textMuted}
+                placeholderTextColor={colors.textMuted}
                 accessibilityLabel="Número de teléfono"
               />
               <View style={styles.editActions}>
@@ -163,11 +166,11 @@ export default function ProfileScreen() {
             accessibilityLabel="Cerrar sesión"
             accessibilityRole="button"
           >
-            <View style={[styles.actionIcon, { backgroundColor: Colors.errorBg }]}>
-              <Ionicons name="log-out-outline" size={20} color={Colors.error} />
+            <View style={[styles.actionIcon, { backgroundColor: colors.errorBg }]}>
+              <Ionicons name="log-out-outline" size={20} color={colors.error} />
             </View>
-            <Text style={[styles.actionLabel, { color: Colors.error }]}>Cerrar sesión</Text>
-            <Ionicons name="chevron-forward" size={18} color={Colors.error} />
+            <Text style={[styles.actionLabel, { color: colors.error }]}>Cerrar sesión</Text>
+            <Ionicons name="chevron-forward" size={18} color={colors.error} />
           </TouchableOpacity>
         </Card>
 
@@ -181,7 +184,7 @@ function InfoRow({ icon, label, value }: { icon: string; label: string; value: s
   return (
     <View style={styles.infoRow} accessible accessibilityLabel={`${label}: ${value}`}>
       <View style={styles.infoIconBox}>
-        <Ionicons name={icon as any} size={16} color={Colors.accent} />
+        <Ionicons name={icon as any} size={16} color={colors.accent} />
       </View>
       <View style={{ flex: 1 }}>
         <Text style={styles.infoLabel}>{label}</Text>
@@ -194,15 +197,16 @@ function InfoRow({ icon, label, value }: { icon: string; label: string; value: s
 function StatPill({ icon, label, value }: { icon: string; label: string; value: string }) {
   return (
     <View style={styles.statPill}>
-      <Ionicons name={icon as any} size={14} color={Colors.accent} />
+      <Ionicons name={icon as any} size={14} color={colors.accent} />
       <Text style={styles.statVal}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: Colors.background },
+function make_styles(colors: ReturnType<typeof useColors>) {
+  return StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.background },
   hero: {
     alignItems:    'center',
     paddingBottom: 32,
@@ -215,13 +219,13 @@ const styles = StyleSheet.create({
     width:           90,
     height:          90,
     borderRadius:    28,
-    backgroundColor: Colors.accent,
+    backgroundColor: colors.accent,
     alignItems:      'center',
     justifyContent:  'center',
   },
   initials:  { color: '#fff', fontSize: 32, fontWeight: '800' },
-  heroName:  { color: Colors.text, fontSize: 22, fontWeight: '700' },
-  heroEmail: { color: Colors.textSecondary, fontSize: 13 },
+  heroName:  { color: colors.text, fontSize: 22, fontWeight: '700' },
+  heroEmail: { color: colors.textSecondary, fontSize: 13 },
   statsRow:  { flexDirection: 'row', gap: 10, marginTop: 8 },
   statPill: {
     alignItems:      'center',
@@ -231,34 +235,35 @@ const styles = StyleSheet.create({
     borderRadius:    14,
     gap:             2,
   },
-  statVal:   { color: Colors.text, fontSize: 12, fontWeight: '700' },
-  statLabel: { color: Colors.textMuted, fontSize: 10 },
+  statVal:   { color: colors.text, fontSize: 12, fontWeight: '700' },
+  statLabel: { color: colors.textMuted, fontSize: 10 },
   body: { padding: 20, gap: 16 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  sectionTitle: { color: Colors.text, fontSize: 16, fontWeight: '700' },
+  sectionTitle: { color: colors.text, fontSize: 16, fontWeight: '700' },
   editBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  editBtnText: { color: Colors.accent, fontSize: 13, fontWeight: '600' },
-  inputLabel: { color: Colors.textSecondary, fontSize: 12, marginBottom: 4, marginTop: 8 },
+  editBtnText: { color: colors.accent, fontSize: 13, fontWeight: '600' },
+  inputLabel: { color: colors.textSecondary, fontSize: 12, marginBottom: 4, marginTop: 8 },
   input: {
-    backgroundColor: Colors.inputBg, borderRadius: 10, borderWidth: 1,
-    borderColor: Colors.border, color: Colors.text, padding: 12, fontSize: 15,
+    backgroundColor: colors.inputBg, borderRadius: 10, borderWidth: 1,
+    borderColor: colors.border, color: colors.text, padding: 12, fontSize: 15,
   },
   editActions: { flexDirection: 'row', gap: 10, marginTop: 14 },
   infoRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.border,
+    paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border,
   },
   infoIconBox: {
     width: 32, height: 32, borderRadius: 10,
     backgroundColor: 'rgba(108,99,255,0.1)',
     alignItems: 'center', justifyContent: 'center',
   },
-  infoLabel: { color: Colors.textSecondary, fontSize: 11 },
-  infoValue: { color: Colors.text, fontSize: 14, fontWeight: '600' },
+  infoLabel: { color: colors.textSecondary, fontSize: 11 },
+  infoValue: { color: colors.text, fontSize: 14, fontWeight: '600' },
   actionRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10,
   },
   actionIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   actionLabel: { flex: 1, fontSize: 15, fontWeight: '600' },
-  version: { color: Colors.textMuted, fontSize: 12, textAlign: 'center', marginTop: 8 },
+  version: { color: colors.textMuted, fontSize: 12, textAlign: 'center', marginTop: 8 },
 });
+}

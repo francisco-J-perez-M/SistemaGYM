@@ -1,13 +1,14 @@
 /**
  * Pantalla Membresía — estado actual, historial y renovación.
  */
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
+import { useColors } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
 import { toDateStr, toStr } from '../../utils/format';
@@ -25,6 +26,8 @@ interface MembershipData {
 }
 
 export default function MembershipScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => make_styles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const { data,  loading,  refetch  } = useFetch<MembershipData>(ENDPOINTS.USER_MEMBERSHIP);
   const { data: plans, loading: loadingPlans } = useFetch<MembershipPlan[]>(ENDPOINTS.MEMBERSHIP_PLANS);
@@ -73,7 +76,7 @@ export default function MembershipScreen() {
       style={styles.screen}
       contentContainerStyle={[styles.content, { paddingTop: insets.top + 16 }]}
       showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={loading} onRefresh={refetch} tintColor={Colors.accent} />}
+      refreshControl={<RefreshControl refreshing={loading} onRefresh={refetch} tintColor={colors.accent} />}
     >
       <Text style={styles.title} accessibilityRole="header">Membresía</Text>
 
@@ -83,7 +86,7 @@ export default function MembershipScreen() {
       ) : (
         <Card>
           <View style={styles.noMem}>
-            <Ionicons name="card-outline" size={40} color={Colors.textMuted} />
+            <Ionicons name="card-outline" size={40} color={colors.textMuted} />
             <Text style={styles.noMemText}>No tienes una membresía activa.</Text>
             <Text style={styles.noMemSub}>Renueva o contrata un plan para seguir entrenando.</Text>
           </View>
@@ -165,7 +168,7 @@ export default function MembershipScreen() {
 
       {/* Info accesibilidad */}
       <View style={styles.infoRow}>
-        <Ionicons name="shield-checkmark-outline" size={16} color={Colors.success} />
+        <Ionicons name="shield-checkmark-outline" size={16} color={colors.success} />
         <Text style={styles.infoText}>
           Tus datos de membresía están protegidos y cifrados.
         </Text>
@@ -174,36 +177,38 @@ export default function MembershipScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen:  { flex: 1, backgroundColor: Colors.background },
+function make_styles(colors: ReturnType<typeof useColors>) {
+  return StyleSheet.create({
+  screen:  { flex: 1, backgroundColor: colors.background },
   content: { padding: 20, gap: 16, paddingBottom: 32 },
-  title:   { color: Colors.text, fontSize: 26, fontWeight: '700' },
+  title:   { color: colors.text, fontSize: 26, fontWeight: '700' },
   noMem:   { alignItems: 'center', paddingVertical: 24, gap: 8 },
-  noMemText: { color: Colors.text, fontSize: 16, fontWeight: '600' },
-  noMemSub:  { color: Colors.textSecondary, fontSize: 13, textAlign: 'center' },
-  sectionTitle: { color: Colors.text, fontSize: 16, fontWeight: '700', marginBottom: 12 },
+  noMemText: { color: colors.text, fontSize: 16, fontWeight: '600' },
+  noMemSub:  { color: colors.textSecondary, fontSize: 13, textAlign: 'center' },
+  sectionTitle: { color: colors.text, fontSize: 16, fontWeight: '700', marginBottom: 12 },
   planRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: Colors.border,
+    paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border,
   },
   planRowActive: { backgroundColor: 'rgba(108,99,255,0.08)', borderRadius: 12, paddingHorizontal: 8 },
   planRadio: {
     width: 22, height: 22, borderRadius: 11,
-    borderWidth: 2, borderColor: Colors.border,
+    borderWidth: 2, borderColor: colors.border,
     alignItems: 'center', justifyContent: 'center',
   },
-  planRadioActive: { borderColor: Colors.accent },
-  planRadioDot:    { width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.accent },
-  planName:     { color: Colors.text, fontSize: 15, fontWeight: '600' },
-  planDuration: { color: Colors.textSecondary, fontSize: 12 },
-  planDesc:     { color: Colors.textMuted, fontSize: 12, marginTop: 2 },
-  planPrice:    { color: Colors.accent, fontSize: 18, fontWeight: '700' },
+  planRadioActive: { borderColor: colors.accent },
+  planRadioDot:    { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.accent },
+  planName:     { color: colors.text, fontSize: 15, fontWeight: '600' },
+  planDuration: { color: colors.textSecondary, fontSize: 12 },
+  planDesc:     { color: colors.textMuted, fontSize: 12, marginTop: 2 },
+  planPrice:    { color: colors.accent, fontSize: 18, fontWeight: '700' },
   histRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.border,
+    paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border,
   },
-  histPlan:  { color: Colors.text, fontSize: 14, fontWeight: '600' },
-  histDates: { color: Colors.textSecondary, fontSize: 12 },
+  histPlan:  { color: colors.text, fontSize: 14, fontWeight: '600' },
+  histDates: { color: colors.textSecondary, fontSize: 12 },
   infoRow:   { flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'center' },
-  infoText:  { color: Colors.textMuted, fontSize: 12 },
+  infoText:  { color: colors.textMuted, fontSize: 12 },
 });
+}

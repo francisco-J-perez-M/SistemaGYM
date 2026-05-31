@@ -9,7 +9,7 @@
  *                                nombre_sesion, notas }
  * GET /api/trainer/members → { members: [{id, nombre, email}] }
  */
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   RefreshControl, Modal, ScrollView, TextInput, Alert, Platform,
@@ -17,6 +17,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
+import { useColors } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
 import { toStr, toArray } from '../../utils/format';
@@ -94,7 +95,7 @@ function FormField({ label, value, onChange, placeholder, keyboardType, multilin
       <TextInput
         style={[fStyles.input, multiline && fStyles.inputMulti]}
         value={value} onChangeText={onChange}
-        placeholder={placeholder ?? ''} placeholderTextColor={Colors.textMuted}
+        placeholder={placeholder ?? ''} placeholderTextColor={colors.textMuted}
         keyboardType={keyboardType ?? 'default'} multiline={multiline}
         numberOfLines={multiline ? 3 : 1}
         accessibilityLabel={label}
@@ -105,6 +106,10 @@ function FormField({ label, value, onChange, placeholder, keyboardType, multilin
 
 // ── Componente principal ──────────────────────────────────────────────────────
 export default function ScheduleScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => make_styles(colors), [colors]);
+  const fStyles = useMemo(() => make_fStyles(colors), [colors]);
+  const calStyles = useMemo(() => make_calStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const [view,      setView]      = useState<ViewMode>('hoy');
   const [showModal, setShowModal] = useState(false);
@@ -198,7 +203,7 @@ export default function ScheduleScreen() {
             <Ionicons
               name={v === 'hoy' ? 'today-outline' : 'calendar-outline'}
               size={16}
-              color={view === v ? Colors.accent : Colors.textSecondary}
+              color={view === v ? colors.accent : colors.textSecondary}
             />
             <Text style={[styles.viewLabel, view === v && styles.viewLabelActive]}>
               {v === 'hoy' ? 'Hoy' : 'Esta semana'}
@@ -213,13 +218,13 @@ export default function ScheduleScreen() {
         keyExtractor={d => d.day_name}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={refetch} tintColor={Colors.accent} />}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={refetch} tintColor={colors.accent} />}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Ionicons name="calendar-outline" size={44} color={Colors.textMuted} />
+            <Ionicons name="calendar-outline" size={44} color={colors.textMuted} />
             <Text style={styles.emptyText}>Sin sesiones {view === 'hoy' ? 'para hoy' : 'esta semana'}.</Text>
             <TouchableOpacity style={styles.emptyBtn} onPress={() => setShowModal(true)}>
-              <Ionicons name="add-circle-outline" size={16} color={Colors.accent} />
+              <Ionicons name="add-circle-outline" size={16} color={colors.accent} />
               <Text style={styles.emptyBtnText}>Agendar sesión</Text>
             </TouchableOpacity>
           </View>
@@ -274,7 +279,7 @@ export default function ScheduleScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Nueva sesión</Text>
               <TouchableOpacity onPress={() => setShowModal(false)} accessibilityLabel="Cerrar">
-                <Ionicons name="close" size={24} color={Colors.textSecondary} />
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
 
@@ -288,9 +293,9 @@ export default function ScheduleScreen() {
                   accessibilityLabel="Seleccionar fecha"
                   accessibilityRole="button"
                 >
-                  <Ionicons name="calendar-outline" size={18} color={Colors.accent} />
+                  <Ionicons name="calendar-outline" size={18} color={colors.accent} />
                   <Text style={styles.dateBtnText}>{form.fecha || 'Seleccionar fecha'}</Text>
-                  <Ionicons name="chevron-down" size={16} color={Colors.textSecondary} />
+                  <Ionicons name="chevron-down" size={16} color={colors.textSecondary} />
                 </TouchableOpacity>
               </View>
               <FormField label="Hora de inicio (HH:MM)" value={form.hora_inicio}
@@ -437,11 +442,11 @@ function InlineCalendar({ selectedDate, onSelect, onClose }: {
         {/* Header mes/año */}
         <View style={calStyles.header}>
           <TouchableOpacity onPress={prevMonth} style={calStyles.navBtn} accessibilityLabel="Mes anterior">
-            <Ionicons name="chevron-back" size={20} color={Colors.text} />
+            <Ionicons name="chevron-back" size={20} color={colors.text} />
           </TouchableOpacity>
           <Text style={calStyles.monthLabel}>{MONTHS[viewMonth]} {viewYear}</Text>
           <TouchableOpacity onPress={nextMonth} style={calStyles.navBtn} accessibilityLabel="Mes siguiente">
-            <Ionicons name="chevron-forward" size={20} color={Colors.text} />
+            <Ionicons name="chevron-forward" size={20} color={colors.text} />
           </TouchableOpacity>
         </View>
 
@@ -493,75 +498,81 @@ function InlineCalendar({ selectedDate, onSelect, onClose }: {
   );
 }
 
-const calStyles = StyleSheet.create({
+function make_calStyles(colors: ReturnType<typeof useColors>) {
+  return StyleSheet.create({
   overlay:   { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100, justifyContent: 'flex-end' },
   backdrop:  { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)' },
-  sheet:     { backgroundColor: Colors.background, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 32 },
+  sheet:     { backgroundColor: colors.background, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 32 },
   header:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
-  navBtn:    { width: 36, height: 36, borderRadius: 10, backgroundColor: Colors.card, alignItems: 'center', justifyContent: 'center' },
-  monthLabel:{ color: Colors.text, fontSize: 18, fontWeight: '700' },
+  navBtn:    { width: 36, height: 36, borderRadius: 10, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' },
+  monthLabel:{ color: colors.text, fontSize: 18, fontWeight: '700' },
   weekRow:   { flexDirection: 'row', marginBottom: 8 },
-  weekDay:   { flex: 1, textAlign: 'center', color: Colors.textSecondary, fontSize: 12, fontWeight: '700' },
+  weekDay:   { flex: 1, textAlign: 'center', color: colors.textSecondary, fontSize: 12, fontWeight: '700' },
   grid:      { flexDirection: 'row', flexWrap: 'wrap' },
   cell:      { width: '14.28%', aspectRatio: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 999 },
-  cellSelected: { backgroundColor: Colors.accent },
-  cellToday:    { borderWidth: 2, borderColor: Colors.accent },
+  cellSelected: { backgroundColor: colors.accent },
+  cellToday:    { borderWidth: 2, borderColor: colors.accent },
   cellPast:     { opacity: 0.25 },
-  cellText:     { color: Colors.text, fontSize: 14, fontWeight: '500' },
+  cellText:     { color: colors.text, fontSize: 14, fontWeight: '500' },
   cellTextSelected: { color: '#fff', fontWeight: '700' },
-  cellTextToday:    { color: Colors.accent, fontWeight: '700' },
-  cellTextPast:     { color: Colors.textMuted },
+  cellTextToday:    { color: colors.accent, fontWeight: '700' },
+  cellTextPast:     { color: colors.textMuted },
   cancelBtn: { marginTop: 16, alignItems: 'center', paddingVertical: 10 },
-  cancelText:{ color: Colors.textSecondary, fontSize: 15 },
+  cancelText:{ color: colors.textSecondary, fontSize: 15 },
 });
+}
 
-const fStyles = StyleSheet.create({
+function make_fStyles(colors: ReturnType<typeof useColors>) {
+  return StyleSheet.create({
   field:     { gap: 4, marginBottom: 8 },
-  label:     { color: Colors.textSecondary, fontSize: 12, fontWeight: '600' },
-  input:     { backgroundColor: Colors.card, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, color: Colors.text, fontSize: 14, borderWidth: 1, borderColor: Colors.border },
+  label:     { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
+  input:     { backgroundColor: colors.card, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, color: colors.text, fontSize: 14, borderWidth: 1, borderColor: colors.border },
   inputMulti:{ minHeight: 72, textAlignVertical: 'top' },
 });
+}
 
-const styles = StyleSheet.create({
-  screen:   { flex: 1, backgroundColor: Colors.background },
+function make_styles(colors: ReturnType<typeof useColors>) {
+  return StyleSheet.create({
+  screen:   { flex: 1, backgroundColor: colors.background },
   header:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingHorizontal: 20, paddingBottom: 12 },
-  title:    { color: Colors.text, fontSize: 26, fontWeight: '700' },
-  sub:      { color: Colors.textSecondary, fontSize: 13 },
-  addBtn:   { width: 44, height: 44, borderRadius: 14, backgroundColor: Colors.accent, alignItems: 'center', justifyContent: 'center' },
-  viewToggle: { flexDirection: 'row', marginHorizontal: 20, marginBottom: 12, backgroundColor: Colors.card, borderRadius: 12, padding: 4, borderWidth: 1, borderColor: Colors.border },
+  title:    { color: colors.text, fontSize: 26, fontWeight: '700' },
+  sub:      { color: colors.textSecondary, fontSize: 13 },
+  addBtn:   { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
+  viewToggle: { flexDirection: 'row', marginHorizontal: 20, marginBottom: 12, backgroundColor: colors.card, borderRadius: 12, padding: 4, borderWidth: 1, borderColor: colors.border },
   viewBtn:    { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8, borderRadius: 10 },
   viewBtnActive: { backgroundColor: 'rgba(108,99,255,0.15)' },
-  viewLabel:     { color: Colors.textSecondary, fontSize: 14, fontWeight: '600' },
-  viewLabelActive:{ color: Colors.accent },
+  viewLabel:     { color: colors.textSecondary, fontSize: 14, fontWeight: '600' },
+  viewLabelActive:{ color: colors.accent },
   list:     { paddingHorizontal: 20, gap: 6, paddingBottom: 32 },
   empty:    { alignItems: 'center', paddingVertical: 60, gap: 10 },
-  emptyText:{ color: Colors.textMuted, fontSize: 14, fontWeight: '600', textAlign: 'center' },
+  emptyText:{ color: colors.textMuted, fontSize: 14, fontWeight: '600', textAlign: 'center' },
   emptyBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: 'rgba(108,99,255,0.12)', marginTop: 4 },
-  emptyBtnText: { color: Colors.accent, fontSize: 14, fontWeight: '600' },
+  emptyBtnText: { color: colors.accent, fontSize: 14, fontWeight: '600' },
   dayRow:   { marginBottom: 4 },
-  dayName:  { color: Colors.textSecondary, fontSize: 13, fontWeight: '700', marginBottom: 6, marginTop: 8 },
-  dayNameToday: { color: Colors.accent },
-  noSessions: { color: Colors.textMuted, fontSize: 12, marginBottom: 8 },
+  dayName:  { color: colors.textSecondary, fontSize: 13, fontWeight: '700', marginBottom: 6, marginTop: 8 },
+  dayNameToday: { color: colors.accent },
+  noSessions: { color: colors.textMuted, fontSize: 12, marginBottom: 8 },
   sessionCard:{ marginBottom: 8, gap: 6 },
   sessionTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   timeBox:    { alignItems: 'center', width: 52 },
-  timeText:   { color: Colors.accent, fontSize: 14, fontWeight: '700' },
-  durationText:{ color: Colors.textMuted, fontSize: 11 },
-  clientName: { color: Colors.text, fontSize: 15, fontWeight: '700' },
-  sessionName:{ color: Colors.textSecondary, fontSize: 12, marginTop: 1 },
-  sessionType:{ color: Colors.textMuted, fontSize: 12 },
-  sessionNotes:{ color: Colors.textSecondary, fontSize: 12, fontStyle: 'italic', borderTopWidth: 1, borderTopColor: Colors.border, paddingTop: 6, marginTop: 2 },
+  timeText:   { color: colors.accent, fontSize: 14, fontWeight: '700' },
+  durationText:{ color: colors.textMuted, fontSize: 11 },
+  clientName: { color: colors.text, fontSize: 15, fontWeight: '700' },
+  sessionName:{ color: colors.textSecondary, fontSize: 12, marginTop: 1 },
+  sessionType:{ color: colors.textMuted, fontSize: 12 },
+  sessionNotes:{ color: colors.textSecondary, fontSize: 12, fontStyle: 'italic', borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 6, marginTop: 2 },
   modalOverlay:{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' },
-  modalSheet:  { backgroundColor: Colors.background, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, maxHeight: '90%' },
+  modalSheet:  { backgroundColor: colors.background, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, maxHeight: '90%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  modalTitle:  { color: Colors.text, fontSize: 20, fontWeight: '700' },
+  modalTitle:  { color: colors.text, fontSize: 20, fontWeight: '700' },
   tiposRow:    { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
-  tipoChip:    { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border },
-  tipoChipActive: { backgroundColor: Colors.accent, borderColor: Colors.accent },
-  tipoText:    { color: Colors.textSecondary, fontSize: 13, fontWeight: '600' },
-  clientChip:  { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border },
-  clientChipActive: { backgroundColor: Colors.accent, borderColor: Colors.accent },
-  clientChipText: { color: Colors.textSecondary, fontSize: 13, fontWeight: '600' },
-  dateBtn:        { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: Colors.card, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, borderWidth: 1, borderColor: Colors.border },
-  dateBtnText:    { flex: 1, color: Colors.text, fontSize: 14, fontWeight: '600' },
+  tipoChip:    { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
+  tipoChipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
+  tipoText:    { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
+  clientChip:  { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
+  clientChipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
+  clientChipText: { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
+  dateBtn:        { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.card, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, borderWidth: 1, borderColor: colors.border },
+  dateBtnText:    { flex: 1, color: colors.text, fontSize: 14, fontWeight: '600' },
 });
+}

@@ -4,13 +4,14 @@
  * GET /api/owner_gym/productos  → lista de productos
  * GET /api/ventas               → historial de ventas (paginado)
  */
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
+import { useColors } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
 import { toStr, toArray, toDateStr } from '../../utils/format';
@@ -48,6 +49,8 @@ interface ProductosResponse {
 }
 
 export default function POSScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => make_styles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<Tab>('productos');
 
@@ -80,7 +83,7 @@ export default function POSScreen() {
             <Ionicons
               name={t === 'productos' ? 'cube-outline' : 'receipt-outline'}
               size={16}
-              color={tab === t ? Colors.accent : Colors.textSecondary}
+              color={tab === t ? colors.accent : colors.textSecondary}
             />
             <Text style={[styles.tabLabel, tab === t && styles.tabLabelActive]}>
               {t === 'productos' ? 'Productos' : 'Historial Ventas'}
@@ -97,12 +100,12 @@ export default function POSScreen() {
           numColumns={2}
           columnWrapperStyle={{ gap: 12 }}
           contentContainerStyle={styles.grid}
-          refreshControl={<RefreshControl refreshing={loadingP} onRefresh={refetchP} tintColor={Colors.accent} />}
+          refreshControl={<RefreshControl refreshing={loadingP} onRefresh={refetchP} tintColor={colors.accent} />}
           ListEmptyComponent={<EmptyState icon="cube-outline" msg="No hay productos registrados." />}
           renderItem={({ item: p }) => (
             <View style={styles.productCard} accessible accessibilityLabel={`${p.nombre}, $${p.precio}`}>
               <View style={styles.productIconBox}>
-                <Ionicons name="cube-outline" size={28} color={Colors.accent} />
+                <Ionicons name="cube-outline" size={28} color={colors.accent} />
               </View>
               <Text style={styles.productName} numberOfLines={2}>{toStr(p.nombre)}</Text>
               <Text style={styles.productPrice}>${p.precio}</Text>
@@ -126,7 +129,7 @@ export default function POSScreen() {
           data={ventas}
           keyExtractor={(v, i) => v._id ?? String(i)}
           contentContainerStyle={styles.list}
-          refreshControl={<RefreshControl refreshing={loadingV} onRefresh={refetchV} tintColor={Colors.accent} />}
+          refreshControl={<RefreshControl refreshing={loadingV} onRefresh={refetchV} tintColor={colors.accent} />}
           ListHeaderComponent={
             <Card style={{ marginBottom: 12 }} padding={14}>
               <Text style={styles.totalLabel}>Total ventas</Text>
@@ -137,7 +140,7 @@ export default function POSScreen() {
           renderItem={({ item: v }) => (
             <View style={styles.ventaCard} accessible>
               <View style={styles.ventaIconBox}>
-                <Ionicons name="receipt-outline" size={18} color={Colors.warning} />
+                <Ionicons name="receipt-outline" size={18} color={colors.warning} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.ventaCliente}>{toStr(v.nombre_miembro, 'Cliente general')}</Text>
@@ -158,54 +161,56 @@ export default function POSScreen() {
 function EmptyState({ icon, msg }: { icon: string; msg: string }) {
   return (
     <View style={styles.empty}>
-      <Ionicons name={icon as any} size={44} color={Colors.textMuted} />
+      <Ionicons name={icon as any} size={44} color={colors.textMuted} />
       <Text style={styles.emptyText}>{msg}</Text>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  screen:     { flex: 1, backgroundColor: Colors.background },
+function make_styles(colors: ReturnType<typeof useColors>) {
+  return StyleSheet.create({
+  screen:     { flex: 1, backgroundColor: colors.background },
   tabBar:     { flexDirection: 'row', paddingHorizontal: 16, paddingTop: 12, gap: 8 },
   tabBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 6, paddingVertical: 10, borderRadius: 12,
-    backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border,
+    backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
   },
-  tabBtnActive:  { backgroundColor: 'rgba(108,99,255,0.15)', borderColor: Colors.accent },
-  tabLabel:      { color: Colors.textSecondary, fontSize: 13, fontWeight: '600' },
-  tabLabelActive:{ color: Colors.accent },
+  tabBtnActive:  { backgroundColor: 'rgba(108,99,255,0.15)', borderColor: colors.accent },
+  tabLabel:      { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
+  tabLabelActive:{ color: colors.accent },
   grid:   { padding: 16, gap: 12 },
   list:   { padding: 16, gap: 10, paddingBottom: 32 },
   productCard: {
-    flex: 1, backgroundColor: Colors.card, borderRadius: 16,
-    padding: 14, gap: 6, borderWidth: 1, borderColor: Colors.border,
+    flex: 1, backgroundColor: colors.card, borderRadius: 16,
+    padding: 14, gap: 6, borderWidth: 1, borderColor: colors.border,
   },
   productIconBox: {
     width: 48, height: 48, borderRadius: 14,
     backgroundColor: 'rgba(108,99,255,0.1)',
     alignItems: 'center', justifyContent: 'center', marginBottom: 4,
   },
-  productName:    { color: Colors.text, fontSize: 14, fontWeight: '600' },
-  productPrice:   { color: Colors.accent, fontSize: 18, fontWeight: '800' },
+  productName:    { color: colors.text, fontSize: 14, fontWeight: '600' },
+  productPrice:   { color: colors.accent, fontSize: 18, fontWeight: '800' },
   productFooter:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 },
-  productStock:   { color: Colors.textMuted, fontSize: 11 },
+  productStock:   { color: colors.textMuted, fontSize: 11 },
   ventaCard: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 12,
-    backgroundColor: Colors.card, borderRadius: 14, padding: 14,
-    borderWidth: 1, borderColor: Colors.border,
+    backgroundColor: colors.card, borderRadius: 14, padding: 14,
+    borderWidth: 1, borderColor: colors.border,
   },
   ventaIconBox: {
     width: 38, height: 38, borderRadius: 10,
-    backgroundColor: Colors.warningBg,
+    backgroundColor: colors.warningBg,
     alignItems: 'center', justifyContent: 'center',
   },
-  ventaCliente: { color: Colors.text, fontSize: 14, fontWeight: '600' },
-  ventaFecha:   { color: Colors.textMuted, fontSize: 11, marginBottom: 2 },
-  ventaItem:    { color: Colors.textSecondary, fontSize: 12 },
-  ventaTotal:   { color: Colors.warning, fontSize: 18, fontWeight: '800', marginLeft: 'auto' },
-  totalLabel:   { color: Colors.textSecondary, fontSize: 12 },
-  totalValue:   { color: Colors.text, fontSize: 20, fontWeight: '700' },
+  ventaCliente: { color: colors.text, fontSize: 14, fontWeight: '600' },
+  ventaFecha:   { color: colors.textMuted, fontSize: 11, marginBottom: 2 },
+  ventaItem:    { color: colors.textSecondary, fontSize: 12 },
+  ventaTotal:   { color: colors.warning, fontSize: 18, fontWeight: '800', marginLeft: 'auto' },
+  totalLabel:   { color: colors.textSecondary, fontSize: 12 },
+  totalValue:   { color: colors.text, fontSize: 20, fontWeight: '700' },
   empty:        { alignItems: 'center', paddingVertical: 60, gap: 12 },
-  emptyText:    { color: Colors.textMuted, fontSize: 14 },
+  emptyText:    { color: colors.textMuted, fontSize: 14 },
 });
+}

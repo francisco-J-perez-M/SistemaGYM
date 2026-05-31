@@ -8,7 +8,7 @@
  * Tab "Entrenador": GET /api/user/training/trainers
  *   + Chat GET|POST /api/user/training/chat/<trainer_id>
  */
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, SectionList, TouchableOpacity,
   RefreshControl, TextInput, KeyboardAvoidingView, Platform, Alert,
@@ -16,6 +16,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
+import { useColors } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
 import { toStr, toArray, toDateStr } from '../../utils/format';
@@ -76,6 +77,9 @@ function trainerName(t: Trainer): string {
 
 // ── Componente ────────────────────────────────────────────────────────────────
 export default function TrainingScreen() {
+  const colors = useColors();
+  const mbS = useMemo(() => make_mbS(colors), [colors]);
+  const styles = useMemo(() => make_styles(colors), [colors]);
   const insets   = useSafeAreaInsets();
   const [tab, setTab]                         = useState<Tab>('rutina');
   const [selectedTrainer, setSelectedTrainer] = useState<Trainer | null>(null);
@@ -138,7 +142,7 @@ export default function TrainingScreen() {
             accessibilityRole="tab"
             accessibilityState={{ selected: tab === t }}
           >
-            <Ionicons name={icon} size={16} color={tab === t ? Colors.accent : Colors.textSecondary} />
+            <Ionicons name={icon} size={16} color={tab === t ? colors.accent : colors.textSecondary} />
             <Text style={[styles.tabLabel, tab === t && styles.tabLabelActive]}>{label}</Text>
           </TouchableOpacity>
         ))}
@@ -151,10 +155,10 @@ export default function TrainingScreen() {
           keyExtractor={(r, i) => r.id ?? String(i)}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={loadingR} onRefresh={refetchR} tintColor={Colors.accent} />}
+          refreshControl={<RefreshControl refreshing={loadingR} onRefresh={refetchR} tintColor={colors.accent} />}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Ionicons name="barbell-outline" size={44} color={Colors.textMuted} />
+              <Ionicons name="barbell-outline" size={44} color={colors.textMuted} />
               <Text style={styles.emptyText}>No tienes rutinas asignadas.</Text>
               <Text style={styles.emptyHint}>Tu entrenador las configurará pronto.</Text>
             </View>
@@ -171,7 +175,7 @@ export default function TrainingScreen() {
                   accessibilityState={{ expanded: isOpen }}
                 >
                   <View style={styles.rutinaIconBox}>
-                    <Ionicons name="barbell-outline" size={20} color={Colors.accent} />
+                    <Ionicons name="barbell-outline" size={20} color={colors.accent} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.rutinaNombre}>{r.nombre}</Text>
@@ -194,7 +198,7 @@ export default function TrainingScreen() {
                   </TouchableOpacity>
                   <Ionicons
                     name={isOpen ? 'chevron-up' : 'chevron-down'}
-                    size={18} color={Colors.textSecondary}
+                    size={18} color={colors.textSecondary}
                   />
                 </TouchableOpacity>
 
@@ -204,7 +208,7 @@ export default function TrainingScreen() {
 
                 {r.notas_entrenador ? (
                   <View style={styles.notasBox}>
-                    <Ionicons name="chatbubble-outline" size={12} color={Colors.accent} />
+                    <Ionicons name="chatbubble-outline" size={12} color={colors.accent} />
                     <Text style={styles.notasText}>{r.notas_entrenador}</Text>
                   </View>
                 ) : null}
@@ -274,7 +278,7 @@ export default function TrainingScreen() {
           {trainers.length === 0 ? (
             <Card style={styles.trainerCard}>
               <View style={styles.empty}>
-                <Ionicons name="person-outline" size={40} color={Colors.textMuted} />
+                <Ionicons name="person-outline" size={40} color={colors.textMuted} />
                 <Text style={styles.emptyText}>Sin entrenadores disponibles.</Text>
               </View>
             </Card>
@@ -307,11 +311,11 @@ export default function TrainingScreen() {
               keyExtractor={(m, i) => m._id ?? String(i)}
               contentContainerStyle={styles.chatList}
               showsVerticalScrollIndicator={false}
-              refreshControl={<RefreshControl refreshing={loadingC} onRefresh={refetchC} tintColor={Colors.accent} />}
+              refreshControl={<RefreshControl refreshing={loadingC} onRefresh={refetchC} tintColor={colors.accent} />}
               onContentSizeChange={() => flatRef.current?.scrollToEnd({ animated: false })}
               ListEmptyComponent={
                 <View style={styles.chatEmpty}>
-                  <Ionicons name="chatbubbles-outline" size={36} color={Colors.textMuted} />
+                  <Ionicons name="chatbubbles-outline" size={36} color={colors.textMuted} />
                   <Text style={styles.chatEmptyText}>
                     {trainerId ? 'Inicia la conversación.' : 'Selecciona un entrenador.'}
                   </Text>
@@ -337,7 +341,7 @@ export default function TrainingScreen() {
               <TextInput
                 style={styles.textInput}
                 placeholder={trainerId ? 'Escribe un mensaje…' : 'Selecciona un entrenador'}
-                placeholderTextColor={Colors.textMuted}
+                placeholderTextColor={colors.textMuted}
                 value={msg} onChangeText={setMsg}
                 multiline maxLength={500}
                 editable={!!trainerId}
@@ -364,64 +368,68 @@ export default function TrainingScreen() {
   );
 }
 
-const mbS = StyleSheet.create({
-  verBtn:     { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: Colors.accent, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 8 },
+function make_mbS(colors: ReturnType<typeof useColors>) {
+  return StyleSheet.create({
+  verBtn:     { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.accent, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 8 },
   verBtnText: { color: '#fff', fontSize: 11, fontWeight: '700' },
 });
+}
 
-const styles = StyleSheet.create({
-  screen:  { flex: 1, backgroundColor: Colors.background },
-  tabRow:  { flexDirection: 'row', marginHorizontal: 20, marginBottom: 16, backgroundColor: Colors.card, borderRadius: 12, padding: 4, borderWidth: 1, borderColor: Colors.border },
+function make_styles(colors: ReturnType<typeof useColors>) {
+  return StyleSheet.create({
+  screen:  { flex: 1, backgroundColor: colors.background },
+  tabRow:  { flexDirection: 'row', marginHorizontal: 20, marginBottom: 16, backgroundColor: colors.card, borderRadius: 12, padding: 4, borderWidth: 1, borderColor: colors.border },
   tabBtn:  { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 9, borderRadius: 10 },
   tabBtnActive:  { backgroundColor: 'rgba(108,99,255,0.15)' },
-  tabLabel:      { color: Colors.textSecondary, fontSize: 14, fontWeight: '600' },
-  tabLabelActive:{ color: Colors.accent },
+  tabLabel:      { color: colors.textSecondary, fontSize: 14, fontWeight: '600' },
+  tabLabelActive:{ color: colors.accent },
   list:    { paddingHorizontal: 20, gap: 14, paddingBottom: 32 },
   empty:   { alignItems: 'center', paddingVertical: 40, gap: 8 },
-  emptyText: { color: Colors.textMuted, fontSize: 15, fontWeight: '600', textAlign: 'center' },
-  emptyHint: { color: Colors.textMuted, fontSize: 13, textAlign: 'center' },
+  emptyText: { color: colors.textMuted, fontSize: 15, fontWeight: '600', textAlign: 'center' },
+  emptyHint: { color: colors.textMuted, fontSize: 13, textAlign: 'center' },
   rutinaCard:   { gap: 10 },
   rutinaHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   rutinaIconBox:{ width: 44, height: 44, borderRadius: 12, backgroundColor: 'rgba(108,99,255,0.1)', alignItems: 'center', justifyContent: 'center' },
-  rutinaNombre: { color: Colors.text, fontSize: 16, fontWeight: '700' },
-  rutinaMeta:   { color: Colors.textSecondary, fontSize: 12, marginTop: 2 },
-  rutinaTrainer:{ color: Colors.accent, fontSize: 11, marginTop: 1 },
-  rutinaDesc:   { color: Colors.textSecondary, fontSize: 13, lineHeight: 18 },
+  rutinaNombre: { color: colors.text, fontSize: 16, fontWeight: '700' },
+  rutinaMeta:   { color: colors.textSecondary, fontSize: 12, marginTop: 2 },
+  rutinaTrainer:{ color: colors.accent, fontSize: 11, marginTop: 1 },
+  rutinaDesc:   { color: colors.textSecondary, fontSize: 13, lineHeight: 18 },
   notasBox:     { flexDirection: 'row', alignItems: 'flex-start', gap: 6, backgroundColor: 'rgba(108,99,255,0.08)', borderRadius: 8, padding: 8 },
-  notasText:    { color: Colors.textSecondary, fontSize: 12, flex: 1 },
-  diaSection:   { borderTopWidth: 1, borderTopColor: Colors.border, paddingTop: 10, gap: 8 },
+  notasText:    { color: colors.textSecondary, fontSize: 12, flex: 1 },
+  diaSection:   { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 10, gap: 8 },
   diaHeader:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  diaNombre:    { color: Colors.accent, fontSize: 13, fontWeight: '700' },
-  diaGrupo:     { color: Colors.textSecondary, fontSize: 12 },
+  diaNombre:    { color: colors.accent, fontSize: 13, fontWeight: '700' },
+  diaGrupo:     { color: colors.textSecondary, fontSize: 12 },
   ejRow:        { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   ejNum:        { width: 22, height: 22, borderRadius: 8, backgroundColor: 'rgba(108,99,255,0.12)', alignItems: 'center', justifyContent: 'center' },
-  ejNumText:    { color: Colors.accent, fontSize: 11, fontWeight: '700' },
-  ejNombre:     { color: Colors.text, fontSize: 14, fontWeight: '600' },
-  ejDetalle:    { color: Colors.accent, fontSize: 12 },
-  ejNotas:      { color: Colors.textSecondary, fontSize: 12, fontStyle: 'italic' },
-  trainerChip:  { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border },
-  trainerChipActive: { backgroundColor: Colors.accent, borderColor: Colors.accent },
-  trainerChipText:   { color: Colors.textSecondary, fontSize: 13, fontWeight: '600' },
+  ejNumText:    { color: colors.accent, fontSize: 11, fontWeight: '700' },
+  ejNombre:     { color: colors.text, fontSize: 14, fontWeight: '600' },
+  ejDetalle:    { color: colors.accent, fontSize: 12 },
+  ejNotas:      { color: colors.textSecondary, fontSize: 12, fontStyle: 'italic' },
+  trainerChip:  { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
+  trainerChipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
+  trainerChipText:   { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
   trainerCard:  { marginHorizontal: 20, marginBottom: 12 },
   trainerRow:   { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  trainerAvatar:{ width: 52, height: 52, borderRadius: 16, backgroundColor: Colors.accent, alignItems: 'center', justifyContent: 'center' },
+  trainerAvatar:{ width: 52, height: 52, borderRadius: 16, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   trainerInitials: { color: '#fff', fontSize: 22, fontWeight: '800' },
-  trainerName:  { color: Colors.text, fontSize: 16, fontWeight: '700' },
-  trainerSpec:  { color: Colors.accent, fontSize: 12 },
-  trainerEmail: { color: Colors.textSecondary, fontSize: 12 },
+  trainerName:  { color: colors.text, fontSize: 16, fontWeight: '700' },
+  trainerSpec:  { color: colors.accent, fontSize: 12 },
+  trainerEmail: { color: colors.textSecondary, fontSize: 12 },
   chatContainer:{ flex: 1, marginHorizontal: 20 },
-  chatTitle:    { color: Colors.textSecondary, fontSize: 12, fontWeight: '700', marginBottom: 8 },
+  chatTitle:    { color: colors.textSecondary, fontSize: 12, fontWeight: '700', marginBottom: 8 },
   chatList:     { paddingVertical: 8, gap: 8, flexGrow: 1, justifyContent: 'flex-end' },
   chatEmpty:    { alignItems: 'center', gap: 8, paddingVertical: 24 },
-  chatEmptyText:{ color: Colors.textMuted, fontSize: 13, textAlign: 'center' },
+  chatEmptyText:{ color: colors.textMuted, fontSize: 13, textAlign: 'center' },
   bubble:       { maxWidth: '80%', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 18, gap: 2 },
-  bubbleMe:     { alignSelf: 'flex-end', backgroundColor: Colors.accent, borderBottomRightRadius: 4 },
-  bubbleThem:   { alignSelf: 'flex-start', backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderBottomLeftRadius: 4 },
-  bubbleText:   { color: Colors.text, fontSize: 14, lineHeight: 20 },
+  bubbleMe:     { alignSelf: 'flex-end', backgroundColor: colors.accent, borderBottomRightRadius: 4 },
+  bubbleThem:   { alignSelf: 'flex-start', backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderBottomLeftRadius: 4 },
+  bubbleText:   { color: colors.text, fontSize: 14, lineHeight: 20 },
   bubbleTextMe: { color: '#fff' },
-  bubbleTime:   { color: Colors.textMuted, fontSize: 10, alignSelf: 'flex-end' },
-  inputBar:     { flexDirection: 'row', alignItems: 'flex-end', gap: 10, paddingTop: 8, borderTopWidth: 1, borderTopColor: Colors.border },
-  textInput:    { flex: 1, maxHeight: 100, backgroundColor: Colors.card, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, color: Colors.text, fontSize: 14, borderWidth: 1, borderColor: Colors.border },
-  sendBtn:      { width: 44, height: 44, borderRadius: 12, backgroundColor: Colors.accent, alignItems: 'center', justifyContent: 'center' },
+  bubbleTime:   { color: colors.textMuted, fontSize: 10, alignSelf: 'flex-end' },
+  inputBar:     { flexDirection: 'row', alignItems: 'flex-end', gap: 10, paddingTop: 8, borderTopWidth: 1, borderTopColor: colors.border },
+  textInput:    { flex: 1, maxHeight: 100, backgroundColor: colors.card, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, color: colors.text, fontSize: 14, borderWidth: 1, borderColor: colors.border },
+  sendBtn:      { width: 44, height: 44, borderRadius: 12, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   sendBtnDisabled: { opacity: 0.4 },
 });
+}
