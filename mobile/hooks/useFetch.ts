@@ -28,6 +28,7 @@ export function useFetch<T>(url: string, params?: Record<string, any>): FetchSta
   const [error,   setError]   = React.useState<string | null>(null);
 
   const doFetch = React.useCallback(() => {
+    if (!url) { setLoading(false); setData(null); return; }
     setLoading(true);
     setError(null);
     api

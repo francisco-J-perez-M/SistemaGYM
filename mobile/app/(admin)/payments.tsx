@@ -9,7 +9,7 @@ import { View, Text, StyleSheet, FlatList, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
-import { useColors } from '../../hooks/useColors';
+import { useColors, useFontScale } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
 import { toDateStr, toStr, toArray } from '../../utils/format';
@@ -18,7 +18,8 @@ import type { PagosResponse, PagoAPI } from '../../types';
 
 export default function AdminPaymentsScreen() {
   const colors = useColors();
-  const styles = useMemo(() => make_styles(colors), [colors]);
+  const fs = useFontScale();
+  const styles = useMemo(() => make_styles(colors, fs), [colors, fs]);
   const insets = useSafeAreaInsets();
   // API devuelve { pagos: [...], total: N, pages: N, page: N }
   const { data, loading, refetch } = useFetch<PagosResponse>(ENDPOINTS.PAGOS);
@@ -79,12 +80,12 @@ export default function AdminPaymentsScreen() {
   );
 }
 
-function make_styles(colors: ReturnType<typeof useColors>) {
+function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   return StyleSheet.create({
   screen:  { flex: 1, backgroundColor: colors.background },
   header:  { paddingHorizontal: 20, gap: 4, paddingBottom: 12 },
-  title:   { color: colors.text, fontSize: 26, fontWeight: '700' },
-  sub:     { color: colors.textSecondary, fontSize: 13 },
+  title:   { color: colors.text, fontSize: 26 * fs, fontWeight: '700' },
+  sub:     { color: colors.textSecondary, fontSize: 13 * fs },
   totalBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 14,
     marginHorizontal: 20, marginBottom: 8,
@@ -95,11 +96,11 @@ function make_styles(colors: ReturnType<typeof useColors>) {
     width: 44, height: 44, borderRadius: 14,
     backgroundColor: colors.warningBg, alignItems: 'center', justifyContent: 'center',
   },
-  totalLabel: { color: colors.textSecondary, fontSize: 12 },
-  totalValue: { color: colors.text, fontSize: 24, fontWeight: '800' },
+  totalLabel: { color: colors.textSecondary, fontSize: 12 * fs },
+  totalValue: { color: colors.text, fontSize: 24 * fs, fontWeight: '800' },
   list:    { paddingHorizontal: 20, paddingBottom: 32, gap: 10 },
   empty:   { alignItems: 'center', paddingVertical: 40, gap: 10 },
-  emptyText: { color: colors.textMuted, fontSize: 14 },
+  emptyText: { color: colors.textMuted, fontSize: 14 * fs },
   pagoCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: colors.card, borderRadius: 14, padding: 14,
@@ -109,9 +110,9 @@ function make_styles(colors: ReturnType<typeof useColors>) {
     width: 40, height: 40, borderRadius: 12,
     backgroundColor: colors.warningBg, alignItems: 'center', justifyContent: 'center',
   },
-  pagoNombre:  { color: colors.text, fontSize: 14, fontWeight: '600' },
-  pagoConcepto:{ color: colors.textSecondary, fontSize: 12 },
-  pagoFecha:   { color: colors.textMuted, fontSize: 11 },
-  pagoMonto:   { color: colors.warning, fontSize: 18, fontWeight: '700' },
+  pagoNombre:  { color: colors.text, fontSize: 14 * fs, fontWeight: '600' },
+  pagoConcepto:{ color: colors.textSecondary, fontSize: 12 * fs },
+  pagoFecha:   { color: colors.textMuted, fontSize: 11 * fs },
+  pagoMonto:   { color: colors.warning, fontSize: 18 * fs, fontWeight: '700' },
 });
 }

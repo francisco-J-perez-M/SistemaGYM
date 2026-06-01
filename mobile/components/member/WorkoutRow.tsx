@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
-import { useColors } from '../../hooks/useColors';
+import { useColors, useFontScale } from '../../hooks/useColors';
 import type { Exercise } from '../../types';
 
 interface Props {
@@ -13,7 +13,8 @@ interface Props {
 
 export default function WorkoutRow({ exercise, index, onToggle }: Props) {
   const colors = useColors();
-  const styles = useMemo(() => make_styles(colors), [colors]);
+  const fs = useFontScale();
+  const styles = useMemo(() => make_styles(colors, fs), [colors, fs]);
   return (
     <TouchableOpacity
       style={[styles.row, exercise.completed && styles.rowDone]}
@@ -43,7 +44,7 @@ export default function WorkoutRow({ exercise, index, onToggle }: Props) {
   );
 }
 
-function make_styles(colors: ReturnType<typeof useColors>) {
+function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   return StyleSheet.create({
   row: {
     flexDirection:   'row',
@@ -70,7 +71,7 @@ function make_styles(colors: ReturnType<typeof useColors>) {
   info: { flex: 1 },
   name: {
     color:      colors.text,
-    fontSize:   14,
+    fontSize: 14 * fs,
     fontWeight: '600',
   },
   nameDone: {
@@ -79,7 +80,7 @@ function make_styles(colors: ReturnType<typeof useColors>) {
   },
   sets: {
     color:    colors.accent,
-    fontSize: 12,
+    fontSize: 12 * fs,
     marginTop: 2,
   },
 });

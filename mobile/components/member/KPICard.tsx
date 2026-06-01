@@ -4,7 +4,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Colors } from '../../constants/Colors';
-import { useColors } from '../../hooks/useColors';
+import { useColors, useFontScale } from '../../hooks/useColors';
 
 interface Props {
   label:     string;
@@ -16,7 +16,8 @@ interface Props {
 
 export default function KPICard({ label, value, unit, icon, gradient }: Props) {
   const colors = useColors();
-  const styles = useMemo(() => make_styles(colors), [colors]);
+  const fs = useFontScale();
+  const styles = useMemo(() => make_styles(colors, fs), [colors, fs]);
   return (
     <View style={styles.wrapper}>
       <View style={[styles.card, gradient ? { backgroundColor: gradient[0] } : styles.plain]}>
@@ -31,7 +32,7 @@ export default function KPICard({ label, value, unit, icon, gradient }: Props) {
   );
 }
 
-function make_styles(colors: ReturnType<typeof useColors>) {
+function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   return StyleSheet.create({
   wrapper: { flex: 1, minWidth: 140 },
   card: {
@@ -55,11 +56,11 @@ function make_styles(colors: ReturnType<typeof useColors>) {
   },
   value: {
     color:      '#fff',
-    fontSize:   26,
+    fontSize: 26 * fs,
     fontWeight: '700',
     lineHeight: 30,
   },
-  unit:  { fontSize: 14, fontWeight: '500' },
-  label: { color: 'rgba(255,255,255,0.75)', fontSize: 12 },
+  unit:  { fontSize: 14 * fs, fontWeight: '500' },
+  label: { color: 'rgba(255,255,255,0.75)', fontSize: 12 * fs },
 });
 }

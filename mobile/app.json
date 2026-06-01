@@ -12,7 +12,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#0f0f1a"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.gympro.mobile",
@@ -32,6 +34,12 @@
     ],
     "experiments": {
       "typedRoutes": false
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "bc027939-b964-46c0-9aba-703b7458b216"
+      }
     }
   }
 }

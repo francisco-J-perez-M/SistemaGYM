@@ -3,7 +3,7 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
-import { useColors } from '../../hooks/useColors';
+import { useColors, useFontScale } from '../../hooks/useColors';
 import { toDateStr, toStr } from '../../utils/format';
 import type { Membership } from '../../types';
 
@@ -11,7 +11,8 @@ interface Props { membership: Membership | null }
 
 export default function MembershipCard({ membership }: Props) {
   const colors = useColors();
-  const styles = useMemo(() => make_styles(colors), [colors]);
+  const fs = useFontScale();
+  const styles = useMemo(() => make_styles(colors, fs), [colors, fs]);
   if (!membership) return null;
 
   const isUrgent = membership.dias_restantes <= 7;
@@ -51,7 +52,7 @@ export default function MembershipCard({ membership }: Props) {
   );
 }
 
-function make_styles(colors: ReturnType<typeof useColors>) {
+function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   return StyleSheet.create({
   card: {
     borderRadius:    20,
@@ -75,18 +76,18 @@ function make_styles(colors: ReturnType<typeof useColors>) {
     borderRadius: 20, gap: 5,
   },
   dot:        { width: 6, height: 6, borderRadius: 3 },
-  statusText: { fontSize: 12, fontWeight: '600' },
-  plan:       { color: '#fff', fontSize: 20, fontWeight: '700' },
+  statusText: { fontSize: 12 * fs, fontWeight: '600' },
+  plan:       { color: '#fff', fontSize: 20 * fs, fontWeight: '700' },
   bottomRow: {
     flexDirection:  'row',
     justifyContent: 'space-between',
     alignItems:     'flex-end',
     marginTop:      4,
   },
-  miniLabel: { color: 'rgba(255,255,255,0.55)', fontSize: 11 },
-  miniVal:   { color: 'rgba(255,255,255,0.9)',  fontSize: 14, fontWeight: '600' },
+  miniLabel: { color: 'rgba(255,255,255,0.55)', fontSize: 11 * fs },
+  miniVal:   { color: 'rgba(255,255,255,0.9)',  fontSize: 14 * fs, fontWeight: '600' },
   daysBox:   { alignItems: 'flex-end' },
-  daysNum:   { fontSize: 28, fontWeight: '800', lineHeight: 30 },
-  daysLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 11 },
+  daysNum:   { fontSize: 28 * fs, fontWeight: '800', lineHeight: 30 },
+  daysLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 11 * fs },
 });
 }

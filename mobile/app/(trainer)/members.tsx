@@ -11,7 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
-import { useColors } from '../../hooks/useColors';
+import { useColors, useFontScale } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
 import { toInitial, toStr, toArray } from '../../utils/format';
@@ -21,7 +21,8 @@ import type { TrainerClientsResponse, TrainerClientAPI } from '../../types';
 
 export default function TrainerMembersScreen() {
   const colors = useColors();
-  const styles = useMemo(() => make_styles(colors), [colors]);
+  const fs = useFontScale();
+  const styles = useMemo(() => make_styles(colors, fs), [colors, fs]);
   const insets = useSafeAreaInsets();
   // API devuelve {clients:[{id,name,goal,...}], pagination}
   const { data, loading, refetch } = useFetch<TrainerClientsResponse>(ENDPOINTS.TRAINER_CLIENTS);
@@ -99,21 +100,21 @@ export default function TrainerMembersScreen() {
   );
 }
 
-function make_styles(colors: ReturnType<typeof useColors>) {
+function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   return StyleSheet.create({
   screen:  { flex: 1, backgroundColor: colors.background },
   header:  { paddingHorizontal: 20, gap: 6, paddingBottom: 12 },
-  title:   { color: colors.text, fontSize: 26, fontWeight: '700' },
-  sub:     { color: colors.textSecondary, fontSize: 13, marginBottom: 8 },
+  title:   { color: colors.text, fontSize: 26 * fs, fontWeight: '700' },
+  sub:     { color: colors.textSecondary, fontSize: 13 * fs, marginBottom: 8 },
   searchBox: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     backgroundColor: colors.card, borderRadius: 12, borderWidth: 1, borderColor: colors.border,
     paddingHorizontal: 14, paddingVertical: 10,
   },
-  searchInput: { flex: 1, color: colors.text, fontSize: 14 },
+  searchInput: { flex: 1, color: colors.text, fontSize: 14 * fs },
   list: { padding: 20, gap: 10, paddingBottom: 32 },
   empty: { alignItems: 'center', paddingVertical: 40, gap: 10 },
-  emptyText: { color: colors.textMuted, fontSize: 14 },
+  emptyText: { color: colors.textMuted, fontSize: 14 * fs },
   clientCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: colors.card, borderRadius: 14, padding: 14,
@@ -123,9 +124,9 @@ function make_styles(colors: ReturnType<typeof useColors>) {
     width: 44, height: 44, borderRadius: 14,
     backgroundColor: 'rgba(108,99,255,0.15)', alignItems: 'center', justifyContent: 'center',
   },
-  clientInitial: { color: colors.accent, fontSize: 18, fontWeight: '700' },
-  clientName:    { color: colors.text, fontSize: 15, fontWeight: '600' },
-  clientGoal:    { color: colors.accent, fontSize: 11, marginTop: 1 },
-  clientStats:   { color: colors.textSecondary, fontSize: 11, marginTop: 2 },
+  clientInitial: { color: colors.accent, fontSize: 18 * fs, fontWeight: '700' },
+  clientName:    { color: colors.text, fontSize: 15 * fs, fontWeight: '600' },
+  clientGoal:    { color: colors.accent, fontSize: 11 * fs, marginTop: 1 },
+  clientStats:   { color: colors.textSecondary, fontSize: 11 * fs, marginTop: 2 },
 });
 }

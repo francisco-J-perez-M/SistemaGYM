@@ -15,7 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
-import { useColors } from '../../hooks/useColors';
+import { useColors, useFontScale, useReduceMotion } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
 import { toStr, toArray } from '../../utils/format';
@@ -24,14 +24,18 @@ import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
 import Input from '../../components/ui/Input';
 import RoutineDetailModal, { type RoutineForModal } from '../../components/routines/RoutineDetailModal';
+import ExerciseDetailSheet, { type ExerciseDetail, cacheVideo, cacheImages } from '../../components/routines/ExerciseDetailSheet';
 
 // ── Types reales del API ──────────────────────────────────────────────────────
 interface ExerciseItem {
-  name:     string;
-  sets:     string;   // e.g. "3x12"
-  rest:     string;
-  day:      string;
-  peso?:    string;
+  name:            string;
+  sets:            string;
+  rest:            string;
+  day:             string;
+  peso?:           string;
+  imagenes?:       string[];
+  video?:          string;
+  instrucciones?:  string;
 }
 
 interface Routine {
@@ -57,6 +61,8 @@ interface Exercise {
   series?:         number;
   repeticiones?:   string;
   duracion_min?:   number;
+  imagenes?:       string[];
+  video?:          string;
 }
 
 interface RoutinesResponse {
@@ -85,13 +91,16 @@ type MainTab = 'rutinas' | 'ejercicios';
 
 export default function TrainerRoutinesScreen() {
   const colors = useColors();
-  const styles = useMemo(() => make_styles(colors), [colors]);
+  const fs = useFontScale();
+  const styles = useMemo(() => make_styles(colors, fs), [colors, fs]);
+  const reduceMotion = useReduceMotion();
   const insets = useSafeAreaInsets();
   const [mainTab,    setMainTab]    = useState<MainTab>('rutinas');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [catFilter,  setCatFilter]  = useState<string>('Todas');
   const [exSearch,   setExSearch]   = useState('');
   const [selectedRoutine, setSelectedRoutine] = useState<RoutineForModal | null>(null);
+  const [selectedExercise, setSelectedExercise] = useState<ExerciseDetail | null>(null);
 
   const { data, loading, refetch } = useFetch<RoutinesResponse>(ENDPOINTS.TRAINER_ROUTINES);
   const { data: exData, loading: loadingEx, refetch: refetchEx } =
@@ -110,7 +119,7 @@ export default function TrainerRoutinesScreen() {
     : allExercises;
 
   const toggle = (id: string) => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    if (!reduceMotion) LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setExpandedId(prev => prev === id ? null : id);
   };
 
@@ -174,6 +183,25 @@ export default function TrainerRoutinesScreen() {
                   </Text>
                   {e.descripcion ? <Text style={styles.exCardDesc} numberOfLines={2}>{e.descripcion}</Text> : null}
                 </View>
+                <TouchableOpacity
+                  style={styles.verBtn}
+                  onPress={() => {
+                    const vk = e.video    ? `cat_${e.id}`    : undefined;
+                    const ik = e.imagenes ? `icat_${e.id}`  : undefined;
+                    if (vk && e.video)    cacheVideo(vk, e.video);
+                    if (ik && e.imagenes) cacheImages(ik, e.imagenes);
+                    setSelectedExercise({
+                      nombre:         e.nombre,
+                      instrucciones:  e.descripcion,
+                      imageKey:       ik,
+                      videoKey:       vk,
+                    });
+                  }}
+                  accessibilityLabel={`Ver detalle de ${e.nombre}`}
+                  accessibilityRole="button">
+                  <Ionicons name="eye-outline" size={13} color="#fff" />
+                  <Text style={styles.verBtnText}>Ver</Text>
+                </TouchableOpacity>
               </View>
             )}
           />
@@ -290,6 +318,29 @@ export default function TrainerRoutinesScreen() {
                         </Text>
                         {ex.day ? <Text style={styles.exDay}>{ex.day}</Text> : null}
                       </View>
+                      <TouchableOpacity
+                        style={styles.verBtn}
+                        onPress={() => {
+                          const vk = ex.video    ? `ex_${r.id}_${i}`  : undefined;
+                          const ik = ex.imagenes ? `iex_${r.id}_${i}` : undefined;
+                          if (vk && ex.video)    cacheVideo(vk, ex.video);
+                          if (ik && ex.imagenes) cacheImages(ik, ex.imagenes);
+                          setSelectedExercise({
+                            nombre: toStr(ex.name),
+                            setsStr: ex.sets,
+                            rest: ex.rest,
+                            day: ex.day,
+                            peso: ex.peso,
+                            instrucciones: ex.instrucciones,
+                            imageKey: ik,
+                            videoKey: vk,
+                          });
+                        }}
+                        accessibilityLabel={`Ver detalle de ${ex.name}`}
+                        accessibilityRole="button">
+                        <Ionicons name="eye-outline" size={13} color="#fff" />
+                        <Text style={styles.verBtnText}>Ver</Text>
+                      </TouchableOpacity>
                     </View>
                   ))}
                 </View>
@@ -299,6 +350,11 @@ export default function TrainerRoutinesScreen() {
         }}
       />
       </>}
+      <ExerciseDetailSheet
+        visible={!!selectedExercise}
+        exercise={selectedExercise}
+        onClose={() => setSelectedExercise(null)}
+      />
       <RoutineDetailModal
         visible={!!selectedRoutine}
         routine={selectedRoutine}
@@ -322,12 +378,12 @@ function StatPill({ icon, label, color, styles, colors }: {
   );
 }
 
-function make_styles(colors: ReturnType<typeof useColors>) {
+function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   return StyleSheet.create({
   screen:  { flex: 1, backgroundColor: colors.background },
   header:  { paddingHorizontal: 20, gap: 2, paddingBottom: 8 },
-  title:   { color: colors.text, fontSize: 26, fontWeight: '700' },
-  sub:     { color: colors.textSecondary, fontSize: 13 },
+  title:   { color: colors.text, fontSize: 26 * fs, fontWeight: '700' },
+  sub:     { color: colors.textSecondary, fontSize: 13 * fs },
   catScroll:  { maxHeight: 44, marginBottom: 4 },
   catContent: { paddingHorizontal: 20, gap: 8, alignItems: 'center' },
   catChip: {
@@ -335,12 +391,12 @@ function make_styles(colors: ReturnType<typeof useColors>) {
     backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
   },
   catChipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
-  catText:       { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
+  catText:       { color: colors.textSecondary, fontSize: 13 * fs, fontWeight: '600' },
   catTextActive: { color: '#fff' },
   list:   { padding: 16, gap: 12, paddingBottom: 32 },
   empty:  { alignItems: 'center', paddingVertical: 60, gap: 8 },
-  emptyText: { color: colors.textMuted, fontSize: 15, fontWeight: '600' },
-  emptyHint: { color: colors.textMuted, fontSize: 13 },
+  emptyText: { color: colors.textMuted, fontSize: 15 * fs, fontWeight: '600' },
+  emptyHint: { color: colors.textMuted, fontSize: 13 * fs },
   card:       { gap: 8 },
   cardTop:    { flexDirection: 'row', alignItems: 'center', gap: 12 },
   cardActions:{ alignItems: 'flex-end', gap: 4 },
@@ -349,33 +405,33 @@ function make_styles(colors: ReturnType<typeof useColors>) {
     backgroundColor: 'rgba(108,99,255,0.1)',
     alignItems: 'center', justifyContent: 'center',
   },
-  routineName: { color: colors.text, fontSize: 15, fontWeight: '700' },
-  routineMeta: { color: colors.textSecondary, fontSize: 12, marginTop: 2 },
+  routineName: { color: colors.text, fontSize: 15 * fs, fontWeight: '700' },
+  routineMeta: { color: colors.textSecondary, fontSize: 12 * fs, marginTop: 2 },
   statsRow:    { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   statPill:    { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.backgroundAlt ?? colors.card, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
-  statLabel:   { color: colors.textSecondary, fontSize: 11, fontWeight: '600' },
-  routineDesc: { color: colors.textSecondary, fontSize: 13, lineHeight: 18 },
+  statLabel:   { color: colors.textSecondary, fontSize: 11 * fs, fontWeight: '600' },
+  routineDesc: { color: colors.textSecondary, fontSize: 13 * fs, lineHeight: 18 },
   exList:      { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 10, gap: 8 },
-  exListTitle: { color: colors.textSecondary, fontSize: 12, fontWeight: '700', marginBottom: 4 },
+  exListTitle: { color: colors.textSecondary, fontSize: 12 * fs, fontWeight: '700', marginBottom: 4 },
   exRow:       { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   exNumBox:    { width: 24, height: 24, borderRadius: 8, backgroundColor: 'rgba(108,99,255,0.15)', alignItems: 'center', justifyContent: 'center' },
-  exNum:       { color: colors.accent, fontSize: 12, fontWeight: '700' },
-  exName:      { color: colors.text, fontSize: 14, fontWeight: '600' },
-  exMeta:      { color: colors.accent, fontSize: 12 },
-  exDay:       { color: colors.textMuted, fontSize: 11, marginTop: 2 },
+  exNum:       { color: colors.accent, fontSize: 12 * fs, fontWeight: '700' },
+  exName:      { color: colors.text, fontSize: 14 * fs, fontWeight: '600' },
+  exMeta:      { color: colors.accent, fontSize: 12 * fs },
+  exDay:       { color: colors.textMuted, fontSize: 11 * fs, marginTop: 2 },
   mainTabRow:  { flexDirection: 'row', marginHorizontal: 20, marginBottom: 12, backgroundColor: colors.card, borderRadius: 12, padding: 4, borderWidth: 1, borderColor: colors.border },
   mainTab:     { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8, borderRadius: 10 },
   mainTabActive: { backgroundColor: 'rgba(108,99,255,0.15)' },
-  mainTabText:   { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
+  mainTabText:   { color: colors.textSecondary, fontSize: 13 * fs, fontWeight: '600' },
   mainTabTextActive: { color: colors.accent },
   searchBox:   { flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, marginBottom: 10, backgroundColor: colors.card, borderRadius: 12, borderWidth: 1, borderColor: colors.border },
-  searchInput: { flex: 1, color: colors.text, fontSize: 14, paddingHorizontal: 10, paddingVertical: 10 },
+  searchInput: { flex: 1, color: colors.text, fontSize: 14 * fs, paddingHorizontal: 10, paddingVertical: 10 },
   exCard:      { flexDirection: 'row', alignItems: 'flex-start', gap: 12, backgroundColor: colors.card, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: colors.border },
   exCardIcon:  { width: 38, height: 38, borderRadius: 10, backgroundColor: 'rgba(108,99,255,0.1)', alignItems: 'center', justifyContent: 'center' },
-  exCardName:  { color: colors.text, fontSize: 14, fontWeight: '700' },
-  exCardMeta:  { color: colors.accent, fontSize: 12, marginTop: 2 },
-  exCardDesc:  { color: colors.textSecondary, fontSize: 12, marginTop: 4 },
+  exCardName:  { color: colors.text, fontSize: 14 * fs, fontWeight: '700' },
+  exCardMeta:  { color: colors.accent, fontSize: 12 * fs, marginTop: 2 },
+  exCardDesc:  { color: colors.textSecondary, fontSize: 12 * fs, marginTop: 4 },
   verBtn:      { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.accent, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
-  verBtnText:  { color: '#fff', fontSize: 12, fontWeight: '700' },
+  verBtnText:  { color: '#fff', fontSize: 12 * fs, fontWeight: '700' },
 });
 }

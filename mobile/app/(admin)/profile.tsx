@@ -11,13 +11,15 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
-import { useColors } from '../../hooks/useColors';
+import { useColors, useFontScale } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
 import { toStr } from '../../utils/format';
 import { useAuth } from '../../hooks/useAuth';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Card from '../../components/ui/Card';
+import AccessibilityPanel from '../../components/settings/AccessibilityPanel';
+import * as Haptics from 'expo-haptics';
 import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
 import api from '../../services/api';
@@ -58,8 +60,9 @@ function Field({ label, value, onChangeText, editing, keyboardType, multiline, f
 
 export default function AdminProfileScreen() {
   const colors = useColors();
-  const fieldS = useMemo(() => make_fieldS(colors), [colors]);
-  const styles = useMemo(() => make_styles(colors), [colors]);
+  const fs = useFontScale();
+  const fieldS = useMemo(() => make_fieldS(colors, fs), [colors, fs]);
+  const styles = useMemo(() => make_styles(colors, fs), [colors, fs]);
   const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
 
@@ -68,6 +71,7 @@ export default function AdminProfileScreen() {
     useFetch<OwnerGym>(ENDPOINTS.OWNER_GYM_PROFILE);
 
   const [editing,      setEditing]      = useState(false);
+  const [showA11y, setShowA11y] = useState(false);
   const [saving,       setSaving]       = useState(false);
   const [nombre,       setNombre]       = useState('');
   const [emailContact, setEmailContact] = useState('');
@@ -99,6 +103,7 @@ export default function AdminProfileScreen() {
   };
 
   const handleLogout = () =>
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     Alert.alert('Cerrar sesión', '¿Estás seguro?', [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Salir', style: 'destructive', onPress: logout },
@@ -177,9 +182,21 @@ export default function AdminProfileScreen() {
           </View>
         </Card>
 
+        {/* Accesibilidad */}
+        <Card>
+          <TouchableOpacity style={styles.logoutRow} onPress={() => setShowA11y(true)}
+            accessibilityRole="button" accessibilityLabel="Ajustes de accesibilidad">
+            <View style={styles.logoutIcon}><Ionicons name="accessibility-outline" size={20} color={colors.accent} /></View>
+            <Text style={[styles.logoutText, { color: colors.text }]}>Accesibilidad</Text>
+            <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+          </TouchableOpacity>
+        </Card>
+
         {/* Cerrar sesión */}
         <Card>
-          <TouchableOpacity style={styles.logoutRow} onPress={handleLogout} accessibilityRole="button">
+          <TouchableOpacity style={styles.logoutRow} onPress={handleLogout} accessibilityRole="button"
+            accessibilityLabel="Cerrar sesión"
+            accessibilityHint="Cierra tu sesión actual y vuelve a la pantalla de inicio">
             <View style={styles.logoutIcon}><Ionicons name="log-out-outline" size={20} color={colors.error} /></View>
             <Text style={styles.logoutText}>Cerrar sesión</Text>
             <Ionicons name="chevron-forward" size={18} color={colors.error} />
@@ -187,38 +204,39 @@ export default function AdminProfileScreen() {
         </Card>
         <Text style={styles.version}>GymPro Mobile v1.0.0</Text>
       </View>
+      <AccessibilityPanel visible={showA11y} onClose={() => setShowA11y(false)} />
     </ScrollView>
   );
 }
 
-function make_fieldS(colors: ReturnType<typeof useColors>) {
+function make_fieldS(colors: ReturnType<typeof useColors>, fs = 1) {
   return StyleSheet.create({
   row:        { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
-  label:      { color: colors.textSecondary, fontSize: 11, marginBottom: 4 },
-  value:      { color: colors.text, fontSize: 14, fontWeight: '600' },
-  input:      { color: colors.text, fontSize: 14, backgroundColor: 'rgba(108,99,255,0.06)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: colors.border },
+  label:      { color: colors.textSecondary, fontSize: 11 * fs, marginBottom: 4 },
+  value:      { color: colors.text, fontSize: 14 * fs, fontWeight: '600' },
+  input:      { color: colors.text, fontSize: 14 * fs, backgroundColor: 'rgba(108,99,255,0.06)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: colors.border },
   inputMulti: { minHeight: 72, textAlignVertical: 'top' },
 });
 }
 
-function make_styles(colors: ReturnType<typeof useColors>) {
+function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   return StyleSheet.create({
   screen:  { flex: 1, backgroundColor: colors.background },
   hero:    { alignItems: 'center', paddingBottom: 28, paddingHorizontal: 24, gap: 6, backgroundColor: colors.heroTop },
   avatar:  { width: 84, height: 84, borderRadius: 26, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
-  initials:{ color: '#fff', fontSize: 32, fontWeight: '800' },
-  name:    { color: colors.text, fontSize: 22, fontWeight: '700', textAlign: 'center' },
-  email:   { color: colors.textSecondary, fontSize: 13 },
-  plan:    { color: colors.accent, fontSize: 12 },
+  initials:{ color: '#fff', fontSize: 32 * fs, fontWeight: '800' },
+  name:    { color: colors.text, fontSize: 22 * fs, fontWeight: '700', textAlign: 'center' },
+  email:   { color: colors.textSecondary, fontSize: 13 * fs },
+  plan:    { color: colors.accent, fontSize: 12 * fs },
   body:    { padding: 20, gap: 16 },
   editBar: { flexDirection: 'row', gap: 10 },
-  sectionTitle: { color: colors.text, fontSize: 14, fontWeight: '700', marginBottom: 4 },
+  sectionTitle: { color: colors.text, fontSize: 14 * fs, fontWeight: '700', marginBottom: 4 },
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
-  infoLabel:{ color: colors.textSecondary, fontSize: 11 },
-  infoValue:{ color: colors.text, fontSize: 14, fontWeight: '600' },
+  infoLabel:{ color: colors.textSecondary, fontSize: 11 * fs },
+  infoValue:{ color: colors.text, fontSize: 14 * fs, fontWeight: '600' },
   logoutRow:{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
   logoutIcon:{ width: 36, height: 36, borderRadius: 10, backgroundColor: colors.errorBg, alignItems: 'center', justifyContent: 'center' },
-  logoutText:{ flex: 1, color: colors.error, fontSize: 15, fontWeight: '600' },
-  version:  { color: colors.textMuted, fontSize: 12, textAlign: 'center' },
+  logoutText:{ flex: 1, color: colors.error, fontSize: 15 * fs, fontWeight: '600' },
+  version:  { color: colors.textMuted, fontSize: 12 * fs, textAlign: 'center' },
 });
 }

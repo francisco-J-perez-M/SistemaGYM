@@ -8,7 +8,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
-import { useColors } from '../../hooks/useColors';
+import { useColors, useFontScale } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
 import { toArray } from '../../utils/format';
@@ -21,7 +21,8 @@ type Tab = 'dietas' | 'recetas';
 
 export default function NutritionScreen() {
   const colors = useColors();
-  const styles = useMemo(() => make_styles(colors), [colors]);
+  const fs = useFontScale();
+  const styles = useMemo(() => make_styles(colors, fs), [colors, fs]);
 
   const CAT_COLORS: Record<string, string> = {
     'Alta proteína': colors.error,
@@ -198,46 +199,46 @@ function MacroPill({ label, value, color, styles }: { label: string; value: numb
   );
 }
 
-function make_styles(colors: ReturnType<typeof useColors>) {
+function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   return StyleSheet.create({
   screen:       { flex: 1, backgroundColor: colors.background },
   header:       { paddingHorizontal: 20, paddingTop: 16, gap: 14, paddingBottom: 8 },
-  title:        { color: colors.text, fontSize: 26, fontWeight: '700' },
+  title:        { color: colors.text, fontSize: 26 * fs, fontWeight: '700' },
   tabRow:       { flexDirection: 'row', backgroundColor: colors.card, borderRadius: 12, padding: 4, borderWidth: 1, borderColor: colors.border },
   tab:          { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 10 },
   tabActive:    { backgroundColor: colors.accent },
-  tabText:      { color: colors.textSecondary, fontSize: 14, fontWeight: '600' },
+  tabText:      { color: colors.textSecondary, fontSize: 14 * fs, fontWeight: '600' },
   tabTextActive:{ color: '#fff' },
   catScroll:    { maxHeight: 48, marginTop: 8 },
   catContent:   { paddingHorizontal: 20, gap: 8, alignItems: 'center' },
   catChip:      { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
   catChipActive:{ backgroundColor: colors.accent, borderColor: colors.accent },
-  catChipText:  { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
+  catChipText:  { color: colors.textSecondary, fontSize: 13 * fs, fontWeight: '600' },
   catChipTextActive: { color: '#fff' },
   listContent:  { padding: 20, gap: 12, paddingBottom: 32 },
   empty:        { alignItems: 'center', paddingVertical: 40, gap: 10 },
-  emptyText:    { color: colors.textMuted, fontSize: 15, fontWeight: '600', textAlign: 'center' },
-  emptyHint:    { color: colors.textMuted, fontSize: 13, textAlign: 'center' },
+  emptyText:    { color: colors.textMuted, fontSize: 15 * fs, fontWeight: '600', textAlign: 'center' },
+  emptyHint:    { color: colors.textMuted, fontSize: 13 * fs, textAlign: 'center' },
   dietCard:     { gap: 10 },
   dietTop:      { flexDirection: 'row', alignItems: 'center', gap: 12 },
   dietIconBox:  { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.successBg, alignItems: 'center', justifyContent: 'center' },
-  dietName:     { color: colors.text, fontSize: 16, fontWeight: '700' },
-  dietCals:     { color: colors.accent, fontSize: 13 },
-  dietDesc:     { color: colors.textSecondary, fontSize: 13, lineHeight: 18 },
+  dietName:     { color: colors.text, fontSize: 16 * fs, fontWeight: '700' },
+  dietCals:     { color: colors.accent, fontSize: 13 * fs },
+  dietDesc:     { color: colors.textSecondary, fontSize: 13 * fs, lineHeight: 18 },
   mealList:     { gap: 6, marginTop: 4 },
   mealRow:      { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  mealName:     { color: colors.text, fontSize: 13, flex: 1 },
-  mealHora:     { color: colors.textSecondary, fontSize: 12 },
+  mealName:     { color: colors.text, fontSize: 13 * fs, flex: 1 },
+  mealHora:     { color: colors.textSecondary, fontSize: 12 * fs },
   recipeCard:   { overflow: 'hidden', padding: 0 },
   recipeTop:    { flexDirection: 'row', alignItems: 'center', padding: 14, paddingLeft: 0, gap: 0 },
   recipeAccent: { width: 4, height: '100%', borderTopLeftRadius: 16, borderBottomLeftRadius: 16, minHeight: 60 },
-  recipeName:   { color: colors.text, fontSize: 15, fontWeight: '700', marginBottom: 4 },
+  recipeName:   { color: colors.text, fontSize: 15 * fs, fontWeight: '700', marginBottom: 4 },
   calBox:       { alignItems: 'flex-end' },
-  calNum:       { color: colors.warning, fontSize: 20, fontWeight: '800' },
-  calUnit:      { color: colors.textSecondary, fontSize: 11 },
+  calNum:       { color: colors.warning, fontSize: 20 * fs, fontWeight: '800' },
+  calUnit:      { color: colors.textSecondary, fontSize: 11 * fs },
   macroRow:     { flexDirection: 'row', gap: 8, paddingHorizontal: 14, paddingBottom: 12 },
   macroPill:    { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
-  macroLabel:   { fontSize: 11, fontWeight: '700' },
-  macroVal:     { fontSize: 12, fontWeight: '600' },
+  macroLabel:   { fontSize: 11 * fs, fontWeight: '700' },
+  macroVal:     { fontSize: 12 * fs, fontWeight: '600' },
 });
 }

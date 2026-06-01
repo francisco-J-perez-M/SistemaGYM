@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Colors } from '../../constants/Colors';
-import { useColors } from '../../hooks/useColors';
+import { useColors, useFontScale } from '../../hooks/useColors';
 
 interface Props {
   label:   string;
@@ -13,7 +13,8 @@ interface Props {
 
 export default function StatCard({ label, value, icon, color = colors.accent, trend }: Props) {
   const colors = useColors();
-  const styles = useMemo(() => make_styles(colors), [colors]);
+  const fs = useFontScale();
+  const styles = useMemo(() => make_styles(colors, fs), [colors, fs]);
   return (
     <View style={styles.card} accessible accessibilityLabel={`${label}: ${value}`}>
       <View style={[styles.iconBox, { backgroundColor: `${color}22` }]}>
@@ -32,7 +33,7 @@ export default function StatCard({ label, value, icon, color = colors.accent, tr
   );
 }
 
-function make_styles(colors: ReturnType<typeof useColors>) {
+function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   return StyleSheet.create({
   card: {
     flex:            1,
@@ -54,15 +55,15 @@ function make_styles(colors: ReturnType<typeof useColors>) {
   },
   value: {
     color:      colors.text,
-    fontSize:   24,
+    fontSize: 24 * fs,
     fontWeight: '700',
   },
   label: {
     color:    colors.textSecondary,
-    fontSize: 12,
+    fontSize: 12 * fs,
   },
   trend: {
-    fontSize:   12,
+    fontSize: 12 * fs,
     fontWeight: '600',
     marginTop:  2,
   },

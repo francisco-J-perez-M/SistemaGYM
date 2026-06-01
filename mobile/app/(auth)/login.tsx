@@ -10,12 +10,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
 import { Colors } from '../../constants/Colors';
-import { useColors } from '../../hooks/useColors';
+import { useColors, useFontScale } from '../../hooks/useColors';
 import { useAuth } from '../../hooks/useAuth';
 
 export default function LoginScreen() {
   const colors = useColors();
-  const styles = useMemo(() => make_styles(colors), [colors]);
+  const fs = useFontScale();
+  const styles = useMemo(() => make_styles(colors, fs), [colors, fs]);
   const insets          = useSafeAreaInsets();
   const { login, loading, error, clearError } = useAuth();
 
@@ -146,7 +147,7 @@ const FEATURES = [
   { icon: 'card-outline',        label: 'Membresía' },
 ];
 
-function make_styles(colors: ReturnType<typeof useColors>) {
+function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   return StyleSheet.create({
   scroll: {
     flexGrow:       1,
@@ -172,13 +173,13 @@ function make_styles(colors: ReturnType<typeof useColors>) {
   },
   appName: {
     color:      colors.text,
-    fontSize:   34,
+    fontSize: 34 * fs,
     fontWeight: '800',
     letterSpacing: -0.5,
   },
   tagline: {
     color:    colors.textSecondary,
-    fontSize: 14,
+    fontSize: 14 * fs,
   },
   card: {
     width:           '100%',
@@ -191,13 +192,13 @@ function make_styles(colors: ReturnType<typeof useColors>) {
   },
   cardTitle: {
     color:      colors.text,
-    fontSize:   22,
+    fontSize: 22 * fs,
     fontWeight: '700',
     marginBottom: 2,
   },
   cardSub: {
     color:        colors.textSecondary,
-    fontSize:     13,
+    fontSize: 13 * fs,
     marginBottom: 16,
   },
   errorBox: {
@@ -211,11 +212,11 @@ function make_styles(colors: ReturnType<typeof useColors>) {
     borderWidth:     1,
     borderColor:     colors.error,
   },
-  errorText: { color: colors.error, fontSize: 13, flex: 1 },
+  errorText: { color: colors.error, fontSize: 13 * fs, flex: 1 },
   loginBtn:  { marginTop: 8, width: '100%' },
   hint: {
     color:     colors.textMuted,
-    fontSize:  12,
+    fontSize: 12 * fs,
     textAlign: 'center',
     marginTop: 12,
     lineHeight: 18,
@@ -239,7 +240,7 @@ function make_styles(colors: ReturnType<typeof useColors>) {
   },
   featureLabel: {
     color:    colors.textSecondary,
-    fontSize: 11,
+    fontSize: 11 * fs,
   },
 });
 }

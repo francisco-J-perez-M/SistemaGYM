@@ -9,7 +9,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
-import { useColors } from '../../hooks/useColors';
+import { useColors, useFontScale } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
 import { toStr, toDateStr } from '../../utils/format';
@@ -51,7 +51,8 @@ function InfoRow({ icon, label, value, styles, colors }: InfoRowProps & { styles
 
 export default function GymProfileScreen() {
   const colors = useColors();
-  const styles = useMemo(() => make_styles(colors), [colors]);
+  const fs = useFontScale();
+  const styles = useMemo(() => make_styles(colors, fs), [colors, fs]);
   const insets = useSafeAreaInsets();
   const { data, loading, refetch } = useFetch<GymProfile>(ENDPOINTS.OWNER_GYM_PROFILE);
 
@@ -143,7 +144,7 @@ export default function GymProfileScreen() {
   );
 }
 
-function make_styles(colors: ReturnType<typeof useColors>) {
+function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   hero: {
@@ -155,25 +156,25 @@ function make_styles(colors: ReturnType<typeof useColors>) {
     backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center',
     marginBottom: 4,
   },
-  gymName:  { color: colors.text, fontSize: 22, fontWeight: '700', textAlign: 'center' },
-  heroSub:  { color: colors.textSecondary, fontSize: 12 },
+  gymName:  { color: colors.text, fontSize: 22 * fs, fontWeight: '700', textAlign: 'center' },
+  heroSub:  { color: colors.textSecondary, fontSize: 12 * fs },
   body:     { padding: 20, gap: 16 },
-  sectionTitle: { color: colors.text, fontSize: 15, fontWeight: '700', marginBottom: 12 },
+  sectionTitle: { color: colors.text, fontSize: 15 * fs, fontWeight: '700', marginBottom: 12 },
   infoRow: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 12,
     paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border,
   },
-  infoLabel: { color: colors.textSecondary, fontSize: 11 },
-  infoValue: { color: colors.text, fontSize: 14, fontWeight: '600' },
+  infoLabel: { color: colors.textSecondary, fontSize: 11 * fs },
+  infoValue: { color: colors.text, fontSize: 14 * fs, fontWeight: '600' },
   descBox:  { paddingTop: 10 },
-  descLabel:{ color: colors.textSecondary, fontSize: 11, marginBottom: 4 },
-  descText: { color: colors.text, fontSize: 14, lineHeight: 20 },
+  descLabel:{ color: colors.textSecondary, fontSize: 11 * fs, marginBottom: 4 },
+  descText: { color: colors.text, fontSize: 14 * fs, lineHeight: 20 },
   scheduleRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', paddingVertical: 8,
   },
   scheduleBox:  { alignItems: 'center', gap: 6, flex: 1 },
   scheduleDivider: { width: 1, height: 60, backgroundColor: colors.border },
-  scheduleLabel:{ color: colors.textSecondary, fontSize: 12 },
-  scheduleTime: { color: colors.text, fontSize: 22, fontWeight: '700' },
+  scheduleLabel:{ color: colors.textSecondary, fontSize: 12 * fs },
+  scheduleTime: { color: colors.text, fontSize: 22 * fs, fontWeight: '700' },
 });
 }

@@ -9,7 +9,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
-import { useColors } from '../../hooks/useColors';
+import { useColors, useFontScale } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
 import { toStr, toArray, toInitial } from '../../utils/format';
@@ -34,7 +34,8 @@ interface StaffResponse {
 
 export default function StaffScreen() {
   const colors = useColors();
-  const styles = useMemo(() => make_styles(colors), [colors]);
+  const fs = useFontScale();
+  const styles = useMemo(() => make_styles(colors, fs), [colors, fs]);
   const insets = useSafeAreaInsets();
   const { data, loading, refetch } = useFetch<StaffMember[] | StaffResponse>(ENDPOINTS.OWNER_STAFF);
 
@@ -103,12 +104,12 @@ export default function StaffScreen() {
   );
 }
 
-function make_styles(colors: ReturnType<typeof useColors>) {
+function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   return StyleSheet.create({
   screen:  { flex: 1, backgroundColor: colors.background },
   list:    { padding: 16, gap: 10, paddingBottom: 32 },
   header:  { marginBottom: 4 },
-  count:   { color: colors.textSecondary, fontSize: 13 },
+  count:   { color: colors.textSecondary, fontSize: 13 * fs },
   card: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 12,
     backgroundColor: colors.card, borderRadius: 14, padding: 14,
@@ -119,14 +120,14 @@ function make_styles(colors: ReturnType<typeof useColors>) {
     backgroundColor: 'rgba(108,99,255,0.15)',
     alignItems: 'center', justifyContent: 'center',
   },
-  initial:         { color: colors.accent, fontSize: 18, fontWeight: '700' },
-  nombre:          { color: colors.text, fontSize: 15, fontWeight: '600' },
-  email:           { color: colors.textSecondary, fontSize: 12, marginTop: 1 },
-  especializacion: { color: colors.accent, fontSize: 12, marginTop: 2 },
+  initial:         { color: colors.accent, fontSize: 18 * fs, fontWeight: '700' },
+  nombre:          { color: colors.text, fontSize: 15 * fs, fontWeight: '600' },
+  email:           { color: colors.textSecondary, fontSize: 12 * fs, marginTop: 1 },
+  especializacion: { color: colors.accent, fontSize: 12 * fs, marginTop: 2 },
   phoneRow:        { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
-  phone:           { color: colors.textMuted, fontSize: 11 },
+  phone:           { color: colors.textMuted, fontSize: 11 * fs },
   badges:          { gap: 4, alignItems: 'flex-end' },
   empty:           { alignItems: 'center', paddingVertical: 60, gap: 12 },
-  emptyText:       { color: colors.textMuted, fontSize: 14 },
+  emptyText:       { color: colors.textMuted, fontSize: 14 * fs },
 });
 }
