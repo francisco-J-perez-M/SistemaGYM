@@ -17,10 +17,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors, useFontScale } from '../../hooks/useColors';
 import { toStr, toArray } from '../../utils/format';
-// expo-file-system/legacy mantiene writeAsStringAsync en v54+
-import * as FSLegacy from 'expo-file-system/legacy';
-// expo-video incluido en Expo Go SDK 50+
-import { VideoView, useVideoPlayer } from 'expo-video';
+// Imports lazy para evitar crash en builds que no tengan el módulo nativo
+let FSLegacy:        any = null;
+let VideoView:       any = null;
+let useVideoPlayer:  any = null;
+try { FSLegacy       = require('expo-file-system/legacy'); }  catch (_) {}
+try {
+  const ev           = require('expo-video');
+  VideoView          = ev.VideoView;
+  useVideoPlayer     = ev.useVideoPlayer;
+} catch (_) {}
 
 const { width: SW } = Dimensions.get('window');
 
@@ -101,7 +107,8 @@ function VideoPlayer({ exercise, colors, fs }: { exercise: ExerciseDetail; color
   // Escribe el base64 al filesystem y guarda el URI local
   const prepareBase64Video = async (key: string) => {
     const b64 = _videoCache.get(key);
-    if (!b64) { setError('Video no disponible en caché'); return; }
+    if (!b64)      { setError('Video no disponible en caché'); return; }
+    if (!FSLegacy) { setError('expo-file-system no disponible'); return; }
     setLoading(true);
     setError(null);
     try {
@@ -163,18 +170,29 @@ function VideoPlayer({ exercise, colors, fs }: { exercise: ExerciseDetail; color
   if (videoUri) return (
     <View style={vS.container}>
       {sectionLabel}
-      <VideoViewWrapper uri={videoUri} />
+      {VideoView && useVideoPlayer
+        ? <VideoViewWrapper uri={videoUri} />
+        : <View style={[vS.placeholder, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Ionicons name="videocam-off-outline" size={28} color={colors.textMuted} />
+            <Text style={[vS.placeholderText, { color: colors.textMuted, fontSize: 12 * fs }]}>
+              Video no disponible en este dispositivo
+            </Text>
+          </View>
+      }
     </View>
   );
 
   return null;
 }
 
-// Componente separado para respetar las reglas de hooks
+// Componente separado para respetar las reglas de hooks.
+// Solo se monta cuando VideoView y useVideoPlayer están disponibles.
 function VideoViewWrapper({ uri }: { uri: string }) {
-  const player = useVideoPlayer({ uri }, p => {
-    p.loop = false;
-  });
+  // useVideoPlayer siempre se llama (reglas de hooks), pero solo
+  // se usa si VideoView está disponible.
+  const player = useVideoPlayer({ uri }, (p: any) => { p.loop = false; });
+
+  if (!VideoView) return null;
 
   return (
     <VideoView
