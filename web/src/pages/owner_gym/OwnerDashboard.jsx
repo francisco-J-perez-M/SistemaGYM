@@ -4,6 +4,7 @@ import {
   FiAlertTriangle, FiShoppingCart, FiUserCheck, FiRefreshCw,
   FiAward, FiActivity, FiChevronLeft, FiChevronRight,
   FiXCircle, FiCheckCircle, FiBell, FiCreditCard, FiUserPlus,
+  FiPackage, FiCalendar, FiSlash,
 } from "react-icons/fi";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -386,7 +387,12 @@ export default function OwnerDashboard() {
                               background: isError ? "rgba(239,68,68,.07)" : "rgba(234,179,8,.07)",
                               border: `1px solid ${isError ? "rgba(239,68,68,.2)" : "rgba(234,179,8,.2)"}`,
                             }}>
-                              <span style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>{al.icono}</span>
+                              <span style={{ flexShrink: 0, marginTop: 2, color }}>
+                                {al.tipo === "stock"    ? <FiPackage size={16} />
+                                : al.tipo === "vencimiento" ? <FiCalendar size={16} />
+                                : al.tipo === "inactivo"    ? <FiSlash size={16} />
+                                : isError ? <FiXCircle size={16} /> : <FiAlertTriangle size={16} />}
+                              </span>
                               <div style={{ flex: 1 }}>
                                 <div style={{ fontSize: 13, fontWeight: 600, color, marginBottom: 2 }}>{al.titulo}</div>
                                 <div style={{ fontSize: 11, color: "var(--text-tertiary)", lineHeight: 1.4 }}>{al.detalle}</div>

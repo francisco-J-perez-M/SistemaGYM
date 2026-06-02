@@ -68,6 +68,23 @@ const ErrorBox = ({ msg }) => (
   </div>
 );
 
+// Mensaje amigable cuando faltan datos (no es un error real del sistema)
+const NoDataBox = ({ icon, title, description, onRetry }) => (
+  <div style={{ textAlign: "center", padding: "48px 24px", color: "var(--text-secondary)" }}>
+    <div style={{ fontSize: 44, marginBottom: 14, opacity: .35 }}>{icon}</div>
+    <p style={{ fontWeight: 700, fontSize: 15, color: "var(--text-primary)", margin: "0 0 8px" }}>{title}</p>
+    <p style={{ fontSize: 13, color: "var(--text-secondary)", maxWidth: 380, margin: "0 auto 20px", lineHeight: 1.6 }}>{description}</p>
+    {onRetry && (
+      <button
+        onClick={onRetry}
+        style={{ padding: "8px 20px", background: "var(--accent-dim)", border: "1px solid var(--accent)", color: "var(--accent-soft)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}
+      >
+        Volver a intentar
+      </button>
+    )}
+  </div>
+);
+
 const LoadingSpinner = () => (
   <div style={{ textAlign: "center", padding: 48, color: "var(--text-secondary)" }}>
     <div style={{ fontSize: 32, marginBottom: 8 }}>⟳</div>
@@ -157,21 +174,14 @@ function TabMapReduce() {
     : [];
 
   if (loading) return <LoadingSpinner />;
-  if (error) {
-    const isNoData = error.includes("401") || error.includes("403") || error.includes("404");
-    if (isNoData) return (
-      <div style={{ textAlign: "center", padding: "48px 24px", color: "var(--text-secondary)" }}>
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-tertiary)", marginBottom: 16 }}>
-          <path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 5-5"/>
-        </svg>
-        <p style={{ fontWeight: 600, margin: "0 0 6px" }}>Sin datos aún</p>
-        <p style={{ fontSize: 13, color: "var(--text-tertiary)", margin: 0 }}>Registra pagos y visitas para comenzar a ver análisis.</p>
-        <button onClick={fetchData} style={{ marginTop: 16, padding: "8px 18px", background: "var(--accent-dim)", border: "1px solid var(--accent)", color: "var(--accent-soft)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>Actualizar</button>
-      </div>
-    );
-    return <ErrorBox msg={error} />;
-  }
-  if (!data) return null;
+  if (error || !data) return (
+    <NoDataBox
+      icon="💰"
+      title="Todavía no hay datos de ingresos y visitas"
+      description="Registra pagos y asistencias de tus miembros para ver aquí el resumen de ingresos, métodos de pago y días con más actividad en el gimnasio."
+      onRetry={fetchData}
+    />
+  );
 
   const totalIngresos = ingresosAgrupados.reduce((s, r) => s + r.total, 0);
   const totalPagos    = ingresosAgrupados.reduce((s, r) => s + r.pagos, 0);
@@ -282,33 +292,35 @@ function TabKMeans() {
   }));
 
   if (loading) return <LoadingSpinner />;
-  if (error) {
-    const isNoData = error.includes("401") || error.includes("403") || error.includes("404");
-    if (isNoData) return (
-      <div style={{ textAlign: "center", padding: "48px 24px", color: "var(--text-secondary)" }}>
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-tertiary)", marginBottom: 16 }}>
-          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-        </svg>
-        <p style={{ fontWeight: 600, margin: "0 0 6px" }}>Sin miembros suficientes</p>
-        <p style={{ fontSize: 13, color: "var(--text-tertiary)", margin: 0 }}>Registra miembros con datos de progreso para ver el análisis de grupos.</p>
-        <button onClick={() => fetchData(kValue)} style={{ marginTop: 16, padding: "8px 18px", background: "var(--accent-dim)", border: "1px solid var(--accent)", color: "var(--accent-soft)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>Actualizar</button>
-      </div>
-    );
-    return <ErrorBox msg={error} />;
-  }
-  if (!data)   return null;
+  if (error || !data) return (
+    <NoDataBox
+      icon="👥"
+      title="Se necesitan más miembros con datos de progreso"
+      description="El análisis de grupos requiere que varios miembros tengan registradas medidas físicas (peso, grasa corporal). Una vez que haya suficientes registros, aquí verás cómo se clasifican según su condición física."
+      onRetry={() => fetchData(kValue)}
+    />
+  );
 
+  const sil = data.silhouette ?? 0;
   const silConfig = {
-    color: data.silhouette >= 0.5 ? SUCCESS : data.silhouette >= 0.3 ? WARNING : DANGER,
-    label: data.silhouette >= 0.7 ? "Excelente" : data.silhouette >= 0.5 ? "Bueno"
-         : data.silhouette >= 0.3 ? "Aceptable" : "Bajo",
+    color: sil >= 0.5 ? SUCCESS : sil >= 0.3 ? WARNING : DANGER,
+    label: sil >= 0.7 ? "Grupos muy bien definidos"
+         : sil >= 0.5 ? "Grupos bien definidos"
+         : sil >= 0.3 ? "Grupos moderados"
+         : "Grupos poco diferenciados",
   };
 
   return (
     <div>
+      {/* Explicación para el dueño */}
+      <div style={{ background: "rgba(251,227,121,.07)", border: "1px solid rgba(251,227,121,.2)", borderRadius: 10, padding: "12px 16px", marginBottom: 16, fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6 }}>
+        <strong style={{ color: "var(--text-primary)" }}>¿Qué hace este análisis?</strong>{" "}
+        Agrupa a tus miembros según su condición física (peso, grasa corporal, IMC) para que puedas diseñar
+        rutinas y planes de nutrición más personalizados para cada grupo.
+      </div>
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 20 }}>
-        <StatCard label="Separación entre grupos" value={data.silhouette?.toFixed(3)} color={silConfig.color} suffix={` (${silConfig.label})`} />
-        <StatCard label="Grupos" value={kValue} color={INFO} />
+        <StatCard label="Calidad de los grupos" value={silConfig.label} color={silConfig.color} />
+        <StatCard label="Grupos detectados" value={kValue} color={INFO} />
         <StatCard label="Miembros analizados" value={(data.asignaciones || []).length} />
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
           <label style={{ color: "var(--text-secondary)", fontSize: 13 }}>K =</label>
@@ -383,6 +395,18 @@ function TabKMeans() {
 // ─────────────────────────────────────────────────────────────────────────────
 // TAB: Regresion
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Traduce nombres técnicos de coeficientes a lenguaje común
+const COEF_LABELS = {
+  dias:           "Días de entrenamiento",
+  cintura:        "Circunferencia de cintura",
+  grasa_corporal: "% Grasa corporal",
+  masa_muscular:  "Masa muscular",
+  bmi:            "Índice de masa corporal",
+  peso:           "Peso actual",
+  intercepto:     "Base del modelo",
+};
+
 function TabRegresion() {
   const [data, setData]           = useState(null);
   const [loading, setLoading]     = useState(true);
@@ -430,70 +454,59 @@ function TabRegresion() {
     : [];
 
   if (loading) return <LoadingSpinner />;
-  if (error) {
-    const isNoData = error.includes("401") || error.includes("403") || error.includes("404");
-    if (isNoData) return (
-      <div style={{ textAlign: "center", padding: "48px 24px", color: "var(--text-secondary)" }}>
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-tertiary)", marginBottom: 16 }}>
-          <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
-        </svg>
-        <p style={{ fontWeight: 600, margin: "0 0 6px" }}>Sin datos de progreso</p>
-        <p style={{ fontSize: 13, color: "var(--text-tertiary)", margin: 0 }}>Registra medidas de progreso de tus miembros para ver predicciones de tendencias.</p>
-        <button onClick={fetchData} style={{ marginTop: 16, padding: "8px 18px", background: "var(--accent-dim)", border: "1px solid var(--accent)", color: "var(--accent-soft)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>Actualizar</button>
-      </div>
-    );
-    return <ErrorBox msg={error} />;
-  }
-  if (!data)   return null;
+  if (error || !data) return (
+    <NoDataBox
+      icon="📈"
+      title="Todavía no hay suficientes datos"
+      description="Para ver las tendencias y predicciones de peso necesitamos que tus miembros tengan registros de progreso físico (peso, grasa corporal). Cuando haya datos suficientes, el análisis aparecerá aquí automáticamente."
+      onRetry={fetchData}
+    />
+  );
 
   return (
     <div>
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 20 }}>
-        <StatCard label="Confiabilidad"      value={(metricas.r2   || 0).toFixed(4)} color={metricas.r2 > 0.7 ? SUCCESS : WARNING} />
-        <StatCard label="Margen de error"   value={(metricas.rmse || 0).toFixed(2)} color={INFO} suffix=" kg" />
-        <StatCard label="Error promedio"    value={(metricas.mae  || 0).toFixed(2)} color={INFO} suffix=" kg" />
-        <StatCard label="Muestras"          value={metricas.num_muestras || "—"} />
+        <StatCard label="Precisión del modelo"  value={`${((metricas.r2 || 0) * 100).toFixed(1)}%`} color={metricas.r2 > 0.7 ? SUCCESS : WARNING} />
+        <StatCard label="Margen de error prom." value={(metricas.rmse || 0).toFixed(1)} color={INFO} suffix=" kg" />
+        <StatCard label="Registros analizados"  value={metricas.num_muestras || "—"} />
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
           <TrainBtn loading={trainLoading} onClick={handleTrain} label="Actualizar tendencias" />
           {trainMsg && <span style={{ color: SUCCESS, fontSize: 13 }}>{trainMsg}</span>}
         </div>
       </div>
 
-      <SectionTitle>¿Qué factores influyen más en el peso?</SectionTitle>
+      <SectionTitle>¿Qué factores afectan más el peso de tus miembros?</SectionTitle>
       {coeficientesArr.length > 0 ? (
-        <ResponsiveContainer width="100%" height={180}>
-          <BarChart data={coeficientesArr} layout="vertical">
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-dark)" />
-            <XAxis type="number" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} />
-            <YAxis type="category" dataKey="feature" width={140}
-                   tick={{ fill: "var(--text-secondary)", fontSize: 11 }} />
-            <Tooltip content={<CustomTooltip />} />
-            <Bar dataKey="valor" name="Coeficiente" fill={ACCENT} radius={[0,4,4,0]} />
-          </BarChart>
-        </ResponsiveContainer>
+        <>
+          <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 12 }}>
+            Las barras más largas indican los factores que más impactan el peso. Un valor positivo significa que ese factor tiende a aumentarlo; negativo, que lo reduce.
+          </p>
+          <ResponsiveContainer width="100%" height={180}>
+            <BarChart data={coeficientesArr.map(c => ({ ...c, feature: COEF_LABELS[c.feature] || c.feature }))} layout="vertical">
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-dark)" />
+              <XAxis type="number" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} />
+              <YAxis type="category" dataKey="feature" width={160} tick={{ fill: "var(--text-secondary)", fontSize: 11 }} />
+              <Tooltip content={<CustomTooltip />} />
+              <Bar dataKey="valor" name="Impacto" fill={ACCENT} radius={[0,4,4,0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </>
       ) : (
-        <p style={{ color: "var(--text-secondary)", fontSize: 13 }}>No hay coeficientes disponibles.</p>
+        <p style={{ color: "var(--text-secondary)", fontSize: 13 }}>No hay factores disponibles aún.</p>
       )}
 
-      {data.coeficientes?.intercepto != null && (
-        <p style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 8 }}>
-          Intercepto: <strong style={{ color: "var(--text-primary)" }}>
-            {Number(data.coeficientes.intercepto).toFixed(4)}
-          </strong>
-        </p>
-      )}
-
-      <SectionTitle>Resumen de la predicción</SectionTitle>
+      <SectionTitle>¿Qué tan confiables son estas predicciones?</SectionTitle>
       <div style={{ background: "var(--bg-input)", borderRadius: 10, padding: "16px 20px", fontSize: 13, lineHeight: 1.7 }}>
-        <p style={{ color: "var(--text-secondary)", marginBottom: 8 }}>
-          El análisis utiliza el historial de progreso físico de tus miembros para proyectar
-          cómo evolucionará su peso. Tiene en cuenta días de entrenamiento, porcentaje de grasa e IMC.
+        <p style={{ color: "var(--text-secondary)", marginBottom: 10 }}>
+          El modelo analiza el historial de progreso físico de tus miembros (peso, grasa corporal, días de entrenamiento)
+          para estimar cómo evolucionará su peso en el futuro.
         </p>
-        <p style={{ color: SUCCESS }}>
-          Confiabilidad: {(metricas.r2 || 0).toFixed(4)} —
-          {metricas.r2 > 0.8 ? " Muy confiable"
-           : metricas.r2 > 0.6 ? " Confiable"
-           : metricas.r2 > 0.4 ? " Moderadamente confiable" : " Datos insuficientes"}
+        <p style={{ color: metricas.r2 > 0.6 ? SUCCESS : WARNING, fontWeight: 600 }}>
+          Precisión actual: {((metricas.r2 || 0) * 100).toFixed(1)}% —
+          {metricas.r2 > 0.8 ? " Muy confiable. Las predicciones son bastante exactas."
+           : metricas.r2 > 0.6 ? " Confiable. Útil como referencia general."
+           : metricas.r2 > 0.4 ? " Moderada. Agrega más registros de progreso para mejorarla."
+           : " Necesita más datos. Registra el progreso físico de tus miembros regularmente."}
         </p>
       </div>
     </div>
@@ -687,21 +700,14 @@ function TabCancelaciones() {
     .slice(0, 15);
 
   if (loading) return <LoadingSpinner />;
-  if (error) {
-    const isNoData = error.includes("401") || error.includes("403") || error.includes("404");
-    if (isNoData) return (
-      <div style={{ textAlign: "center", padding: "48px 24px", color: "var(--text-secondary)" }}>
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-tertiary)", marginBottom: 16 }}>
-          <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
-        </svg>
-        <p style={{ fontWeight: 600, margin: "0 0 6px" }}>Sin datos de retención</p>
-        <p style={{ fontSize: 13, color: "var(--text-tertiary)", margin: 0 }}>Registra miembros y su asistencia para detectar riesgos de cancelación.</p>
-        <button onClick={fetchData} style={{ marginTop: 16, padding: "8px 18px", background: "var(--accent-dim)", border: "1px solid var(--accent)", color: "var(--accent-soft)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>Actualizar</button>
-      </div>
-    );
-    return <ErrorBox msg={error} />;
-  }
-  if (!data)   return null;
+  if (error || !data) return (
+    <NoDataBox
+      icon="🔔"
+      title="Todavía no hay suficientes datos"
+      description="Para detectar qué miembros están en riesgo de cancelar necesitamos historial de asistencias y pagos. Cuando haya información suficiente, el análisis aparecerá aquí automáticamente."
+      onRetry={fetchData}
+    />
+  );
 
   const totalAnalizado = (data.resumen?.riesgo_alto || 0) + (data.resumen?.riesgo_medio || 0) + (data.resumen?.activos || 0);
 
@@ -867,10 +873,10 @@ const IconCancelaciones = () => (
 );
 
 const TABS = [
-  { id: "mapreduce",     label: "MapReduce",     Icon: IconMapReduce,     Component: TabMapReduce     },
-  { id: "kmeans",        label: "K-Means",        Icon: IconKMeans,        Component: TabKMeans        },
-  { id: "regresion",     label: "Regresión",      Icon: IconRegresion,     Component: TabRegresion     },
-  { id: "cancelaciones", label: "Cancelaciones",  Icon: IconCancelaciones, Component: TabCancelaciones },
+  { id: "mapreduce",     label: "Finanzas y Flujo",    Icon: IconMapReduce,     Component: TabMapReduce     },
+  { id: "kmeans",        label: "Grupos de Miembros",  Icon: IconKMeans,        Component: TabKMeans        },
+  { id: "regresion",     label: "Tendencias de Peso",  Icon: IconRegresion,     Component: TabRegresion     },
+  { id: "cancelaciones", label: "Riesgo de Abandono",  Icon: IconCancelaciones, Component: TabCancelaciones },
 ];
 
 export default function AdminAnalytics() {
@@ -882,10 +888,10 @@ export default function AdminAnalytics() {
     <div style={{ padding: "24px 28px", maxWidth: 1100, margin: "0 auto" }}>
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ color: "var(--text-primary)", fontSize: 24, fontWeight: 700, margin: 0 }}>
-          Analytics Dashboard
+          Inteligencia de tu Gimnasio
         </h1>
         <p style={{ color: "var(--text-secondary)", fontSize: 14, marginTop: 6 }}>
-          Análisis inteligente de tu gimnasio — datos en tiempo real con caché automático
+          Datos reales de tus ingresos, miembros y tendencias — actualizados automáticamente
         </p>
       </div>
 

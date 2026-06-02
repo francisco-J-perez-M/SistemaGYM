@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef, useState, useEffect } from "react";
 
 /* ================= ICONOS SVG LOCALES ================= */
 const UserIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>);
@@ -22,160 +22,197 @@ export default function MiembroForm({
   onCancel,
   imcActual,
 }) {
+  const fileInputRef = useRef(null);
+  const [imgBroken, setImgBroken] = useState(false);
+
+  // Cuando fotoPreview cambia (nueva selección o nuevo miembro), resetear estado roto
+  useEffect(() => { setImgBroken(false); }, [fotoPreview]);
+
+  const handleImgError = () => setImgBroken(true);
+  const handleImgLoad  = () => setImgBroken(false);
+
+  // Iniciales como fallback
+  const initials = (form.nombre || "?").split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase();
+
+  const triggerFile = () => fileInputRef.current?.click();
+
   return (
     <div className="compact-form-content" style={{ opacity: 1, maxHeight: 'none' }}>
-      {editingId && (
-        <div className="editing-badge">
-          <EditIcon />
-          Modo edición
-          <button className="cancel-edit-btn" type="button" onClick={onCancel}>
-            Cancelar
-          </button>
-        </div>
-      )}
-
       <form onSubmit={onSubmit} className="compact-form">
         {/* --- FOTO DE PERFIL --- */}
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
           <div style={{ position: 'relative', width: '100px', height: '100px' }}>
-            <div style={{
-              width: '100%', height: '100%', borderRadius: '50%', overflow: 'hidden',
-              border: '2px solid var(--accent)', background: '#1e293b', display: 'flex',
-              alignItems: 'center', justifyContent: 'center'
-            }}>
-              {fotoPreview ? (
-                <img src={fotoPreview} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <div
+              onClick={triggerFile}
+              style={{
+                width: '100%', height: '100%', borderRadius: '50%', overflow: 'hidden',
+                border: '2px solid var(--accent)', background: 'var(--bg-input)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer',
+              }}
+            >
+              {fotoPreview && !imgBroken ? (
+                <img
+                  src={fotoPreview}
+                  alt={form.nombre || "foto"}
+                  onError={handleImgError}
+                  onLoad={handleImgLoad}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
               ) : (
-                <span style={{ fontSize: '30px', color: 'var(--text-tertiary)' }}>📷</span>
+                <span style={{
+                  fontSize: initials ? 28 : 22,
+                  fontWeight: 700,
+                  color: 'var(--accent-soft)',
+                  letterSpacing: '-1px',
+                }}>
+                  {initials || <CameraIcon />}
+                </span>
               )}
             </div>
-            <label style={{
-              position: 'absolute', bottom: '0', right: '0', background: 'var(--accent)',
-              color: 'white', borderRadius: '50%', width: '30px', height: '30px',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer'
-            }}>
-              <CameraIcon />
-              <input type="file" accept="image/*" onChange={onFileChange} style={{ display: 'none' }} />
-            </label>
-          </div>
-        </div>
-
-        {/* --- DATOS DE CUENTA --- */}
-        <h4 style={{ color: 'var(--text-secondary)', marginBottom: '10px', fontSize: '0.9rem', borderBottom: '1px solid #334155', paddingBottom: '5px' }}>Datos de Cuenta</h4>
-        
-        <div className="compact-form-grid">
-          <div className="form-group compact">
-            <label className="form-label-compact"><UserIcon style={{ marginRight: "6px" }} /> Nombre Completo *</label>
-            <input
-              className="input-compact"
-              placeholder="Ej: Juan Pérez"
-              value={form.nombre}
-              onChange={(e) => setForm({ ...form, nombre: e.target.value })}
-              required={!editingId}
-            />
-          </div>
-          <div className="form-group compact">
-            <label className="form-label-compact"><MailIcon style={{ marginRight: "6px" }} /> Email *</label>
-            <input
-              type="email"
-              className="input-compact"
-              placeholder="ejemplo@gym.com"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              required={!editingId}
-            />
-          </div>
-        </div>
-
-        <div className="compact-form-grid">
-          <div className="form-group compact">
-              <label className="form-label-compact"><LockIcon style={{ marginRight: "6px" }} /> Contraseña {editingId && "(Dejar vacía para mantener)"}</label>
-              <input
-                  type="password"
-                  className="input-compact"
-                  placeholder={editingId ? "******" : "Crear contraseña"}
-                  value={form.password}
-                  onChange={(e) => setForm({ ...form, password: e.target.value })}
-              />
-          </div>
-        </div>
-
-        {/* --- DATOS FÍSICOS --- */}
-        <h4 style={{ color: 'var(--text-secondary)', margin: '15px 0 10px 0', fontSize: '0.9rem', borderBottom: '1px solid #334155', paddingBottom: '5px' }}>Perfil Físico</h4>
-        
-        <div className="compact-form-grid">
-          <div className="form-group compact">
-            <label className="form-label-compact"><PhoneIcon style={{ marginRight: "6px" }} /> Teléfono *</label>
-            <input
-              className="input-compact"
-              placeholder="Ej: +34 123 456 789"
-              value={form.telefono}
-              onChange={(e) => setForm({ ...form, telefono: e.target.value })}
-              required
-            />
-          </div>
-          <div className="form-group compact">
-            <label className="form-label-compact"><GenderIcon style={{ marginRight: "6px" }} /> Sexo *</label>
-            <select
-              className="input-compact"
-              value={form.sexo}
-              onChange={(e) => setForm({ ...form, sexo: e.target.value })}
-              required
-            >
-              <option value="">Seleccionar...</option>
-              <option value="M">Masculino</option>
-              <option value="F">Femenino</option>
-              <option value="O">Otro</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="compact-form-grid">
-          <div className="form-group compact">
-            <label className="form-label-compact"><WeightIcon style={{ marginRight: "6px" }} /> Peso (kg)</label>
-            <input
-              className="input-compact"
-              type="number" step="0.1"
-              placeholder="Ej: 75.5"
-              value={form.peso_inicial}
-              onChange={(e) => setForm({ ...form, peso_inicial: e.target.value })}
-            />
-          </div>
-          <div className="form-group compact">
-            <label className="form-label-compact"><HeightIcon style={{ marginRight: "6px" }} /> Estatura (m)</label>
-            <input
-              className="input-compact"
-              type="number" step="0.01"
-              placeholder="Ej: 1.75"
-              value={form.estatura}
-              onChange={(e) => setForm({ ...form, estatura: e.target.value })}
-            />
-          </div>
-        </div>
-
-        <div className="compact-form-grid">
-          <div className="form-group compact">
-            <label className="form-label-compact">IMC (calculado)</label>
-            <input
-              className="input-compact"
-              value={imcActual}
-              disabled
-              style={{ 
-                background: "var(--bg-input)", 
-                color: "var(--accent-soft)", 
-                fontWeight: "bold",
-                cursor: "not-allowed"
+            {/* Botón cámara — usa ref, no label con input hidden */}
+            <button
+              type="button"
+              onClick={triggerFile}
+              style={{
+                position: 'absolute', bottom: 0, right: 0,
+                background: 'var(--accent)', color: '#fff',
+                border: 'none', borderRadius: '50%',
+                width: 30, height: 30,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', boxShadow: '0 2px 6px rgba(0,0,0,.4)',
               }}
+              title="Cambiar foto"
+            >
+              <CameraIcon />
+            </button>
+            {/* Input oculto controlado por ref */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={(e) => { setImgBroken(false); onFileChange(e); }}
+              style={{ position: 'absolute', opacity: 0, width: 0, height: 0, pointerEvents: 'none' }}
+              tabIndex={-1}
             />
           </div>
         </div>
 
-        <div className="compact-form-actions-bottom">
-          <button className="btn-compact-primary" type="submit" disabled={loading}>
-            {loading ? <span className="spinner-small"></span> : (editingId ? "Actualizar Datos" : "Registrar Miembro")}
-          </button>
+        {/* ── SECCIÓN: Cuenta ─────────────────────────────────── */}
+        <div style={sectionStyle}>
+          <p style={sectionLabel}>Datos de Cuenta</p>
+          <div style={gridTwo}>
+            <Field label="Nombre completo" required icon={<UserIcon />}>
+              <input style={inputStyle} placeholder="Ej: Juan Pérez"
+                value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })}
+                required={!editingId} />
+            </Field>
+            <Field label="Email" required icon={<MailIcon />}>
+              <input style={inputStyle} type="email" placeholder="ejemplo@gym.com"
+                value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
+                required={!editingId} />
+            </Field>
+          </div>
+          <Field label={editingId ? "Contraseña — dejar vacía para mantener la actual" : "Contraseña"} icon={<LockIcon />}>
+            <input style={inputStyle} type="password"
+              placeholder={editingId ? "••••••••" : "Crear contraseña"}
+              value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+          </Field>
         </div>
+
+        {/* ── SECCIÓN: Perfil físico ───────────────────────── */}
+        <div style={sectionStyle}>
+          <p style={sectionLabel}>Perfil Físico</p>
+          <div style={gridTwo}>
+            <Field label="Teléfono" required icon={<PhoneIcon />}>
+              <input style={inputStyle} placeholder="Ej: +52 664 123 4567"
+                value={form.telefono} onChange={(e) => setForm({ ...form, telefono: e.target.value })}
+                required />
+            </Field>
+            <Field label="Sexo" required icon={<GenderIcon />}>
+              <select style={inputStyle} value={form.sexo}
+                onChange={(e) => setForm({ ...form, sexo: e.target.value })} required>
+                <option value="">Seleccionar…</option>
+                <option value="M">Masculino</option>
+                <option value="F">Femenino</option>
+                <option value="O">Otro</option>
+              </select>
+            </Field>
+          </div>
+          <div style={gridTwo}>
+            <Field label="Peso inicial (kg)" icon={<WeightIcon />}>
+              <input style={inputStyle} type="number" step="0.1" placeholder="Ej: 75.5"
+                value={form.peso_inicial} onChange={(e) => setForm({ ...form, peso_inicial: e.target.value })} />
+            </Field>
+            <Field label="Estatura (m)" icon={<HeightIcon />}>
+              <input style={inputStyle} type="number" step="0.01" placeholder="Ej: 1.75"
+                value={form.estatura} onChange={(e) => setForm({ ...form, estatura: e.target.value })} />
+            </Field>
+          </div>
+
+          {/* IMC calculado */}
+          {imcActual && (
+            <div style={{ background: "var(--bg-input)", borderRadius: 8, padding: "10px 14px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ fontSize: 12, color: "var(--text-secondary)", fontWeight: 600, textTransform: "uppercase", letterSpacing: ".05em" }}>IMC Calculado</span>
+              <span style={{ fontSize: 18, fontWeight: 800, color: "var(--accent-soft)" }}>{imcActual}</span>
+            </div>
+          )}
+        </div>
+
+        <button
+          type="submit" disabled={loading}
+          style={{ width: "100%", padding: "12px", borderRadius: 10, border: "none",
+            background: loading ? "var(--bg-input)" : "var(--accent)",
+            color: loading ? "var(--text-secondary)" : "#fff",
+            fontSize: 14, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer",
+            marginTop: 4, transition: "all .15s",
+          }}
+        >
+          {loading ? "Guardando…" : editingId ? "Guardar cambios" : "Registrar Miembro"}
+        </button>
       </form>
+    </div>
+  );
+}
+
+/* ── Helpers de layout ───────────────────────────────────────── */
+const sectionStyle = {
+  background: "var(--bg-input,rgba(255,255,255,.04))",
+  borderRadius: 10,
+  padding: "16px 18px",
+  marginBottom: 14,
+  display: "flex",
+  flexDirection: "column",
+  gap: 12,
+};
+
+const sectionLabel = {
+  fontSize: 11,
+  fontWeight: 700,
+  color: "var(--text-secondary)",
+  textTransform: "uppercase",
+  letterSpacing: ".07em",
+  margin: 0,
+};
+
+const gridTwo = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 };
+
+const inputStyle = {
+  width: "100%", boxSizing: "border-box",
+  background: "var(--bg-card,#1e2233)",
+  border: "1px solid var(--border,rgba(255,255,255,.1))",
+  borderRadius: 8, padding: "9px 12px",
+  color: "var(--text-primary)", fontSize: 13,
+  outline: "none",
+};
+
+function Field({ label, required, icon, children }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+      <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 5, textTransform: "uppercase", letterSpacing: ".05em" }}>
+        {icon} {label}{required && <span style={{ color: "var(--accent-soft)" }}>*</span>}
+      </label>
+      {children}
     </div>
   );
 }

@@ -109,7 +109,7 @@ function MemberAvatar({ src, name, size = 90 }) {
 function MemberCard({ m, verInactivos, onEdit, onDelete, onReactivate }) {
   const imc = calcularIMC(m.peso_inicial, m.estatura);
   const imcInfo = imcLabel(imc);
-  const fotoSrc = m.foto_perfil ? `${BASE_URL}${m.foto_perfil}` : null;
+  const fotoSrc = m.foto_perfil || null;  // ya es base64 data URL
 
   return (
     <div
@@ -245,8 +245,8 @@ export default function MiembrosDashboard() {
     nombre: "", email: "", password: "",
     telefono: "", sexo: "", peso_inicial: "", estatura: "",
   });
-  const [fotoFile, setFotoFile]       = useState(null);
-  const [fotoPreview, setFotoPreview] = useState(null);
+  const [fotoBase64, setFotoBase64]   = useState(null);   // data URL base64
+  const [fotoPreview, setFotoPreview] = useState(null);   // misma cadena, para <img>
 
   /* ── API ── */
   const loadMiembros = async () => {
@@ -275,7 +275,13 @@ export default function MiembrosDashboard() {
   /* ── Handlers ── */
   const handleFileChange = (e) => {
     const file = e.target.files[0];
-    if (file) { setFotoFile(file); setFotoPreview(URL.createObjectURL(file)); }
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setFotoBase64(ev.target.result);
+      setFotoPreview(ev.target.result);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSearchChange = (e) => {
@@ -285,7 +291,7 @@ export default function MiembrosDashboard() {
 
   const resetForm = () => {
     setForm({ nombre: "", email: "", password: "", telefono: "", sexo: "", peso_inicial: "", estatura: "" });
-    setFotoFile(null); setFotoPreview(null); setEditingId(null);
+    setFotoBase64(null); setFotoPreview(null); setEditingId(null);
   };
 
   const handleSubmit = async (e) => {
@@ -300,16 +306,15 @@ export default function MiembrosDashboard() {
     }
 
     setLoading(true);
-    const formData = new FormData();
-    Object.entries(form).forEach(([k, v]) => formData.append(k, v));
-    if (fotoFile) formData.append("foto", fotoFile);
+    const payload = { ...form };
+    if (fotoBase64) payload.foto_base64 = fotoBase64;
 
     try {
       if (editingId) {
-        await updateMiembro(editingId, formData);
+        await updateMiembro(editingId, payload);
         toast.success("Miembro actualizado", `Los datos de ${form.nombre} fueron guardados.`);
       } else {
-        await createMiembro(formData);
+        await createMiembro(payload);
         toast.success("Miembro creado", `${form.nombre} fue registrado exitosamente.`);
       }
       resetForm();
@@ -329,8 +334,9 @@ export default function MiembrosDashboard() {
       telefono: m.telefono || "", sexo: m.sexo || "",
       peso_inicial: m.peso_inicial || "", estatura: m.estatura || "",
     });
-    setFotoPreview(m.foto_perfil ? `${BASE_URL}${m.foto_perfil}` : null);
-    setFotoFile(null);
+    // foto_perfil ya es una data URL base64 (o null)
+    setFotoPreview(m.foto_perfil || null);
+    setFotoBase64(null);  // no re-enviar la foto existente a menos que se seleccione una nueva
     setEditingId(m.id);
     setShowModal(true);
   };
