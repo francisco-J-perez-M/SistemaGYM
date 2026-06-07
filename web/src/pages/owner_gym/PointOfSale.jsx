@@ -717,4 +717,8 @@ export default function PointOfSale() {
       <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
         {tab === "venta"     && <TabVenta />}
         {tab === "productos" && <TabProductos />}
-        {tab === "historial" && <TabHistorial
+        {tab === "historial" && <TabHistorial />}
+      </div>
+    </div>
+  );
+}

@@ -463,4 +463,23 @@ export default function UserDashboard() {
                     }}
                   >
                     <div style={{ width:36, height:36, borderRadius:9, background:`${a.color}18`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, color:a.color }}>
-                      {a.icon === "FaFire"    ? <
+                      {a.icon === "FaFire"    ? <FiZap size={16}/>
+                      : a.icon === "FaDumbbell" ? <FiActivity size={16}/>
+                      : a.icon === "FaTrophy"   ? <FiAward size={16}/>
+                      : <FiZap size={16}/>}
+                    </div>
+                    <div>
+                      <div style={{ fontWeight:700, color:"var(--text-primary)" }}>{a.title}</div>
+                      <div style={{ fontSize:11, color:"var(--text-secondary)" }}>{a.description}</div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+        </main>
+      </div>
+    </div>
+  );
+}

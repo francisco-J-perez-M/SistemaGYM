@@ -393,4 +393,43 @@ export default function UserWeightPrediction() {
                 type="monotone" dataKey="real" name="Historial"
                 stroke="#38bdf8" strokeWidth={2.5}
                 dot={{ r: 4, fill: "#38bdf8", strokeWidth: 0 }}
-                activeDot={{ r
+                activeDot={{ r: 6 }}
+                connectNulls={false}
+              />
+              <Line
+                type="monotone" dataKey="prediccion" name="Predicción"
+                stroke="#a78bfa" strokeWidth={2.5} strokeDasharray="6 4"
+                dot={{ r: 4, fill: "#a78bfa", strokeWidth: 0 }}
+                activeDot={{ r: 6 }}
+                connectNulls={false}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        ) : (
+          <div style={{ textAlign: "center", padding: 40, color: "var(--text-secondary)" }}>
+            No hay datos suficientes para mostrar el gráfico.
+          </div>
+        )}
+      </div>
+
+      {/* Disclaimer */}
+      <div style={{
+        display: "flex", gap: 14, alignItems: "flex-start",
+        background: "rgba(255,189,46,0.07)", border: "1px solid rgba(255,189,46,0.2)",
+        borderRadius: 12, padding: "14px 18px",
+      }}>
+        <svg style={{ flexShrink: 0, color: "var(--warning-color)", marginTop: 2 }}
+          width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 8v4" />
+          <circle cx="12" cy="16" r="1" fill="currentColor" />
+        </svg>
+        <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6, margin: 0 }}>
+          <strong style={{ color: "var(--warning-color)" }}>Ten en cuenta: </strong>
+          {disclaimer ||
+            "Esto es una estimación basada en tus registros anteriores. Tu peso real puede ser diferente dependiendo de cómo comas, duermas, te ejercites y otros factores del día a día. Usa esto como una guía, no como un número definitivo. Si quieres un plan más preciso, habla con tu entrenador o nutriólogo."}
+        </p>
+      </div>
+    </div>
+  );
+}

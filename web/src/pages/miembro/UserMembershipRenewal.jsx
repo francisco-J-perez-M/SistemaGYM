@@ -401,4 +401,8 @@ export default function UserMembershipRenewal() {
 function Row({ label, value, valueColor }) {
   return (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, fontSize: 14 }}>
-      <span style={{ color: "var(--text-secondary)"
+      <span style={{ color: "var(--text-secondary)" }}>{label}</span>
+      <span style={{ fontWeight: 600, color: valueColor || "var(--text-primary)" }}>{value}</span>
+    </div>
+  );
+}
