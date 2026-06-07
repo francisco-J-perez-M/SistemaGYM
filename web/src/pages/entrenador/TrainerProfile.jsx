@@ -1,29 +1,21 @@
 /**
  * TrainerProfile.jsx — Perfil completo del entrenador.
- *
- * Layout:
- *   ┌──────────────────────────────────────────────────────────┐
- *   │  Avatar · Nombre · Rol · KPIs rápidos (clientes, sesiones, rating) │
- *   └──────────────────────────────────────────────────────────┘
- *   ┌─────────────────────────┬────────────────────────────────┐
- *   │  Información Personal   │  Información Profesional       │
- *   └─────────────────────────┴────────────────────────────────┘
- *   ┌──────────────────────────────────────────────────────────┐
- *   │  Logros (si los hay)                                     │
- *   └──────────────────────────────────────────────────────────┘
+ * - Todos los campos editables (incluida experiencia)
+ * - Certificaciones: array de objetos con file upload por cert
  */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   FiUser, FiMail, FiPhone, FiMapPin,
   FiEdit, FiSave, FiX, FiAward,
   FiAlertCircle, FiStar, FiUsers, FiCheckCircle,
   FiClock, FiBookOpen, FiMessageSquare,
+  FiPlus, FiTrash2, FiUpload, FiFile, FiExternalLink,
 } from "react-icons/fi";
 import trainerService from "../../services/entrenador/trainerService";
 import "../../css/CSSUnificado.css";
 
-// ─── Field row (view / edit) ──────────────────────────────────────────────────
+// --- Simple text/textarea field ---
 function ProfileField({ icon: Icon, label, value, name, editing, onChange, type = "text", multiline = false }) {
   return (
     <div>
@@ -35,38 +27,22 @@ function ProfileField({ icon: Icon, label, value, name, editing, onChange, type 
         {Icon && <Icon size={12} />}
         {label}
       </label>
-
       {editing ? (
         multiline ? (
-          <textarea
-            name={name}
-            value={value}
-            onChange={onChange}
-            className="input-compact"
-            rows={4}
-            style={{ resize: "vertical", fontFamily: "inherit" }}
-          />
+          <textarea name={name} value={value} onChange={onChange}
+            className="input-compact" rows={4}
+            style={{ resize: "vertical", fontFamily: "inherit" }} />
         ) : (
-          <input
-            type={type}
-            name={name}
-            value={value}
-            onChange={onChange}
-            className="input-compact"
-          />
+          <input type={type} name={name} value={value} onChange={onChange}
+            className="input-compact" />
         )
       ) : (
         <div style={{
-          padding: "11px 14px",
-          background: "var(--bg-input)",
-          borderRadius: 8,
-          fontSize: 14,
-          color: value ? "var(--text-primary)" : "var(--text-tertiary)",
-          minHeight: multiline ? 90 : "auto",
-          lineHeight: multiline ? 1.6 : "normal",
+          padding: "11px 14px", background: "var(--bg-input)", borderRadius: 8,
+          fontSize: 14, color: value ? "var(--text-primary)" : "var(--text-tertiary)",
+          minHeight: multiline ? 90 : "auto", lineHeight: multiline ? 1.6 : "normal",
           whiteSpace: multiline ? "pre-wrap" : "nowrap",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
+          overflow: "hidden", textOverflow: "ellipsis",
         }}>
           {value || "—"}
         </div>
@@ -75,21 +51,139 @@ function ProfileField({ icon: Icon, label, value, name, editing, onChange, type 
   );
 }
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
+// --- Certifications editor ---
+function CertificationsField({ certs, editing, onChange }) {
+  const fileRefs = useRef({});
+  const [uploading, setUploading] = useState(null);
+
+  const addCert = () => onChange([...certs, { nombre: "", emisor: "", anio: "", url_archivo: "" }]);
+  const removeCert = (i) => onChange(certs.filter((_, idx) => idx !== i));
+  const updateCert = (i, field, val) => {
+    const next = [...certs];
+    next[i] = { ...next[i], [field]: val };
+    onChange(next);
+  };
+
+  const handleFileUpload = async (i, file) => {
+    if (!file) return;
+    try {
+      setUploading(i);
+      const res = await trainerService.uploadCertFile(file);
+      updateCert(i, "url_archivo", res.url);
+    } catch (err) {
+      alert("Error al subir archivo: " + err.message);
+    } finally {
+      setUploading(null);
+    }
+  };
+
+  if (!editing) {
+    if (!certs.length) return (
+      <div style={{ padding: "11px 14px", background: "var(--bg-input)", borderRadius: 8,
+        fontSize: 14, color: "var(--text-tertiary)" }}>Sin certificaciones registradas.</div>
+    );
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {certs.map((c, i) => (
+          <div key={i} style={{
+            display: "flex", alignItems: "center", gap: 10,
+            padding: "10px 14px", background: "var(--bg-input)",
+            borderRadius: 8, border: "1px solid var(--border)",
+          }}>
+            <FiAward size={14} style={{ color: "var(--accent)", flexShrink: 0 }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 600 }}>{c.nombre}</div>
+              {(c.emisor || c.anio) && (
+                <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>
+                  {[c.emisor, c.anio].filter(Boolean).join(" · ")}
+                </div>
+              )}
+            </div>
+            {c.url_archivo && (
+              <a href={c.url_archivo} target="_blank" rel="noreferrer"
+                style={{ color: "var(--accent)", display: "flex", alignItems: "center", gap: 4, fontSize: 12 }}>
+                <FiExternalLink size={13} /> Ver
+              </a>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      {certs.map((c, i) => (
+        <div key={i} style={{
+          background: "var(--bg-input)", border: "1px solid var(--border)",
+          borderRadius: 10, padding: "12px 14px",
+        }}>
+          <div style={{ display: "grid", gridTemplateColumns: "2fr 1.4fr 0.8fr auto", gap: 8, marginBottom: 8 }}>
+            <input className="input-compact" placeholder="Nombre de la certificacion"
+              value={c.nombre} onChange={e => updateCert(i, "nombre", e.target.value)} />
+            <input className="input-compact" placeholder="Institucion emisora"
+              value={c.emisor} onChange={e => updateCert(i, "emisor", e.target.value)} />
+            <input className="input-compact" placeholder="Anio"
+              value={c.anio} onChange={e => updateCert(i, "anio", e.target.value)} />
+            <button className="icon-btn danger" style={{ padding: 6 }} onClick={() => removeCert(i)}>
+              <FiTrash2 size={13} />
+            </button>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <input
+              ref={el => { fileRefs.current[i] = el; }}
+              type="file" accept=".pdf"
+              style={{ display: "none" }}
+              onChange={e => handleFileUpload(i, e.target.files[0])}
+            />
+            <button
+              onClick={() => fileRefs.current[i] && fileRefs.current[i].click()}
+              disabled={uploading === i}
+              style={{
+                display: "flex", alignItems: "center", gap: 6, fontSize: 11,
+                padding: "5px 10px", borderRadius: 6,
+                border: "1px dashed var(--border)", background: "transparent",
+                color: "var(--text-secondary)", cursor: "pointer",
+              }}>
+              {uploading === i ? "Subiendo..." : <><FiUpload size={12} /> Adjuntar archivo</>}
+            </button>
+            {c.url_archivo && (
+              <a href={c.url_archivo} target="_blank" rel="noreferrer"
+                style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "var(--accent)" }}>
+                <FiFile size={12} /> {c.url_archivo.split("/").pop()}
+              </a>
+            )}
+          </div>
+        </div>
+      ))}
+      <button onClick={addCert} style={{
+        display: "flex", alignItems: "center", gap: 6, fontSize: 12,
+        padding: "7px 12px", borderRadius: 8, border: "1px dashed var(--border)",
+        background: "transparent", color: "var(--accent)", cursor: "pointer",
+        alignSelf: "flex-start",
+      }}>
+        <FiPlus size={13} /> Agregar certificacion
+      </button>
+    </div>
+  );
+}
+
+// --- Main ---
 export default function TrainerProfile() {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData]   = useState({
     name: "", email: "", phone: "", address: "",
-    specialization: "", experience: "", certifications: "", bio: "",
+    specialization: "", experience: "", bio: "",
+    certifications: [],
   });
-  const [stats, setStats]             = useState({
+  const [stats, setStats] = useState({
     totalClients: 0, totalSessions: 0, totalEarnings: 0,
     avgRating: 0, yearsActive: 0, certifications: 0,
   });
   const [achievements, setAchievements] = useState([]);
-  const [loading, setLoading]           = useState(true);
-  const [error, setError]               = useState(null);
-  const [saving, setSaving]             = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState(null);
+  const [saving, setSaving]   = useState(false);
 
   useEffect(() => { loadProfile(); }, []);
 
@@ -99,6 +193,15 @@ export default function TrainerProfile() {
       setError(null);
       const p = await trainerService.getProfile();
 
+      let certs = [];
+      if (Array.isArray(p.certifications)) {
+        certs = p.certifications;
+      } else if (typeof p.certifications === "string" && p.certifications.trim()) {
+        certs = p.certifications.split(",").map(s => ({
+          nombre: s.trim(), emisor: "", anio: "", url_archivo: "",
+        })).filter(c => c.nombre);
+      }
+
       setFormData({
         name:           p.name           || "",
         email:          p.email          || "",
@@ -106,17 +209,17 @@ export default function TrainerProfile() {
         address:        p.address        || "",
         specialization: p.specialization || "",
         experience:     p.experience     || "",
-        certifications: p.certifications || "",
         bio:            p.bio            || "",
+        certifications: certs,
       });
 
       setStats({
-        totalClients:  p.stats?.totalClients  ?? 0,
-        totalSessions: p.stats?.totalSessions ?? 0,
-        totalEarnings: p.stats?.totalEarnings ?? 0,
-        avgRating:     p.stats?.avgRating     ?? 0,
-        yearsActive:   p.stats?.yearsActive   ?? 0,
-        certifications:p.stats?.certifications ?? 0,
+        totalClients:   p.stats?.totalClients   ?? 0,
+        totalSessions:  p.stats?.totalSessions  ?? 0,
+        totalEarnings:  p.stats?.totalEarnings  ?? 0,
+        avgRating:      p.stats?.avgRating      ?? 0,
+        yearsActive:    p.stats?.yearsActive    ?? 0,
+        certifications: p.stats?.certifications ?? 0,
       });
 
       setAchievements((p.achievements || []).map(a => ({ ...a })));
@@ -145,17 +248,12 @@ export default function TrainerProfile() {
 
   const handleCancel = () => { loadProfile(); setIsEditing(false); };
 
-  // Initials for avatar
   const initials = formData.name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map(n => n[0].toUpperCase())
-    .join("");
+    .split(" ").filter(Boolean).slice(0, 2)
+    .map(n => n[0].toUpperCase()).join("");
 
   const ratingStars = Math.round(stats.avgRating);
 
-  // ── Loading ────────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <div className="dashboard-content">
@@ -173,15 +271,13 @@ export default function TrainerProfile() {
   return (
     <div className="dashboard-content">
 
-      {/* ── Page header ── */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 22, flexWrap: "wrap", gap: 12 }}>
         <div>
           <h2 className="page-title" style={{ marginBottom: 4 }}>Mi Perfil</h2>
           <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0 }}>
-            Gestiona tu información personal y profesional
+            Gestiona tu informacion personal y profesional
           </p>
         </div>
-
         <div style={{ display: "flex", gap: 8 }}>
           {isEditing ? (
             <>
@@ -189,7 +285,7 @@ export default function TrainerProfile() {
                 <FiX size={14} /> Cancelar
               </button>
               <button className="btn-compact-primary" onClick={handleSave} disabled={saving}>
-                <FiSave size={14} /> {saving ? "Guardando…" : "Guardar cambios"}
+                <FiSave size={14} /> {saving ? "Guardando..." : "Guardar cambios"}
               </button>
             </>
           ) : (
@@ -200,7 +296,6 @@ export default function TrainerProfile() {
         </div>
       </div>
 
-      {/* ── Error ── */}
       <AnimatePresence>
         {error && (
           <motion.div
@@ -209,8 +304,7 @@ export default function TrainerProfile() {
               background: "rgba(239,68,68,.1)", border: "1px solid rgba(239,68,68,.3)",
               borderRadius: 10, padding: "12px 16px", marginBottom: 18,
               color: "var(--danger)", fontSize: 13, display: "flex", gap: 10, alignItems: "center",
-            }}
-          >
+            }}>
             <FiAlertCircle size={15} /> {error}
             <button onClick={() => setError(null)}
               style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "var(--danger)" }}>
@@ -220,23 +314,18 @@ export default function TrainerProfile() {
         )}
       </AnimatePresence>
 
-      {/* ══════════════════════ TOP CARD: avatar + KPIs ══════════════════════ */}
-      <motion.div
-        className="stat-card"
+      {/* TOP CARD */}
+      <motion.div className="stat-card"
         initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-        style={{ padding: 24, marginBottom: 20 }}
-      >
+        style={{ padding: 24, marginBottom: 20 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 24, flexWrap: "wrap" }}>
-
-          {/* Avatar */}
           <div style={{ position: "relative", flexShrink: 0 }}>
             <div style={{
               width: 80, height: 80, borderRadius: "50%",
               background: "linear-gradient(135deg, var(--accent), var(--accent-hover))",
               display: "flex", alignItems: "center", justifyContent: "center",
               fontSize: 28, fontWeight: 800, color: "#fff",
-              border: "3px solid var(--border)",
-              boxShadow: "0 0 0 4px var(--accent-dim)",
+              border: "3px solid var(--border)", boxShadow: "0 0 0 4px var(--accent-dim)",
             }}>
               {initials || <FiUser size={32} />}
             </div>
@@ -252,15 +341,13 @@ export default function TrainerProfile() {
             )}
           </div>
 
-          {/* Name + role + stars */}
           <div style={{ flex: 1, minWidth: 160 }}>
             <div style={{ fontSize: 20, fontWeight: 800, color: "var(--text-primary)", lineHeight: 1.2 }}>
               {formData.name || "—"}
             </div>
             <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 3, marginBottom: 8 }}>
-              {formData.specialization ? `Entrenador · ${formData.specialization}` : "Entrenador Personal"}
+              {formData.specialization ? "Entrenador · " + formData.specialization : "Entrenador Personal"}
             </div>
-            {/* Rating stars */}
             <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
               {[1,2,3,4,5].map(i => (
                 <FiStar key={i} size={13}
@@ -273,90 +360,77 @@ export default function TrainerProfile() {
             </div>
           </div>
 
-          {/* KPI chips */}
           <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
             {[
-              { icon: FiUsers,        value: stats.totalClients,  label: "Clientes",    color: "var(--accent)" },
-              { icon: FiCheckCircle,  value: stats.totalSessions, label: "Sesiones",    color: "var(--success)" },
-              { icon: FiClock,        value: `${stats.yearsActive} años`, label: "Experiencia", color: "var(--warning)" },
-              { icon: FiAward,        value: stats.certifications,label: "Certificaciones", color: "#a855f7" },
-            ].map(({ icon: Icon, value, label, color }) => (
-              <div key={label} style={{
-                display: "flex", flexDirection: "column", alignItems: "center",
-                padding: "12px 18px", background: "var(--bg-input)",
-                borderRadius: 12, border: "1px solid var(--border)",
-                minWidth: 90, textAlign: "center",
-              }}>
-                <Icon size={16} style={{ color, marginBottom: 6 }} />
-                <div style={{ fontSize: 20, fontWeight: 800, color, lineHeight: 1 }}>{value}</div>
-                <div style={{ fontSize: 10, color: "var(--text-secondary)", marginTop: 4, textTransform: "uppercase", letterSpacing: ".05em" }}>
-                  {label}
+              { icon: FiUsers,       value: stats.totalClients,             label: "Clientes",        color: "var(--accent)" },
+              { icon: FiCheckCircle, value: stats.totalSessions,            label: "Sesiones",        color: "var(--success)" },
+              { icon: FiClock,       value: stats.yearsActive + " anos",    label: "Experiencia",     color: "var(--warning)" },
+              { icon: FiAward,       value: formData.certifications.length, label: "Certificaciones", color: "#a855f7" },
+            ].map(function(item) {
+              const Icon = item.icon;
+              return (
+                <div key={item.label} style={{
+                  display: "flex", flexDirection: "column", alignItems: "center",
+                  padding: "12px 18px", background: "var(--bg-input)",
+                  borderRadius: 12, border: "1px solid var(--border)",
+                  minWidth: 90, textAlign: "center",
+                }}>
+                  <Icon size={16} style={{ color: item.color, marginBottom: 6 }} />
+                  <div style={{ fontSize: 20, fontWeight: 800, color: item.color, lineHeight: 1 }}>{item.value}</div>
+                  <div style={{ fontSize: 10, color: "var(--text-secondary)", marginTop: 4, textTransform: "uppercase", letterSpacing: ".05em" }}>
+                    {item.label}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </motion.div>
 
-      {/* ══════════════════════ TWO-COLUMN FORMS ══════════════════════ */}
+      {/* TWO-COLUMN FORMS */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
 
-        {/* ── Left: Información Personal ── */}
-        <motion.div
-          className="stat-card"
+        <motion.div className="stat-card"
           initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.05 }}
-          style={{ padding: 22 }}
-        >
+          style={{ padding: 22 }}>
           <div style={{
             display: "flex", justifyContent: "space-between", alignItems: "center",
             marginBottom: 20, paddingBottom: 14, borderBottom: "1px solid var(--border)",
           }}>
             <h3 style={{ fontSize: 15, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
-              <FiUser size={15} style={{ color: "var(--accent)" }} />
-              Información Personal
+              <FiUser size={15} style={{ color: "var(--accent)" }} /> Informacion Personal
             </h3>
           </div>
-
           <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-            <ProfileField icon={FiUser}   label="Nombre completo" name="name"    value={formData.name}    editing={isEditing} onChange={handleChange} />
-            <ProfileField icon={FiMail}   label="Correo electrónico" name="email"  value={formData.email}   editing={isEditing} onChange={handleChange} type="email" />
-            <ProfileField icon={FiPhone}  label="Teléfono"        name="phone"   value={formData.phone}   editing={isEditing} onChange={handleChange} type="tel" />
-            <ProfileField icon={FiMapPin} label="Dirección"       name="address" value={formData.address} editing={isEditing} onChange={handleChange} />
+            <ProfileField icon={FiUser}   label="Nombre completo"    name="name"    value={formData.name}    editing={isEditing} onChange={handleChange} />
+            <ProfileField icon={FiMail}   label="Correo electronico" name="email"   value={formData.email}   editing={isEditing} onChange={handleChange} type="email" />
+            <ProfileField icon={FiPhone}  label="Telefono"           name="phone"   value={formData.phone}   editing={isEditing} onChange={handleChange} type="tel" />
+            <ProfileField icon={FiMapPin} label="Direccion"          name="address" value={formData.address} editing={isEditing} onChange={handleChange} />
           </div>
         </motion.div>
 
-        {/* ── Right: Información Profesional ── */}
-        <motion.div
-          className="stat-card"
+        <motion.div className="stat-card"
           initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.05 }}
-          style={{ padding: 22 }}
-        >
+          style={{ padding: 22 }}>
           <div style={{
             display: "flex", justifyContent: "space-between", alignItems: "center",
             marginBottom: 20, paddingBottom: 14, borderBottom: "1px solid var(--border)",
           }}>
             <h3 style={{ fontSize: 15, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
-              <FiAward size={15} style={{ color: "var(--accent)" }} />
-              Información Profesional
+              <FiAward size={15} style={{ color: "var(--accent)" }} /> Informacion Profesional
             </h3>
           </div>
-
           <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
             <ProfileField
-              icon={FiBookOpen} label="Especialización" name="specialization"
+              icon={FiBookOpen} label="Especializacion" name="specialization"
               value={formData.specialization} editing={isEditing} onChange={handleChange}
             />
-            {/* Experiencia: campo calculado (años desde registro), solo lectura */}
             <ProfileField
               icon={FiClock} label="Experiencia" name="experience"
-              value={formData.experience} editing={false} onChange={handleChange}
+              value={formData.experience} editing={isEditing} onChange={handleChange}
             />
             <ProfileField
-              icon={FiAward} label="Certificaciones" name="certifications"
-              value={formData.certifications} editing={isEditing} onChange={handleChange}
-            />
-            <ProfileField
-              icon={FiMessageSquare} label="Biografía / Descripción" name="bio"
+              icon={FiMessageSquare} label="Biografia / Descripcion" name="bio"
               value={formData.bio} editing={isEditing} onChange={handleChange}
               multiline
             />
@@ -364,38 +438,50 @@ export default function TrainerProfile() {
         </motion.div>
       </div>
 
-      {/* ══════════════════════ LOGROS (si los hay) ══════════════════════ */}
+      {/* CERTIFICACIONES */}
+      <motion.div className="stat-card"
+        initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}
+        style={{ padding: 22, marginBottom: 20 }}>
+        <div style={{
+          display: "flex", justifyContent: "space-between", alignItems: "center",
+          marginBottom: 20, paddingBottom: 14, borderBottom: "1px solid var(--border)",
+        }}>
+          <h3 style={{ fontSize: 15, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
+            <FiAward size={15} style={{ color: "#a855f7" }} /> Certificaciones
+          </h3>
+        </div>
+        <CertificationsField
+          certs={formData.certifications}
+          editing={isEditing}
+          onChange={certs => setFormData(f => ({ ...f, certifications: certs }))}
+        />
+      </motion.div>
+
+      {/* LOGROS */}
       <AnimatePresence>
         {achievements.length > 0 && (
-          <motion.div
-            className="stat-card"
+          <motion.div className="stat-card"
             initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
             transition={{ delay: 0.1 }}
-            style={{ padding: 22 }}
-          >
+            style={{ padding: 22 }}>
             <h3 style={{
               fontSize: 15, fontWeight: 700, marginBottom: 16,
               paddingBottom: 14, borderBottom: "1px solid var(--border)",
               display: "flex", alignItems: "center", gap: 8,
             }}>
-              <FiAward size={15} style={{ color: "var(--warning)" }} />
-              Logros y Reconocimientos
+              <FiAward size={15} style={{ color: "var(--warning)" }} /> Logros y Reconocimientos
             </h3>
-
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 12 }}>
               {achievements.map((a, idx) => (
-                <motion.div
-                  key={idx}
+                <motion.div key={idx}
                   initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: idx * 0.04 }}
                   style={{
                     display: "flex", gap: 14, alignItems: "center",
-                    padding: "14px 16px",
-                    background: "var(--bg-input)",
+                    padding: "14px 16px", background: "var(--bg-input)",
                     borderRadius: 12, border: "1px solid var(--border)",
                   }}
-                  whileHover={{ borderColor: "var(--warning)" }}
-                >
+                  whileHover={{ borderColor: "var(--warning)" }}>
                   <div style={{
                     width: 44, height: 44, borderRadius: 10,
                     background: "rgba(245,158,11,.15)",

@@ -72,6 +72,52 @@ export const trainerService = {
     });
   },
 
+  uploadCertFile: async (file) => {
+    const token = localStorage.getItem('token');
+    const form  = new FormData();
+    form.append('file', file);
+    const res = await fetch(`${API_BASE_URL}/trainer/profile/cert-upload`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: form,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'Error al subir archivo');
+    return data; // { success, url }
+  },
+
+  // ─── DIETAS ────────────────────────────────────────────────────────────────
+
+  getDiets: async () => {
+    const data = await apiFetch(`${API_BASE_URL}/trainer/diets`);
+    return data.diets || [];
+  },
+
+  createDiet: async (dietData) => {
+    return await apiFetch(`${API_BASE_URL}/trainer/diets`, {
+      method: 'POST',
+      body: JSON.stringify(dietData),
+    });
+  },
+
+  updateDiet: async (id, dietData) => {
+    return await apiFetch(`${API_BASE_URL}/trainer/diets/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(dietData),
+    });
+  },
+
+  deleteDiet: async (id) => {
+    return await apiFetch(`${API_BASE_URL}/trainer/diets/${id}`, { method: 'DELETE' });
+  },
+
+  assignDiet: async (id, id_miembro_pg) => {
+    return await apiFetch(`${API_BASE_URL}/trainer/diets/${id}/assign`, {
+      method: 'POST',
+      body: JSON.stringify({ id_miembro_pg }),
+    });
+  },
+
   // ─── DASHBOARD ─────────────────────────────────────────────────────────────
 
   getDashboard: async () => {
@@ -176,6 +222,7 @@ export const trainerService = {
   },
 
   duplicateRoutine: async (routineId) => {
+
     return await apiFetch(`${API_BASE_URL}/trainer/routines/${routineId}/duplicate`, {
       method: 'POST',
     });

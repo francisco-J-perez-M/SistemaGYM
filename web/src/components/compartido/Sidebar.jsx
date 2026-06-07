@@ -83,8 +83,8 @@ const MENUS = {
     { id: "clients",   label: "Mis Clientes",    icon: <FiUsers />        },
     { id: "requests",  label: "Solicitudes PT",  icon: <GiMuscleUp />     },
     { id: "schedule",  label: "Agenda",          icon: <FiCalendar />     },
-    { id: "sessions",  label: "Sesiones",        icon: <FiClock />        },
     { id: "routines",  label: "Rutinas",         icon: <FiFileText />     },
+    { id: "diets",     label: "Dietas",          icon: <GiMeal />         },
     { type: "divider" },
     {
       id: "ia-coach", label: "IA Coach", icon: <FiCpu />,
@@ -559,10 +559,8 @@ export default function Sidebar({
         <div style={S.avatar}>{initials}</div>
         {!collapsed && (
           <div style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: P.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              {user.nombre || "Usuario"}
-            </span>
-            <span style={{ fontSize: 11, color: P.muted }}>{user.role || "Miembro"}</span>
+            <span style={S.brandText}>GYM PRO</span>
+            <span style={S.badge}>{ROLE_LABELS[role] || "USER"}</span>
           </div>
         )}
       </div>
