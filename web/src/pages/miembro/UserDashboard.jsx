@@ -136,7 +136,14 @@ export default function UserDashboard() {
               onClick={() => navigate("/user/profile")}
             >
               {user?.foto_perfil
-                ? <img src={`/api/uploads/${user.foto_perfil}`} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                ? <img
+    src={user.foto_perfil.startsWith("data:") || user.foto_perfil.startsWith("http") || user.foto_perfil.startsWith("/")
+      ? user.foto_perfil
+      : `/api/uploads/${user.foto_perfil}`}
+    alt=""
+    style={{ width:"100%", height:"100%", objectFit:"cover" }}
+    onError={e => { e.currentTarget.style.display = "none"; }}
+  />
                 : <FiUser size={18} color="var(--text-secondary)" />}
             </div>
           </div>
@@ -456,8 +463,4 @@ export default function UserDashboard() {
                     }}
                   >
                     <div style={{ width:36, height:36, borderRadius:9, background:`${a.color}18`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, color:a.color }}>
-                      {a.icon === "FaFire"    ? <FiZap size={16}/>
-                      : a.icon === "FaDumbbell" ? <FiActivity size={16}/>
-                      : a.icon === "FaTrophy"   ? <FiAward size={16}/>
-                      : <FiZap size={16}/>}
-               
+                      {a.icon === "FaFire"    ? <

@@ -268,7 +268,9 @@ export default function UserProfile() {
               <div style={{ position:"relative", flexShrink:0 }}>
                 {profile.fotoPerfil ? (
                   <img
-                    src={`/api/uploads/${profile.fotoPerfil}`}
+                    src={profile.fotoPerfil.startsWith("data:") || profile.fotoPerfil.startsWith("http") || profile.fotoPerfil.startsWith("/")
+                      ? profile.fotoPerfil
+                      : `/api/uploads/${profile.fotoPerfil}`}
                     alt="foto"
                     style={{ width:96, height:96, borderRadius:"50%", objectFit:"cover",
                       border:"3px solid rgba(255,255,255,.4)" }}
@@ -466,6 +468,4 @@ export default function UserProfile() {
                       </select>
                     ) : (
                       <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                        <span style={{ fontSize:14, fontWeight:600, color: levelColor[nivel] || "var(--text-primary)" }}>
-                          {profile.nivelExperiencia || "Sin especificar"}
-                   
+                        <span 
