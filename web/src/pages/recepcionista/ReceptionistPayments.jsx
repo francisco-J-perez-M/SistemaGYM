@@ -112,20 +112,16 @@ export default function ReceptionistPayments() {
     }
   }, []);
 
-  /* ── KPIs globales (siempre sin filtro de página) ───────────────────────── */
+  /* ── KPIs via endpoint de agregacion en servidor (eficiente) ────────────── */
   const fetchKpis = useCallback(async () => {
     try {
-      // Traemos todos (hasta 500) para calcular KPIs reales
-      const res = await axios.get(`${API_URL}/payments`, {
-        headers: hdrs(),
-        params: { page: 1, limit: 500 },
-      });
-      const all = res.data.pagos || [];
+      const res = await axios.get(`${API_URL}/payments/kpis`, { headers: hdrs() });
+      const d = res.data;
       setKpis({
-        total:      all.reduce((s, p) => s + (p.monto || 0), 0),
-        cobrado:    all.filter(p => p.estado === "completado").reduce((s, p) => s + (p.monto || 0), 0),
-        pendientes: all.filter(p => p.estado === "pendiente").length,
-        fallidos:   all.filter(p => p.estado === "fallido").length,
+        total:      d.total_monto  || 0,
+        cobrado:    d.cobrado      || 0,
+        pendientes: d.pendientes   || 0,
+        fallidos:   d.fallidos     || 0,
       });
     } catch { /* silencioso */ }
   }, []);

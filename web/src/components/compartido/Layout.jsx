@@ -39,7 +39,7 @@ const ROUTE_MAP = {
     "/trainer/trainer-regresion": "trainer-regresion",
   },
   receptionist: {
-    "/receptionist-dashboard":    "checkins",
+    "/receptionist-dashboard":    "rec-dashboard",
     "/receptionist/checkins":     "checkins",
     "/receptionist/appointments": "appointments",
     "/receptionist/payments":     "payments",
@@ -50,7 +50,7 @@ const ROUTE_MAP = {
     "/receptionist/mapreduce":    "rec-mapreduce",
     "/receptionist/kmeans":       "rec-kmeans",
     "/receptionist/regresion":    "rec-regresion",
-    "/receptionist/analytics":    "rec-ai",
+    "/receptionist/analytics":    "rec-analytics",
   },
   user: {
     "/user/dashboard":    "dashboard",
@@ -108,6 +108,7 @@ const NAV_MAP = {
     "trainer-regresion": "/trainer/trainer-regresion",
   },
   receptionist: {
+    "rec-dashboard": "/receptionist-dashboard",
     checkins:        "/receptionist/checkins",
     appointments:    "/receptionist/appointments",
     payments:        "/receptionist/payments",
@@ -115,10 +116,11 @@ const NAV_MAP = {
     pos:             "/receptionist/pos",
     messages:        "/receptionist/messages",
     tasks:           "/receptionist/tasks",
-    "rec-mapreduce": "/receptionist/mapreduce",
-    "rec-kmeans":    "/receptionist/kmeans",
-    "rec-regresion": "/receptionist/regresion",
-    "rec-ai":        "/receptionist/analytics",
+    "rec-mapreduce":  "/receptionist/mapreduce",
+    "rec-kmeans":     "/receptionist/kmeans",
+    "rec-regresion":  "/receptionist/regresion",
+    "rec-analytics":  "/receptionist/analytics",
+    "rec-ai":         "/receptionist/analytics",
   },
   user: {
     dashboard:     "/user/dashboard",

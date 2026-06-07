@@ -1,296 +1,345 @@
-import { useState } from "react";
+/**
+ * ReceptionistTasks.jsx
+ * CRUD real contra /api/recepcionista/tasks (MongoDB tareas_recepcion).
+ */
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import axios from "axios";
 import {
-  FiClipboard, FiPlus, FiTrash2, FiCheck,
-  FiAlertCircle, FiClock, FiFlag,
+  FiPlus, FiCheck, FiTrash2, FiEdit2, FiX, FiRefreshCw,
+  FiClipboard, FiAlertCircle, FiClock, FiFlag, FiFilter,
 } from "react-icons/fi";
 import "../../css/CSSUnificado.css";
 
-const PRIORITIES = ["alta", "media", "baja"];
+const API  = "/api/recepcionista/tasks";
+const hdrs = () => ({ Authorization: `Bearer ${localStorage.getItem("token")}` });
 
-const PRIORITY_STYLES = {
-  alta:  { color: "var(--danger)", bg: "rgba(239,68,68,0.12)",  icon: <FiAlertCircle size={12} /> },
-  media: { color: "var(--warning)", bg: "rgba(234,179,8,0.12)",  icon: <FiClock size={12} /> },
-  baja:  { color: "var(--text-tertiary)", bg: "rgba(100,116,139,0.12)",icon: <FiFlag size={12} /> },
+/* ── Mapas de prioridad / categoria ─────────────────────────────────────────── */
+const PRIO = {
+  alta:   { label:"Alta",   color:"#ef4444", bg:"rgba(239,68,68,0.12)" },
+  media:  { label:"Media",  color:"#fbbf24", bg:"rgba(251,191,36,0.12)" },
+  baja:   { label:"Baja",   color:"#22c55e", bg:"rgba(34,197,94,0.12)" },
+};
+const CATS = ["General","Limpieza","Pagos","Citas","Inventario","Seguimiento"];
+
+const badge = (prioridad) => {
+  const p = PRIO[prioridad] || PRIO.baja;
+  return (
+    <span style={{ fontSize:10, fontWeight:700, padding:"2px 8px",
+      borderRadius:99, background:p.bg, color:p.color }}>
+      {p.label}
+    </span>
+  );
 };
 
-const CATEGORIES = ["Membresías", "Pagos", "Limpieza", "Equipamiento", "Comunicación", "Otro"];
+/* ── Formulario inline ──────────────────────────────────────────────────────── */
+function TaskForm({ initial = {}, onSave, onCancel, loading }) {
+  const [form, setForm] = useState({
+    texto:    initial.texto    ?? "",
+    prioridad:initial.prioridad?? "media",
+    categoria:initial.categoria?? "General",
+    fecha:    initial.fecha    ?? "",
+  });
+  const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
-const INITIAL_TASKS = [
-  { id: 1, text: "Llamar a clientes con membresías por vencer (5)",   priority: "alta",  category: "Membresías",   done: false, date: "2026-05-15" },
-  { id: 2, text: "Procesar pagos pendientes en caja",                 priority: "alta",  category: "Pagos",        done: false, date: "2026-05-15" },
-  { id: 3, text: "Confirmar citas de evaluación del día",             priority: "media", category: "Membresías",   done: false, date: "2026-05-15" },
-  { id: 4, text: "Reponer toallas en vestidores",                     priority: "media", category: "Limpieza",     done: false, date: "2026-05-15" },
-  { id: 5, text: "Enviar recordatorios de pago por WhatsApp",         priority: "media", category: "Comunicación", done: true,  date: "2026-05-14" },
-  { id: 6, text: "Reportar máquina de cardio 3 fuera de servicio",   priority: "alta",  category: "Equipamiento", done: true,  date: "2026-05-14" },
-  { id: 7, text: "Actualizar lista de espera para clases de spinning",priority: "baja",  category: "Membresías",   done: false, date: "2026-05-16" },
-];
+  return (
+    <motion.div initial={{ opacity:0, y:-8 }} animate={{ opacity:1, y:0 }}
+      style={{ background:"var(--bg-input)", border:"1px solid var(--border-dark)",
+        borderRadius:"var(--r-md)", padding:"16px 18px", marginBottom:12 }}>
+      <textarea
+        rows={2}
+        placeholder="Descripcion de la tarea..."
+        value={form.texto}
+        onChange={e => set("texto", e.target.value)}
+        style={{ width:"100%", resize:"vertical", background:"var(--bg-main)",
+          border:"1px solid var(--border-dark)", borderRadius:"var(--r-sm)",
+          color:"var(--text-primary)", fontSize:13, padding:"8px 10px",
+          fontFamily:"inherit", marginBottom:10 }}
+      />
+      <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
+        <select value={form.prioridad} onChange={e => set("prioridad", e.target.value)}
+          style={{ padding:"6px 10px", borderRadius:"var(--r-sm)", fontSize:12,
+            background:"var(--bg-main)", border:"1px solid var(--border-dark)",
+            color:"var(--text-primary)" }}>
+          <option value="alta">Alta</option>
+          <option value="media">Media</option>
+          <option value="baja">Baja</option>
+        </select>
+        <select value={form.categoria} onChange={e => set("categoria", e.target.value)}
+          style={{ padding:"6px 10px", borderRadius:"var(--r-sm)", fontSize:12,
+            background:"var(--bg-main)", border:"1px solid var(--border-dark)",
+            color:"var(--text-primary)" }}>
+          {CATS.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+        <input type="date" value={form.fecha} onChange={e => set("fecha", e.target.value)}
+          style={{ padding:"6px 10px", borderRadius:"var(--r-sm)", fontSize:12,
+            background:"var(--bg-main)", border:"1px solid var(--border-dark)",
+            color:"var(--text-primary)" }}
+        />
+        <div style={{ marginLeft:"auto", display:"flex", gap:6 }}>
+          <button onClick={onCancel}
+            style={{ padding:"7px 12px", borderRadius:"var(--r-sm)", fontSize:12,
+              background:"transparent", border:"1px solid var(--border-dark)",
+              color:"var(--text-secondary)", cursor:"pointer" }}>
+            Cancelar
+          </button>
+          <button onClick={() => onSave(form)} disabled={!form.texto.trim() || loading}
+            style={{ padding:"7px 14px", borderRadius:"var(--r-sm)", fontSize:12,
+              fontWeight:600, background:"var(--accent)", border:"none",
+              color:"#fff", cursor:"pointer", opacity: loading ? .6 : 1 }}>
+            {loading ? "Guardando..." : "Guardar"}
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
 
+/* ══ PÁGINA PRINCIPAL ════════════════════════════════════════════════════════ */
 export default function ReceptionistTasks() {
-  const [tasks,   setTasks]   = useState(INITIAL_TASKS);
-  const [filter,  setFilter]  = useState("pendientes");
-  const [catFilter, setCatFilter] = useState("todas");
+  const [tasks,    setTasks]    = useState([]);
+  const [loading,  setLoading]  = useState(true);
+  const [saving,   setSaving]   = useState(false);
+  const [error,    setError]    = useState(null);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ text: "", priority: "media", category: "Otro", date: new Date().toISOString().split("T")[0] });
-  const [nextId, setNextId] = useState(8);
+  const [editId,   setEditId]   = useState(null);
+  const [filter,   setFilter]   = useState("todas");
 
-  const toggle = (id) =>
-    setTasks(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t));
+  /* ── Fetch ───────────────────────────────────────────────────────────────── */
+  const fetch = useCallback(async () => {
+    setLoading(true); setError(null);
+    try {
+      const r = await axios.get(API, { headers: hdrs() });
+      setTasks(r.data.tasks || []);
+    } catch {
+      setError("No se pudieron cargar las tareas. Intenta de nuevo.");
+    } finally { setLoading(false); }
+  }, []);
 
-  const remove = (id) =>
-    setTasks(prev => prev.filter(t => t.id !== id));
+  useEffect(() => { fetch(); }, [fetch]);
 
-  const addTask = () => {
-    if (!form.text.trim()) return;
-    setTasks(prev => [{ ...form, id: nextId, done: false }, ...prev]);
-    setNextId(n => n + 1);
-    setForm({ text: "", priority: "media", category: "Otro", date: new Date().toISOString().split("T")[0] });
-    setShowForm(false);
+  /* ── Crear ───────────────────────────────────────────────────────────────── */
+  const crear = async (form) => {
+    setSaving(true);
+    try {
+      const r = await axios.post(API, form, { headers: hdrs() });
+      setTasks(p => [r.data.task, ...p]);
+      setShowForm(false);
+    } catch { setError("Error al crear la tarea."); }
+    finally { setSaving(false); }
   };
 
-  const visible = tasks
-    .filter(t => {
-      if (filter === "pendientes") return !t.done;
-      if (filter === "completadas") return t.done;
-      return true;
-    })
-    .filter(t => catFilter === "todas" || t.category === catFilter)
-    .sort((a, b) => {
-      const pri = { alta: 0, media: 1, baja: 2 };
-      return pri[a.priority] - pri[b.priority];
-    });
+  /* ── Actualizar texto/meta ───────────────────────────────────────────────── */
+  const actualizar = async (id, form) => {
+    setSaving(true);
+    try {
+      const r = await axios.patch(`${API}/${id}`, form, { headers: hdrs() });
+      setTasks(p => p.map(t => t._id === id ? r.data.task : t));
+      setEditId(null);
+    } catch { setError("Error al actualizar la tarea."); }
+    finally { setSaving(false); }
+  };
 
-  const pending   = tasks.filter(t => !t.done).length;
-  const completed = tasks.filter(t => t.done).length;
-  const progress  = tasks.length > 0 ? Math.round((completed / tasks.length) * 100) : 0;
+  /* ── Togglear completada ─────────────────────────────────────────────────── */
+  const toggleComplete = async (task) => {
+    try {
+      const r = await axios.patch(`${API}/${task._id}`,
+        { completada: !task.completada }, { headers: hdrs() });
+      setTasks(p => p.map(t => t._id === task._id ? r.data.task : t));
+    } catch { /* silencioso */ }
+  };
+
+  /* ── Eliminar ────────────────────────────────────────────────────────────── */
+  const eliminar = async (id) => {
+    try {
+      await axios.delete(`${API}/${id}`, { headers: hdrs() });
+      setTasks(p => p.filter(t => t._id !== id));
+    } catch { setError("Error al eliminar la tarea."); }
+  };
+
+  /* ── Filtrado ────────────────────────────────────────────────────────────── */
+  const visible = tasks.filter(t => {
+    if (filter === "pendientes")  return !t.completada;
+    if (filter === "completadas") return t.completada;
+    if (filter === "alta")        return t.prioridad === "alta" && !t.completada;
+    return true;
+  });
+
+  const pendCount = tasks.filter(t => !t.completada).length;
 
   return (
     <div className="dashboard-content">
       {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }}
-        style={{ marginBottom: "24px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}
-      >
+      <motion.div initial={{ opacity:0, y:-16 }} animate={{ opacity:1, y:0 }}
+        style={{ marginBottom:20, display:"flex", justifyContent:"space-between",
+          alignItems:"center", flexWrap:"wrap", gap:10 }}>
         <div>
-          <h1 style={{ fontSize: "22px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
+          <h1 style={{ fontSize:22, fontWeight:700, color:"var(--text-primary)", margin:0 }}>
             Tareas
+            {pendCount > 0 && (
+              <span style={{ marginLeft:10, background:"var(--accent)", color:"#fff",
+                borderRadius:99, fontSize:11, fontWeight:700, padding:"2px 8px" }}>
+                {pendCount}
+              </span>
+            )}
           </h1>
-          <p style={{ color: "var(--text-secondary)", fontSize: "13px", marginTop: "4px" }}>
-            Lista de pendientes de recepción
+          <p style={{ color:"var(--text-secondary)", fontSize:13, marginTop:4 }}>
+            Lista de tareas del area de recepcion
           </p>
         </div>
-        <motion.button
-          onClick={() => setShowForm(!showForm)}
-          whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-          style={{
-            display: "flex", alignItems: "center", gap: "6px",
-            padding: "9px 16px", background: "var(--accent)",
-            border: "none", color: "#fff", borderRadius: "var(--r-md)",
-            cursor: "pointer", fontSize: "13px", fontWeight: 600,
-          }}
-        >
-          <FiPlus size={14} /> Nueva tarea
-        </motion.button>
-      </motion.div>
-
-      {/* Progreso */}
-      <motion.div
-        initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-        className="chart-card"
-        style={{ marginBottom: "20px", padding: "18px 20px" }}
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-          <div style={{ display: "flex", gap: "20px" }}>
-            <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>
-              Pendientes: <strong style={{ color: "var(--warning)" }}>{pending}</strong>
-            </span>
-            <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>
-              Completadas: <strong style={{ color: "var(--success)" }}>{completed}</strong>
-            </span>
-            <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>
-              Total: <strong style={{ color: "var(--text-primary)" }}>{tasks.length}</strong>
-            </span>
-          </div>
-          <span style={{ fontSize: "14px", fontWeight: 700, color: "var(--accent-soft)" }}>
-            {progress}%
-          </span>
-        </div>
-        <div style={{ height: "6px", background: "var(--bg-input)", borderRadius: "3px", overflow: "hidden" }}>
-          <motion.div
-            initial={{ width: 0 }}
-            animate={{ width: `${progress}%` }}
-            transition={{ duration: 1, ease: "easeOut" }}
-            style={{ height: "100%", background: "var(--accent)", borderRadius: "3px" }}
-          />
+        <div style={{ display:"flex", gap:8 }}>
+          <motion.button onClick={fetch} disabled={loading}
+            whileHover={{ scale:1.05 }} whileTap={{ scale:0.95 }}
+            style={{ display:"flex", alignItems:"center", gap:6, padding:"9px 14px",
+              background:"transparent", border:"1px solid var(--border-dark)",
+              color:"var(--text-secondary)", borderRadius:"var(--r-md)",
+              cursor:"pointer", fontSize:13 }}>
+            <FiRefreshCw size={14}/>
+          </motion.button>
+          <motion.button onClick={() => { setShowForm(true); setEditId(null); }}
+            whileHover={{ scale:1.05 }} whileTap={{ scale:0.95 }}
+            style={{ display:"flex", alignItems:"center", gap:6, padding:"9px 16px",
+              background:"var(--accent)", border:"none", color:"#fff",
+              borderRadius:"var(--r-md)", cursor:"pointer", fontSize:13, fontWeight:600 }}>
+            <FiPlus size={15}/> Nueva tarea
+          </motion.button>
         </div>
       </motion.div>
 
-      {/* Formulario */}
-      <AnimatePresence>
-        {showForm && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3 }}
-            style={{ overflow: "hidden", marginBottom: "16px" }}
-          >
-            <div className="chart-card" style={{ padding: "20px" }}>
-              <h3 style={{ margin: "0 0 16px", fontSize: "14px", fontWeight: 600, color: "var(--text-primary)" }}>
-                Nueva tarea
-              </h3>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto auto", gap: "12px", alignItems: "end" }}>
-                <div>
-                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700,
-                    color: "var(--text-secondary)", marginBottom: "6px", textTransform: "uppercase" }}>
-                    Descripción
-                  </label>
-                  <input type="text" value={form.text} placeholder="¿Qué hay que hacer?"
-                    onChange={e => setForm(p => ({ ...p, text: e.target.value }))}
-                    style={{ width: "100%", padding: "9px 12px",
-                      background: "var(--bg-input)", border: "1px solid var(--border)",
-                      borderRadius: "var(--r-md)", color: "var(--text-primary)", fontSize: "13px",
-                      boxSizing: "border-box" }}
-                  />
-                </div>
-                {[
-                  { label: "Prioridad", key: "priority", options: PRIORITIES },
-                  { label: "Categoría", key: "category", options: CATEGORIES },
-                ].map(f => (
-                  <div key={f.key}>
-                    <label style={{ display: "block", fontSize: "11px", fontWeight: 700,
-                      color: "var(--text-secondary)", marginBottom: "6px", textTransform: "uppercase" }}>
-                      {f.label}
-                    </label>
-                    <select value={form[f.key]}
-                      onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
-                      style={{ padding: "9px 12px", background: "var(--bg-input)",
-                        border: "1px solid var(--border)", borderRadius: "var(--r-md)",
-                        color: "var(--text-primary)", fontSize: "13px" }}
-                    >
-                      {f.options.map(o => <option key={o} value={o}>{o}</option>)}
-                    </select>
-                  </div>
-                ))}
-                <button onClick={addTask} style={{
-                  padding: "9px 18px", background: "var(--accent)", border: "none",
-                  color: "#fff", borderRadius: "var(--r-md)", cursor: "pointer", fontSize: "13px", fontWeight: 600,
-                }}>
-                  Agregar
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {error && (
+        <div style={{ marginBottom:14, padding:"10px 14px",
+          background:"rgba(239,68,68,0.1)", borderRadius:8,
+          color:"#ef4444", fontSize:13, display:"flex",
+          justifyContent:"space-between", alignItems:"center" }}>
+          <span><FiAlertCircle size={13} style={{ marginRight:6 }}/>{error}</span>
+          <button onClick={() => setError(null)}
+            style={{ background:"none", border:"none", cursor:"pointer", color:"inherit" }}>
+            <FiX size={12}/>
+          </button>
+        </div>
+      )}
+
+      {/* Formulario nueva tarea */}
+      {showForm && !editId && (
+        <TaskForm onSave={crear} onCancel={() => setShowForm(false)} loading={saving}/>
+      )}
 
       {/* Filtros */}
-      <div style={{ display: "flex", gap: "8px", marginBottom: "16px", flexWrap: "wrap" }}>
-        {["pendientes", "completadas", "todas"].map(f => (
-          <button key={f} onClick={() => setFilter(f)} style={{
-            padding: "7px 14px", borderRadius: "var(--r-md)", fontSize: "12px", fontWeight: 600,
-            cursor: "pointer", textTransform: "capitalize",
-            background: filter === f ? "var(--accent-dim)" : "transparent",
-            border: filter === f ? "1px solid var(--accent)" : "1px solid var(--border)",
-            color: filter === f ? "var(--accent-soft)" : "var(--text-secondary)",
-          }}>
-            {f}
+      <div style={{ display:"flex", gap:6, marginBottom:16, flexWrap:"wrap" }}>
+        {[
+          { id:"todas",       label:"Todas" },
+          { id:"pendientes",  label:"Pendientes" },
+          { id:"completadas", label:"Completadas" },
+          { id:"alta",        label:"Alta prioridad" },
+        ].map(f => (
+          <button key={f.id} onClick={() => setFilter(f.id)}
+            style={{ display:"flex", alignItems:"center", gap:5, padding:"6px 14px",
+              borderRadius:"var(--r-md)", fontSize:12, fontWeight:600, cursor:"pointer",
+              background: filter===f.id ? "var(--accent-dim)" : "var(--bg-input)",
+              border: filter===f.id ? "1px solid var(--accent)" : "1px solid var(--border-dark)",
+              color: filter===f.id ? "var(--accent-soft)" : "var(--text-secondary)" }}>
+            <FiFilter size={11}/> {f.label}
           </button>
         ))}
-        <div style={{ flex: 1 }} />
-        <select value={catFilter} onChange={e => setCatFilter(e.target.value)}
-          style={{ padding: "7px 12px", background: "var(--bg-input)",
-            border: "1px solid var(--border)", borderRadius: "var(--r-md)",
-            color: "var(--text-secondary)", fontSize: "12px" }}>
-          <option value="todas">Todas las categorías</option>
-          {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-        </select>
       </div>
 
       {/* Lista */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-        <AnimatePresence>
-          {visible.length === 0 ? (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-              className="chart-card" style={{ textAlign: "center", padding: "40px", color: "var(--text-secondary)" }}>
-              <FiClipboard size={32} style={{ opacity: 0.3, marginBottom: "10px" }} />
-              <p>No hay tareas en esta vista.</p>
-            </motion.div>
-          ) : visible.map((task, i) => {
-            const p = PRIORITY_STYLES[task.priority];
-            return (
-              <motion.div
-                key={task.id}
-                layout
-                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }} transition={{ delay: i * 0.04 }}
-                style={{
-                  display: "flex", alignItems: "center", gap: "14px",
-                  padding: "14px 18px", borderRadius: "var(--r-md)",
-                  background: "var(--bg-card)", border: "1px solid var(--border)",
-                  opacity: task.done ? 0.55 : 1, transition: "opacity 0.2s",
-                }}
-              >
-                {/* Checkbox */}
-                <motion.button
-                  onClick={() => toggle(task.id)}
-                  whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
-                  style={{
-                    width: "22px", height: "22px", borderRadius: "50%", flexShrink: 0,
-                    border: `2px solid ${task.done ? "var(--success)" : "var(--border-hover)"}`,
-                    background: task.done ? "var(--success)" : "transparent",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    cursor: "pointer",
-                  }}
-                >
-                  {task.done && <FiCheck size={12} color="#fff" />}
-                </motion.button>
+      {loading ? (
+        <div style={{ padding:40, textAlign:"center", color:"var(--text-secondary)", fontSize:13 }}>
+          Cargando tareas...
+        </div>
+      ) : visible.length === 0 ? (
+        <div style={{ padding:52, textAlign:"center", color:"var(--text-secondary)" }}>
+          <FiClipboard size={36} style={{ opacity:.3, marginBottom:12 }}/>
+          <p style={{ fontSize:14, margin:0 }}>No hay tareas en esta vista</p>
+        </div>
+      ) : (
+        <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+          <AnimatePresence>
+            {visible.map((t, i) => (
+              <motion.div key={t._id}
+                initial={{ opacity:0, x:-14 }} animate={{ opacity:1, x:0 }}
+                exit={{ opacity:0, x:14 }} transition={{ delay:i*0.03 }}
+                className="chart-card"
+                style={{ padding:"14px 16px", opacity: t.completada ? .55 : 1 }}>
 
-                {/* Texto */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <span style={{
-                    fontSize: "13px", fontWeight: 500,
-                    color: task.done ? "var(--text-secondary)" : "var(--text-primary)",
-                    textDecoration: task.done ? "line-through" : "none",
-                  }}>
-                    {task.text}
-                  </span>
-                  <div style={{ display: "flex", gap: "8px", marginTop: "4px", flexWrap: "wrap" }}>
-                    <span style={{ fontSize: "10px", color: "var(--text-secondary)" }}>
-                      {task.category}
-                    </span>
-                    {task.date && (
-                      <span style={{ fontSize: "10px", color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: "3px" }}>
-                        <FiClock size={9} /> {task.date}
-                      </span>
+                {editId === t._id ? (
+                  <TaskForm initial={t}
+                    onSave={f => actualizar(t._id, f)}
+                    onCancel={() => setEditId(null)}
+                    loading={saving}
+                  />
+                ) : (
+                  <div style={{ display:"flex", alignItems:"flex-start", gap:12 }}>
+                    {/* Checkbox */}
+                    <button onClick={() => toggleComplete(t)}
+                      style={{ width:20, height:20, borderRadius:5, border:"2px solid",
+                        borderColor: t.completada ? "var(--success)" : "var(--border-dark)",
+                        background: t.completada ? "var(--success)" : "transparent",
+                        display:"flex", alignItems:"center", justifyContent:"center",
+                        cursor:"pointer", flexShrink:0, marginTop:2 }}>
+                      {t.completada && <FiCheck size={11} color="#fff"/>}
+                    </button>
+
+                    {/* Contenido */}
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                        <span style={{ fontSize:14, fontWeight:600, color:"var(--text-primary)",
+                          textDecoration: t.completada ? "line-through" : "none" }}>
+                          {t.texto}
+                        </span>
+                        {badge(t.prioridad)}
+                        <span style={{ fontSize:10, padding:"2px 8px", borderRadius:99,
+                          background:"var(--bg-input)", color:"var(--text-secondary)",
+                          border:"1px solid var(--border-dark)" }}>
+                          {t.categoria || "General"}
+                        </span>
+                      </div>
+                      {t.fecha && (
+                        <div style={{ display:"flex", alignItems:"center", gap:4,
+                          fontSize:11, color:"var(--text-secondary)", marginTop:5 }}>
+                          <FiClock size={11}/>
+                          {new Date(t.fecha + "T12:00:00").toLocaleDateString("es-MX",
+                            { day:"numeric", month:"short", year:"numeric" })}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Acciones */}
+                    {!t.completada && (
+                      <div style={{ display:"flex", gap:4, flexShrink:0 }}>
+                        <button onClick={() => { setEditId(t._id); setShowForm(false); }}
+                          style={{ width:30, height:30, borderRadius:"var(--r-sm)",
+                            background:"var(--bg-input)", border:"1px solid var(--border-dark)",
+                            color:"var(--text-secondary)", cursor:"pointer",
+                            display:"flex", alignItems:"center", justifyContent:"center" }}>
+                          <FiEdit2 size={13}/>
+                        </button>
+                        <button onClick={() => eliminar(t._id)}
+                          style={{ width:30, height:30, borderRadius:"var(--r-sm)",
+                            background:"rgba(239,68,68,0.08)", border:"1px solid rgba(239,68,68,0.2)",
+                            color:"#ef4444", cursor:"pointer",
+                            display:"flex", alignItems:"center", justifyContent:"center" }}>
+                          <FiTrash2 size={13}/>
+                        </button>
+                      </div>
+                    )}
+                    {t.completada && (
+                      <button onClick={() => eliminar(t._id)}
+                        style={{ width:30, height:30, borderRadius:"var(--r-sm)", flexShrink:0,
+                          background:"rgba(239,68,68,0.06)", border:"1px solid rgba(239,68,68,0.15)",
+                          color:"#ef4444", cursor:"pointer",
+                          display:"flex", alignItems:"center", justifyContent:"center" }}>
+                        <FiTrash2 size={12}/>
+                      </button>
                     )}
                   </div>
-                </div>
-
-                {/* Prioridad */}
-                <span style={{
-                  display: "inline-flex", alignItems: "center", gap: "4px",
-                  background: p.bg, color: p.color,
-                  padding: "3px 9px", borderRadius: "99px", fontSize: "10px", fontWeight: 600,
-                  flexShrink: 0,
-                }}>
-                  {p.icon} {task.priority}
-                </span>
-
-                {/* Eliminar */}
-                <motion.button
-                  onClick={() => remove(task.id)}
-                  whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
-                  style={{
-                    background: "transparent", border: "none", color: "rgba(239,68,68,0.5)",
-                    cursor: "pointer", padding: "4px", flexShrink: 0,
-                  }}
-                >
-                  <FiTrash2 size={14} />
-                </motion.button>
+                )}
               </motion.div>
-            );
-          })}
-        </AnimatePresence>
-      </div>
+            ))}
+          </AnimatePresence>
+        </div>
+      )}
     </div>
   );
 }
