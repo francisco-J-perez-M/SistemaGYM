@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   FiCreditCard, FiCheck, FiAlertCircle, FiDollarSign,
-  FiCalendar, FiRefreshCw, FiArrowRight, FiInfo
+  FiCalendar, FiRefreshCw, FiArrowRight, FiInfo, FiSend, FiStar
 } from "react-icons/fi";
 import "../../css/CSSUnificado.css";
 
@@ -11,9 +11,9 @@ const fmt = (n) =>
   new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(n ?? 0);
 
 const METODOS = [
-  { id: "Efectivo",       label: "Efectivo",          icon: "💵", desc: "Pago en caja" },
-  { id: "Tarjeta",        label: "Tarjeta",            icon: "💳", desc: "Débito o crédito" },
-  { id: "Transferencia",  label: "Transferencia",      icon: "🏦", desc: "Transferencia bancaria" },
+  { id: "Efectivo",       label: "Efectivo",       Icon: FiDollarSign, desc: "Pago en caja" },
+  { id: "Tarjeta",        label: "Tarjeta",         Icon: FiCreditCard, desc: "Débito o crédito" },
+  { id: "Transferencia",  label: "Transferencia",   Icon: FiSend,       desc: "Transferencia bancaria" },
 ];
 
 export default function UserMembershipRenewal() {
@@ -119,7 +119,7 @@ export default function UserMembershipRenewal() {
           borderRadius: 16, padding: "48px 32px",
         }}
       >
-        <div style={{ fontSize: 64, marginBottom: 16 }}>🎉</div>
+        <FiStar size={64} style={{ color: "#4ade80", opacity: 0.85, marginBottom: 16 }} />
         <h2 style={{ marginBottom: 8, color: "var(--text-primary)" }}>¡Membresía Renovada!</h2>
         <p style={{ color: "var(--text-secondary)", marginBottom: 24 }}>
           <strong style={{ color: "var(--accent)" }}>{success.nombre}</strong>
@@ -206,7 +206,7 @@ export default function UserMembershipRenewal() {
             textAlign: "center", padding: "40px", background: "var(--bg-card)",
             border: "1px solid var(--border)", borderRadius: 12, color: "var(--text-secondary)",
           }}>
-            <div style={{ fontSize: 36, marginBottom: 12 }}>📋</div>
+            <FiAlertCircle size={36} style={{ opacity: 0.4, marginBottom: 12, color: "var(--text-secondary)" }} />
             <p>No hay planes disponibles en este gimnasio.</p>
             <button
               onClick={fetchData}
@@ -330,7 +330,7 @@ export default function UserMembershipRenewal() {
                   borderRadius: 12, cursor: "pointer", transition: "all .2s",
                 }}
               >
-                <div style={{ fontSize: 26, marginBottom: 6 }}>{m.icon}</div>
+                <m.Icon size={26} style={{ marginBottom: 6, color: sel ? "var(--accent)" : "var(--text-secondary)" }} />
                 <div style={{ fontWeight: 700, fontSize: 14, color: "var(--text-primary)", marginBottom: 2 }}>{m.label}</div>
                 <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{m.desc}</div>
               </motion.button>
@@ -401,8 +401,4 @@ export default function UserMembershipRenewal() {
 function Row({ label, value, valueColor }) {
   return (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, fontSize: 14 }}>
-      <span style={{ color: "var(--text-secondary)" }}>{label}</span>
-      <span style={{ fontWeight: 600, color: valueColor || "var(--text-primary)" }}>{value}</span>
-    </div>
-  );
-}
+      <span style={{ color: "var(--text-secondary)"
