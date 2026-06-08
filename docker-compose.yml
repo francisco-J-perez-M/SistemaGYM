@@ -110,7 +110,7 @@ services:
       postgres:
         condition: service_healthy
       ollama:
-        condition: service_healthy
+        condition: service_started  # No service_healthy: la API verifica Ollama en cada request
     healthcheck:
       test: ["CMD", "curl", "-f", "-s", "http://localhost:5000/api/health"]
       interval: 30s
@@ -166,8 +166,8 @@ services:
       test: ["CMD-SHELL", "curl -sf http://localhost:11434/api/tags || exit 1"]
       interval: 20s
       timeout: 10s
-      retries: 5
-      start_period: 15s
+      retries: 8
+      start_period: 90s  # Ollama puede tardar 60-90s en el primer arranque (carga del runtime)
     networks:
       - gympro
     ports:
@@ -182,7 +182,4 @@ volumes:
   ollama_models:
     driver: local
 
-# ── Red interna ──────────────────────────────────────────────────────────────
-networks:
-  gympro:
-    driver: bridge
+# ── Red interna ──────────────────────────────�
