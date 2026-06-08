@@ -10,7 +10,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   FiFileText, FiPlus, FiEdit, FiTrash2, FiCopy, FiSearch, FiX, FiFilter,
   FiAlertCircle, FiSave, FiChevronDown, FiChevronUp, FiLoader, FiImage,
-  FiBookOpen, FiCheck, FiVideo, FiEye, FiChevronLeft, FiChevronRight,
+  FiBookOpen, FiCheck, FiCheckCircle, FiVideo, FiEye, FiChevronLeft, FiChevronRight,
 } from "react-icons/fi";
 import { GiMuscleUp, GiWeightLiftingUp, GiRunningShoe } from "react-icons/gi";
 import { MdOutlineSmartToy } from "react-icons/md";
@@ -901,7 +901,9 @@ function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExe
 
   if (saved) return (
     <div style={{ textAlign: "center", padding: "60px 20px" }}>
-      <div style={{ fontSize: 48, marginBottom: 12 }}>🎉</div>
+      <div style={{ marginBottom: 16 }}>
+        <FiCheckCircle size={56} style={{ color: "var(--success)" }} />
+      </div>
       <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Importación completada</h3>
       <p style={{ color: "var(--text-secondary)", fontSize: 13, marginBottom: 20, lineHeight: 1.6 }}>
         {saved.rutinas > 0 && <><strong>{saved.rutinas}</strong> rutina{saved.rutinas !== 1 ? "s" : ""} creada{saved.rutinas !== 1 ? "s" : ""}<br /></>}
@@ -1765,4 +1767,362 @@ export default function TrainerRoutines() {
                         <label className="form-label-compact">Nombre *</label>
                         <input className="input-compact" value={formData.name}
                           onChange={e => setFormData(f => ({ ...f, name: e.target.value }))}
-             
+                          placeholder="Ej. Fuerza Tren Superior" />
+                      </div>
+                      <div>
+                        <label className="form-label-compact">Categoría</label>
+                        <select className="input-compact" value={formData.category}
+                          onChange={e => setFormData(f => ({ ...f, category: e.target.value }))}>
+                          {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="form-label-compact">Dificultad</label>
+                        <select className="input-compact" value={formData.difficulty}
+                          onChange={e => setFormData(f => ({ ...f, difficulty: e.target.value }))}>
+                          {DIFFICULTIES.map(d => <option key={d}>{d}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="form-label-compact">Duración (min)</label>
+                        <input type="number" className="input-compact" min={10}
+                          value={formData.duration_minutes}
+                          onChange={e => setFormData(f => ({ ...f, duration_minutes: e.target.value }))} />
+                      </div>
+                      <div style={{ gridColumn: "1 / -1" }}>
+                        <label className="form-label-compact">Descripción</label>
+                        <textarea className="input-compact" rows={3}
+                          style={{ resize: "vertical", fontFamily: "inherit" }}
+                          value={formData.description}
+                          onChange={e => setFormData(f => ({ ...f, description: e.target.value }))}
+                          placeholder="Objetivo de la rutina…" />
+                      </div>
+                    </div>
+
+                    {/* Días */}
+                    <div style={{ marginBottom: 16 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                        <h4 style={{ fontSize: 14, fontWeight: 600 }}>Días de entrenamiento</h4>
+                        <motion.button className="btn-compact-primary" onClick={addDay} style={{ fontSize: 12 }}
+                          whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                          <FiPlus size={13} /> Agregar día
+                        </motion.button>
+                      </div>
+
+                      {formData.days.length === 0 && (
+                        <p style={{ color: "var(--text-secondary)", fontSize: 12, textAlign: "center", padding: "18px 0" }}>
+                          Agrega días para definir los ejercicios.
+                        </p>
+                      )}
+
+                      {formData.days.map((day, di) => (
+                        <div key={di} style={{
+                          background: "var(--bg-input)", borderRadius: 10,
+                          border: "1px solid var(--border)", marginBottom: 10, overflow: "hidden",
+                        }}>
+                          {/* Cabecera del día */}
+                          <div style={{
+                            display: "flex", alignItems: "center", gap: 10, padding: "11px 14px",
+                            cursor: "pointer",
+                            borderBottom: expandedDay === di ? "1px solid var(--border)" : "none",
+                          }} onClick={() => setExpandedDay(expandedDay === di ? -1 : di)}>
+                            <select className="input-compact" style={{ width: "auto", flex: 1 }}
+                              value={day.day}
+                              onChange={e => { e.stopPropagation(); updateDay(di, "day", e.target.value); }}
+                              onClick={e => e.stopPropagation()}>
+                              {DIAS_SEMANA.map(d => <option key={d}>{d}</option>)}
+                            </select>
+                            <input className="input-compact" style={{ flex: 2 }}
+                              placeholder="Grupo muscular" value={day.muscleGroup}
+                              onChange={e => updateDay(di, "muscleGroup", e.target.value)}
+                              onClick={e => e.stopPropagation()} />
+                            <span style={{ color: "var(--text-secondary)", fontSize: 11, flexShrink: 0 }}>
+                              {day.exercises.length} ej.
+                            </span>
+                            {expandedDay === di ? <FiChevronUp size={15} /> : <FiChevronDown size={15} />}
+                            <motion.button className="icon-btn danger" style={{ padding: 4 }}
+                              onClick={e => { e.stopPropagation(); removeDay(di); }}
+                              whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                              <FiTrash2 size={13} />
+                            </motion.button>
+                          </div>
+
+                          {/* Ejercicios del día */}
+                          {expandedDay === di && (
+                            <div style={{ padding: "14px 16px" }}>
+                              {day.exercises.map((ex, ei) => (
+                                <div key={ei} style={{
+                                  background: "var(--bg-card)", borderRadius: 8,
+                                  border: "1px solid var(--border)", padding: "10px 12px",
+                                  marginBottom: 8,
+                                }}>
+                                  {/* Fila principal */}
+                                  <div style={{
+                                    display: "grid",
+                                    gridTemplateColumns: "2fr 0.7fr 0.7fr 0.7fr auto auto",
+                                    gap: 6, alignItems: "center",
+                                  }}>
+                                    {/* Nombre: solo lectura, requiere selección desde biblioteca */}
+                                    <button
+                                      onClick={() => pickFromLibrary(di, ei)}
+                                      title="Cambiar ejercicio"
+                                      style={{
+                                        background: "var(--bg-input)", border: "1px solid var(--border)",
+                                        borderRadius: 6, padding: "5px 8px", cursor: "pointer",
+                                        textAlign: "left", fontSize: 12, color: ex.name ? "var(--text-primary)" : "var(--text-secondary)",
+                                        display: "flex", alignItems: "center", gap: 6, overflow: "hidden",
+                                        whiteSpace: "nowrap",
+                                      }}>
+                                      <FiBookOpen size={11} style={{ flexShrink: 0, color: "var(--accent)" }} />
+                                      <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+                                        {ex.name || "Seleccionar ejercicio…"}
+                                      </span>
+                                    </button>
+                                    <input className="input-compact" placeholder="Series"
+                                      value={ex.sets} onChange={e => updateExercise(di, ei, "sets", e.target.value)} />
+                                    <input className="input-compact" placeholder="Reps"
+                                      value={ex.reps} onChange={e => updateExercise(di, ei, "reps", e.target.value)} />
+                                    <input className="input-compact" placeholder="Peso"
+                                      value={ex.peso} onChange={e => updateExercise(di, ei, "peso", e.target.value)} />
+                                    {/* Icono de biblioteca desplazado — ya integrado en el nombre */}
+                                    <div style={{ width: 28 }} />
+                                    <motion.button className="icon-btn danger" style={{ padding: 4 }}
+                                      onClick={() => removeExercise(di, ei)}
+                                      whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                                      <FiX size={13} />
+                                    </motion.button>
+                                  </div>
+
+
+                                </div>
+                              ))}
+                              <motion.button className="btn-outline-small" style={{ marginTop: 4 }}
+                                onClick={() => addExercise(di)}
+                                whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                                <FiPlus size={13} /> Ejercicio
+                              </motion.button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Acciones */}
+                    <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+                      <motion.button className="btn-outline-small" onClick={() => setShowForm(false)}
+                        disabled={actionLoading} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                        Cancelar
+                      </motion.button>
+                      <motion.button className="btn-compact-primary" onClick={handleSave}
+                        disabled={actionLoading}
+                        whileHover={{ scale: actionLoading ? 1 : 1.05 }}
+                        whileTap={{ scale: actionLoading ? 1 : 0.95 }}>
+                        <FiSave size={15} />
+                        {actionLoading ? "Guardando…" : editingId ? "Actualizar" : "Crear Rutina"}
+                      </motion.button>
+                    </div>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Library picker modal */}
+          <AnimatePresence>
+            {showLibraryPicker && (
+              <LibraryPicker
+                exercises={exercises}
+                onPick={handlePickExercise}
+                onClose={() => setShowLibraryPicker(null)}
+              />
+            )}
+          </AnimatePresence>
+        </>
+      )}
+
+      {/* ════════════════════════ TAB: EJERCICIOS ════════════════════════ */}
+      {tab === "exercises" && (
+        <>
+          {/* Toolbar */}
+          <motion.div className="chart-card" style={{ marginBottom: 16 }}
+            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
+            <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
+              <div className="input-dark-container with-icon" style={{ flex: 1, minWidth: 220 }}>
+                <FiSearch size={16} style={{ color: "var(--text-secondary)" }} />
+                <input className="search-input" placeholder="Buscar ejercicio…"
+                  value={searchEx} onChange={e => setSearchEx(e.target.value)} />
+                {searchEx && (
+                  <button className="clear-search" onClick={() => setSearchEx("")}><FiX /></button>
+                )}
+              </div>
+              <button className="btn-compact-primary"
+                onClick={() => { setEditingEx(null); setShowExForm(true); }}>
+                <FiPlus size={15} /> Nuevo ejercicio
+              </button>
+            </div>
+          </motion.div>
+
+          {/* Tabla de ejercicios */}
+          <motion.div className="table-section"
+            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+            <div className="section-header" style={{ padding: "14px 20px", borderBottom: "1px solid var(--border)", marginBottom: 0 }}>
+              <h3 style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: ".05em" }}>
+                Biblioteca de ejercicios
+              </h3>
+              <span className="total-count">{exercises.length} ejercicios</span>
+            </div>
+
+            {loadingE ? (
+              <div style={{ textAlign: "center", padding: "50px 0", color: "var(--text-secondary)" }}>
+                <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
+                  <FiLoader size={26} />
+                </motion.div>
+              </div>
+            ) : exercises.length === 0 ? (
+              <div className="empty-state" style={{ padding: "48px 24px" }}>
+                <FiBookOpen size={40} style={{ opacity: 0.3, marginBottom: 12 }} />
+                <h3>Biblioteca vacía</h3>
+                <p>Agrega ejercicios a tu biblioteca para asignarlos rápidamente en tus rutinas.</p>
+                <button className="btn-compact-primary" style={{ marginTop: 14 }}
+                  onClick={() => { setEditingEx(null); setShowExForm(true); }}>
+                  <FiPlus size={14} /> Crear primer ejercicio
+                </button>
+              </div>
+            ) : (() => {
+              const startIdx = (exPage - 1) * EX_PER_PAGE;
+              const pagedEx  = exercises.slice(startIdx, startIdx + EX_PER_PAGE);
+              return (
+                <>
+                  <div className="custom-table-container" style={{ borderRadius: 0, border: "none" }}>
+                    <table className="admin-table">
+                      <thead>
+                        <tr>
+                          <th>Nombre</th>
+                          <th>Grupo muscular</th>
+                          <th>Tipo</th>
+                          <th>Series × Reps</th>
+                          <th style={{ width: 110, textAlign: "center" }}>Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pagedEx.map(ex => (
+                          <tr key={ex.id}>
+                            <td className="font-bold">
+                              <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                                {ex.nombre}
+                                {(ex.imagenes?.length > 0) && (
+                                  <span title={`${ex.imagenes.length} imagen(es)`}
+                                    style={{ color: "var(--accent)", opacity: 0.75, lineHeight: 0 }}>
+                                    <FiImage size={12} />
+                                  </span>
+                                )}
+                                {ex.video && (
+                                  <span title="Tiene video" style={{ color: "var(--success)", opacity: 0.8, lineHeight: 0 }}>
+                                    <FiVideo size={12} />
+                                  </span>
+                                )}
+                              </div>
+                              {ex.descripcion && (
+                                <div style={{ fontSize: 11, color: "var(--text-secondary)", fontWeight: 400, marginTop: 2 }}>
+                                  {ex.descripcion.slice(0, 80)}{ex.descripcion.length > 80 ? "…" : ""}
+                                </div>
+                              )}
+                            </td>
+                            <td>{ex.grupo_muscular || "—"}</td>
+                            <td>{ex.tipo || "—"}</td>
+                            <td>{ex.series ? `${ex.series} × ${ex.repeticiones || "—"}` : "—"}</td>
+                            <td style={{ textAlign: "center" }}>
+                              <div style={{ display: "flex", gap: 5, justifyContent: "center" }}>
+                                <motion.button className="icon-btn" style={{ padding: 5 }}
+                                  title="Ver detalle"
+                                  onClick={() => setViewingEx(ex)}
+                                  whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                                  <FiEye size={13} />
+                                </motion.button>
+                                <motion.button className="icon-btn" style={{ padding: 5 }}
+                                  title="Editar"
+                                  onClick={() => { setEditingEx(ex); setShowExForm(true); }}
+                                  whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                                  <FiEdit size={13} />
+                                </motion.button>
+                                <motion.button className="icon-btn danger" style={{ padding: 5 }}
+                                  title="Eliminar"
+                                  onClick={() => handleDeleteEx(ex)}
+                                  whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                                  <FiTrash2 size={13} />
+                                </motion.button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div style={{ padding: "4px 16px 16px" }}>
+                    <Pagination
+                      page={exPage} total={exercises.length}
+                      perPage={EX_PER_PAGE} onPage={setExPage}
+                    />
+                  </div>
+                </>
+              );
+            })()}
+          </motion.div>
+
+          {/* Modal crear / editar ejercicio */}
+          <AnimatePresence>
+            {showExForm && (
+              <ExerciseFormModal
+                initial={editingEx ? {
+                  nombre:         editingEx.nombre,
+                  descripcion:    editingEx.descripcion || "",
+                  grupo_muscular: editingEx.grupo_muscular || "",
+                  tipo:           editingEx.tipo || "",
+                  series:         editingEx.series || "",
+                  repeticiones:   editingEx.repeticiones || "",
+                  imagenes:       editingEx.imagenes || [],
+                  video:          editingEx.video || null,
+                } : null}
+                exerciseId={editingEx?.id}
+                onSave={handleSaveEx}
+                onClose={() => { setShowExForm(false); setEditingEx(null); }}
+                saving={savingEx}
+              />
+            )}
+          </AnimatePresence>
+        </>
+      )}
+
+      {/* ════════════════════════ TAB: IMPORTAR IA ════════════════════════ */}
+      {tab === "import" && (
+        <ImportarIARoutinesTab
+          clients={clients}
+          onImportDone={() => { loadRoutines(); loadExercises(); }}
+          onSaveRoutine={async (routineData) => {
+            try { await trainerService.createRoutine(routineData); return true; }
+            catch { return false; }
+          }}
+          onSaveExercise={async (exData) => {
+            try { await trainerService.createExercise(exData); return true; }
+            catch { return false; }
+          }}
+        />
+      )}
+
+      {/* Modal detalle ejercicio — global, visible en cualquier tab */}
+      <AnimatePresence>
+        {viewingEx && (
+          <ExerciseDetailModal
+            exercise={viewingEx}
+            onClose={() => setViewingEx(null)}
+            onEdit={() => {
+              setEditingEx(viewingEx);
+              setShowExForm(true);
+              setViewingEx(null);
+            }}
+          />
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
