@@ -118,6 +118,47 @@ export const trainerService = {
     });
   },
 
+  // ─── RECETAS ───────────────────────────────────────────────────────────────
+
+  getRecipes: async () => {
+    const data = await apiFetch(`${API_BASE_URL}/trainer/recipes`);
+    return data.recipes || [];
+  },
+
+  createRecipe: async (recipeData) => {
+    return await apiFetch(`${API_BASE_URL}/trainer/recipes`, {
+      method: 'POST',
+      body: JSON.stringify(recipeData),
+    });
+  },
+
+  updateRecipe: async (id, recipeData) => {
+    return await apiFetch(`${API_BASE_URL}/trainer/recipes/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(recipeData),
+    });
+  },
+
+  deleteRecipe: async (id) => {
+    return await apiFetch(`${API_BASE_URL}/trainer/recipes/${id}`, { method: 'DELETE' });
+  },
+
+  // ─── AI ETL — Importar plan alimenticio ────────────────────────────────────
+
+  importDietAI: async (file) => {
+    const token = localStorage.getItem('token');
+    const form  = new FormData();
+    form.append('archivo', file);
+    const res = await fetch(`${API_BASE_URL}/trainer/diets/import-ai`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || data.message || 'Error en la importación');
+    return data;
+  },
+
   // ─── DASHBOARD ─────────────────────────────────────────────────────────────
 
   getDashboard: async () => {
@@ -223,48 +264,4 @@ export const trainerService = {
 
   duplicateRoutine: async (routineId) => {
 
-    return await apiFetch(`${API_BASE_URL}/trainer/routines/${routineId}/duplicate`, {
-      method: 'POST',
-    });
-  },
-
-  // ─── REPORTES Y ESTADÍSTICAS ───────────────────────────────────────────────
-
-  /**
-   * Obtiene todos los datos de reportes para el rango indicado.
-   * @param {string} range  week | month | quarter | year
-   */
-  getReports: async (range = 'month') => {
-    const data = await apiFetch(`${API_BASE_URL}/trainer/reports?range=${range}`);
-    return data;
-  },
-
-  // ─── BIBLIOTECA DE EJERCICIOS ──────────────────────────────────────────────
-
-  getExercises: async ({ search = '', grupo_muscular = '' } = {}) => {
-    const params = new URLSearchParams({ search, grupo_muscular });
-    return await apiFetch(`${API_BASE_URL}/trainer/exercises?${params}`);
-  },
-
-  createExercise: async (data) => {
-    return await apiFetch(`${API_BASE_URL}/trainer/exercises`, {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  },
-
-  updateExercise: async (id, data) => {
-    return await apiFetch(`${API_BASE_URL}/trainer/exercises/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
-  },
-
-  deleteExercise: async (id) => {
-    return await apiFetch(`${API_BASE_URL}/trainer/exercises/${id}`, {
-      method: 'DELETE',
-    });
-  },
-};
-
-export default trainerService;
+    return await apiFetch(`${API_BASE_URL}/trainer/routines/${routineId}/duplicat
