@@ -182,4 +182,7 @@ volumes:
   ollama_models:
     driver: local
 
-# ── Red interna ──────────────────────────────�
+# ── Red interna ────────────────────────────────────────────────────────────────
+networks:
+  gympro:
+    driver: bridge
