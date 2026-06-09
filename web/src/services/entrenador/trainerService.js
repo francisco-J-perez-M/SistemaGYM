@@ -28,7 +28,15 @@ const apiFetch = async (url, options = {}) => {
 
   const data = await response.json();
   if (!response.ok) {
-    throw new Error(data.error || data.message || 'Error en la petición');
+    // 401 — sesión expirada o token inválido (Flask-JWT devuelve {"msg": "..."})
+    if (response.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+      throw new Error('Sesión expirada. Por favor inicia sesión nuevamente.');
+    }
+    // Flask-JWT usa "msg", el resto del API usa "error" o "message"
+    throw new Error(data.error || data.message || data.msg || 'Error en la petición');
   }
   return data;
 };
@@ -163,7 +171,15 @@ export const trainerService = {
       body: form,
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || data.message || 'Error en la importación');
+    if (!res.ok) {
+      if (res.status === 401) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+        throw new Error('Sesión expirada. Por favor inicia sesión nuevamente.');
+      }
+      throw new Error(data.error || data.message || data.msg || 'Error en la importación');
+    }
     return data;
   },
 
@@ -332,7 +348,15 @@ export const trainerService = {
       body:    form,
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || data.message || 'Error en la importación');
+    if (!res.ok) {
+      if (res.status === 401) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+        throw new Error('Sesión expirada. Por favor inicia sesión nuevamente.');
+      }
+      throw new Error(data.error || data.message || data.msg || 'Error en la importación');
+    }
     return data;
   },
 };
