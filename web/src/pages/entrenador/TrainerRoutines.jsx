@@ -10,7 +10,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   FiFileText, FiPlus, FiEdit, FiTrash2, FiCopy, FiSearch, FiX, FiFilter,
   FiAlertCircle, FiSave, FiChevronDown, FiChevronUp, FiLoader, FiImage,
-  FiBookOpen, FiCheck, FiCheckCircle, FiVideo, FiEye, FiChevronLeft, FiChevronRight,
+  FiBookOpen, FiCheckSquare, FiCheck, FiCheckCircle, FiVideo, FiEye, FiChevronLeft, FiChevronRight,
 } from "react-icons/fi";
 import { GiMuscleUp, GiWeightLiftingUp, GiRunningShoe } from "react-icons/gi";
 import { MdOutlineSmartToy } from "react-icons/md";
@@ -1166,6 +1166,7 @@ export default function TrainerRoutines() {
   const [editingEx, setEditingEx]           = useState(null);
   const [savingEx, setSavingEx]             = useState(false);
   const [viewingEx, setViewingEx]           = useState(null); // ejercicio en detalle
+  const [selectedEx, setSelectedEx]         = useState(() => new Set()); // selección para borrado masivo
 
   /* ── Cargar rutinas ── */
   const loadRoutines = useCallback(async () => {
@@ -1195,6 +1196,7 @@ export default function TrainerRoutines() {
       setExPage(1); // resetear al buscar
       const data = await trainerService.getExercises({ search: searchEx });
       setExercises(data.exercises || []);
+      setSelectedEx(new Set()); // limpiar selección al recargar
     } catch (err) {
       setErrorE(err.message);
     } finally {
@@ -1385,6 +1387,37 @@ export default function TrainerRoutines() {
       setActionLoading(true);
       await trainerService.deleteExercise(ex.id);
       toast.success("Ejercicio eliminado", ex.nombre);
+      await loadExercises();
+    } catch (err) { toast.error("Error", err.message); }
+    finally { setActionLoading(false); }
+  };
+
+  /* ── Selección múltiple de ejercicios ── */
+  const toggleSelectEx = (id) => {
+    setSelectedEx(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+  const allExSelected = exercises.length > 0 && selectedEx.size === exercises.length;
+  const toggleSelectAllEx = () => {
+    setSelectedEx(allExSelected ? new Set() : new Set(exercises.map(e => e.id)));
+  };
+  const handleBulkDeleteEx = async () => {
+    const ids = [...selectedEx];
+    if (ids.length === 0) return;
+    const ok = await confirm({
+      title: `¿Eliminar ${ids.length} ejercicio${ids.length !== 1 ? "s" : ""}?`,
+      message: "Esta acción eliminará permanentemente los ejercicios seleccionados de la biblioteca.",
+      type: "danger", confirmText: "Eliminar", cancelText: "Cancelar",
+    });
+    if (!ok) return;
+    try {
+      setActionLoading(true);
+      const { ok: done, fail } = await trainerService.bulkDeleteExercises(ids);
+      if (done) toast.success("Ejercicios eliminados", `${done} eliminado${done !== 1 ? "s" : ""}`);
+      if (fail) toast.error("Algunos no se eliminaron", `${fail} fallaron`);
       await loadExercises();
     } catch (err) { toast.error("Error", err.message); }
     finally { setActionLoading(false); }
@@ -1955,6 +1988,21 @@ export default function TrainerRoutines() {
                   <button className="clear-search" onClick={() => setSearchEx("")}><FiX /></button>
                 )}
               </div>
+              {exercises.length > 0 && (
+                <button className="btn-compact-primary"
+                  style={{ background: "transparent", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+                  onClick={toggleSelectAllEx}
+                  title={allExSelected ? "Quitar selección" : "Seleccionar todos"}>
+                  <FiCheckSquare size={15} /> {allExSelected ? "Quitar selección" : "Seleccionar todos"}
+                </button>
+              )}
+              {selectedEx.size > 0 && (
+                <button className="btn-compact-primary"
+                  style={{ background: "var(--danger, #ef4444)" }}
+                  onClick={handleBulkDeleteEx} disabled={actionLoading}>
+                  <FiTrash2 size={15} /> Eliminar ({selectedEx.size})
+                </button>
+              )}
               <button className="btn-compact-primary"
                 onClick={() => { setEditingEx(null); setShowExForm(true); }}>
                 <FiPlus size={15} /> Nuevo ejercicio
@@ -1997,6 +2045,13 @@ export default function TrainerRoutines() {
                     <table className="admin-table">
                       <thead>
                         <tr>
+                          <th style={{ width: 38, textAlign: "center" }}>
+                            <input type="checkbox" style={{ cursor: "pointer" }}
+                              checked={allExSelected}
+                              ref={el => { if (el) el.indeterminate = selectedEx.size > 0 && !allExSelected; }}
+                              onChange={toggleSelectAllEx}
+                              title="Seleccionar todos" />
+                          </th>
                           <th>Nombre</th>
                           <th>Grupo muscular</th>
                           <th>Tipo</th>
@@ -2006,7 +2061,12 @@ export default function TrainerRoutines() {
                       </thead>
                       <tbody>
                         {pagedEx.map(ex => (
-                          <tr key={ex.id}>
+                          <tr key={ex.id} style={selectedEx.has(ex.id) ? { background: "var(--accent-soft, rgba(99,102,241,.12))" } : undefined}>
+                            <td style={{ textAlign: "center" }}>
+                              <input type="checkbox" style={{ cursor: "pointer" }}
+                                checked={selectedEx.has(ex.id)}
+                                onChange={() => toggleSelectEx(ex.id)} />
+                            </td>
                             <td className="font-bold">
                               <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
                                 {ex.nombre}

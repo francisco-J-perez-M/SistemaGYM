@@ -357,6 +357,16 @@ export const trainerService = {
     });
   },
 
+  // Borrado masivo: no existe endpoint bulk en el backend, así que se
+  // eliminan en paralelo. Devuelve { ok, fail } con los conteos.
+  bulkDeleteExercises: async (ids = []) => {
+    const results = await Promise.allSettled(
+      ids.map((id) => trainerService.deleteExercise(id))
+    );
+    const ok = results.filter((r) => r.status === 'fulfilled').length;
+    return { ok, fail: results.length - ok };
+  },
+
   // ─── AI ETL — Importar rutinas/ejercicios (LLM local vía Ollama) ──────────
 
   /**
