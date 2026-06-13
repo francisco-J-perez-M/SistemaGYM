@@ -131,7 +131,7 @@ function RecetaCard({ rec, ownUserId, onEdit, onDelete, onConsume }) {
 
         {/* Title */}
         <h4 style={{ margin: "0 0 5px", fontSize: 15, fontWeight: 700, color: "var(--text-primary)", lineHeight: 1.3 }}>
-          {rec.titulo}
+          {rec.titulo || rec.nombre}
         </h4>
         {rec.descripcion && (
           <p style={{ margin: "0 0 10px", fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.4,
@@ -669,7 +669,7 @@ export default function UserMealPlan() {
   const categorias      = ["Todas", ...new Set(recetas.map(r => r.categoria).filter(Boolean))];
   const recetasFilt     = recetas.filter(r =>
     (catFilter === "Todas" || r.categoria === catFilter) &&
-    (r.titulo.toLowerCase().includes(search.toLowerCase()) ||
+    ((r.titulo || r.nombre || "").toLowerCase().includes(search.toLowerCase()) ||
      (r.descripcion||"").toLowerCase().includes(search.toLowerCase()))
   );
 
