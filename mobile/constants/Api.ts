@@ -84,6 +84,9 @@ export const ENDPOINTS = {
   BODY_PROGRESS:      '/user/body-progress',     // GET/POST /api/user/body-progress
   WORKOUT_COMPLETE:   '/user/workout/complete',  // POST /api/user/workout/complete
   USER_ROUTINES:      '/user/routines',          // GET  /api/user/routines (user_routines_bp prefix=/api/user)
+  USER_PAYMENTS:      '/user/payments',          // GET  /api/user/payments  (stats + historial)
+  USER_HEALTH:        '/user/health',            // GET/POST /api/user/health (condiciones + medidas)
+  MEMBERSHIP_PAYMENT_METHODS: '/user/membership/payment-methods', // GET métodos recientes
 
   // Nutrición
   DIETAS:             '/user/nutrition/dietas',  // GET /api/user/nutrition/dietas
@@ -98,6 +101,8 @@ export const ENDPOINTS = {
   TRAINER_SCHEDULE:   '/trainer/schedule',       // GET /api/trainer/schedule
   TRAINER_SESSIONS:   '/trainer/sessions',       // GET /api/trainer/sessions
   TRAINER_MEMBERS:    '/trainer/members',        // GET /api/trainer/members
+  TRAINER_DIETS:      '/trainer/diets',          // GET/POST/PUT/DELETE /api/trainer/diets
+  TRAINER_RECIPES:    '/trainer/recipes',        // GET/POST /api/trainer/recipes
 
   // ── Owner Gym / Admin ─────────────────────────────────────────────────────
   // owner_*_bp: url_prefix="/api/owner_gym"
@@ -105,16 +110,34 @@ export const ENDPOINTS = {
   OWNER_PROFILE:      '/owner_gym/perfil',       // GET /api/owner_gym/perfil
   OWNER_STAFF:        '/owner_gym/staff',        // GET /api/owner_gym/staff
   OWNER_MEMBRESIAS:   '/owner_gym/membresias',   // GET /api/owner_gym/membresias (tipos de membresía)
+  OWNER_INGRESOS:     '/owner_gym/dashboard/ingresos',   // GET ?meses=6  → tendencia mensual
+  OWNER_ACTIVIDAD:    '/owner_gym/dashboard/actividad',  // GET ?limit=20 → feed reciente
+
+  // ── IA / Analítica (Spark) — /api/analytics/* ─────────────────────────────
+  ANALYTICS_KMEANS:        '/analytics/kmeans',        // GET ?k=3 → segmentación de miembros
+  ANALYTICS_CANCELACIONES: '/analytics/cancelaciones', // GET → riesgo de cancelación
+
+  // ── Reportes descargables — /api/reports/* ────────────────────────────────
+  REPORT_INGRESOS_PDF: '/reports/mapreduce/pdf',  // GET PDF de ingresos por periodo
+  REPORT_MIEMBROS_PDF: '/reports/miembros/pdf',   // GET PDF de miembros
+
+  // ── Recepcionista — /api/recepcionista/* ──────────────────────────────────
+  RECEP_DASHBOARD:    '/recepcionista/dashboard',  // GET KPIs del día
+  RECEP_CHECKINS:     '/recepcionista/checkins',   // GET/POST check-ins de hoy
+  RECEP_MEMBERS:      '/recepcionista/members',    // GET ?q= lista de miembros
+  RECEP_PAYMENTS:     '/recepcionista/payments',   // GET pagos
 
   // Rutas compartidas sin prefix (url hardcodeada)
   MIEMBROS:           '/miembros',               // GET /api/miembros  (paginado)
   PAGOS:              '/pagos',                  // GET /api/pagos     (paginado)
+  PAGOS_TODOS:        '/pagos/todos',            // GET feed unificado membresías + ventas POS
   MEMBRESIAS:         '/membresias',             // GET /api/membresias (tipos generales)
 
   // Notificaciones
-  NOTIFICACIONES:     '/notificaciones',         // GET /api/notificaciones
-  // Trainer — Solicitudes PT (no existe endpoint dedicado en el backend; pantalla usa graceful fallback)
-  TRAINER_SESSIONS:     '/trainer/sessions',    // GET/POST /api/trainer/sessions
+  NOTIFICACIONES:       '/notificaciones',           // GET /api/notificaciones
+  NOTIFICACIONES_LEER_TODAS: '/notificaciones/leer-todas', // PATCH marca todas como leídas
+  PUSH_TOKEN:           '/notificaciones/push-token', // POST registra Expo push token
+  // Trainer — Sesiones / ejercicios / solicitudes PT
   TRAINER_EXERCISES:     '/trainer/exercises',   // GET /api/trainer/exercises
   TRAINER_PT_REQUESTS:  '/trainer/pt-requests',  // GET/PATCH
   TRAINER_CHAT_BASE:    '/trainer/chat',           // GET|POST /trainer/chat/<miembro_pg_id>
@@ -124,7 +147,6 @@ export const ENDPOINTS = {
   OWNER_GYM_PROFILE:    '/owner_gym/perfil',      // GET /api/owner_gym/perfil
   OWNER_PRODUCTOS:      '/owner_gym/productos',    // GET /api/owner_gym/productos
   OWNER_VENTAS:         '/ventas',                 // GET /api/ventas (ventas_bp hardcoded)
-  OWNER_STAFF:          '/owner_gym/staff',        // GET /api/owner_gym/staff
 
   // Member — POS
   // El catálogo de productos es compartido (owner_gym/productos).

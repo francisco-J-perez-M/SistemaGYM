@@ -11,7 +11,7 @@ interface Props {
   trend?:  number;   // % positivo o negativo
 }
 
-export default function StatCard({ label, value, icon, color = colors.accent, trend }: Props) {
+export default function StatCard({ label, value, icon, color = Colors.accent, trend }: Props) {
   const colors = useColors();
   const fs = useFontScale();
   const styles = useMemo(() => make_styles(colors, fs), [colors, fs]);

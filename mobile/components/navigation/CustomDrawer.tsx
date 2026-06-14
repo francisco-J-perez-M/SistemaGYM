@@ -5,10 +5,11 @@
  */
 import React, { useState } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, ScrollView,
+  View, Text, TouchableOpacity, StyleSheet, ScrollView, Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import type { DrawerContentComponentProps } from '@react-navigation/drawer';
 import { useColors, useFontScale } from '../../hooks/useColors';
 import { useAuth } from '../../hooks/useAuth';
@@ -21,6 +22,8 @@ function getRoleLabel(role?: string): string {
     case 'Admin':      return 'Administrador';
     case 'superadmin': return 'Super Admin';
     case 'Entrenador': return 'Entrenador';
+    case 'Recepcionista':
+    case 'recepcionista': return 'Recepcionista';
     case 'Miembro':
     case 'user':       return 'Miembro';
     default:           return 'Usuario';
@@ -47,18 +50,33 @@ export default function CustomDrawer(props: DrawerContentComponentProps) {
         {/* ── Cabecera ──────────────────────────────────────────────────── */}
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
           <View style={styles.headerTop}>
-            <View style={[styles.avatar, { backgroundColor: colors.accent }]}>
-              <Text style={styles.initials}>{initials}</Text>
+            {user?.foto_perfil && user.foto_perfil.startsWith('data:image') ? (
+              <Image source={{ uri: user.foto_perfil }} style={styles.avatarImg} resizeMode="cover" />
+            ) : (
+              <View style={[styles.avatar, { backgroundColor: colors.accent }]}>
+                <Text style={styles.initials}>{initials}</Text>
+              </View>
+            )}
+            <View style={styles.headerActions}>
+              {/* Botón notificaciones */}
+              <TouchableOpacity
+                style={[styles.a11yBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+                onPress={() => router.push('/notifications')}
+                accessibilityLabel="Notificaciones"
+                accessibilityRole="button"
+              >
+                <Ionicons name="notifications-outline" size={18} color={colors.textSecondary} />
+              </TouchableOpacity>
+              {/* Botón accesibilidad */}
+              <TouchableOpacity
+                style={[styles.a11yBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+                onPress={() => setShowA11y(true)}
+                accessibilityLabel="Ajustes de accesibilidad"
+                accessibilityRole="button"
+              >
+                <Ionicons name="accessibility-outline" size={18} color={colors.textSecondary} />
+              </TouchableOpacity>
             </View>
-            {/* Botón accesibilidad */}
-            <TouchableOpacity
-              style={[styles.a11yBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
-              onPress={() => setShowA11y(true)}
-              accessibilityLabel="Ajustes de accesibilidad"
-              accessibilityRole="button"
-            >
-              <Ionicons name="accessibility-outline" size={18} color={colors.textSecondary} />
-            </TouchableOpacity>
           </View>
           <Text style={[styles.name,  { color: colors.text,          fontSize: 16 * fs }]} numberOfLines={1}>{nombre}</Text>
           <Text style={[styles.email, { color: colors.textSecondary, fontSize: 12 * fs }]} numberOfLines={1}>{toStr(user?.email)}</Text>
@@ -151,7 +169,9 @@ const styles = StyleSheet.create({
   root:      { flex: 1 },
   header:    { paddingHorizontal: 20, paddingVertical: 16, gap: 4, borderBottomWidth: 1 },
   headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
+  headerActions: { flexDirection: 'row', gap: 8 },
   avatar:    { width: 60, height: 60, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  avatarImg: { width: 60, height: 60, borderRadius: 20, backgroundColor: '#1e293b' },
   initials:  { color: '#fff', fontSize: 24, fontWeight: '800' },
   a11yBtn:   { width: 36, height: 36, borderRadius: 10, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   name:      { fontWeight: '700' },

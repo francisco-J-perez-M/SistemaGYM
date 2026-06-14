@@ -62,9 +62,9 @@ export default function TrainerChatScreen() {
   const [sending, setSending] = useState(false);
   const flatRef = useRef<FlatList>(null);
 
-  // Clientes del entrenador
+  // Solo clientes ASIGNADOS al entrenador (my_clients=1) — no todo el gimnasio.
   const { data: membersData, loading: loadingM, refetch: refetchM } =
-    useFetch<{ members: Member[] }>(ENDPOINTS.TRAINER_MEMBERS);
+    useFetch<{ members: Member[] }>(`${ENDPOINTS.TRAINER_MEMBERS}?my_clients=1`);
   const members = toArray(membersData?.members ?? []);
 
   // Resumen de no leídos

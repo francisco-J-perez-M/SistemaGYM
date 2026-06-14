@@ -4,7 +4,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Alert, TextInput, RefreshControl,
+  Alert, TextInput, RefreshControl, Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 // LinearGradient eliminado — puede fallar en Fabric (new arch) antes de registrarse
@@ -30,6 +30,7 @@ interface ProfileData {
   estatura?:   number;
   peso_actual?: number;
   nivel_experiencia?: string;
+  fotoPerfil?: string | null;   // base64 data URI
 }
 
 export default function ProfileScreen() {
@@ -88,9 +89,13 @@ export default function ProfileScreen() {
       {/* Hero banner — sin LinearGradient */}
       <View style={[styles.hero, { paddingTop: insets.top + 20 }]}>
         <View style={styles.avatarWrap} accessibilityLabel={`Avatar de ${displayNombre}`}>
-          <View style={styles.avatar}>
-            <Text style={styles.initials}>{initials}</Text>
-          </View>
+          {data?.fotoPerfil && data.fotoPerfil.startsWith('data:image') ? (
+            <Image source={{ uri: data.fotoPerfil }} style={styles.avatarImg} resizeMode="cover" />
+          ) : (
+            <View style={styles.avatar}>
+              <Text style={styles.initials}>{initials}</Text>
+            </View>
+          )}
         </View>
         <Text style={styles.heroName}>{displayNombre}</Text>
         <Text style={styles.heroEmail}>{data?.email ?? user?.email ?? ''}</Text>
@@ -252,6 +257,7 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
     alignItems:      'center',
     justifyContent:  'center',
   },
+  avatarImg: { width: 90, height: 90, borderRadius: 28, backgroundColor: colors.surface },
   initials:  { color: '#fff', fontSize: 32 * fs, fontWeight: '800' },
   heroName:  { color: colors.text, fontSize: 22 * fs, fontWeight: '700' },
   heroEmail: { color: colors.textSecondary, fontSize: 13 * fs },

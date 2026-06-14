@@ -4,6 +4,7 @@ export type UserRole =
   | 'Miembro'
   | 'user'
   | 'Entrenador'
+  | 'Recepcionista'
   | 'owner_gym'
   | 'Admin'
   | 'superadmin';
@@ -18,6 +19,7 @@ export interface AuthUser {
   access_level?:    string;
   perfil_completo?: boolean;
   peso_inicial?:    number | null;
+  foto_perfil?:     string | null;   // base64 data URI
 }
 
 export interface AuthState {
@@ -116,13 +118,240 @@ export interface ComidaDieta {
 
 // ── Membership ────────────────────────────────────────────────────────────────
 
+/** Plan disponible — contrato real de GET /api/user/membership/plans → { planes: [...] } */
 export interface MembershipPlan {
-  id_membresia:   number;
+  id:             string;   // 'monthly' | 'quarterly' | 'annual'
+  id_membresia:   number;   // entero PG — requerido por /renew
   nombre:         string;
   precio:         number;
-  duracion_dias:  number;
-  descripcion?:   string;
-  beneficios?:    string;
+  duracion_meses: number;
+  ahorro?:        number;
+}
+
+/** Membresía activa — contrato real de GET /api/user/membership → { tieneMembresia, membresia } */
+export interface ActiveMembership {
+  id:            string;
+  nombre:        string;
+  fechaInicio:   string;
+  fechaFin:      string;
+  diasRestantes: number;
+  estado:        'activa' | 'por_vencer' | 'vencida';
+  precio:        number;
+}
+
+export interface MembershipResponse {
+  tieneMembresia: boolean;
+  membresia?:     ActiveMembership;
+  mensaje?:       string;
+}
+
+export interface PlansResponse { planes: MembershipPlan[] }
+
+export type MetodoPago = 'Efectivo' | 'Tarjeta' | 'Transferencia';
+
+// ── Payments (GET /api/user/payments) ──────────────────────────────────────────
+
+export interface PaymentItem {
+  id:      string;
+  date:    string;
+  concept: string;
+  amount:  number;
+  method:  string;
+  status:  string;
+  rawDate: string;
+}
+
+export interface PaymentsResponse {
+  stats: {
+    totalPaid:   number;
+    lastPayment: string;
+    nextPayment: string;
+    status:      string;
+  };
+  payments: PaymentItem[];
+}
+
+// ── Health (GET /api/user/health) ──────────────────────────────────────────────
+
+export interface HealthCondition {
+  nombre: string;
+  valor:  string;
+  estado: 'bajo' | 'normal' | 'alto' | 'muy_alto' | string;
+  icon:   string;
+}
+
+export interface HealthResponse {
+  condiciones:        HealthCondition[];
+  condicionesMedicas: string[];
+  alergias:           string[];
+  medicamentos:       string[];
+  lesiones:           string[];
+  nivelActividad:     string;
+  objetivo:           string;
+  nivelExperiencia:   string;
+  diasDisponibles:    string | number;
+  horasSueno:         string | number;
+  fuma:               boolean;
+  alcohol:            string;
+  notas:              string | null;
+  ultimaActualizacion: string | null;
+}
+
+// ── Notificaciones (GET /api/notificaciones) ───────────────────────────────────
+
+export interface Notificacion {
+  _id:        string;
+  tipo:       string;
+  titulo:     string;
+  mensaje:    string;
+  leida:      boolean;
+  creado_en:  string;
+  referencia_tipo?: string | null;
+  referencia_id?:   string | null;
+}
+
+export interface NotificacionesResponse {
+  notificaciones: Notificacion[];
+  no_leidas:      number;
+}
+
+// ── Dietas (entrenador) — GET /api/trainer/diets → { diets: [...] } ─────────────
+
+export interface DietPlan {
+  id:                   string;
+  nombre:               string;
+  objetivo?:            string;
+  calorias_meta?:       number | null;
+  proteinas_meta_g?:    number | null;
+  carbohidratos_meta_g?: number | null;
+  grasas_meta_g?:       number | null;
+  duracion_semanas?:    number;
+  notas?:               string;
+  id_miembro_pg?:       number | null;
+  fuente?:              string;
+  fecha_creacion?:      string;
+  semanas?:             any[];
+}
+
+export interface DietsResponse { diets: DietPlan[] }
+
+/** Receta de la biblioteca del entrenador — GET /api/trainer/recipes → { recipes } */
+export interface Recipe {
+  id:               string;
+  nombre:           string;
+  descripcion?:     string;
+  calorias?:        number | null;
+  proteinas_g?:     number | null;
+  carbohidratos_g?: number | null;
+  grasas_g?:        number | null;
+  ingredientes?:    any[];
+  imagen?:          string | null;
+}
+
+export interface RecipesResponse { recipes: Recipe[] }
+
+/** Una comida dentro de un plan, compuesta por recetas seleccionadas. */
+export interface ComidaPlan {
+  nombre: string;            // "Desayuno", "Comida", "Cena"…
+  recetas: Recipe[];         // recetas elegidas de la biblioteca
+}
+
+export interface TrainerMember {
+  id_miembro:    string;
+  id_miembro_pg: number | null;
+  nombre:        string;
+  email:         string;
+  is_my_client:  boolean;
+}
+
+export interface TrainerMembersResponse { members: TrainerMember[] }
+
+// ── Reportes (dueño) ────────────────────────────────────────────────────────
+
+export interface IngresoMes {
+  label:  string;
+  pagos:  number;
+  ventas: number;
+  total:  number;
+}
+
+export interface ActividadItem {
+  tipo:   'pago' | 'registro' | 'venta' | string;
+  titulo: string;
+  sub?:   string;
+  monto?: number;
+  fecha:  string;
+}
+
+// ── IA / Analítica (Spark) ──────────────────────────────────────────────────
+
+export interface ClusterResumen {
+  cluster_id:      number;
+  etiqueta:        string;
+  num_miembros?:   number;
+  imc_promedio?:   number;
+  peso_promedio?:  number;
+  grasa_promedio?: number;
+}
+
+export interface KMeansResponse {
+  algoritmo:        string;
+  silhouette:       number;
+  resumen_clusters: ClusterResumen[];
+  asignaciones?:    any[];
+  desde_cache?:     boolean;
+  error?:           string;
+}
+
+export interface PrediccionCancelacion {
+  id_miembro:       string;
+  nombre:           string;
+  dias_sin_asistir: number;
+  membresia_activa: boolean;
+  probabilidad:     number;   // 0..1
+  riesgo:           'alto' | 'medio' | 'bajo' | string;
+}
+
+export interface CancelacionesResponse {
+  predicciones: PrediccionCancelacion[];
+  resumen?: {
+    total:        number;
+    riesgo_alto:  number;
+    riesgo_medio: number;
+    activos:      number;
+  };
+  metricas?:    { accuracy?: number; auc_roc?: number };
+  desde_cache?: boolean;
+  error?:       string;
+}
+
+// ── Recepcionista ────────────────────────────────────────────────────────────
+
+export interface ReceptionistDashboard {
+  today_checkins:   number;
+  active_members:   number;
+  pending_payments: number;
+  expiring_soon:    number;
+  today_citas:      number;
+}
+
+export interface Checkin {
+  id:                string;
+  nombre:            string;
+  hora_entrada:      string;
+  hora_salida?:      string | null;
+  membership_status: string;
+}
+
+export interface ReceptionistMember {
+  id:             string;
+  id_usuario_pg:  number | null;
+  nombre:         string;
+  email:          string;
+  telefono?:      string;
+  mem_status:     'activa' | 'por_vencer' | 'vencida' | 'sin_membresia' | string;
+  tipo_membresia?: string | null;
+  fecha_fin?:     string | null;
 }
 
 // ── Trainer ───────────────────────────────────────────────────────────────────
@@ -198,13 +427,25 @@ export interface OwnerDashboard {
   tipos_membresia: number;
 }
 
+/** Membresía activa anidada en el miembro (Miembro.to_dict) */
+export interface MiembroMembresia {
+  nombre:        string;
+  fecha_inicio?: string;
+  fecha_fin?:    string;
+  estado?:       string;
+}
+
 export interface MiembroAdmin {
-  _id:            string;
+  id?:            string;
+  _id?:           string;
   nombre:         string;
   email:          string;
-  membresia?:     string;
+  foto_perfil?:   string | null;   // base64 data URI o null
+  activo?:        boolean;
   estado?:        string;
+  membresia?:     MiembroMembresia | null;
   fecha_ingreso?: string;
+  registrationDate?: string;
 }
 
 /** Respuesta paginada de GET /api/miembros */
@@ -233,4 +474,23 @@ export interface PagosResponse {
   total:  number;
   pages:  number;
   page:   number;
+}
+
+/** Movimiento del feed unificado GET /api/pagos/todos */
+export interface Movimiento {
+  id:          string;
+  tipo:        'membresia' | 'venta' | string;
+  titulo:      string;
+  monto:       number;
+  metodo_pago?: string;
+  concepto?:   string;
+  fecha:       string;
+  categoria?:  string | null;
+}
+
+export interface MovimientosResponse {
+  movimientos: Movimiento[];
+  total:       number;
+  pages:       number;
+  page:        number;
 }

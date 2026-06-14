@@ -8,6 +8,11 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useAuthStore } from '../store/authStore';
 import { useAccessibilityStore } from '../store/accessibilityStore';
 import { useColors } from '../hooks/useColors';
+import {
+  configureNotificationHandler,
+  registerForPushNotificationsAsync,
+  setupNotificationListeners,
+} from '../services/push';
 
 // ── Error boundary para mostrar crash en pantalla en builds de release ────────
 interface EBState { error: Error | null }
@@ -42,6 +47,19 @@ function AppContent() {
   const colors      = useColors();
   const resolvedTheme = useAccessibilityStore((s) => s.resolvedTheme());
   const reduceMotion  = useAccessibilityStore((s) => s.reduceMotion);
+  const token         = useAuthStore((s) => s.token);
+
+  // Push: configurar handler una vez y registrar el token al iniciar sesión.
+  useEffect(() => {
+    configureNotificationHandler();
+  }, []);
+
+  useEffect(() => {
+    if (!token) return;
+    registerForPushNotificationsAsync();
+    const cleanup = setupNotificationListeners();
+    return cleanup;
+  }, [token]);
 
   return (
     <>
@@ -60,6 +78,8 @@ function AppContent() {
         <Stack.Screen name="(member)"  options={{ headerShown: false }} />
         <Stack.Screen name="(trainer)" options={{ headerShown: false }} />
         <Stack.Screen name="(admin)"   options={{ headerShown: false }} />
+        <Stack.Screen name="(receptionist)" options={{ headerShown: false }} />
+        <Stack.Screen name="notifications" options={{ headerShown: false, presentation: 'modal' }} />
       </Stack>
     </>
   );

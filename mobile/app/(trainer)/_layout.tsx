@@ -14,6 +14,7 @@ const SCREENS: Screen[] = [
   { name: 'chat',        title: 'Mensajes',         icon: 'chatbubbles-outline', iconActive: 'chatbubbles' },
   { name: 'schedule',    title: 'Agenda',           icon: 'calendar-outline',   iconActive: 'calendar'  },
   { name: 'routines',    title: 'Rutinas',          icon: 'barbell-outline',    iconActive: 'barbell'   },
+  { name: 'diets',       title: 'Dietas',           icon: 'nutrition-outline',  iconActive: 'nutrition' },
   { name: 'profile',     title: 'Perfil',           icon: 'person-outline',     iconActive: 'person'    },
 ];
 

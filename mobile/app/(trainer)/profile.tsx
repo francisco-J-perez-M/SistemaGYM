@@ -7,7 +7,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Alert, TextInput, RefreshControl,
+  Alert, TextInput, RefreshControl, Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -28,6 +28,7 @@ import api from '../../services/api';
 interface TrainerProfile {
   name:           string;
   email:          string;
+  photo?:         string | null;   // base64 data URI
   phone?:         string;
   address?:       string;
   specialization?: string;
@@ -91,12 +92,13 @@ export default function TrainerProfileScreen() {
     }
   };
 
-  const handleLogout = () =>
+  const handleLogout = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     Alert.alert('Cerrar sesión', '¿Estás seguro?', [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Salir', style: 'destructive', onPress: logout },
     ]);
+  };
 
   if (loading) return <LoadingSpinner fullScreen message="Cargando perfil…" />;
 
@@ -112,7 +114,11 @@ export default function TrainerProfileScreen() {
     >
       {/* Hero */}
       <View style={[styles.hero, { paddingTop: insets.top + 20 }]}>
-        <View style={styles.avatar}><Text style={styles.initials}>{initials}</Text></View>
+        {profile?.photo && profile.photo.startsWith('data:image') ? (
+          <Image source={{ uri: profile.photo }} style={styles.avatarImg} resizeMode="cover" />
+        ) : (
+          <View style={styles.avatar}><Text style={styles.initials}>{initials}</Text></View>
+        )}
         <Text style={styles.name}>{displayName}</Text>
         <Badge label="Entrenador Personal" color="accent" />
         {profile?.specialization ? <Text style={styles.heroSub}>{profile.specialization}</Text> : null}
@@ -266,6 +272,7 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   screen:  { flex: 1, backgroundColor: colors.background },
   hero:    { alignItems: 'center', paddingBottom: 24, paddingHorizontal: 24, gap: 6, backgroundColor: colors.heroTop },
   avatar:  { width: 80, height: 80, borderRadius: 24, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
+  avatarImg: { width: 80, height: 80, borderRadius: 24, backgroundColor: colors.surface, marginBottom: 4 },
   initials:{ color: '#fff', fontSize: 30 * fs, fontWeight: '800' },
   name:    { color: colors.text, fontSize: 22 * fs, fontWeight: '700', textAlign: 'center' },
   heroSub: { color: colors.accent, fontSize: 13 * fs },

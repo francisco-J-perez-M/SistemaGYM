@@ -8,17 +8,13 @@ type IconName = React.ComponentProps<typeof Ionicons>['name'];
 interface Screen { name: string; title: string; icon: IconName; iconActive: IconName }
 
 const SCREENS: Screen[] = [
-  { name: 'index',      title: 'Inicio',             icon: 'home-outline',      iconActive: 'home'      },
-  { name: 'pos',        title: 'Punto de Venta',     icon: 'cart-outline',      iconActive: 'cart'      },
-  { name: 'training',   title: 'Entrenamiento',      icon: 'barbell-outline',   iconActive: 'barbell'   },
-  { name: 'nutrition',  title: 'Nutrición y Dietas', icon: 'nutrition-outline', iconActive: 'nutrition'  },
-  { name: 'membership', title: 'Mi Membresía',       icon: 'card-outline',      iconActive: 'card'      },
-  { name: 'payments',   title: 'Pagos',              icon: 'receipt-outline',   iconActive: 'receipt'   },
-  { name: 'health',     title: 'Salud',              icon: 'pulse-outline',     iconActive: 'pulse'     },
-  { name: 'profile',    title: 'Mi Perfil',          icon: 'person-outline',    iconActive: 'person'    },
+  { name: 'index',    title: 'Dashboard',  icon: 'grid-outline',          iconActive: 'grid'          },
+  { name: 'checkins', title: 'Check-ins',  icon: 'log-in-outline',        iconActive: 'log-in'        },
+  { name: 'members',  title: 'Miembros',   icon: 'people-outline',        iconActive: 'people'        },
+  { name: 'profile',  title: 'Mi Perfil',  icon: 'person-outline',        iconActive: 'person'        },
 ];
 
-export default function MemberLayout() {
+export default function ReceptionistLayout() {
   const colors = useColors();
   return (
     <Drawer
@@ -49,13 +45,6 @@ export default function MemberLayout() {
               <Ionicons name={focused ? iconActive : icon} size={22} color={color} />
             ),
           }}
-        />
-      ))}
-      {['progress', 'routines', 'chat'].map((name) => (
-        <Drawer.Screen
-          key={name}
-          name={name}
-          options={{ drawerItemStyle: { display: 'none' }, title: name }}
         />
       ))}
     </Drawer>
