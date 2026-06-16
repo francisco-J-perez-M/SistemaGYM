@@ -344,9 +344,16 @@ export const trainerService = {
 
   // ─── BIBLIOTECA DE EJERCICIOS ──────────────────────────────────────────────
 
-  getExercises: async ({ search = '', grupo_muscular = '' } = {}) => {
+  getExercises: async ({ search = '', grupo_muscular = '', incluirInactivos = false } = {}) => {
     const params = new URLSearchParams({ search, grupo_muscular });
+    if (incluirInactivos) params.set('incluir_inactivos', '1');
     return await apiFetch(`${API_BASE_URL}/trainer/exercises?${params}`);
+  },
+
+  reactivateExercise: async (id) => {
+    return await apiFetch(`${API_BASE_URL}/trainer/exercises/${id}/reactivar`, {
+      method: 'POST',
+    });
   },
 
   createExercise: async (data) => {
