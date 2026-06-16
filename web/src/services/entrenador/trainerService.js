@@ -306,6 +306,18 @@ export const trainerService = {
     });
   },
 
+  /**
+   * Asigna una rutina a un miembro. Si se envía `nivel`
+   * (Principiante | Intermedio | Avanzado), el backend calcula y guarda los
+   * pesos sugeridos por ejercicio en la asignación (no en la rutina compartida).
+   */
+  assignRoutine: async (routineId, { id_miembro, nivel } = {}) => {
+    return await apiFetch(`${API_BASE_URL}/trainer/routines/${routineId}/assign`, {
+      method: 'POST',
+      body: JSON.stringify({ id_miembro, nivel }),
+    });
+  },
+
   updateRoutine: async (routineId, routineData) => {
     return await apiFetch(`${API_BASE_URL}/trainer/routines/${routineId}`, {
       method: 'PUT',

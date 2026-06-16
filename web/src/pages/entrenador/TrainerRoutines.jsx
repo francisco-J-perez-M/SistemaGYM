@@ -830,10 +830,11 @@ function ExerciseDetailModal({ exercise, onClose, onEdit }) {
 // ═══════════════════════════════════════════════════════════════
 //  ImportarIARoutinesTab — ETL con Ollama para rutinas y ejercicios
 // ═══════════════════════════════════════════════════════════════
-function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExercise }) {
+function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExercise, onAssignRoutine }) {
   const [mode, setMode]           = useState("trainer"); // "trainer" | "client"
   const [file, setFile]           = useState(null);
   const [clientId, setClientId]   = useState("");
+  const [nivel, setNivel]         = useState("");        // Principiante | Intermedio | Avanzado
   const [loading, setLoading]     = useState(false);
   const [error, setError]         = useState(null);
   const [preview, setPreview]     = useState(null);   // { rutinas[], ejercicios[], resumen }
@@ -882,8 +883,15 @@ function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExe
     for (const [i, rutina] of (preview.rutinas || []).entries()) {
       if (!selRoutines[i]) continue;
       const payload = { ...rutina, id_miembro: mode === "client" && clientId ? clientId : undefined };
-      const ok = await onSaveRoutine(payload);
-      if (ok) rutinasOk++;
+      const res = await onSaveRoutine(payload);
+      if (res) {
+        rutinasOk++;
+        // Si se asigna a un cliente con nivel, calcular y guardar pesos sugeridos
+        const idRutina = res.id_rutina || res.id;
+        if (mode === "client" && clientId && nivel && idRutina) {
+          try { await onAssignRoutine?.(idRutina, clientId, nivel); } catch { /* no bloquea el guardado */ }
+        }
+      }
     }
     for (const [i, ej] of (preview.ejercicios || []).entries()) {
       if (!selExercises[i]) continue;
@@ -895,7 +903,7 @@ function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExe
     onImportDone?.();
   };
 
-  const reset = () => { setFile(null); setPreview(null); setError(null); setSaved(null); setClientId(""); };
+  const reset = () => { setFile(null); setPreview(null); setError(null); setSaved(null); setClientId(""); setNivel(""); };
 
   const aiOk = aiStatus?.disponible && aiStatus?.modelo_activo;
 
@@ -964,6 +972,17 @@ function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExe
           <select className="input-compact" value={clientId} onChange={e => setClientId(e.target.value)}>
             <option value="">Selecciona un cliente</option>
             {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+
+          {/* Nivel del cliente → pesos sugeridos automáticos por ejercicio */}
+          <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: ".06em", display: "block", margin: "12px 0 5px" }}>
+            Nivel del cliente <span style={{ textTransform: "none", fontWeight: 400 }}>(opcional — asigna pesos de arranque)</span>
+          </label>
+          <select className="input-compact" value={nivel} onChange={e => setNivel(e.target.value)}>
+            <option value="">Sin pesos sugeridos</option>
+            <option value="Principiante">Principiante</option>
+            <option value="Intermedio">Intermedio</option>
+            <option value="Avanzado">Avanzado</option>
           </select>
         </div>
       )}
@@ -1035,10 +1054,22 @@ function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExe
               <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
                 {preview.resumen?.total_rutinas} rutina{preview.resumen?.total_rutinas !== 1 ? "s" : ""} ·{" "}
                 {preview.resumen?.total_dias} día{preview.resumen?.total_dias !== 1 ? "s" : ""} de entrenamiento ·{" "}
-                {preview.resumen?.total_ejercicios} ejercicio{preview.resumen?.total_ejercicios !== 1 ? "s" : ""} para biblioteca
+                {preview.resumen?.ejercicios_nuevos} ejercicio{preview.resumen?.ejercicios_nuevos !== 1 ? "s" : ""} nuevo{preview.resumen?.ejercicios_nuevos !== 1 ? "s" : ""} para biblioteca
               </div>
             </div>
           </div>
+
+          {/* Avisos: duplicados omitidos / documento truncado */}
+          {(preview.avisos || []).length > 0 && (
+            <div style={{ background: "rgba(245,158,11,.08)", border: "1px solid rgba(245,158,11,.3)", borderRadius: 10, padding: "12px 16px", marginBottom: 18 }}>
+              {(preview.avisos || []).map((a, i) => (
+                <div key={i} style={{ fontSize: 12, color: "var(--text-secondary)", display: "flex", gap: 8, alignItems: "flex-start", marginBottom: i < preview.avisos.length - 1 ? 6 : 0 }}>
+                  <FiAlertCircle size={14} style={{ flexShrink: 0, marginTop: 1, color: "#f59e0b" }} />
+                  <span>{a}</span>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Rutinas extraídas */}
           {(preview.rutinas || []).length > 0 && (
@@ -1075,6 +1106,11 @@ function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExe
                           {(d.exercises || []).map((ex, ei) => (
                             <div key={ei} style={{ fontSize: 11, color: "var(--text-secondary)", paddingLeft: 12, marginBottom: 2 }}>
                               • {ex.name} · {ex.sets} × {ex.reps}{ex.peso ? ` · ${ex.peso}` : ""}{ex.notes ? ` — ${ex.notes}` : ""}
+                              {ex.ya_existe && (
+                                <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, color: "#f59e0b", background: "rgba(245,158,11,.12)", borderRadius: 5, padding: "1px 6px" }}>
+                                  ya en biblioteca
+                                </span>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -2159,12 +2195,16 @@ export default function TrainerRoutines() {
           clients={clients}
           onImportDone={() => { loadRoutines(); loadExercises(); }}
           onSaveRoutine={async (routineData) => {
-            try { await trainerService.createRoutine(routineData); return true; }
-            catch { return false; }
+            try { return await trainerService.createRoutine(routineData); }
+            catch { return null; }
           }}
           onSaveExercise={async (exData) => {
             try { await trainerService.createExercise(exData); return true; }
             catch { return false; }
+          }}
+          onAssignRoutine={async (routineId, id_miembro, nivel) => {
+            try { return await trainerService.assignRoutine(routineId, { id_miembro, nivel }); }
+            catch { return null; }
           }}
         />
       )}
