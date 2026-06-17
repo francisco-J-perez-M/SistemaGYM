@@ -7,6 +7,7 @@ import {
 } from "react-icons/fi";
 import { GiBodyHeight, GiMuscleUp, GiWeightScale, GiChest, GiLeg, GiFootTrip } from "react-icons/gi";
 import BodyViewer from "../../components/miembro/BodyViewer";
+import UserHealthUpdate from "./UserHealthUpdate";
 import "../../css/CSSUnificado.css";
 
 // ============ CONSTANTES Y CONFIGURACIONES ============
@@ -32,13 +33,15 @@ const MEDIDAS_CORPORALES = [
   { label: "Brazo Izquierdo", key: "brazoIzquierdo", icon: <GiMuscleUp />, color: "#96CEB4", compare: "brazoDerecho", compareLabel: "Brazo Derecho" },
   { label: "Muslo Derecho", key: "musloDerecho", icon: <GiLeg />, color: "#FECA57", compare: "musloIzquierdo", compareLabel: "Muslo Izquierdo" },
   { label: "Muslo Izquierdo", key: "musloIzquierdo", icon: <GiLeg />, color: "#FECA57", compare: "musloDerecho", compareLabel: "Muslo Derecho" },
-  { label: "Pantorrilla", key: "pantorrilla", icon: <GiFootTrip />, color: "#FF9FF3" },
+  { label: "Pantorrilla Derecha", key: "pantorrillaDerecha", icon: <GiFootTrip />, color: "#FF9FF3", compare: "pantorrillaIzquierda", compareLabel: "Pantorrilla Izquierda" },
+  { label: "Pantorrilla Izquierda", key: "pantorrillaIzquierda", icon: <GiFootTrip />, color: "#FF9FF3", compare: "pantorrillaDerecha", compareLabel: "Pantorrilla Derecha" },
 ];
 
 const MEDIDAS_EXCLUIDAS = [
   'Circunferencia de Pecho', 'Circunferencia de Cintura', 'Circunferencia de Cadera',
   'Brazo Derecho', 'Brazo Izquierdo', 'Muslo Derecho', 'Muslo Izquierdo',
-  'Pantorrilla', 'Estatura', 'Peso Actual', 'IMC (Índice de Masa Corporal)'
+  'Pantorrilla Derecha', 'Pantorrilla Izquierda', 'Pantorrilla',
+  'Estatura', 'Peso Actual', 'IMC (Índice de Masa Corporal)'
 ];
 
 // Recomendaciones generales de salud
@@ -436,12 +439,14 @@ export default function UserHealthProgress() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [selectedGender, setSelectedGender] = useState("female");
+  const [showUpdate, setShowUpdate] = useState(false);   // modal "Actualizar Datos"
   const [bodyMetrics, setBodyMetrics] = useState({
     peso: { actual: 0, inicial: 0, meta: 0 },
     grasaCorporal: { actual: 0, inicial: 0, meta: 0 },
     musculo: { actual: 0, inicial: 0, meta: 0 },
     imc: 0, estatura: 0, cintura: 0, cadera: 0, pecho: 0,
-    brazoDerecho: 0, brazoIzquierdo: 0, musloDerecho: 0, musloIzquierdo: 0, pantorrilla: 0
+    brazoDerecho: 0, brazoIzquierdo: 0, musloDerecho: 0, musloIzquierdo: 0,
+    pantorrillaDerecha: 0, pantorrillaIzquierda: 0
   });
   const [healthData, setHealthData] = useState({
     condiciones: [], alergias: [], medicamentos: [], lesiones: [],
@@ -531,7 +536,8 @@ export default function UserHealthProgress() {
     brazoIzquierdo: getMedidaValor(healthData.condiciones, "Brazo Izquierdo") || bodyMetrics.brazoIzquierdo,
     musloDerecho: getMedidaValor(healthData.condiciones, "Muslo Derecho") || bodyMetrics.musloDerecho,
     musloIzquierdo: getMedidaValor(healthData.condiciones, "Muslo Izquierdo") || bodyMetrics.musloIzquierdo,
-    pantorrilla: getMedidaValor(healthData.condiciones, "Pantorrilla") || bodyMetrics.pantorrilla,
+    pantorrillaDerecha: getMedidaValor(healthData.condiciones, "Pantorrilla Derecha") || getMedidaValor(healthData.condiciones, "Pantorrilla") || bodyMetrics.pantorrillaDerecha,
+    pantorrillaIzquierda: getMedidaValor(healthData.condiciones, "Pantorrilla Izquierda") || getMedidaValor(healthData.condiciones, "Pantorrilla") || bodyMetrics.pantorrillaIzquierda,
   };
 
   const kpiMetrics = [
@@ -556,7 +562,7 @@ export default function UserHealthProgress() {
           <h2 className="page-title">Salud y Progreso Físico</h2>
           <button 
             className="btn-primary"
-            onClick={() => navigate('/user-health-update')}
+            onClick={() => setShowUpdate(true)}
             style={{ 
               display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px',
               background: 'var(--accent)', border: 'none', borderRadius: '8px',
@@ -644,7 +650,15 @@ export default function UserHealthProgress() {
                   </div>
 
                   <div style={{ width: "100%", height: "450px", display: "flex", justifyContent: "center", alignItems: "center", overflow: "hidden", position: "relative" }}>
-                    <BodyViewer gender={selectedGender} metrics={bodyMetrics} />
+                    <BodyViewer gender={selectedGender} metrics={{
+                      ...bodyMetrics,
+                      // Priorizar las circunferencias medidas (condiciones) para el modelo
+                      pecho:   valores.pecho   || bodyMetrics.pecho,
+                      cintura: valores.cintura || bodyMetrics.cintura,
+                      cadera:  valores.cadera  || bodyMetrics.cadera,
+                      pantorrillaDerecha:   valores.pantorrillaDerecha,
+                      pantorrillaIzquierda: valores.pantorrillaIzquierda,
+                    }} />
                   </div>
 
                   {/* Relación Cintura/Cadera */}
@@ -756,7 +770,7 @@ export default function UserHealthProgress() {
                     Registra tu información médica para obtener recomendaciones personalizadas
                   </p>
                   <button 
-                    onClick={() => navigate('/user-health-update')}
+                    onClick={() => setShowUpdate(true)}
                     style={{
                       padding: '12px 24px', background: 'var(--accent)', color: 'var(--bg-input)',
                       border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600'
@@ -1051,6 +1065,15 @@ export default function UserHealthProgress() {
                 </>
               )}
             </>
+          )}
+
+          {/* Modal: Actualizar Datos de Salud */}
+          {showUpdate && (
+            <UserHealthUpdate
+              asModal
+              onClose={() => setShowUpdate(false)}
+              onSaved={fetchAllData}
+            />
           )}
         </main>
       </div>

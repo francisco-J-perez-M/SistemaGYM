@@ -103,7 +103,9 @@ export default function UserWeightPrediction() {
         `${API_BASE}/api/analytics/regresion/predecir/${userId}?dias=${diasParam}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      if (res.status === 404 || res.status === 422) {
+      // 400/404/422 = datos insuficientes para entrenar/predecir → estado amigable
+      // (el backend lanza 400 cuando aún no hay suficientes registros de progreso)
+      if (res.status === 400 || res.status === 404 || res.status === 422) {
         setError("__no_data__");
         return;
       }
