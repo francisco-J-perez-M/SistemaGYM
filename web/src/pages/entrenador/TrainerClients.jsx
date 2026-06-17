@@ -28,6 +28,57 @@ export default function TrainerClients() {
   const [totalPages, setTotalPages]       = useState(1);
   const [serverTotal, setServerTotal]     = useState(0);  // total real del servidor
 
+  // Modal del cliente: historial + edición de objetivo
+  const [clientHistory, setClientHistory] = useState(null);  // null = no cargado, [] = vacío
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [editingGoal, setEditingGoal]     = useState(false);
+  const [goalInput, setGoalInput]         = useState("");
+  const [savingGoal, setSavingGoal]       = useState(false);
+
+  // Reiniciar el sub-estado del modal cada vez que se abre/cambia el cliente
+  useEffect(() => {
+    setClientHistory(null);
+    setEditingGoal(false);
+    setLoadingHistory(false);
+    setGoalInput(selectedClient?.goal || "");
+  }, [selectedClient]);
+
+  const loadHistory = async () => {
+    if (!selectedClient) return;
+    setLoadingHistory(true);
+    try {
+      const data = await trainerService.getClientHistory(selectedClient.id);
+      setClientHistory(data.historial || []);
+    } catch (err) {
+      toast.error("No se pudo cargar el historial", err.message);
+      setClientHistory([]);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  const toggleEditGoal = () => {
+    if (editingGoal) { setEditingGoal(false); }
+    else { setGoalInput(selectedClient?.goal || ""); setEditingGoal(true); }
+  };
+
+  const saveGoal = async () => {
+    if (!selectedClient) return;
+    const objetivo = goalInput.trim();
+    setSavingGoal(true);
+    try {
+      await trainerService.updateClientGoal(selectedClient.id, { objetivo });
+      setSelectedClient((c) => ({ ...c, goal: objetivo }));
+      setClients((cs) => cs.map((c) => (c.id === selectedClient.id ? { ...c, goal: objetivo } : c)));
+      setEditingGoal(false);
+      toast.success("Objetivo actualizado");
+    } catch (err) {
+      toast.error("No se pudo guardar", err.message);
+    } finally {
+      setSavingGoal(false);
+    }
+  };
+
   /* ── Carga ── */
   const loadClients = async () => {
     try {
@@ -442,7 +493,7 @@ export default function TrainerClients() {
                   <div>
                     <h3 style={{ fontSize: 20, marginBottom: 5 }}>{selectedClient.name}</h3>
                     <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>
-                      {selectedClient.age || "?"} años · {selectedClient.goal || "Sin objetivo"}
+                      {selectedClient.goal || "Sin objetivo definido"}
                     </p>
                   </div>
                 </div>
@@ -459,56 +510,99 @@ export default function TrainerClients() {
               {/* Contenido */}
               <div style={{ padding: 25 }}>
                 <h4 style={{ fontSize: 16, fontWeight: 600, marginBottom: 15 }}>
-                  Estadísticas de Progreso
+                  Resumen del cliente
                 </h4>
 
-                <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-                  {selectedClient.stats &&
-                    Object.entries(selectedClient.stats).map(([key, values]) => {
-                      if (!values || (values.initial === 0 && values.current === 0 && values.goal === 0)) return null;
-                      const pct = Math.min(
-                        ((values.current - values.initial) / (values.goal - values.initial)) * 100,
-                        100
-                      );
-                      return (
-                        <div key={key}>
-                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10, fontSize: 14 }}>
-                            <span style={{ textTransform: "capitalize", fontWeight: 600 }}>
-                              {{ weight: "Peso (kg)", muscle: "Masa Muscular (%)", fat: "Grasa Corporal (%)" }[key] || key}
-                            </span>
-                            <span style={{ color: "var(--text-secondary)" }}>
-                              {values.initial} → {values.current} / {values.goal}
-                            </span>
-                          </div>
-                          <div style={{ height: 8, background: "var(--bg-input)", borderRadius: 4, position: "relative" }}>
-                            <motion.div
-                              style={{ height: "100%", background: "var(--accent)", borderRadius: 4, position: "absolute" }}
-                              initial={{ width: 0 }}
-                              animate={{ width: `${pct}%` }}
-                              transition={{ delay: 0.2, duration: 0.8 }}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
+                {/* Métricas reales del cliente */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12, marginBottom: 18 }}>
+                  {[
+                    { label: "Racha",            value: `${selectedClient.streak ?? 0} días` },
+                    { label: "Asistencia",       value: `${selectedClient.attendance ?? 0}%` },
+                    { label: "Sesiones totales", value: selectedClient.sessionsTotal ?? 0 },
+                    { label: "Estado",           value: ({ active: "Activo", inactive: "Inactivo", risk: "En riesgo" }[selectedClient.status]) || selectedClient.status || "—" },
+                  ].map((m) => (
+                    <div key={m.label} style={{ background: "var(--bg-input)", borderRadius: 10, padding: "12px 14px" }}>
+                      <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>{m.label}</div>
+                      <div style={{ fontSize: 18, fontWeight: 700 }}>{m.value}</div>
+                    </div>
+                  ))}
                 </div>
 
-                <div style={{ marginTop: 25, display: "flex", gap: 10 }}>
+                {/* Objetivo (editable) */}
+                <div style={{ marginBottom: 18 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Objetivo</div>
+                  {editingGoal ? (
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <input
+                        value={goalInput}
+                        onChange={(e) => setGoalInput(e.target.value)}
+                        placeholder="Ej. Pérdida de peso, hipertrofia…"
+                        style={{ flex: 1, minWidth: 160, padding: "9px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 13 }}
+                      />
+                      <button className="btn-compact-primary" disabled={savingGoal} onClick={saveGoal}>
+                        {savingGoal ? "Guardando…" : "Guardar"}
+                      </button>
+                      <button
+                        className="btn-compact-primary"
+                        style={{ background: "transparent", border: "1px solid var(--border)", color: "var(--text-secondary)" }}
+                        onClick={() => { setEditingGoal(false); setGoalInput(selectedClient.goal || ""); }}
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ color: "var(--text-secondary)", fontSize: 14 }}>
+                      {selectedClient.goal || "Sin objetivo definido"}
+                    </div>
+                  )}
+                </div>
+
+                {/* Historial de sesiones */}
+                {clientHistory !== null && (
+                  <div style={{ marginBottom: 18 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Historial de sesiones</div>
+                    {clientHistory.length === 0 ? (
+                      <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>
+                        Este cliente aún no tiene sesiones registradas.
+                      </div>
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        {clientHistory.map((s) => (
+                          <div key={s.id_sesion} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--bg-input)", borderRadius: 8, padding: "10px 12px" }}>
+                            <div>
+                              <div style={{ fontSize: 13, fontWeight: 500 }}>{s.type || s.nombre_sesion || "Sesión"}</div>
+                              <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>{s.date} · {s.time}</div>
+                            </div>
+                            <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 6, background: "var(--bg-card)", color: "var(--text-secondary)" }}>
+                              {({ completed: "Completada", scheduled: "Agendada", cancelled: "Cancelada", "in-progress": "En curso" }[s.status]) || s.status || "—"}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Acciones */}
+                <div style={{ marginTop: 6, display: "flex", gap: 10 }}>
                   <motion.button
                     className="btn-compact-primary"
                     style={{ flex: 1 }}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
+                    onClick={toggleEditGoal}
                   >
-                    <FiEdit size={16} /> Editar Perfil
+                    <FiEdit size={16} /> {editingGoal ? "Cerrar edición" : "Editar objetivo"}
                   </motion.button>
                   <motion.button
                     className="btn-compact-primary"
                     style={{ flex: 1 }}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
+                    onClick={loadHistory}
+                    disabled={loadingHistory}
                   >
-                    <FiBarChart2 size={16} /> Ver Historial
+                    <FiBarChart2 size={16} /> {loadingHistory ? "Cargando…" : "Ver Historial"}
                   </motion.button>
                 </div>
               </div>
