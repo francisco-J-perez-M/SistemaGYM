@@ -40,6 +40,19 @@ export const deleteBackupEntry    = (job_id)   => API.delete(`/superadmin/backup
 export const getSchedule          = ()         => API.get("/superadmin/backups/schedule");
 export const updateSchedule       = (data)     => API.post("/superadmin/backups/schedule", data);
 
+// Restauración: desde un archivo del historial o desde un archivo externo subido
+export const restoreBackup        = (filename) => API.post("/superadmin/backups/restore", { filename });
+export const restoreUpload        = (file, onProgress) => {
+  const fd = new FormData();
+  fd.append("file", file);
+  return API.post("/superadmin/backups/restore-upload", fd, {
+    headers: { "Content-Type": "multipart/form-data" },
+    onUploadProgress: (e) => {
+      if (onProgress && e.total) onProgress(Math.round((e.loaded / e.total) * 100));
+    },
+  });
+};
+
 // ── Analytics plataforma ──────────────────────────────────────────
 export const getAnalyticsPlataforma = () => API.get("/superadmin/analytics/plataforma");
 export const refreshAnalytics       = () => API.post("/superadmin/analytics/plataforma");
