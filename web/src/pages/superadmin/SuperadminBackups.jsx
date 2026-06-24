@@ -188,6 +188,15 @@ export default function SuperadminBackups() {
   // Resumen legible del resultado de una restauración
   const resumenRestore = (r, fallback) => {
     if (!r) return fallback;
+    // Bundle: resumen por componente (PostgreSQL, MongoDB, medios)
+    if (r.componentes) {
+      const c = r.componentes;
+      const p = [];
+      if (c.postgresql) p.push("PostgreSQL ✓");
+      if (c.mongodb)    p.push(`MongoDB ✓${c.mongodb.fusionados ? ` (${c.mongodb.fusionados} fusionados)` : ""}`);
+      if (c.media)      p.push(`${c.media.restaurados || 0} archivos`);
+      return `Clon completo restaurado — ${p.join(" · ")}`;
+    }
     const p = [];
     if (r.insertados != null)  p.push(`${r.insertados} insertados/actualizados`);
     if (r.fusionados)          p.push(`${r.fusionados} fusionados por clave`);
@@ -197,10 +206,10 @@ export default function SuperadminBackups() {
   };
 
   // ── Restauración ──────────────────────────────────────────────────────────
-  // Solo backups completados con artefactos restaurables
+  // Backups completados con bundle único, o (compat) con artefactos sueltos viejos
   const restorables = history.filter(
     h => h.status === "completado" && h.files &&
-      Object.keys(RESTORE_LABELS).some(k => h.files[k])
+      (h.files.bundle || Object.keys(RESTORE_LABELS).some(k => h.files[k]))
   );
 
   const confirmarRestore = async (titulo, detalle) => {
@@ -391,7 +400,17 @@ export default function SuperadminBackups() {
                         {h.size && h.size !== "ERROR" ? h.size : "—"}
                       </td>
                       <td style={{ padding: "10px 16px" }}>
-                        {h.files && Object.keys(h.files).length > 0 ? (
+                        {h.files?.bundle ? (
+                          // Backup nuevo: un único archivo descargable
+                          <button
+                            onClick={() => downloadBackupFile(h.files.bundle)}
+                            style={{ border: "none", borderRadius: 6, padding: "4px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer", background: "var(--accent)", color: "#fff", display: "inline-flex", alignItems: "center", gap: 5 }}
+                            title={h.files.bundle}
+                          >
+                            ⬇ Descargar
+                          </button>
+                        ) : h.files && Object.keys(h.files).length > 0 ? (
+                          // Compat: backups viejos con artefactos sueltos
                           <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                             {Object.entries(FILE_LABELS).map(([key, meta]) =>
                               h.files[key] ? (
@@ -514,28 +533,46 @@ export default function SuperadminBackups() {
                       ))}
                     </select>
 
-                    <p style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 8 }}>Restaurar motor:</p>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      {Object.entries(RESTORE_LABELS).map(([key, meta]) => {
-                        const fname = restorables[restoreSel]?.files?.[key];
-                        return (
-                          <button
-                            key={key}
-                            disabled={!fname || restoring}
-                            onClick={() => handleRestoreHistory(fname, meta.label)}
-                            style={{
-                              border: `1px solid ${meta.color}`, borderRadius: 8, padding: "7px 14px",
-                              fontSize: 12, fontWeight: 700, cursor: fname && !restoring ? "pointer" : "not-allowed",
-                              background: `${meta.color}18`, color: meta.color,
-                              opacity: fname && !restoring ? 1 : 0.35,
-                            }}
-                            title={fname || "No disponible en este backup"}
-                          >
-                            ⟲ {meta.label}
-                          </button>
-                        );
-                      })}
-                    </div>
+                    {restorables[restoreSel]?.files?.bundle ? (
+                      // Backup nuevo: un solo botón → restaura todo (clon completo)
+                      <button
+                        disabled={restoring}
+                        onClick={() => handleRestoreHistory(restorables[restoreSel].files.bundle, "backup completo (Mongo + PostgreSQL + medios)")}
+                        style={{
+                          border: "none", borderRadius: 8, padding: "9px 16px", width: "100%",
+                          fontSize: 13, fontWeight: 700, cursor: restoring ? "not-allowed" : "pointer",
+                          background: "var(--accent)", color: "#fff", opacity: restoring ? 0.5 : 1,
+                        }}
+                      >
+                        ⟲ Restaurar backup completo
+                      </button>
+                    ) : (
+                      // Compat: backups viejos con artefactos sueltos
+                      <>
+                        <p style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 8 }}>Restaurar motor:</p>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          {Object.entries(RESTORE_LABELS).map(([key, meta]) => {
+                            const fname = restorables[restoreSel]?.files?.[key];
+                            return (
+                              <button
+                                key={key}
+                                disabled={!fname || restoring}
+                                onClick={() => handleRestoreHistory(fname, meta.label)}
+                                style={{
+                                  border: `1px solid ${meta.color}`, borderRadius: 8, padding: "7px 14px",
+                                  fontSize: 12, fontWeight: 700, cursor: fname && !restoring ? "pointer" : "not-allowed",
+                                  background: `${meta.color}18`, color: meta.color,
+                                  opacity: fname && !restoring ? 1 : 0.35,
+                                }}
+                                title={fname || "No disponible en este backup"}
+                              >
+                                ⟲ {meta.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </>
+                    )}
                   </>
                 )}
               </div>
@@ -544,7 +581,7 @@ export default function SuperadminBackups() {
               <div style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 16 }}>
                 <p style={{ fontSize: 12, fontWeight: 700, color: "var(--text-primary)", marginBottom: 12 }}>Desde archivo externo</p>
                 <p style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 12 }}>
-                  Sube un <code>.archive</code> (MongoDB), <code>.dump</code> (PostgreSQL), <code>.json</code> (Mongo) o <code>.tar.gz</code> (imágenes/videos). Ideal para mover datos entre equipos.
+                  Sube el <code>.tar.gz</code> del backup completo (Mongo + PostgreSQL + medios) para clonar otra laptop en esta. También admite artefactos sueltos: <code>.archive</code>, <code>.dump</code>, <code>.json</code>.
                 </p>
 
                 <input
