@@ -21,6 +21,14 @@ ENV REACT_APP_API_URL=${REACT_APP_API_URL}
 
 # Copiar el resto del código y construir
 COPY . .
+
+# Optimización de memoria del build (CRA OOM en máquinas/Docker con poca RAM):
+#   - GENERATE_SOURCEMAP=false: evita generar source maps, que es lo que más
+#     RAM consume en `react-scripts build` (suele ser la causa del "cannot
+#     allocate memory"). Además acelera el build y reduce el bundle.
+#   - NODE_OPTIONS=--max-old-space-size=2048: techo explícito del heap de V8.
+ENV GENERATE_SOURCEMAP=false \
+    NODE_OPTIONS=--max-old-space-size=2048
 RUN npm run build
 
 # ──────────────────────────────────────────────────────────────────────────────
