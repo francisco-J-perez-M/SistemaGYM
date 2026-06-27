@@ -86,6 +86,7 @@ export const ENDPOINTS = {
   USER_ROUTINES:      '/user/routines',          // GET  /api/user/routines (user_routines_bp prefix=/api/user)
   USER_PAYMENTS:      '/user/payments',          // GET  /api/user/payments  (stats + historial)
   USER_HEALTH:        '/user/health',            // GET/POST /api/user/health (condiciones + medidas)
+  USER_HEALTH_MEDICAL:'/user/health/medical',    // PUT /api/user/health/medical (info médica)
   MEMBERSHIP_PAYMENT_METHODS: '/user/membership/payment-methods', // GET métodos recientes
 
   // Nutrición
