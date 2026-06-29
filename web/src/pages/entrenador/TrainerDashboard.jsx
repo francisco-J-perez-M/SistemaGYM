@@ -10,7 +10,6 @@ import {
   FiBarChart2, FiUser,
 } from "react-icons/fi";
 import trainerService from "../../services/entrenador/trainerService";
-import { GuideButton } from "../../components/guide/SystemGuide";
 import "../../css/CSSUnificado.css";
 
 /* ── Helpers ── */
@@ -179,11 +178,10 @@ export default function TrainerDashboard() {
             {fechaHoy()} · Tu resumen del día
           </p>
         </div>
-        <GuideButton />
       </div>
 
       {/* ── KPIs ── */}
-      <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(190px, 1fr))", marginBottom: 24 }}>
+      <div className="kpi-grid" data-guide="tr-kpis" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(190px, 1fr))", marginBottom: 24 }}>
         {loading ? (
           [0,1,2,3].map(i => <KpiSkeleton key={i} />)
         ) : (
@@ -224,7 +222,7 @@ export default function TrainerDashboard() {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
 
         {/* Sesiones de hoy */}
-        <div className="stat-card" style={{ padding: "20px 22px" }}>
+        <div className="stat-card" data-guide="tr-today" style={{ padding: "20px 22px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>
               <FiClock size={14} style={{ marginRight: 8, verticalAlign: "middle", color: "var(--warning)" }} />
@@ -289,7 +287,7 @@ export default function TrainerDashboard() {
           </div>
 
           {/* Accesos rápidos */}
-          <div className="stat-card" style={{ padding: "18px 22px" }}>
+          <div className="stat-card" data-guide="tr-quick" style={{ padding: "18px 22px" }}>
             <h3 style={{ margin: "0 0 14px", fontSize: 14, fontWeight: 700, color: "var(--text-secondary)" }}>
               Accesos rápidos
             </h3>

@@ -1,7 +1,7 @@
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Sidebar from "./Sidebar";
-import { GuideProvider } from "../guide/SystemGuide";
+import SystemGuide from "../guide/SystemGuide";
 
 const ROLE_MAP = {
   owner_gym:    ["owner_gym", "admin", "administrador"],
@@ -166,6 +166,29 @@ export default function Layout({ role = "owner_gym" }) {
   const noSidebar = ["/complete-profile", "/user/complete-profile"];
   const showSidebar = !noSidebar.includes(location.pathname);
 
+  // ── Guía contextual del sistema (todos los roles menos superadmin) ──────────
+  const guideEnabled = role !== "superadmin";
+  const [guideOpen, setGuideOpen] = useState(false);
+  const [guidePath, setGuidePath] = useState(location.pathname);
+
+  const openGuide = () => { setGuidePath(location.pathname); setGuideOpen(true); };
+  const closeGuide = () => {
+    setGuideOpen(false);
+    try { localStorage.setItem(`gympro_guide_seen_${role}`, "1"); } catch { /* ignore */ }
+  };
+
+  // Apertura automática en el primer inicio de sesión del rol.
+  useEffect(() => {
+    if (!guideEnabled) return;
+    let seen = "1";
+    try { seen = localStorage.getItem(`gympro_guide_seen_${role}`); } catch { /* ignore */ }
+    if (!seen) {
+      const t = setTimeout(() => { setGuidePath(location.pathname); setGuideOpen(true); }, 800);
+      return () => clearTimeout(t);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role]);
+
   const activeTab = ROUTE_MAP[role]?.[location.pathname] ?? "";
   const handleNav = (tabId) => {
     const dest = NAV_MAP[role]?.[tabId];
@@ -194,6 +217,7 @@ export default function Layout({ role = "owner_gym" }) {
           activeTab={activeTab}
           onTabChange={handleNav}
           onLogout={handleLogout}
+          onOpenGuide={guideEnabled ? openGuide : undefined}
         />
       )}
 
@@ -208,14 +232,12 @@ export default function Layout({ role = "owner_gym" }) {
           flexDirection: "column",
         }}
       >
-        {role === "superadmin" ? (
-          <Outlet />
-        ) : (
-          <GuideProvider role={role}>
-            <Outlet />
-          </GuideProvider>
-        )}
+        <Outlet />
       </div>
+
+      {guideEnabled && (
+        <SystemGuide open={guideOpen} path={guidePath} onClose={closeGuide} />
+      )}
     </div>
   );
 }

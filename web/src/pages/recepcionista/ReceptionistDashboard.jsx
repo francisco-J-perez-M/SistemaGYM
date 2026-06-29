@@ -6,7 +6,6 @@ import {
   FiUserCheck, FiDollarSign, FiClock,
   FiUsers, FiCalendar, FiAlertCircle, FiRefreshCw,
 } from "react-icons/fi";
-import { GuideButton } from "../../components/guide/SystemGuide";
 import "../../css/CSSUnificado.css";
 
 const API = "/api/recepcionista";
@@ -84,8 +83,7 @@ export default function ReceptionistDashboard() {
           initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
           <h2 className="page-title">Panel de Recepcion</h2>
           <div className="header-right">
-            <GuideButton />
-            <button className="btn-outline-small" onClick={fetchAll} disabled={loading}>
+            <button className="btn-outline-small" data-guide="rec-refresh" onClick={fetchAll} disabled={loading}>
               <FiRefreshCw size={13} style={{ marginRight: 5 }} />Actualizar
             </button>
             <div className="date-display">
@@ -135,7 +133,7 @@ export default function ReceptionistDashboard() {
           )}
 
           {/* KPIs */}
-          <motion.div className="kpi-grid" style={{ marginTop: 24 }}
+          <motion.div className="kpi-grid" data-guide="rec-kpis" style={{ marginTop: 24 }}
             variants={containerVar} initial="hidden" animate="visible">
             <KpiCard icon={FiUserCheck}   label="Check-ins Hoy"
               value={loading ? "..." : stats?.today_checkins}
@@ -154,7 +152,7 @@ export default function ReceptionistDashboard() {
           {/* Check-ins + Acciones rapidas */}
           <div className="charts-row" style={{ marginTop: 24 }}>
             {/* Check-ins */}
-            <motion.div className="chart-card"
+            <motion.div className="chart-card" data-guide="rec-charts"
               initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.3 }}>
               <div className="chart-header">

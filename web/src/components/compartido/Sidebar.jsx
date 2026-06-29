@@ -9,7 +9,7 @@ import {
   FiFileText, FiMail, FiLogOut, FiActivity, FiLock, FiCreditCard,
   FiShoppingCart, FiBookOpen, FiCpu, FiPieChart, FiChevronDown,
   FiChevronLeft, FiChevronRight, FiGlobe, FiPackage, FiServer,
-  FiSliders,
+  FiSliders, FiHelpCircle,
 } from "react-icons/fi";
 import { GiMuscleUp, GiFruitBowl, GiMeal } from "react-icons/gi";
 
@@ -153,6 +153,7 @@ export default function Sidebar({
   activeTab = "overview",
   onTabChange = () => {},
   onLogout = () => {},
+  onOpenGuide,
 }) {
   const { theme, changeTheme } = useTheme();
   const [collapsed,      setCollapsed]      = useState(false);
@@ -531,6 +532,20 @@ export default function Sidebar({
             {!collapsed && <span>Temas</span>}
           </button>
         </div>
+
+        {/* Guía del sistema — recorrido paso a paso de la vista actual */}
+        {onOpenGuide && (
+          <button
+            style={{ ...S.footerBtn, color: P.accentSoft }}
+            onClick={onOpenGuide}
+            title="Guía del sistema"
+            onMouseEnter={e => e.currentTarget.style.background = P.bgHover}
+            onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+          >
+            <span style={S.icon}><FiHelpCircle size={15} /></span>
+            {!collapsed && <span>Guía del sistema</span>}
+          </button>
+        )}
 
         <a
           href="/Terminos y Condiciones.pdf"
