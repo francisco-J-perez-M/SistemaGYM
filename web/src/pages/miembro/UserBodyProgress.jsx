@@ -809,14 +809,14 @@ export default function UserHealthProgress() {
                       </div>
                       <div style={{ padding:'20px', display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(240px,1fr))', gap:16 }}>
                         {[
-                          { label:"Condiciones médicas", items:healthData.condicionesMedicas, color:"#ef4444", icon:"🏥" },
-                          { label:"Alergias",             items:healthData.alergias,           color:"#f59e0b", icon:"⚠️" },
-                          { label:"Medicamentos",         items:healthData.medicamentos,       color:"#6366f1", icon:"💊" },
-                          { label:"Lesiones / Limitaciones", items:healthData.lesiones,         color:"#8b5cf6", icon:"🦴" },
+                          { label:"Condiciones médicas", items:healthData.condicionesMedicas, color:"#ef4444", icon:<FiActivity /> },
+                          { label:"Alergias",             items:healthData.alergias,           color:"#f59e0b", icon:<FiAlertCircle /> },
+                          { label:"Medicamentos",         items:healthData.medicamentos,       color:"#6366f1", icon:<FiDroplet /> },
+                          { label:"Lesiones / Limitaciones", items:healthData.lesiones,         color:"#8b5cf6", icon:<GiLeg /> },
                         ].filter(s => s.items?.length > 0).map((sec, si) => (
                           <div key={si} style={{ background:'var(--bg-input)', borderRadius:10, padding:14, borderLeft:`3px solid ${sec.color}` }}>
                             <div style={{ fontWeight:700, fontSize:13, marginBottom:10, display:'flex', alignItems:'center', gap:6 }}>
-                              <span>{sec.icon}</span> {sec.label}
+                              <span style={{ color: sec.color, display:'inline-flex' }}>{sec.icon}</span> {sec.label}
                             </div>
                             {sec.items.map((it, ii) => (
                               <div key={ii} style={{ fontSize:13, color:'var(--text-secondary)', padding:'4px 0', borderBottom:`1px solid var(--border)` }}>

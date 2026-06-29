@@ -335,8 +335,8 @@ export default function UserProfile() {
                     {nivel}
                   </span>
                   {profile.objetivo && (
-                    <span style={{ fontSize:12, color:"rgba(255,255,255,.7)" }}>
-                      🎯 {profile.objetivo}
+                    <span style={{ fontSize:12, color:"rgba(255,255,255,.7)", display:"inline-flex", alignItems:"center", gap:4 }}>
+                      <FiTarget /> {profile.objetivo}
                     </span>
                   )}
                 </div>

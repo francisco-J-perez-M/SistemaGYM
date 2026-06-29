@@ -10,7 +10,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import {
   FiUser, FiMessageSquare, FiFileText, FiCheck, FiX, FiSend,
   FiRefreshCw, FiAlertCircle, FiClock, FiCheckCircle, FiXCircle,
-  FiSearch, FiBook, FiChevronDown, FiChevronUp, FiZap,
+  FiSearch, FiBook, FiChevronDown, FiChevronUp, FiZap, FiCalendar,
 } from "react-icons/fi";
 import { GiMuscleUp } from "react-icons/gi";
 import { motion, AnimatePresence } from "framer-motion";
@@ -336,8 +336,8 @@ function TabSolicitudes({ onChatWith }) {
                                 </span>
                               </div>
                               <div style={{ display: "flex", gap: 10, marginTop: 4, flexWrap: "wrap" }}>
-                                <span style={{ fontSize: "0.78rem", color: "var(--text-secondary)" }}>
-                                  🗓 {fmtDate(sol.fecha_solicitud)}
+                                <span style={{ fontSize: "0.78rem", color: "var(--text-secondary)", display: "inline-flex", alignItems: "center", gap: 5 }}>
+                                  <FiCalendar /> {fmtDate(sol.fecha_solicitud)}
                                 </span>
                                 <span style={{ fontSize: "0.78rem", color: "var(--text-secondary)" }}>
                                   • {TIPO_SESION_LABEL[sol.tipo_sesion] || sol.tipo_sesion || "Individual"}

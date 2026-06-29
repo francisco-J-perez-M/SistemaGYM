@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import { getUsuarios, toggleUsuario, impersonar } from "../../api/superadmin";
+import { FiUserCheck, FiInfo } from "react-icons/fi";
 
 const card = (extra = {}) => ({
   background: "var(--bg-card)",
@@ -100,7 +101,7 @@ export default function SuperadminUsuarios() {
       title: `Impersonar a "${user.nombre}"`,
       html: `
         <p style="margin-bottom:8px">Iniciarás sesión como este usuario por <strong>1 hora</strong>.</p>
-        <p style="color:var(--warning);font-size:13px">⚠️ Esta acción queda registrada en el log de auditoría.</p>
+        <p style="color:var(--warning);font-size:13px">Esta acción queda registrada en el log de auditoría.</p>
       `,
       icon: "warning",
       showCancelButton: true,
@@ -221,7 +222,7 @@ export default function SuperadminUsuarios() {
                   <div style={{ display: "flex", gap: 6 }}>
                     {u.rol?.toLowerCase() !== "superadmin" && (
                       <button style={btnStyle("purple")} onClick={() => handleImpersonate(u)} title="Iniciar sesión como este usuario">
-                        👤 Impersonar
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><FiUserCheck /> Impersonar</span>
                       </button>
                     )}
                     <button
@@ -248,7 +249,7 @@ export default function SuperadminUsuarios() {
 
       {/* Impersonation notice */}
       <div style={{ marginTop: 24, padding: "12px 16px", background: "rgba(168,85,247,.08)", border: "1px solid rgba(168,85,247,.2)", borderRadius: 10 }}>
-        <p style={{ fontSize: 12, color: "#a855f7", fontWeight: 600, marginBottom: 4 }}>ℹ️ Impersonación de usuarios</p>
+        <p style={{ fontSize: 12, color: "#a855f7", fontWeight: 600, marginBottom: 4, display: "flex", alignItems: "center", gap: 5 }}><FiInfo /> Impersonación de usuarios</p>
         <p style={{ fontSize: 12, color: "var(--text-secondary)" }}>
           Genera un token temporal de 1 hora. La sesión queda registrada con el campo <code style={{ background: "var(--bg-input)", padding: "1px 5px", borderRadius: 4 }}>impersonated_by</code> para auditoría. Para volver al superadmin, cierra sesión y vuelve a iniciar con tus credenciales.
         </p>

@@ -10,6 +10,7 @@ import {
   restoreBackup,
   restoreUpload,
 } from "../../api/superadmin";
+import { FiTrash2, FiDownload, FiPlay, FiRefreshCw, FiRotateCcw, FiLoader } from "react-icons/fi";
 
 const card = (extra = {}) => ({
   background: "var(--bg-card)",
@@ -356,7 +357,9 @@ export default function SuperadminBackups() {
           onClick={handleTrigger}
           disabled={status?.is_running}
         >
-          {status?.is_running ? "⏳ Ejecutando…" : "▶ Nuevo Backup"}
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+            {status?.is_running ? <><FiLoader /> Ejecutando…</> : <><FiPlay /> Nuevo Backup</>}
+          </span>
         </button>
       </div>
 
@@ -404,10 +407,12 @@ export default function SuperadminBackups() {
                       style={btnStyle("danger", { padding: "5px 10px", fontSize: 12 })}
                       onClick={() => handleDelete("__errors__", "todos los errores")}
                     >
-                      🗑 Limpiar errores
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><FiTrash2 /> Limpiar errores</span>
                     </button>
                   )}
-                  <button style={btnStyle("ghost", { padding: "5px 10px", fontSize: 12 })} onClick={loadAll}>↺ Actualizar</button>
+                  <button style={btnStyle("ghost", { padding: "5px 10px", fontSize: 12 })} onClick={loadAll}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><FiRefreshCw /> Actualizar</span>
+                  </button>
                 </div>
               </div>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
@@ -449,7 +454,7 @@ export default function SuperadminBackups() {
                             style={{ border: "none", borderRadius: 6, padding: "4px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer", background: "var(--accent)", color: "#fff", display: "inline-flex", alignItems: "center", gap: 5 }}
                             title={h.files.bundle}
                           >
-                            ⬇ Descargar
+                            <FiDownload /> Descargar
                           </button>
                         ) : h.files && Object.keys(h.files).length > 0 ? (
                           // Compat: backups viejos con artefactos sueltos
@@ -475,9 +480,9 @@ export default function SuperadminBackups() {
                           <button
                             onClick={() => handleDelete(h.job_id, `backup ${h.type} del ${fmtDate(h.date)}`)}
                             title="Eliminar entrada y archivos"
-                            style={{ border: "none", background: "rgba(239,68,68,.1)", color: "var(--danger)", borderRadius: 6, padding: "4px 8px", fontSize: 13, cursor: "pointer" }}
+                            style={{ border: "none", background: "rgba(239,68,68,.1)", color: "var(--danger)", borderRadius: 6, padding: "6px 8px", fontSize: 13, cursor: "pointer", display: "inline-flex" }}
                           >
-                            🗑
+                            <FiTrash2 />
                           </button>
                         )}
                       </td>
@@ -584,9 +589,10 @@ export default function SuperadminBackups() {
                           border: "none", borderRadius: 8, padding: "9px 16px", width: "100%",
                           fontSize: 13, fontWeight: 700, cursor: restoring ? "not-allowed" : "pointer",
                           background: "var(--accent)", color: "#fff", opacity: restoring ? 0.5 : 1,
+                          display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
                         }}
                       >
-                        ⟲ Restaurar backup completo
+                        <FiRotateCcw /> Restaurar backup completo
                       </button>
                     ) : (
                       // Compat: backups viejos con artefactos sueltos
@@ -604,11 +610,12 @@ export default function SuperadminBackups() {
                                   border: `1px solid ${meta.color}`, borderRadius: 8, padding: "7px 14px",
                                   fontSize: 12, fontWeight: 700, cursor: fname && !restoring ? "pointer" : "not-allowed",
                                   background: `${meta.color}18`, color: meta.color,
-                                  opacity: fname && !restoring ? 1 : 0.35,
+                                opacity: fname && !restoring ? 1 : 0.35,
+                                  display: "inline-flex", alignItems: "center", gap: 5,
                                 }}
                                 title={fname || "No disponible en este backup"}
                               >
-                                ⟲ {meta.label}
+                                <FiRotateCcw /> {meta.label}
                               </button>
                             );
                           })}

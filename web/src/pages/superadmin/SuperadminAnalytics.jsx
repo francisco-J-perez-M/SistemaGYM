@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import Swal from "sweetalert2";
+import { FiRefreshCw, FiLoader, FiX } from "react-icons/fi";
 import {
   getAnalyticsPlataforma,
   refreshAnalytics,
@@ -183,7 +184,9 @@ export default function SuperadminAnalytics() {
           <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>Motor Spark — agregación multi-gimnasio</p>
         </div>
         <button style={btnStyle("warn")} onClick={handleRefresh} disabled={loadingPlat}>
-          {loadingPlat ? "⏳ Calculando…" : "↺ Recalcular Spark"}
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+            {loadingPlat ? <><FiLoader /> Calculando…</> : <><FiRefreshCw /> Recalcular Spark</>}
+          </span>
         </button>
       </div>
 
@@ -205,7 +208,7 @@ export default function SuperadminAnalytics() {
             style={{ border: "none", background: "rgba(239,68,68,.12)", color: "var(--danger)", borderRadius: 6, padding: "4px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
             onClick={() => setSelGym("all")}
           >
-            ✕ Limpiar
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><FiX /> Limpiar</span>
           </button>
         )}
       </div>

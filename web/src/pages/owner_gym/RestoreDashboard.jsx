@@ -42,7 +42,7 @@ const RestoreDashboard = () => {
     return Swal.fire({
       title: '¿Estás seguro?',
       html: `Vas a restaurar: <strong>${filename}</strong>.<br/><br/>
-             <span style="color: var(--danger-color)">⚠ Esta acción sobrescribirá o actualizará la base de datos actual.</span>`,
+             <span style="color: var(--danger-color)">Esta acción sobrescribirá o actualizará la base de datos actual.</span>`,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: 'var(--accent)',

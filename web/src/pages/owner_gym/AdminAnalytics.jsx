@@ -11,6 +11,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer,
 } from "recharts";
+import { FiDollarSign, FiUsers, FiTrendingUp, FiBell } from "react-icons/fi";
 import "../../css/CSSUnificado.css";
 
 const API_BASE   = "";
@@ -176,7 +177,7 @@ function TabMapReduce() {
   if (loading) return <LoadingSpinner />;
   if (error || !data) return (
     <NoDataBox
-      icon="💰"
+      icon={<FiDollarSign />}
       title="Todavía no hay datos de ingresos y visitas"
       description="Registra pagos y asistencias de tus miembros para ver aquí el resumen de ingresos, métodos de pago y días con más actividad en el gimnasio."
       onRetry={fetchData}
@@ -294,7 +295,7 @@ function TabKMeans() {
   if (loading) return <LoadingSpinner />;
   if (error || !data) return (
     <NoDataBox
-      icon="👥"
+      icon={<FiUsers />}
       title="Se necesitan más miembros con datos de progreso"
       description="El análisis de grupos requiere que varios miembros tengan registradas medidas físicas (peso, grasa corporal). Una vez que haya suficientes registros, aquí verás cómo se clasifican según su condición física."
       onRetry={() => fetchData(kValue)}
@@ -456,7 +457,7 @@ function TabRegresion() {
   if (loading) return <LoadingSpinner />;
   if (error || !data) return (
     <NoDataBox
-      icon="📈"
+      icon={<FiTrendingUp />}
       title="Todavía no hay suficientes datos"
       description="Para ver las tendencias y predicciones de peso necesitamos que tus miembros tengan registros de progreso físico (peso, grasa corporal). Cuando haya datos suficientes, el análisis aparecerá aquí automáticamente."
       onRetry={fetchData}
@@ -702,7 +703,7 @@ function TabCancelaciones() {
   if (loading) return <LoadingSpinner />;
   if (error || !data) return (
     <NoDataBox
-      icon="🔔"
+      icon={<FiBell />}
       title="Todavía no hay suficientes datos"
       description="Para detectar qué miembros están en riesgo de cancelar necesitamos historial de asistencias y pagos. Cuando haya información suficiente, el análisis aparecerá aquí automáticamente."
       onRetry={fetchData}

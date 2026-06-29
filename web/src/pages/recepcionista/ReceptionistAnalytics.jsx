@@ -3,7 +3,7 @@ import {
   BarChart, Bar, PieChart, Pie, Cell, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
-import { FiDollarSign, FiUsers, FiTrendingUp, FiAlertCircle, FiRefreshCw, FiLock, FiWifiOff } from "react-icons/fi";
+import { FiDollarSign, FiUsers, FiTrendingUp, FiAlertCircle, FiRefreshCw, FiLock, FiWifiOff, FiCheckCircle } from "react-icons/fi";
 import "../../css/CSSUnificado.css";
 
 const API = "";
@@ -523,7 +523,7 @@ export default function ReceptionistAnalytics() {
             </p>
           ) : r2 >= 0.65 ? (
             <p style={{ margin: 0, color: "var(--text-secondary)", fontSize: 13, lineHeight: 1.7 }}>
-              ✅ El modelo tiene suficientes datos para hacer predicciones útiles. Los entrenadores
+              <FiCheckCircle style={{ verticalAlign: "-2px", color: "var(--success)" }} /> El modelo tiene suficientes datos para hacer predicciones útiles. Los entrenadores
               pueden usarlo para saber si un miembro va en buen camino o si necesita ajustar su
               rutina de alimentación y ejercicio.{" "}
               {rmse && `La predicción puede tener una diferencia de ±${rmse.toFixed(1)} kg respecto al peso real.`}
