@@ -634,6 +634,7 @@ export default function MiembrosDashboard() {
           </button>
           {!inactivos && (
             <button
+              data-guide="ow-mem-nuevo"
               onClick={handleNew}
               style={{ padding: "9px 18px", borderRadius: 8, border: "none", background: C.accent, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}
             >
@@ -644,7 +645,7 @@ export default function MiembrosDashboard() {
       </div>
 
       {/* Búsqueda */}
-      <div style={{ position: "relative", marginBottom: 20, maxWidth: 440 }}>
+      <div data-guide="ow-mem-search" style={{ position: "relative", marginBottom: 20, maxWidth: 440 }}>
         <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: C.t3, pointerEvents: "none", display: "inline-flex" }}><FiSearch /></span>
         <input
           value={search}
@@ -678,7 +679,7 @@ export default function MiembrosDashboard() {
           )}
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: 16 }}>
+        <div data-guide="ow-mem-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: 16 }}>
           {miembros.map(m => (
             <MemberCard
               key={m.id}

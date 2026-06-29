@@ -469,7 +469,7 @@ export default function OwnerStaff() {
           )}
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: 16 }}>
+        <div data-guide="ow-staff-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: 16 }}>
           {staff.map(u => (
             <StaffCard key={u.id} u={u}
               onEdit={(u) => { setEditing(u); setModal(true); }}

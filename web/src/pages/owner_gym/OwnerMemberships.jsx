@@ -299,7 +299,7 @@ export default function OwnerMemberships() {
           <h1 style={S.title}>Tipos de Membresía</h1>
           <p style={S.sub}>Planes y precios del gimnasio</p>
         </div>
-        <button style={S.btn()} onClick={() => setModal({})}>
+        <button data-guide="ow-memb-nueva" style={S.btn()} onClick={() => setModal({})}>
           <FiPlus /> Nueva Membresía
         </button>
       </div>
@@ -327,7 +327,7 @@ export default function OwnerMemberships() {
           </button>
         </div>
       ) : (
-        <div style={S.grid}>
+        <div data-guide="ow-memb-grid" style={S.grid}>
           {displayed.map(m => {
             const tcfg = TIPO_CFG[m.tipo] || TIPO_CFG.estandar;
             return (

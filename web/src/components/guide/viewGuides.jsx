@@ -24,10 +24,10 @@ const g = (key) => `[data-guide="${key}"]`;
 const POS = {
   title: "Punto de Venta",
   steps: [
-    s(FiShoppingCart, "Catálogo de productos", "En esta pantalla se venden productos del gimnasio (suplementos, bebidas, accesorios). Cada tarjeta es un producto con su precio y existencia."),
-    s(FiSearch, "Buscar producto", "Usa el buscador para encontrar rápido lo que quieres vender sin recorrer todo el catálogo."),
-    s(FiPlus, "Agregar al carrito", "Al tocar un producto se suma al carrito. Puedes ajustar la cantidad de cada artículo antes de cobrar."),
-    s(FiDollarSign, "Cobrar", "Cuando termines, confirmas la venta y eliges el método de pago. La venta queda registrada automáticamente en los ingresos."),
+    s(FiShoppingCart, "Catálogo de productos", "Aquí están los productos del gimnasio (suplementos, bebidas, accesorios). Cada tarjeta es un producto con su precio y existencia; tócalo para agregarlo a la venta.", g("pos-catalog")),
+    s(FiSearch, "Buscar producto", "Usa el buscador para encontrar rápido lo que quieres vender sin recorrer todo el catálogo.", g("pos-search")),
+    s(FiPlus, "Carrito", "Los productos que agregas aparecen aquí. Puedes ajustar la cantidad de cada artículo o quitarlo antes de cobrar.", g("pos-cart")),
+    s(FiDollarSign, "Cobrar", "Con este botón confirmas la venta y eliges el método de pago. La venta queda registrada automáticamente en los ingresos.", g("pos-cobrar")),
   ],
 };
 
@@ -74,60 +74,59 @@ const OWNER = {
   "/owner/members": {
     title: "Miembros",
     steps: [
-      s(FiSearch, "Buscador", "Escribe un nombre para encontrar rápido a cualquier miembro de tu gimnasio."),
-      s(FiUserPlus, "Nuevo miembro", "El botón de alta abre un formulario para registrar un miembro: datos, contacto, plan y foto."),
-      s(FiUsers, "Lista de miembros", "La tabla muestra a tus miembros con su estado (activo o inactivo) y sus datos principales."),
-      s(FiCamera, "Foto del miembro", "Puedes subir o cambiar su foto haciendo clic en la imagen del miembro."),
-      s(FiEdit, "Acciones por fila", "En cada miembro puedes editar sus datos, o desactivar y reactivar su cuenta."),
+      s(FiUserPlus, "Nuevo miembro", "Este botón abre un formulario para registrar un miembro: datos, contacto, plan y foto.", g("ow-mem-nuevo")),
+      s(FiSearch, "Buscador", "Escribe un nombre o correo para encontrar rápido a cualquier miembro de tu gimnasio.", g("ow-mem-search")),
+      s(FiUsers, "Lista de miembros", "Cada tarjeta es un miembro con su estado (activo o inactivo) y datos principales.", g("ow-mem-grid")),
+      s(FiCamera, "Foto del miembro", "Dentro de cada miembro puedes subir o cambiar su foto haciendo clic en su imagen."),
+      s(FiEdit, "Acciones", "En cada miembro puedes editar sus datos, o desactivar y reactivar su cuenta."),
     ],
   },
   "/owner/payments": {
     title: "Pagos",
     steps: [
-      s(FiPlus, "Registrar pago", "Registra un pago eligiendo el miembro, el monto y el método (efectivo, tarjeta o transferencia)."),
-      s(FiDollarSign, "Resumen de ingresos", "Arriba ves el total cobrado en el periodo para llevar el control del dinero."),
-      s(FiList, "Historial de pagos", "Abajo está el listado de todos los pagos, con fecha, monto y método usado."),
-      s(FiFilter, "Filtros", "Filtra por fecha o método para encontrar transacciones específicas."),
+      s(FiFilter, "Filtros", "Con esta barra filtras los movimientos por tipo (membresías o ventas) para encontrar lo que buscas.", g("ow-pay-filtros")),
+      s(FiList, "Historial de pagos", "Cada tarjeta es un movimiento con su fecha, monto y método de pago. Es el registro completo de tus ingresos.", g("ow-pay-historial")),
+      s(FiPlus, "Registrar un cobro", "Para registrar un pago de membresía nuevo, usa la sección 'Cobrar' o 'Punto de Venta'; aquí consultas lo ya cobrado."),
     ],
   },
   "/owner/cobrar": {
     title: "Cobrar membresía",
     steps: [
-      s(FiUser, "Elegir miembro", "Selecciona al miembro al que le vas a cobrar o renovar la membresía."),
-      s(FiTag, "Elegir plan", "Escoge el plan de membresía que se le aplicará, con su precio y duración."),
-      s(FiDollarSign, "Confirmar pago", "Eliges el método de pago y confirmas. La membresía del miembro queda activada o renovada."),
+      s(FiUser, "Formulario de cobro", "En este formulario eliges al miembro, el plan de membresía y el método de pago para registrar el cobro.", g("ow-cobrar-form")),
+      s(FiTag, "Elegir plan", "Cada plan tiene su precio y duración; al seleccionarlo se calcula el monto a cobrar."),
+      s(FiDollarSign, "Confirmar pago", "Al confirmar, la membresía del miembro queda activada o renovada y el pago queda registrado."),
     ],
   },
   "/owner/pos": POS,
   "/owner/staff": {
     title: "Personal",
     steps: [
-      s(FiUserCheck, "Tu equipo", "Aquí está tu personal: entrenadores y recepcionistas, con su rol y estado de cuenta."),
-      s(FiUserPlus, "Dar de alta", "Crea la cuenta de un empleado, asígnale su rol y genera su acceso al sistema."),
-      s(FiEdit, "Editar", "Actualiza los datos o la foto de cada miembro del equipo, o desactiva su acceso."),
+      s(FiUserCheck, "Tu equipo", "Cada tarjeta es un integrante de tu personal: entrenadores y recepcionistas, con su rol y estado de cuenta.", g("ow-staff-grid")),
+      s(FiUserPlus, "Dar de alta", "Con el botón 'Agregar Staff' creas la cuenta de un empleado, le asignas su rol y generas su acceso al sistema."),
+      s(FiEdit, "Editar", "Dentro de cada integrante actualizas sus datos o foto, o desactivas su acceso."),
     ],
   },
   "/owner/memberships": {
     title: "Tipos de membresía",
     steps: [
-      s(FiTag, "Tus planes", "Aquí defines los planes que ofreces: nombre, precio, duración y beneficios."),
-      s(FiPlus, "Crear plan", "Agrega un plan nuevo. Estos planes son los que se asignan y renuevan a los miembros."),
-      s(FiEdit, "Editar o activar", "Modifica un plan existente o actívalo/desactívalo cuando lo necesites."),
+      s(FiPlus, "Crear plan", "Este botón agrega un plan nuevo (nombre, precio, duración y beneficios). Son los planes que se asignan y renuevan a los miembros.", g("ow-memb-nueva")),
+      s(FiTag, "Tus planes", "Cada tarjeta es un plan que ofreces, con su precio y duración.", g("ow-memb-grid")),
+      s(FiEdit, "Editar o activar", "Dentro de cada plan puedes modificarlo o activarlo y desactivarlo cuando lo necesites."),
     ],
   },
   "/owner/profile": {
     title: "Perfil del gimnasio",
     steps: [
-      s(FiSettings, "Datos del gimnasio", "Configura el nombre, logo e información de contacto de tu gimnasio."),
-      s(FiEdit, "Guardar cambios", "Edita los campos y guarda; estos datos aparecen en recibos y en la app de tus miembros."),
+      s(FiSettings, "Datos del gimnasio", "En este formulario configuras el nombre, logo e información de contacto de tu gimnasio. Estos datos aparecen en recibos y en la app de tus miembros.", g("ow-profile-form")),
+      s(FiEdit, "Guardar cambios", "Cuando termines de editar, el botón Guardar aplica los cambios."),
     ],
   },
   "/owner/backups": {
     title: "Respaldos y restauración",
     steps: [
-      s(FiDatabase, "Generar respaldo", "Crea un respaldo completo de la información de tu gimnasio cuando quieras."),
-      s(FiList, "Historial", "La lista muestra los respaldos generados con su fecha y tamaño, listos para descargar."),
-      s(FiUpload, "Restaurar", "Si algo sale mal, restaura tu información desde un respaldo y vuelve a un estado anterior."),
+      s(FiDatabase, "Generar respaldo", "Desde aquí eliges el tipo de respaldo y lo generas: crea una copia completa de la información de tu gimnasio.", g("ow-bk-generar")),
+      s(FiList, "Historial", "Esta lista muestra los respaldos generados con su fecha y tamaño, listos para descargar.", g("ow-bk-historial")),
+      s(FiUpload, "Restaurar", "En la pestaña de restaurar puedes recuperar tu información desde un respaldo si algo sale mal."),
     ],
   },
   "/owner/analytics": {

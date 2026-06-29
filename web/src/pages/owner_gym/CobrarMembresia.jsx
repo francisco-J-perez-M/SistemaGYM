@@ -148,7 +148,7 @@ export default function CobrarMembresia() {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 380px", gap: 24, alignItems: "start" }}>
 
           {/* ── Columna izquierda: formulario ── */}
-          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          <form onSubmit={handleSubmit} data-guide="ow-cobrar-form" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 
             {/* Selección de miembro */}
             <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: "20px 22px" }}>
