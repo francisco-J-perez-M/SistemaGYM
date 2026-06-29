@@ -6,6 +6,7 @@ import {
   FiUserCheck, FiDollarSign, FiClock,
   FiUsers, FiCalendar, FiAlertCircle, FiRefreshCw,
 } from "react-icons/fi";
+import { GuideButton } from "../../components/guide/SystemGuide";
 import "../../css/CSSUnificado.css";
 
 const API = "/api/recepcionista";
@@ -83,6 +84,7 @@ export default function ReceptionistDashboard() {
           initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
           <h2 className="page-title">Panel de Recepcion</h2>
           <div className="header-right">
+            <GuideButton />
             <button className="btn-outline-small" onClick={fetchAll} disabled={loading}>
               <FiRefreshCw size={13} style={{ marginRight: 5 }} />Actualizar
             </button>

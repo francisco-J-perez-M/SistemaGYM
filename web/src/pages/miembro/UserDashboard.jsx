@@ -7,6 +7,7 @@ import {
   FiUser, FiHeart, FiBarChart2, FiBook, FiCoffee, FiDollarSign,
   FiMoon, FiShield,
 } from "react-icons/fi";
+import { GuideButton } from "../../components/guide/SystemGuide";
 import "../../css/CSSUnificado.css";
 
 const DIAS = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
@@ -126,6 +127,7 @@ export default function UserDashboard() {
           </div>
 
           <div style={{ display:"flex", gap:10, alignItems:"center" }}>
+            <GuideButton />
             {/* Avatar */}
             <div style={{
               width:38, height:38, borderRadius:"50%", overflow:"hidden",
