@@ -1471,17 +1471,33 @@ export default function TrainerRoutines() {
   const handleBulkDeleteEx = async () => {
     const ids = [...selectedEx];
     if (ids.length === 0) return;
+    // Flujo: activo → papelera (soft) ; inactivo → eliminación definitiva (hard).
+    const seleccionados = exercises.filter(e => selectedEx.has(e.id));
+    const inactivos = seleccionados.filter(e => e.activo === false).length;
+    const activos   = seleccionados.length - inactivos;
+
+    const partes = [];
+    if (activos)   partes.push(`${activos} activo${activos !== 1 ? "s" : ""} pasarán a la papelera`);
+    if (inactivos) partes.push(`${inactivos} inactivo${inactivos !== 1 ? "s" : ""} se eliminarán DEFINITIVAMENTE`);
+
     const ok = await confirm({
-      title: `¿Eliminar ${ids.length} ejercicio${ids.length !== 1 ? "s" : ""}?`,
-      message: "Esta acción eliminará permanentemente los ejercicios seleccionados de la biblioteca.",
+      title: `¿Eliminar ${seleccionados.length} ejercicio${seleccionados.length !== 1 ? "s" : ""}?`,
+      message: partes.join(" y ") + ".",
       type: "danger", confirmText: "Eliminar", cancelText: "Cancelar",
     });
     if (!ok) return;
     try {
       setActionLoading(true);
-      const { ok: done, fail } = await trainerService.bulkDeleteExercises(ids);
-      if (done) toast.success("Ejercicios eliminados", `${done} eliminado${done !== 1 ? "s" : ""}`);
+      const results = await Promise.allSettled(
+        seleccionados.map(e => e.activo === false
+          ? trainerService.permanentDeleteExercise(e.id)
+          : trainerService.deleteExercise(e.id))
+      );
+      const done = results.filter(r => r.status === "fulfilled").length;
+      const fail = results.length - done;
+      if (done) toast.success("Listo", `${done} ejercicio${done !== 1 ? "s" : ""} procesado${done !== 1 ? "s" : ""}`);
       if (fail) toast.error("Algunos no se eliminaron", `${fail} fallaron`);
+      setSelectedEx(new Set());
       await loadExercises();
     } catch (err) { toast.error("Error", err.message); }
     finally { setActionLoading(false); }
