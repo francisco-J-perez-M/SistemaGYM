@@ -8,8 +8,22 @@ import {
 } from "react-icons/fi";
 import "../../css/CSSUnificado.css";
 
+/* ── Conversión de fechas dd/mm/aaaa ↔ aaaa-mm-dd (input date) ─── */
+const ddmmToISO = (s) => {
+  if (!s) return "";
+  const m = String(s).match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  return "";
+};
+const isoToDDMM = (s) => {
+  if (!s) return "";
+  const m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : s;
+};
+
 /* ── campo editable reutilizable ────────────────────────────────── */
-function InfoField({ icon, label, value, field, editing, editedData, onChange }) {
+function InfoField({ icon, label, value, field, editing, editedData, onChange, type = "text" }) {
   return (
     <div style={{
       display: "flex", alignItems: "flex-start", gap: 12,
@@ -29,17 +43,32 @@ function InfoField({ icon, label, value, field, editing, editedData, onChange })
           {label}
         </div>
         {editing ? (
-          <input
-            type="text"
-            value={editedData[field] || ""}
-            onChange={e => onChange(field, e.target.value)}
-            style={{
-              width: "100%", padding: "6px 10px",
-              background: "var(--bg-card)", border: "1px solid var(--accent)",
-              borderRadius: 7, color: "var(--text-primary)", fontSize: 14,
-              outline: "none",
-            }}
-          />
+          type === "date" ? (
+            <input
+              type="date"
+              value={ddmmToISO(editedData[field])}
+              onChange={e => onChange(field, isoToDDMM(e.target.value))}
+              max={new Date().toISOString().slice(0, 10)}
+              style={{
+                width: "100%", padding: "6px 10px", colorScheme: "dark",
+                background: "var(--bg-card)", border: "1px solid var(--accent)",
+                borderRadius: 7, color: "var(--text-primary)", fontSize: 14,
+                outline: "none", accentColor: "var(--accent)",
+              }}
+            />
+          ) : (
+            <input
+              type="text"
+              value={editedData[field] || ""}
+              onChange={e => onChange(field, e.target.value)}
+              style={{
+                width: "100%", padding: "6px 10px",
+                background: "var(--bg-card)", border: "1px solid var(--accent)",
+                borderRadius: 7, color: "var(--text-primary)", fontSize: 14,
+                outline: "none",
+              }}
+            />
+          )
         ) : (
           <div style={{ fontSize: 14, fontWeight: 500, color: value ? "var(--text-primary)" : "var(--text-secondary)" }}>
             {value || "Sin especificar"}
@@ -374,7 +403,7 @@ export default function UserProfile() {
               <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
                 <InfoField icon={<FiMail size={15}/>}    label="Email"            field="email"         value={profile.email}         editing={isEditing} editedData={edited} onChange={change} />
                 <InfoField icon={<FiPhone size={15}/>}   label="Teléfono"         field="telefono"      value={profile.telefono}      editing={isEditing} editedData={edited} onChange={change} />
-                <InfoField icon={<FiCalendar size={15}/>} label="Fecha de nacimiento" field="fechaNacimiento" value={profile.fechaNacimiento} editing={isEditing} editedData={edited} onChange={change} />
+                <InfoField icon={<FiCalendar size={15}/>} label="Fecha de nacimiento" field="fechaNacimiento" value={profile.fechaNacimiento} editing={isEditing} editedData={edited} onChange={change} type="date" />
                 <InfoField icon={<FiMapPin size={15}/>}  label="Dirección"        field="direccion"     value={profile.direccion}     editing={isEditing} editedData={edited} onChange={change} />
 
                 {/* Género — select en modo edición */}
