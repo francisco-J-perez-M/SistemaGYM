@@ -22,6 +22,12 @@ const isoToDDMM = (s) => {
   return m ? `${m[3]}/${m[2]}/${m[1]}` : s;
 };
 
+/* Incluye el valor actual en la lista de opciones (aunque venga de otro origen,
+   p. ej. del onboarding o de la app móvil) para que el select lo muestre y no
+   aparezca "Sin especificar" sobre un dato real. */
+const withCurrent = (list, current) =>
+  (current && !list.includes(current)) ? [current, ...list] : list;
+
 /* ── campo editable reutilizable ────────────────────────────────── */
 function InfoField({ icon, label, value, field, editing, editedData, onChange, type = "text" }) {
   return (
@@ -422,7 +428,7 @@ export default function UserProfile() {
                         style={{ width:"100%", padding:"6px 10px", background:"var(--bg-card)",
                           border:"1px solid var(--accent)", borderRadius:7, color:"var(--text-primary)", fontSize:14 }}>
                         <option value="">Sin especificar</option>
-                        {GENEROS.map(g=><option key={g} value={g}>{g}</option>)}
+                        {withCurrent(GENEROS, edited.genero).map(g=><option key={g} value={g}>{g}</option>)}
                       </select>
                     ) : (
                       <div style={{ fontSize:14, fontWeight:500, color: profile.genero ? "var(--text-primary)" : "var(--text-secondary)" }}>
@@ -467,7 +473,7 @@ export default function UserProfile() {
                         style={{ width:"100%", padding:"6px 10px", background:"var(--bg-card)",
                           border:"1px solid var(--accent)", borderRadius:7, color:"var(--text-primary)", fontSize:14 }}>
                         <option value="">Sin especificar</option>
-                        {OBJETIVOS.map(o=><option key={o} value={o}>{o}</option>)}
+                        {withCurrent(OBJETIVOS, edited.objetivo).map(o=><option key={o} value={o}>{o}</option>)}
                       </select>
                     ) : (
                       <div style={{ fontSize:14, fontWeight:500, color: profile.objetivo ? "var(--text-primary)" : "var(--text-secondary)" }}>
@@ -493,7 +499,7 @@ export default function UserProfile() {
                         style={{ width:"100%", padding:"6px 10px", background:"var(--bg-card)",
                           border:"1px solid var(--accent)", borderRadius:7, color:"var(--text-primary)", fontSize:14 }}>
                         <option value="">Sin especificar</option>
-                        {NIVELES.map(n=><option key={n} value={n}>{n}</option>)}
+                        {withCurrent(NIVELES, edited.nivelExperiencia).map(n=><option key={n} value={n}>{n}</option>)}
                       </select>
                     ) : (
                       <div style={{ display:"flex", alignItems:"center", gap:8 }}>
