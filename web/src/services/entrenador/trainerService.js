@@ -376,6 +376,13 @@ export const trainerService = {
     });
   },
 
+  // Borrado DEFINITIVO (hard delete) — quita el ejercicio por completo.
+  permanentDeleteExercise: async (id) => {
+    return await apiFetch(`${API_BASE_URL}/trainer/exercises/${id}/permanent`, {
+      method: 'DELETE',
+    });
+  },
+
   // Borrado masivo: no existe endpoint bulk en el backend, así que se
   // eliminan en paralelo. Devuelve { ok, fail } con los conteos.
   bulkDeleteExercises: async (ids = []) => {
