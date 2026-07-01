@@ -1174,6 +1174,14 @@ function TabModelos() {
   );
 
   const hintP     = { fontSize: 12, color: "var(--text-secondary)", margin: "-4px 0 12px", lineHeight: 1.6 };
+  const DESC_MODELO = {
+    "Arbol de Decision":         "Sigue reglas tipo sí / no",
+    "Random Forest":             "Junta muchas opiniones y vota",
+    "Regresion Logistica":       "Calcula una probabilidad",
+    "SVM Lineal":                "Separa los grupos con una línea",
+    "SVM No Lineal (RBF)":       "Separa los grupos con una curva",
+    "Random Forest (multiclase)": "Junta muchas opiniones y vota",
+  };
   const tableStyle = { width: "100%", borderCollapse: "collapse", fontSize: 13 };
   const thS = { padding: "8px 10px", textAlign: "left", color: "var(--text-secondary)", fontWeight: 500, borderBottom: "1px solid var(--border-dark)" };
   const tdS = { padding: "8px 10px", color: "var(--text-primary)", fontWeight: 600 };
@@ -1192,7 +1200,7 @@ function TabModelos() {
       </div>
 
       {/* Regresión */}
-      <SectionTitle>Regresión — predecir el peso corporal</SectionTitle>
+      <SectionTitle>Predecir el peso corporal</SectionTitle>
       {reg?.error ? <p style={hintP}>{reg.error}</p> : (
         <>
           <p style={hintP}>Comparamos una recta simple, una con varias variables y una curva. Un R² más cercano a 1 y un error (RMSE / MAE) más bajo indican mejor predicción. Datos usados: {reg.n} registros.</p>
@@ -1233,7 +1241,7 @@ function TabModelos() {
       )}
 
       {/* Clasificación binaria */}
-      <SectionTitle>Clasificación — ¿está en riesgo de abandono?</SectionTitle>
+      <SectionTitle>Detectar quién podría dejar el gimnasio</SectionTitle>
       {clf?.error ? <p style={hintP}>{clf.error}</p> : (
         <>
           <p style={hintP}>
@@ -1243,14 +1251,15 @@ function TabModelos() {
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
             {clf.modelos.map((m, i) => (
               <div key={i} style={{ flex: 1, minWidth: 230, background: "var(--bg-input)", borderRadius: 10, padding: "12px 14px" }}>
-                <div style={{ fontWeight: 700, color: "var(--text-primary)", fontSize: 13, marginBottom: 8 }}>{m.nombre}</div>
+                <div style={{ fontWeight: 700, color: "var(--text-primary)", fontSize: 13 }}>{m.nombre}</div>
+                <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 8 }}>{DESC_MODELO[m.nombre] || ""}</div>
                 {m.error ? <div style={{ fontSize: 12, color: DANGER }}>No se pudo entrenar</div> : (
                   <>
                     <div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: 12, color: "var(--text-secondary)" }}>
                       <span>Acierto <strong style={{ color: SUCCESS }}>{(m.metricas.accuracy * 100).toFixed(0)}%</strong></span>
                       <span>Precisión {(m.metricas.precision * 100).toFixed(0)}%</span>
-                      <span>Sensib. {(m.metricas.recall * 100).toFixed(0)}%</span>
-                      <span>F1 {m.metricas.f1}</span>
+                      <span>Detección {(m.metricas.recall * 100).toFixed(0)}%</span>
+                      <span>Balance {m.metricas.f1}</span>
                     </div>
                     <ConfusionMatrix matrix={m.metricas.confusion} clases={clf.clases} />
                   </>
@@ -1258,13 +1267,20 @@ function TabModelos() {
               </div>
             ))}
           </div>
-          <p style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 8 }}>
-            Matriz de confusión — filas: valor real, columnas: lo que predijo. Verde = aciertos, rosa = errores.
+          <p style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 8, lineHeight: 1.6 }}>
+            Tabla de aciertos y errores — las filas son lo que pasó de verdad y las columnas lo que predijo el sistema.
+            Los recuadros verdes (en diagonal) son aciertos; los rosas son equivocaciones.
+          </p>
+          <p style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 4, lineHeight: 1.6 }}>
+            <strong>Acierto:</strong> de cada 100 casos, cuántos predijo bien.{" "}
+            <strong>Precisión:</strong> cuando dice "en riesgo", qué tan seguido acierta.{" "}
+            <strong>Detección:</strong> de los que sí estaban en riesgo, cuántos encontró.{" "}
+            <strong>Balance:</strong> mezcla de precisión y detección.
           </p>
           {clf.reglas_arbol?.length > 0 && (
             <>
-              <SectionTitle>Reglas del árbol de decisión</SectionTitle>
-              <p style={hintP}>Así decide el árbol, en texto legible:</p>
+              <SectionTitle>Cómo decide el sistema, paso a paso</SectionTitle>
+              <p style={hintP}>Estas son las reglas que sigue, en orden:</p>
               <pre style={{ background: "var(--bg-input)", border: "1px solid var(--border-dark)", borderRadius: 8, padding: "12px 14px", fontSize: 12, color: "var(--text-primary)", overflowX: "auto", lineHeight: 1.5, margin: 0 }}>{clf.reglas_arbol.join("\n")}</pre>
             </>
           )}
@@ -1272,16 +1288,17 @@ function TabModelos() {
       )}
 
       {/* Clasificación múltiple */}
-      <SectionTitle>Clasificación múltiple — el objetivo del miembro</SectionTitle>
+      <SectionTitle>Adivinar el objetivo de cada miembro</SectionTitle>
       {mc?.error ? <p style={hintP}>{mc.error}</p> : (
         <>
           <p style={hintP}>El modelo intenta adivinar el objetivo (perder peso, ganar músculo o mantener) a partir de la composición corporal. Datos: {mc.n} miembros, {mc.clases.length} objetivos.</p>
           {mc.modelos.map((m, i) => (
             <div key={i} style={{ background: "var(--bg-input)", borderRadius: 10, padding: "12px 14px", maxWidth: 540 }}>
-              <div style={{ fontWeight: 700, color: "var(--text-primary)", fontSize: 13, marginBottom: 8 }}>{m.nombre}</div>
+              <div style={{ fontWeight: 700, color: "var(--text-primary)", fontSize: 13 }}>{m.nombre}</div>
+              <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 8 }}>{DESC_MODELO[m.nombre] || ""}</div>
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: 12, color: "var(--text-secondary)", marginBottom: 2 }}>
                 <span>Acierto <strong style={{ color: SUCCESS }}>{(m.metricas.accuracy * 100).toFixed(0)}%</strong></span>
-                <span>F1 {m.metricas.f1}</span>
+                <span>Balance {m.metricas.f1}</span>
               </div>
               <ConfusionMatrix matrix={m.metricas.confusion} clases={mc.clases} />
             </div>
