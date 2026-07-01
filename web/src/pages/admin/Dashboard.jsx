@@ -110,7 +110,7 @@ function BarChart({ revenues, expenses, labels }) {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
         <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>Ingresos vs. Gastos — últimos 6 meses</span>
         <div style={{ display: "flex", gap: 12 }}>
-          {[{ color: "var(--accent)", label: "Ingresos" }, { color: "#475569", label: "Gastos" }].map(l => (
+          {[{ color: "var(--accent)", label: "Ingresos" }, { color: "var(--text-primary)", label: "Gastos" }].map(l => (
             <div key={l.label} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: "var(--text-secondary)" }}>
               <span style={{ width: 10, height: 10, borderRadius: 2, background: l.color, display: "inline-block" }} />
               {l.label}
@@ -126,7 +126,7 @@ function BarChart({ revenues, expenses, labels }) {
             <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", gap: 2, height: "100%" }}>
               <div style={{ width: "100%", display: "flex", alignItems: "flex-end", justifyContent: "center", gap: 2, flex: 1 }}>
                 <div title={`$${fmt(rev)}`} style={{ width: "45%", height: `${rh}%`, background: "var(--accent)", borderRadius: "4px 4px 0 0", minHeight: 2, cursor: "pointer", transition: "opacity .2s" }} />
-                <div title="Gastos est." style={{ width: "45%", height: `${eh}%`, background: "#475569", borderRadius: "4px 4px 0 0", minHeight: 2, opacity: .7 }} />
+                <div title="Gastos est." style={{ width: "45%", height: `${eh}%`, background: "var(--bg-card)", borderRadius: "4px 4px 0 0", minHeight: 2, opacity: .7 }} />
               </div>
               <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>{labels[i]}</span>
             </div>

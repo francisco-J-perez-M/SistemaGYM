@@ -676,7 +676,7 @@ function RatingWidget({ trainerId, trainerName }) {
             {guardado && (
               <button
                 onClick={() => { setOpen(false); setMsg(null); }}
-                style={{ ...btn("#6b7280", true), padding: "6px 14px", fontSize: 12 }}
+                style={{ ...btn("var(--text-secondary)", true), padding: "6px 14px", fontSize: 12 }}
               >
                 Cancelar
               </button>

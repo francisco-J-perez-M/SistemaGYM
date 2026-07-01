@@ -13,7 +13,7 @@ const fmt = (n) =>
 const SWAL_OPTS = () => {
   const s = getComputedStyle(document.documentElement);
   return {
-    background: s.getPropertyValue("--bg-card").trim() || "#1e2233",
+    background: s.getPropertyValue("--bg-card").trim() || "var(--bg-card)",
     color:      s.getPropertyValue("--text-primary").trim() || "#f1f5f9",
   };
 };
@@ -339,7 +339,7 @@ export default function OwnerMemberships() {
                     <span style={S.pill(tcfg.color)}>
                       <tcfg.Icon size={10} /> {tcfg.label}
                     </span>
-                    <span style={S.pill(m.activo ? "#22c55e" : "#64748b")}>
+                    <span style={S.pill(m.activo ? "#22c55e" : "var(--text-secondary)")}>
                       {m.activo ? "Activa" : "Inactiva"}
                     </span>
                   </div>

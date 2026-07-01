@@ -19,7 +19,7 @@ const QUICK_LINKS = [
   { icon: <FiCoffee />,      label: "Alimentación",    path: "/user/nutrition",  color: "#8b5cf6" },
   { icon: <FiBook />,        label: "Recetas",         path: "/user/recipes",    color: "#06b6d4" },
   { icon: <FiDollarSign />,  label: "Pagos",           path: "/user/payments",   color: "#10b981" },
-  { icon: <FiUser />,        label: "Mi Perfil",       path: "/user/profile",    color: "#64748b" },
+  { icon: <FiUser />,        label: "Mi Perfil",       path: "/user/profile",    color: "var(--text-secondary)" },
 ];
 
 const OBJETIVO_LABELS = {
@@ -197,7 +197,7 @@ export default function UserDashboard() {
                     <div style={{
                       display:"inline-block", marginTop:4, padding:"2px 10px",
                       borderRadius:20, fontSize:11, fontWeight:700,
-                      background:`${NIVEL_LABELS[nivel]}22`, color:NIVEL_LABELS[nivel] || "#94a3b8",
+                      background:`${NIVEL_LABELS[nivel]}22`, color:NIVEL_LABELS[nivel] || "var(--text-secondary)",
                     }}>
                       {nivel}
                     </div>
@@ -282,7 +282,7 @@ export default function UserDashboard() {
                 {todayWorkout.exercises.length === 0 ? (
                   <div style={{ padding:"32px", textAlign:"center", color:"var(--text-secondary)" }}>
                     <div style={{ width:52, height:52, borderRadius:14, background:"rgba(100,116,139,.1)", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 12px" }}>
-                      <FiMoon size={24} color="#64748b"/>
+                      <FiMoon size={24} color="var(--text-secondary)"/>
                     </div>
                     <p>Día de descanso — tu cuerpo necesita recuperarse.</p>
                   </div>

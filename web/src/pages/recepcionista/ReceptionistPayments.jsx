@@ -19,7 +19,7 @@ const STATUS_BADGE = {
 };
 
 function Badge({ status }) {
-  const s = STATUS_BADGE[status] || { bg: "rgba(100,116,139,0.15)", color: "#64748b", label: status || "—" };
+  const s = STATUS_BADGE[status] || { bg: "rgba(100,116,139,0.15)", color: "var(--text-secondary)", label: status || "—" };
   return (
     <span style={{
       display: "inline-flex", alignItems: "center",

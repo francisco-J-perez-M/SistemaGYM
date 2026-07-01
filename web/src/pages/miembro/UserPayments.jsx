@@ -277,7 +277,7 @@ export default function UserPaymentsHistory() {
             {/* Header de la sección y Paginación Info */}
             <div className="section-header" style={{ marginBottom: '15px' }}>
               <h3>Detalle de Transacciones</h3>
-              <span style={{ fontSize: "0.85em", color: "#666" }}>
+              <span style={{ fontSize: "0.85em", color: "var(--text-secondary)" }}>
                 Página {currentPage} de {totalPages || 1}
               </span>
             </div>

@@ -21,7 +21,7 @@ const GRUPOS = [
   { id:"gluteos",    label:"Glúteos",          color:"#ec4899" },
   { id:"abdomen",    label:"Abdomen / Core",   color:"#06b6d4" },
   { id:"cardio",     label:"Cardio",           color:"#84cc16" },
-  { id:"descanso",   label:"Descanso",         color:"#64748b" },
+  { id:"descanso",   label:"Descanso",         color: "var(--text-secondary)" },
 ];
 
 const SUGERENCIAS = {
@@ -470,7 +470,7 @@ export default function UserRoutineCreator() {
                   {current.grupo === "descanso" ? (
                     <div style={{ textAlign:"center", padding:"40px 0", color:"var(--text-secondary)" }}>
                       <div style={{ width:48, height:48, borderRadius:12, background:"rgba(100,116,139,.12)", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 10px" }}>
-                      <FiMoon size={22} color="#64748b"/>
+                      <FiMoon size={22} color="var(--text-secondary)"/>
                     </div>
                       <p>Día de descanso — sin ejercicios.</p>
                     </div>

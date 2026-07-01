@@ -29,7 +29,7 @@ const TYPES = [
 const TYPE_COLORS = {
   "Evaluacion - Nuevo cliente": "#38bdf8","Tour de instalaciones": "#a78bfa",
   "Renovacion de membresia": "#22c55e","Clase grupal": "#fb923c",
-  "Sesion personal": "#f472b6","Consulta general": "#fbbf24","Otro": "#94a3b8",
+  "Sesion personal": "#f472b6","Consulta general": "#fbbf24","Otro": "var(--text-secondary)",
 };
 const STATUS_CFG = {
   confirmada:{ color:"#22c55e", bg:"rgba(34,197,94,0.12)" },
@@ -43,7 +43,7 @@ const EMPTY   = { time:"09:00", client:"", client_id:null, type:TYPES[0], traine
 const isoToday  = () => new Date().toISOString().split("T")[0];
 const shiftDate = (iso,n) => { const d=new Date(iso+"T12:00:00"); d.setDate(d.getDate()+n); return d.toISOString().split("T")[0]; };
 const fmtLong   = (iso) => new Date(iso+"T12:00:00").toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long"});
-const typeColor = (type) => TYPE_COLORS[type] || "#94a3b8";
+const typeColor = (type) => TYPE_COLORS[type] || "var(--text-secondary)";
 
 // ── Estilos base
 const navBtn    = { background:"none",border:"none",cursor:"pointer",color:"var(--text-secondary)",padding:4,borderRadius:6,display:"flex",alignItems:"center" };
