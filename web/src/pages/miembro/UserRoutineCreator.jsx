@@ -530,10 +530,7 @@ export default function UserRoutineCreator() {
                             <div key={gid} style={{ marginBottom:16, border:`1px solid ${gg.color}33`, borderRadius:12, overflow:"visible" }}>
                               <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, padding:"10px 12px", background:`${gg.color}12`, flexWrap:"wrap", borderRadius:"12px 12px 0 0" }}>
                                 <GrupoSelector value={gid} onChange={v => changeSectionGroup(activeDay, gid, v)} />
-                                <button onClick={() => addExerciseToGroup(activeDay, gid)}
-                                  style={{ display:"flex", alignItems:"center", gap:6, padding:"6px 12px", background:`${gg.color}22`, border:`1px solid ${gg.color}44`, borderRadius:8, cursor:"pointer", color:gg.color, fontSize:12, fontWeight:600 }}>
-                                  <FiPlus size={12} /> Ejercicio
-                                </button>
+                                <span style={{ fontSize:11, color:"var(--text-secondary)" }}>{rows.length} ejercicio{rows.length !== 1 ? "s" : ""}</span>
                               </div>
                               <div style={{ padding:"10px 12px" }}>
                                 {rows.length > 0 && (

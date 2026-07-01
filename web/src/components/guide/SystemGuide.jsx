@@ -6,7 +6,7 @@
  * explicación junto al elemento. Si el paso no tiene objetivo (o no se encuentra
  * en el DOM), cae a una tarjeta centrada. Solo iconos, sin emojis.
  */
-import { useEffect, useState, useLayoutEffect, useCallback } from "react";
+import { useEffect, useState, useLayoutEffect, useCallback, useRef } from "react";
 import { FiX, FiArrowLeft, FiArrowRight, FiCheck, FiBookOpen } from "react-icons/fi";
 import { resolveGuide } from "./viewGuides";
 
@@ -18,8 +18,15 @@ export default function SystemGuide({ open, path, onClose }) {
   const steps = guide.steps || [];
   const [idx, setIdx] = useState(0);
   const [rect, setRect] = useState(null);
+  const tipRef = useRef(null);
+  const [tipH, setTipH] = useState(0);
 
   useEffect(() => { if (open) setIdx(0); }, [open, path]);
+
+  // Mide la altura real del globo para poder encuadrarlo dentro de la pantalla.
+  useLayoutEffect(() => {
+    if (tipRef.current) setTipH(tipRef.current.offsetHeight);
+  }, [idx, rect, open]);
 
   const step = steps.length ? steps[Math.min(idx, steps.length - 1)] : null;
 
@@ -121,10 +128,18 @@ export default function SystemGuide({ open, path, onClose }) {
   };
   const panel = { position: "fixed", background: "rgba(8,10,16,0.62)", backdropFilter: "blur(3px)", WebkitBackdropFilter: "blur(3px)", zIndex: 9998 };
 
-  // Coloca el globo debajo del elemento si hay espacio; si no, arriba.
-  const roomBelow = vh - (R.top + R.height);
-  const placeBelow = roomBelow > 300;
-  const tipVert = placeBelow ? { top: R.top + R.height + 14 } : { top: undefined, bottom: vh - R.top + 14 };
+  // Coloca el globo debajo del elemento si cabe; si no, arriba; y en cualquier
+  // caso lo mantiene DENTRO de la pantalla (clamp) para que no se corte.
+  const H = tipH || 340;                       // altura real del globo (estimada hasta medir)
+  const margin = 12;
+  const belowTop = R.top + R.height + 14;
+  const aboveTop = R.top - H - 14;
+  let tipTop;
+  if (belowTop + H <= vh - margin) tipTop = belowTop;       // cabe abajo
+  else if (aboveTop >= margin)      tipTop = aboveTop;       // cabe arriba
+  else                              tipTop = vh - H - margin; // no cabe: pegar y hacer scroll interno
+  tipTop = Math.max(margin, Math.min(tipTop, vh - H - margin));
+  const tipVert = { top: tipTop };
   let tipLeft = rect.left + rect.width / 2 - TIP_W / 2;
   tipLeft = Math.max(16, Math.min(tipLeft, vw - TIP_W - 16));
 
@@ -145,7 +160,8 @@ export default function SystemGuide({ open, path, onClose }) {
       }} />
 
       {/* Globo de explicación junto al elemento */}
-      <div style={{ position: "fixed", left: tipLeft, width: TIP_W, maxWidth: "calc(100vw - 32px)", zIndex: 10000, ...tipVert, ...S.tip }}>
+      <div ref={tipRef} style={{ position: "fixed", left: tipLeft, width: TIP_W, maxWidth: "calc(100vw - 32px)",
+        maxHeight: "calc(100vh - 24px)", overflowY: "auto", zIndex: 10000, ...tipVert, ...S.tip }}>
         {content}
       </div>
     </div>
