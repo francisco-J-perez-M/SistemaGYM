@@ -42,8 +42,26 @@ const dayMatchesToday = (d) => normTxt(d?.dia).includes(todayName());
 // Selecciona el día que cae hoy; si ninguno coincide, usa el primero.
 const pickTodayOrFirst = (dias) => (dias || []).find(dayMatchesToday) || (dias || [])[0] || null;
 // Ejercicios editables de un día (nombres fijos de la rutina, series por defecto).
+// Cada ejercicio conserva su grupo muscular y su unidad de peso (kg / lb).
 const exercisesFromDay = (day) =>
-  (day?.ejercicios || []).filter(e => e.nombre).map(e => ({ nombre: e.nombre, series: seriesFrom(e) }));
+  (day?.ejercicios || []).filter(e => e.nombre).map(e => ({
+    nombre: e.nombre,
+    grupo: e.grupo || "",
+    unidad: e.unidad || "kg",
+    series: seriesFrom(e),
+  }));
+
+// Interpreta valores multivalor ("7,7,7" / "10,20,30") y convierte lb a kg.
+const LB_A_KG = 0.453592;
+const nums = (v) => String(v ?? "").replace(/;/g, ",").split(",")
+  .map(p => { const m = p.match(/-?\d*\.?\d+/); return m ? parseFloat(m[0]) : null; })
+  .filter(n => n != null && !isNaN(n));
+const setVolumen = (s, unidad) => {
+  const r = nums(s.repeticiones), p = nums(s.peso).map(x => x * (String(unidad).toLowerCase().startsWith("lb") ? LB_A_KG : 1));
+  if (!r.length || !p.length) return 0;
+  if (r.length === p.length) return r.reduce((a, x, i) => a + x * p[i], 0);
+  return r.reduce((a, x) => a + x, 0) * (p.reduce((a, x) => a + x, 0) / p.length);
+};
 
 export default function UserWorkoutLog() {
   const navigate = useNavigate();
@@ -119,18 +137,22 @@ export default function UserWorkoutLog() {
   const removeSerie = (i, si) => setExercises(xs => xs.map((x, idx) => idx === i ? { ...x, series: x.series.length > 1 ? x.series.filter((_, k) => k !== si) : x.series } : x));
   const setSerie = (i, si, field, v) => setExercises(xs => xs.map((x, idx) =>
     idx === i ? { ...x, series: x.series.map((s, k) => k === si ? { ...s, [field]: v } : s) } : x));
+  const toggleUnit = (i) => setExercises(xs => xs.map((x, idx) =>
+    idx === i ? { ...x, unidad: (x.unidad === "lb" ? "kg" : "lb") } : x));
 
   const totalVolumen = exercises.reduce((acc, ex) =>
-    acc + ex.series.reduce((a, s) => a + (parseFloat(s.repeticiones) || 0) * (parseFloat(s.peso) || 0), 0), 0);
+    acc + ex.series.reduce((a, s) => a + setVolumen(s, ex.unidad), 0), 0);
 
   const save = async () => {
     if (!selectedRoutine || !selectedDay) { setMsg({ type: "warn", text: "Selecciona una rutina y un día." }); return; }
     const ejercicios = exercises
       .map(ex => ({
         nombre: ex.nombre,
+        grupo: ex.grupo || undefined,
+        unidad: ex.unidad || "kg",
         series: ex.series
-          .filter(s => s.repeticiones || s.peso)
-          .map(s => ({ repeticiones: parseInt(s.repeticiones) || 0, peso: parseFloat(s.peso) || 0 })),
+          .filter(s => (s.repeticiones ?? "") !== "" || (s.peso ?? "") !== "")
+          .map(s => ({ repeticiones: String(s.repeticiones ?? ""), peso: String(s.peso ?? ""), unidad: ex.unidad || "kg" })),
       }))
       .filter(ex => ex.series.length > 0);
     if (ejercicios.length === 0) { setMsg({ type: "warn", text: "Registra al menos una serie (repeticiones o peso) en algún ejercicio." }); return; }
@@ -220,37 +242,57 @@ export default function UserWorkoutLog() {
                 </>
               )}
 
-              {/* Ejercicios de la rutina (nombres fijos, series editables) */}
+              {/* Ejercicios de la rutina, agrupados por grupo muscular */}
               {selectedDay && (
                 exercises.length === 0 ? (
                   <p style={{ color: "var(--text-secondary)", padding: "16px 0" }}>Este día no tiene ejercicios.</p>
                 ) : (
-                  <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 14 }}>
-                    {exercises.map((ex, i) => (
-                      <div key={i} style={S.exCard}>
-                        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10 }}>
-                          <GiMuscleUp style={{ color: "var(--accent)", flexShrink: 0 }} />
-                          <span style={{ flex: 1, fontWeight: 600, color: "var(--text-primary)" }}>{ex.nombre}</span>
-                        </div>
-                        <div style={S.serieHead}>
-                          <span style={{ width: 28 }}>#</span>
-                          <span style={{ flex: 1 }}>Repeticiones</span>
-                          <span style={{ flex: 1 }}>Peso (kg)</span>
-                          <span style={{ width: 30 }} />
-                        </div>
-                        {ex.series.map((s, si) => (
-                          <div key={si} style={S.serieRow}>
-                            <span style={S.serieNum}>{si + 1}</span>
-                            <input style={{ ...S.input, margin: 0, flex: 1 }} type="number" value={s.repeticiones}
-                              onChange={e => setSerie(i, si, "repeticiones", e.target.value)} placeholder="12" />
-                            <input style={{ ...S.input, margin: 0, flex: 1 }} type="number" value={s.peso}
-                              onChange={e => setSerie(i, si, "peso", e.target.value)} placeholder="40" />
-                            <button style={S.iconGhost} onClick={() => removeSerie(i, si)} title="Quitar serie"><FiTrash2 size={13} /></button>
+                  <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 18 }}>
+                    {(() => {
+                      const grupos = [];
+                      exercises.forEach(ex => { const gg = ex.grupo || "General"; if (!grupos.includes(gg)) grupos.push(gg); });
+                      return grupos.map(gid => (
+                        <div key={gid}>
+                          {(grupos.length > 1 || (gid && gid !== "General")) && (
+                            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--accent)", textTransform: "capitalize", margin: "0 0 8px" }}>{gid}</div>
+                          )}
+                          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                            {exercises.map((ex, i) => ({ ex, i })).filter(x => (x.ex.grupo || "General") === gid).map(({ ex, i }) => (
+                              <div key={i} style={S.exCard}>
+                                <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10 }}>
+                                  <GiMuscleUp style={{ color: "var(--accent)", flexShrink: 0 }} />
+                                  <span style={{ flex: 1, fontWeight: 600, color: "var(--text-primary)" }}>{ex.nombre}</span>
+                                  <button onClick={() => toggleUnit(i)} title="Cambiar unidad de peso (kg / lb)"
+                                    style={{ padding: "4px 10px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 7, color: "var(--accent)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                                    {ex.unidad || "kg"}
+                                  </button>
+                                </div>
+                                <div style={S.serieHead}>
+                                  <span style={{ width: 28 }}>#</span>
+                                  <span style={{ flex: 1 }}>Repeticiones</span>
+                                  <span style={{ flex: 1 }}>Peso ({ex.unidad || "kg"})</span>
+                                  <span style={{ width: 30 }} />
+                                </div>
+                                {ex.series.map((s, si) => (
+                                  <div key={si} style={S.serieRow}>
+                                    <span style={S.serieNum}>{si + 1}</span>
+                                    <input style={{ ...S.input, margin: 0, flex: 1 }} type="text" inputMode="numeric" value={s.repeticiones}
+                                      onChange={e => setSerie(i, si, "repeticiones", e.target.value)} placeholder="12 o 7,7,7" />
+                                    <input style={{ ...S.input, margin: 0, flex: 1 }} type="text" inputMode="decimal" value={s.peso}
+                                      onChange={e => setSerie(i, si, "peso", e.target.value)} placeholder="opcional" />
+                                    <button style={S.iconGhost} onClick={() => removeSerie(i, si)} title="Quitar serie"><FiTrash2 size={13} /></button>
+                                  </div>
+                                ))}
+                                <button style={S.addSerie} onClick={() => addSerie(i)}><FiPlus size={13} /> Agregar serie</button>
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                        <button style={S.addSerie} onClick={() => addSerie(i)}><FiPlus size={13} /> Agregar serie</button>
-                      </div>
-                    ))}
+                        </div>
+                      ));
+                    })()}
+                    <p style={{ fontSize: 11, color: "var(--text-secondary)", margin: "2px 2px 0", lineHeight: 1.5 }}>
+                      Tip: en repeticiones o peso puedes registrar varios valores separados por coma (ej. 7,7,7 y 10,20,30) para drop-sets o pirámides.
+                    </p>
                   </div>
                 )
               )}

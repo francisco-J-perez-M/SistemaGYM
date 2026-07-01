@@ -23,6 +23,16 @@ const GRUPOS = [
   { id:"cardio",     label:"Cardio",           color:"#84cc16" },
   { id:"descanso",   label:"Descanso",         color: "var(--text-secondary)" },
 ];
+const G = (id) => GRUPOS.find(g => g.id === id) || GRUPOS[0];
+// Asegura que cada ejercicio tenga grupo, unidad y peso (rutinas viejas / plantillas).
+const normEj = (e, dg) => ({
+  nombre: e.nombre || "", series: (e.series ?? "4"), reps: (e.reps ?? "12"),
+  peso: (e.peso ?? ""), unidad: (e.unidad || "kg"), grupo: (e.grupo || dg || "pecho"),
+});
+const normRoutine = (r) => ({
+  ...r,
+  dias: (r.dias || []).map(d => ({ ...d, ejercicios: (d.ejercicios || []).map(e => normEj(e, d.grupo)) })),
+});
 
 const SUGERENCIAS = {
   pecho:    ["Press Banca","Press Inclinado","Press Declinado","Aperturas con Mancuernas","Fondos en paralelas","Pullover","Cruce de poleas"],
@@ -119,16 +129,19 @@ function EjercicioRow({ ej, idx, grupo, onUpdate, onDelete }) {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  const unidad = ej.unidad || "kg";
+  const inp = { padding:"7px 4px", background:"var(--bg-card)", border:"1px solid var(--border)",
+    borderRadius:7, color:"var(--text-primary)", fontSize:13, textAlign:"center", width:"100%", boxSizing:"border-box" };
   return (
     <div ref={ref} style={{
       position:"relative", display:"grid",
-      gridTemplateColumns:"24px 1fr 60px 60px 32px",
-      gap:8, alignItems:"center",
+      gridTemplateColumns:"22px 1fr 46px 66px 66px 40px 28px",
+      gap:6, alignItems:"center",
       padding:"8px 10px", background:"var(--bg-input)", borderRadius:9, marginBottom:6,
     }}>
       {/* Número */}
       <div style={{
-        width:22, height:22, borderRadius:6,
+        width:20, height:20, borderRadius:6,
         background:`${g.color}22`, color:g.color,
         display:"flex", alignItems:"center", justifyContent:"center",
         fontSize:10, fontWeight:800, flexShrink:0,
@@ -166,20 +179,20 @@ function EjercicioRow({ ej, idx, grupo, onUpdate, onDelete }) {
         )}
       </div>
 
-      <input placeholder="Series" value={ej.series}
-        onChange={e => onUpdate("series", e.target.value)}
-        style={{ padding:"7px 4px", background:"var(--bg-card)", border:"1px solid var(--border)",
-          borderRadius:7, color:"var(--text-primary)", fontSize:13, textAlign:"center",
-          width:"100%", boxSizing:"border-box" }}
-      />
-      <input placeholder="Reps" value={ej.reps}
-        onChange={e => onUpdate("reps", e.target.value)}
-        style={{ padding:"7px 4px", background:"var(--bg-card)", border:"1px solid var(--border)",
-          borderRadius:7, color:"var(--text-primary)", fontSize:13, textAlign:"center",
-          width:"100%", boxSizing:"border-box" }}
-      />
+      <input placeholder="Ser" value={ej.series} title="Número de series"
+        onChange={e => onUpdate("series", e.target.value)} style={inp} />
+      <input placeholder="12 o 7,7,7" value={ej.reps} title="Repeticiones. Para drop-set o pirámide separa con coma: 7,7,7"
+        onChange={e => onUpdate("reps", e.target.value)} style={inp} />
+      <input placeholder="opc." value={ej.peso || ""} title="Peso (opcional). Puedes poner varios: 10,20,30"
+        onChange={e => onUpdate("peso", e.target.value)} style={inp} />
+      <button type="button" onClick={() => onUpdate("unidad", unidad === "kg" ? "lb" : "kg")}
+        title="Cambiar unidad de peso (kg / lb)"
+        style={{ padding:"7px 0", background:"var(--bg-card)", border:"1px solid var(--border)",
+          borderRadius:7, color:"var(--accent)", fontSize:12, fontWeight:700, cursor:"pointer" }}>
+        {unidad}
+      </button>
       <button onClick={onDelete}
-        style={{ padding:6, background:"none", border:"none", color:"var(--text-secondary)",
+        style={{ padding:4, background:"none", border:"none", color:"var(--text-secondary)",
           cursor:"pointer", borderRadius:6, display:"flex", alignItems:"center", justifyContent:"center" }}
         onMouseEnter={e => { e.currentTarget.style.color = "#f87171"; e.currentTarget.style.background = "rgba(239,68,68,.1)"; }}
         onMouseLeave={e => { e.currentTarget.style.color = "var(--text-secondary)"; e.currentTarget.style.background = "none"; }}
@@ -212,8 +225,8 @@ export default function UserRoutineCreator() {
       });
       if (res.ok) {
         const d = await res.json();
-        if (d.rutinas?.length > 0) setRoutine(d.rutinas[0]);
-        else setRoutine({ nombre:"Mi Rutina", dias: [{ dia:"Lunes", grupo:"pecho", ejercicios:[{nombre:"",series:"4",reps:"12"}] }] });
+        if (d.rutinas?.length > 0) setRoutine(normRoutine(d.rutinas[0]));
+        else setRoutine({ nombre:"Mi Rutina", dias: [{ dia:"Lunes", grupo:"pecho", ejercicios:[normEj({}, "pecho")] }] });
       }
     } catch {}
   };
@@ -238,8 +251,21 @@ export default function UserRoutineCreator() {
     setActiveDay(ai => Math.max(0, ai >= i ? ai - 1 : ai));
   };
 
-  const addExercise = (di) => setDias(dias => {
-    dias[di].ejercicios.push({ nombre:"", series:"4", reps:"12" });
+  const addExerciseToGroup = (di, gid) => setDias(dias => {
+    dias[di].ejercicios.push(normEj({}, gid));
+    return dias;
+  });
+
+  const addGroup = (di) => setDias(dias => {
+    const used = new Set(dias[di].ejercicios.map(e => e.grupo || dias[di].grupo));
+    const next = GRUPOS.find(g => g.id !== "descanso" && !used.has(g.id)) || GRUPOS[0];
+    dias[di].ejercicios.push(normEj({}, next.id));
+    return dias;
+  });
+
+  const changeSectionGroup = (di, oldGid, newGid) => setDias(dias => {
+    dias[di].ejercicios = dias[di].ejercicios.map(e =>
+      (e.grupo || dias[di].grupo) === oldGid ? { ...e, grupo: newGid } : e);
     return dias;
   });
 
@@ -253,8 +279,15 @@ export default function UserRoutineCreator() {
     return dias;
   });
 
+  const convertToRest = (di) => setDias(dias => {
+    dias[di].grupo = "descanso"; dias[di].ejercicios = []; return dias;
+  });
+  const convertToTraining = (di) => setDias(dias => {
+    dias[di].grupo = "pecho"; dias[di].ejercicios = [normEj({}, "pecho")]; return dias;
+  });
+
   const loadTemplate = (tpl) => {
-    setRoutine({ ...tpl, id: routine.id });
+    setRoutine(normRoutine({ ...tpl, id: routine.id }));
     setActiveDay(0);
     setShowTpl(false);
   };
@@ -266,10 +299,16 @@ export default function UserRoutineCreator() {
     try {
       const url    = routine.id ? `/api/user/routines/${routine.id}` : "/api/user/routines";
       const method = routine.id ? "PUT" : "POST";
+      // El grupo del día se deriva de sus ejercicios (para la etiqueta/leyenda).
+      const payload = { ...routine, dias: routine.dias.map(d => ({
+        ...d,
+        grupo: d.grupo === "descanso" ? "descanso"
+          : ((d.ejercicios.find(e => (e.nombre || "").trim())?.grupo) || d.ejercicios[0]?.grupo || d.grupo || "pecho"),
+      })) };
       const res    = await fetch(url, {
         method,
         headers: { Authorization:`Bearer ${localStorage.getItem("token")}`, "Content-Type":"application/json" },
-        body: JSON.stringify(routine),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error((await res.json()).error || "Error");
       const d = await res.json();
@@ -281,7 +320,6 @@ export default function UserRoutineCreator() {
   };
 
   const current = routine.dias[activeDay];
-  const grupo   = current ? (GRUPOS.find(g => g.id === current.grupo) || GRUPOS[0]) : null;
 
   // Totales para el header info
   const totalDias = routine.dias.filter(d => d.grupo !== "descanso").length;
@@ -369,7 +407,12 @@ export default function UserRoutineCreator() {
           {routine.dias.length > 0 && (
             <div style={{ display:"flex", gap:8, marginBottom:20, flexWrap:"wrap" }}>
               {routine.dias.map((d, i) => {
-                const g = GRUPOS.find(g => g.id === d.grupo) || GRUPOS[0];
+                const esDescanso = d.grupo === "descanso";
+                const gids = [];
+                (d.ejercicios || []).forEach(e => { const gg = e.grupo || d.grupo; if (gg && gg !== "descanso" && !gids.includes(gg)) gids.push(gg); });
+                if (gids.length === 0 && !esDescanso && d.grupo) gids.push(d.grupo);
+                const g = esDescanso ? G("descanso") : G(gids[0] || "pecho");
+                const label = esDescanso ? "Descanso" : (G(gids[0] || "pecho").label + (gids.length > 1 ? ` +${gids.length - 1}` : ""));
                 const isActive = i === activeDay;
                 const ejCount  = (d.ejercicios || []).filter(e => e.nombre.trim()).length;
                 return (
@@ -385,12 +428,16 @@ export default function UserRoutineCreator() {
                       position:"relative",
                     }}
                   >
-                    <span style={{ width:12, height:12, borderRadius:"50%", background:g.color, display:"inline-block", flexShrink:0 }}/>
+                    <span style={{ display:"flex", gap:2, flexShrink:0 }}>
+                      {(esDescanso ? [G("descanso")] : gids.slice(0,3).map(G)).map((gg,gi) => (
+                        <span key={gi} style={{ width:10, height:10, borderRadius:"50%", background:gg.color, display:"inline-block" }}/>
+                      ))}
+                    </span>
                     <span style={{ display:"flex", flexDirection:"column", lineHeight:1.3 }}>
                       <span style={{ fontSize:10, fontWeight:500, opacity:.75 }}>
                         {DIAS_CORTO[DIAS_SEMANA.indexOf(d.dia)] ?? d.dia.slice(0,3)}
                       </span>
-                      <span style={{ fontSize:13, fontWeight:700 }}>{g.label}</span>
+                      <span style={{ fontSize:13, fontWeight:700 }}>{label}</span>
                     </span>
                     {ejCount > 0 && (
                       <span style={{
@@ -439,24 +486,16 @@ export default function UserRoutineCreator() {
                     >
                       {DIAS_SEMANA.map(d => <option key={d} value={d}>{d}</option>)}
                     </select>
-
-                    {/* Grupo selector */}
-                    <GrupoSelector
-                      value={current.grupo}
-                      onChange={v => setDias(dias => { dias[activeDay].grupo = v; return dias; })}
-                    />
+                    <span style={{ fontSize:12, color:"var(--text-secondary)" }}>
+                      {current.grupo === "descanso" ? "Día de descanso" : "Puedes combinar varios grupos musculares en el día"}
+                    </span>
                   </div>
 
                   <div style={{ display:"flex", gap:8 }}>
-                    <button
-                      onClick={() => addExercise(activeDay)}
-                      style={{ display:"flex", alignItems:"center", gap:6, padding:"7px 14px", background:`${grupo?.color ?? "var(--accent)"}22`, border:`1px solid ${grupo?.color ?? "var(--accent)"}44`, borderRadius:8, cursor:"pointer", color: grupo?.color ?? "var(--accent)", fontSize:13, fontWeight:600 }}
-                    >
-                      <FiPlus size={13} /> Ejercicio
-                    </button>
                     {routine.dias.length > 1 && (
                       <button
                         onClick={() => removeDay(activeDay)}
+                        title="Eliminar día"
                         style={{ padding:"7px 10px", background:"rgba(239,68,68,.1)", border:"1px solid rgba(239,68,68,.3)", borderRadius:8, cursor:"pointer", color:"#f87171", fontSize:13 }}
                       >
                         <FiTrash2 size={13} />
@@ -465,55 +504,72 @@ export default function UserRoutineCreator() {
                   </div>
                 </div>
 
-                {/* Exercises */}
+                {/* Exercises — secciones por grupo muscular */}
                 <div style={{ padding:"16px 20px" }}>
                   {current.grupo === "descanso" ? (
-                    <div style={{ textAlign:"center", padding:"40px 0", color:"var(--text-secondary)" }}>
+                    <div style={{ textAlign:"center", padding:"36px 0", color:"var(--text-secondary)" }}>
                       <div style={{ width:48, height:48, borderRadius:12, background:"rgba(100,116,139,.12)", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 10px" }}>
-                      <FiMoon size={22} color="var(--text-secondary)"/>
-                    </div>
-                      <p>Día de descanso — sin ejercicios.</p>
-                    </div>
-                  ) : current.ejercicios.length === 0 ? (
-                    <div style={{ textAlign:"center", padding:"30px 0", color:"var(--text-secondary)" }}>
-                      <div style={{ width:44, height:44, borderRadius:11, background:`${grupo?.color}18`, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 8px" }}>
-                        <FiActivity size={20} color={grupo?.color || "var(--accent)"}/>
+                        <FiMoon size={22} color="var(--text-secondary)"/>
                       </div>
-                      <p style={{ marginBottom:12 }}>No hay ejercicios todavía.</p>
-                      <button onClick={() => addExercise(activeDay)} style={{ padding:"8px 16px", background:`${grupo?.color}22`, border:`1px solid ${grupo?.color}44`, borderRadius:8, cursor:"pointer", color:grupo?.color, fontWeight:600, fontSize:13, display:"inline-flex", alignItems:"center", gap:6 }}>
-                        <FiPlus size={13} /> Agregar ejercicio
+                      <p style={{ marginBottom:12 }}>Día de descanso — sin ejercicios.</p>
+                      <button onClick={() => convertToTraining(activeDay)} style={{ padding:"8px 16px", background:"var(--accent)", border:"none", borderRadius:8, cursor:"pointer", color:"#fff", fontWeight:600, fontSize:13 }}>
+                        Convertir en día de entrenamiento
                       </button>
                     </div>
-                  ) : (
-                    <>
-                      {/* Header row */}
-                      <div style={{ display:"grid", gridTemplateColumns:"24px 1fr 60px 60px 32px", gap:8, padding:"0 8px 8px", fontSize:11, fontWeight:700, color:"var(--text-secondary)", textTransform:"uppercase", letterSpacing:".06em" }}>
-                        <span></span><span>Ejercicio</span><span style={{textAlign:"center"}}>Series</span><span style={{textAlign:"center"}}>Reps</span><span></span>
-                      </div>
-                      <AnimatePresence>
-                        {current.ejercicios.map((ej, ei) => (
-                          <motion.div
-                            key={ei}
-                            initial={{ opacity:0, x:-10 }}
-                            animate={{ opacity:1, x:0 }}
-                            exit={{ opacity:0, x:10, height:0 }}
-                          >
-                            <EjercicioRow
-                              ej={ej} idx={ei} grupo={current.grupo}
-                              onUpdate={(f,v) => updateExercise(activeDay, ei, f, v)}
-                              onDelete={() => removeExercise(activeDay, ei)}
-                            />
-                          </motion.div>
-                        ))}
-                      </AnimatePresence>
-                      <button
-                        onClick={() => addExercise(activeDay)}
-                        style={{ marginTop:8, width:"100%", padding:"10px", background:"transparent", border:`1px dashed var(--border)`, borderRadius:9, cursor:"pointer", color:"var(--text-secondary)", fontSize:13, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}
-                      >
-                        <FiPlus size={13} /> Agregar ejercicio
-                      </button>
-                    </>
-                  )}
+                  ) : (() => {
+                    // Grupos presentes en el día, en orden de aparición
+                    const gruposDia = [];
+                    current.ejercicios.forEach(e => { const gg = e.grupo || current.grupo || "pecho"; if (!gruposDia.includes(gg)) gruposDia.push(gg); });
+                    if (gruposDia.length === 0) gruposDia.push(current.grupo && current.grupo !== "descanso" ? current.grupo : "pecho");
+                    return (
+                      <>
+                        {gruposDia.map(gid => {
+                          const gg   = G(gid);
+                          const rows = current.ejercicios.map((e, ei) => ({ e, ei })).filter(x => (x.e.grupo || current.grupo || "pecho") === gid);
+                          return (
+                            <div key={gid} style={{ marginBottom:16, border:`1px solid ${gg.color}33`, borderRadius:12, overflow:"visible" }}>
+                              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, padding:"10px 12px", background:`${gg.color}12`, flexWrap:"wrap", borderRadius:"12px 12px 0 0" }}>
+                                <GrupoSelector value={gid} onChange={v => changeSectionGroup(activeDay, gid, v)} />
+                                <button onClick={() => addExerciseToGroup(activeDay, gid)}
+                                  style={{ display:"flex", alignItems:"center", gap:6, padding:"6px 12px", background:`${gg.color}22`, border:`1px solid ${gg.color}44`, borderRadius:8, cursor:"pointer", color:gg.color, fontSize:12, fontWeight:600 }}>
+                                  <FiPlus size={12} /> Ejercicio
+                                </button>
+                              </div>
+                              <div style={{ padding:"10px 12px" }}>
+                                {rows.length > 0 && (
+                                  <div style={{ display:"grid", gridTemplateColumns:"22px 1fr 46px 66px 66px 40px 28px", gap:6, padding:"0 8px 6px", fontSize:10, fontWeight:700, color:"var(--text-secondary)", textTransform:"uppercase", letterSpacing:".04em" }}>
+                                    <span></span><span>Ejercicio</span><span style={{textAlign:"center"}}>Ser</span><span style={{textAlign:"center"}}>Reps</span><span style={{textAlign:"center"}}>Peso</span><span style={{textAlign:"center"}}>Uni</span><span></span>
+                                  </div>
+                                )}
+                                {rows.map(({ e, ei }, localIdx) => (
+                                  <EjercicioRow
+                                    key={ei} ej={e} idx={localIdx} grupo={gid}
+                                    onUpdate={(f, v) => updateExercise(activeDay, ei, f, v)}
+                                    onDelete={() => removeExercise(activeDay, ei)}
+                                  />
+                                ))}
+                                <button onClick={() => addExerciseToGroup(activeDay, gid)}
+                                  style={{ marginTop:6, width:"100%", padding:"9px", background:"transparent", border:"1px dashed var(--border)", borderRadius:9, cursor:"pointer", color:"var(--text-secondary)", fontSize:12.5, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+                                  <FiPlus size={13} /> Agregar ejercicio a {gg.label}
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+
+                        <button onClick={() => addGroup(activeDay)}
+                          style={{ width:"100%", padding:"11px", background:"var(--accent-dim, rgba(51,119,255,.12))", border:"1px dashed var(--accent)", borderRadius:10, cursor:"pointer", color:"var(--accent)", fontSize:13, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+                          <FiPlus size={14} /> Agregar grupo muscular al día
+                        </button>
+                        <div style={{ marginTop:10, textAlign:"center" }}>
+                          <button onClick={() => convertToRest(activeDay)}
+                            style={{ background:"none", border:"none", color:"var(--text-secondary)", fontSize:12, cursor:"pointer", textDecoration:"underline" }}>
+                            Marcar como día de descanso
+                          </button>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               </motion.div>
             </AnimatePresence>
