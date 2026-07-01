@@ -14,16 +14,19 @@ import {
 import { GiMuscleUp, GiFruitBowl, GiMeal } from "react-icons/gi";
 
 // ── Palette (sin CSS externo) ─────────────────────────────────
+// La barra lateral tiene fondo oscuro en todos los temas, por eso su texto,
+// bordes y hover usan variables propias (--sidebar-*) que siempre son claras,
+// evitando que en el tema claro el texto se pierda. El acento sí sigue al tema.
 const P = {
   bg:        "var(--bg-sidebar, var(--bg-card, #151820))",
-  bgHover:   "var(--bg-hover, #1e2233)",
+  bgHover:   "var(--sidebar-hover, rgba(255,255,255,.06))",
   bgActive:  "var(--accent-dim, rgba(99,102,241,.18))",
   accent:    "var(--accent, #6366f1)",
   accentSoft:"var(--accent-soft, #818cf8)",
-  border:    "var(--border)",
-  text:      "var(--text-primary, #f1f5f9)",
-  muted:     "var(--text-secondary, #94a3b8)",
-  dim:       "var(--text-tertiary, #64748b)",
+  border:    "var(--sidebar-border, rgba(255,255,255,.1))",
+  text:      "var(--sidebar-text, #f1f5f9)",
+  muted:     "var(--sidebar-text-muted, #94a3b8)",
+  dim:       "var(--sidebar-text-dim, #64748b)",
   badge:     "var(--warning, #eab308)",
   badgeBg:   "var(--warning-bg, rgba(234,179,8,.15))",
 };
@@ -401,7 +404,7 @@ export default function Sidebar({
       bottom: "100%",
       left: 8,
       right: 8,
-      background: "var(--bg-card)",
+      background: "var(--sidebar-elevated, #232A3D)",
       border: `1px solid ${P.border}`,
       borderRadius: 10,
       overflow: "hidden",
