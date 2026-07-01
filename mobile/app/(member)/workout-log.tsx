@@ -21,9 +21,9 @@ import Button from '../../components/ui/Button';
 import api from '../../services/api';
 
 type Serie = { repeticiones: string; peso: string };
-type Exercise = { nombre: string; series: Serie[] };
+type Exercise = { nombre: string; grupo?: string; unidad?: string; series: Serie[] };
 
-interface RoutineEx { nombre: string; series?: string | number; reps?: string | number; peso?: string | number }
+interface RoutineEx { nombre: string; series?: string | number; reps?: string | number; peso?: string | number; grupo?: string; unidad?: string }
 interface RoutineDay { id: string; dia?: string; grupo?: string; ejercicios: RoutineEx[] }
 interface Routine { id: string; nombre: string; activa?: boolean; duracion_minutos?: number; dias: RoutineDay[] }
 
@@ -58,7 +58,22 @@ const dayMatchesToday = (d?: RoutineDay | null) => normTxt(d?.dia).includes(toda
 const pickTodayOrFirst = (dias?: RoutineDay[]) =>
   (dias || []).find(dayMatchesToday) || (dias || [])[0] || null;
 const exercisesFromDay = (day?: RoutineDay | null): Exercise[] =>
-  (day?.ejercicios || []).filter(e => e.nombre).map(e => ({ nombre: e.nombre, series: seriesFrom(e) }));
+  (day?.ejercicios || []).filter(e => e.nombre).map(e => ({
+    nombre: e.nombre, grupo: e.grupo || '', unidad: e.unidad || 'kg', series: seriesFrom(e),
+  }));
+
+// Interpreta valores multivalor ("7,7,7" / "10,20,30") y convierte lb a kg.
+const LB_A_KG = 0.453592;
+const nums = (v?: string) => String(v ?? '').replace(/;/g, ',').split(',')
+  .map(p => { const m = p.match(/-?\d*\.?\d+/); return m ? parseFloat(m[0]) : null; })
+  .filter((n): n is number => n != null && !isNaN(n));
+const setVolumen = (s: Serie, unidad?: string) => {
+  const r = nums(s.repeticiones);
+  const p = nums(s.peso).map(x => x * (String(unidad).toLowerCase().startsWith('lb') ? LB_A_KG : 1));
+  if (!r.length || !p.length) return 0;
+  if (r.length === p.length) return r.reduce((a, x, i) => a + x * p[i], 0);
+  return r.reduce((a, x) => a + x, 0) * (p.reduce((a, x) => a + x, 0) / p.length);
+};
 
 export default function WorkoutLogScreen() {
   const colors = useColors();
@@ -111,17 +126,21 @@ export default function WorkoutLogScreen() {
     idx === i ? { ...x, series: x.series.length > 1 ? x.series.filter((_, k) => k !== si) : x.series } : x));
   const setSerie = (i: number, si: number, field: keyof Serie, v: string) => setExercises(xs => xs.map((x, idx) =>
     idx === i ? { ...x, series: x.series.map((s, k) => k === si ? { ...s, [field]: v } : s) } : x));
+  const toggleUnit = (i: number) => setExercises(xs => xs.map((x, idx) =>
+    idx === i ? { ...x, unidad: x.unidad === 'lb' ? 'kg' : 'lb' } : x));
 
   const volumen = exercises.reduce((acc, ex) =>
-    acc + ex.series.reduce((a, s) => a + (parseFloat(s.repeticiones) || 0) * (parseFloat(s.peso) || 0), 0), 0);
+    acc + ex.series.reduce((a, s) => a + setVolumen(s, ex.unidad), 0), 0);
 
   const save = useCallback(async () => {
     if (!selectedRoutine || !selectedDay) { Alert.alert('Falta', 'Selecciona una rutina y un día.'); return; }
     const ejercicios = exercises
       .map(ex => ({
         nombre: ex.nombre,
-        series: ex.series.filter(s => s.repeticiones || s.peso)
-          .map(s => ({ repeticiones: parseInt(s.repeticiones) || 0, peso: parseFloat(s.peso) || 0 })),
+        grupo: ex.grupo || undefined,
+        unidad: ex.unidad || 'kg',
+        series: ex.series.filter(s => (s.repeticiones ?? '') !== '' || (s.peso ?? '') !== '')
+          .map(s => ({ repeticiones: String(s.repeticiones ?? ''), peso: String(s.peso ?? ''), unidad: ex.unidad || 'kg' })),
       }))
       .filter(ex => ex.series.length > 0);
     if (ejercicios.length === 0) { Alert.alert('Falta', 'Registra al menos una serie en algún ejercicio.'); return; }
@@ -210,39 +229,56 @@ export default function WorkoutLogScreen() {
               </>
             )}
 
-            {/* Ejercicios de la rutina */}
+            {/* Ejercicios de la rutina, agrupados por grupo muscular */}
             {selectedDay && (exercises.length === 0 ? (
               <Text style={styles.hint}>Este día no tiene ejercicios.</Text>
-            ) : exercises.map((ex, i) => (
-              <View key={i} style={styles.exCard}>
-                <View style={styles.exHead}>
-                  <Ionicons name="barbell-outline" size={16} color={colors.accent} />
-                  <Text style={styles.exName}>{ex.nombre}</Text>
+            ) : (() => {
+              const grupos: string[] = [];
+              exercises.forEach(ex => { const gg = ex.grupo || 'General'; if (!grupos.includes(gg)) grupos.push(gg); });
+              return grupos.map(gid => (
+                <View key={gid}>
+                  {(grupos.length > 1 || (gid && gid !== 'General')) && (
+                    <Text style={styles.groupLabel}>{gid}</Text>
+                  )}
+                  {exercises.map((ex, i) => ({ ex, i })).filter(x => (x.ex.grupo || 'General') === gid).map(({ ex, i }) => (
+                    <View key={i} style={styles.exCard}>
+                      <View style={styles.exHead}>
+                        <Ionicons name="barbell-outline" size={16} color={colors.accent} />
+                        <Text style={[styles.exName, { flex: 1 }]}>{ex.nombre}</Text>
+                        <TouchableOpacity onPress={() => toggleUnit(i)} style={styles.unitBtn}>
+                          <Text style={styles.unitBtnTxt}>{ex.unidad || 'kg'}</Text>
+                        </TouchableOpacity>
+                      </View>
+                      <View style={styles.serieHead}>
+                        <Text style={[styles.serieHeadTxt, { width: 24 }]}>#</Text>
+                        <Text style={[styles.serieHeadTxt, { flex: 1 }]}>Reps</Text>
+                        <Text style={[styles.serieHeadTxt, { flex: 1 }]}>Peso ({ex.unidad || 'kg'})</Text>
+                        <View style={{ width: 26 }} />
+                      </View>
+                      {ex.series.map((s, si) => (
+                        <View key={si} style={styles.serieRow}>
+                          <Text style={styles.serieNum}>{si + 1}</Text>
+                          <TextInput style={[styles.input, { flex: 1, marginVertical: 0 }]}
+                            value={s.repeticiones} onChangeText={(v) => setSerie(i, si, 'repeticiones', v)} placeholder="12 o 7,7,7" placeholderTextColor={colors.textMuted} />
+                          <TextInput style={[styles.input, { flex: 1, marginVertical: 0 }]}
+                            value={s.peso} onChangeText={(v) => setSerie(i, si, 'peso', v)} placeholder="opcional" placeholderTextColor={colors.textMuted} />
+                          <TouchableOpacity onPress={() => removeSerie(i, si)} hitSlop={8} style={{ width: 26, alignItems: 'center' }}>
+                            <Ionicons name="close" size={16} color={colors.textSecondary} />
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                      <TouchableOpacity onPress={() => addSerie(i)} style={styles.addSerie}>
+                        <Ionicons name="add" size={15} color={colors.accent} />
+                        <Text style={styles.addSerieTxt}>Agregar serie</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
                 </View>
-                <View style={styles.serieHead}>
-                  <Text style={[styles.serieHeadTxt, { width: 24 }]}>#</Text>
-                  <Text style={[styles.serieHeadTxt, { flex: 1 }]}>Reps</Text>
-                  <Text style={[styles.serieHeadTxt, { flex: 1 }]}>Peso (kg)</Text>
-                  <View style={{ width: 26 }} />
-                </View>
-                {ex.series.map((s, si) => (
-                  <View key={si} style={styles.serieRow}>
-                    <Text style={styles.serieNum}>{si + 1}</Text>
-                    <TextInput style={[styles.input, { flex: 1, marginVertical: 0 }]} keyboardType="number-pad"
-                      value={s.repeticiones} onChangeText={(v) => setSerie(i, si, 'repeticiones', v)} placeholder="12" placeholderTextColor={colors.textMuted} />
-                    <TextInput style={[styles.input, { flex: 1, marginVertical: 0 }]} keyboardType="decimal-pad"
-                      value={s.peso} onChangeText={(v) => setSerie(i, si, 'peso', v)} placeholder="40" placeholderTextColor={colors.textMuted} />
-                    <TouchableOpacity onPress={() => removeSerie(i, si)} hitSlop={8} style={{ width: 26, alignItems: 'center' }}>
-                      <Ionicons name="close" size={16} color={colors.textSecondary} />
-                    </TouchableOpacity>
-                  </View>
-                ))}
-                <TouchableOpacity onPress={() => addSerie(i)} style={styles.addSerie}>
-                  <Ionicons name="add" size={15} color={colors.accent} />
-                  <Text style={styles.addSerieTxt}>Agregar serie</Text>
-                </TouchableOpacity>
-              </View>
-            )))}
+              ));
+            })())}
+            {selectedDay && exercises.length > 0 && (
+              <Text style={styles.hint}>Tip: en reps o peso puedes poner varios valores con coma (7,7,7 y 10,20,30) para drop-sets.</Text>
+            )}
 
             {selectedDay && (
               <>
@@ -328,6 +364,9 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
     exCard: { backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 12, marginTop: 12, gap: 4 },
     exHead: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
     exName: { flex: 1, color: colors.text, fontSize: 14 * fs, fontWeight: '700' },
+    groupLabel: { color: colors.accent, fontSize: 12.5 * fs, fontWeight: '800', marginTop: 8, marginBottom: 4, textTransform: 'capitalize' },
+    unitBtn: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 7, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+    unitBtnTxt: { color: colors.accent, fontSize: 12 * fs, fontWeight: '700' },
     serieHead: { flexDirection: 'row', gap: 8, paddingHorizontal: 2, marginBottom: 2 },
     serieHeadTxt: { color: colors.textMuted, fontSize: 11 * fs, fontWeight: '600' },
     serieRow: { flexDirection: 'row', gap: 8, alignItems: 'center', marginBottom: 6 },
