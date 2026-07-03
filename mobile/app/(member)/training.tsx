@@ -8,7 +8,7 @@
  * Tab "Entrenador": GET /api/user/training/trainers
  *   + Chat GET|POST /api/user/training/chat/<trainer_id>
  */
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import {
   View, Text, StyleSheet, FlatList, SectionList, TouchableOpacity,
   RefreshControl, TextInput, KeyboardAvoidingView, Platform, Alert, Image,
@@ -87,6 +87,48 @@ function trainerName(t: Trainer): string {
   return toStr(t.nombre ?? t.name, 'Entrenador');
 }
 
+// ── Calificación + terminar entrenamiento personal ─────────────────────────────
+function TrainerActions({ colors, onTerminar }: { colors: any; onTerminar: () => void }) {
+  const [rating, setRating] = useState(0);
+  const [saved, setSaved]   = useState(false);
+  useEffect(() => {
+    api.get(ENDPOINTS.USER_TRAINER_RATING)
+      .then(({ data }) => { if (data?.rating != null) { setRating(data.rating); setSaved(true); } })
+      .catch(() => {});
+  }, []);
+  const submit = async (v: number) => {
+    setRating(v);
+    try { await api.post(ENDPOINTS.USER_TRAINER_RATING, { calificacion: v }); setSaved(true); }
+    catch (e: any) { Alert.alert('Error', e?.response?.data?.error ?? 'No se pudo guardar la calificación.'); }
+  };
+  const terminar = () => {
+    Alert.alert('Terminar entrenamiento', '¿Terminar con este entrenador? Después podrás solicitar a otro.', [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Terminar', style: 'destructive', onPress: async () => {
+        try { await api.delete(ENDPOINTS.USER_PT_ACTIVO); onTerminar(); }
+        catch (e: any) { Alert.alert('Error', e?.response?.data?.error ?? 'No se pudo terminar.'); }
+      } },
+    ]);
+  };
+  return (
+    <Card>
+      <Text style={{ color: colors.textSecondary, fontSize: 12, marginBottom: 6 }}>
+        {saved ? 'Tu calificación' : 'Califica a tu entrenador'}
+      </Text>
+      <View style={{ flexDirection: 'row', gap: 6, marginBottom: 12 }}>
+        {[1, 2, 3, 4, 5].map(i => (
+          <TouchableOpacity key={i} onPress={() => submit(i)} hitSlop={6}>
+            <Ionicons name={i <= rating ? 'star' : 'star-outline'} size={26} color={i <= rating ? '#FFB300' : colors.textMuted} />
+          </TouchableOpacity>
+        ))}
+      </View>
+      <TouchableOpacity onPress={terminar} style={{ alignSelf: 'flex-start' }}>
+        <Text style={{ color: '#EF4444', fontSize: 13, fontWeight: '600' }}>Terminar entrenamiento personal</Text>
+      </TouchableOpacity>
+    </Card>
+  );
+}
+
 // ── Componente ────────────────────────────────────────────────────────────────
 export default function TrainingScreen() {
   const colors = useColors();
@@ -111,7 +153,7 @@ export default function TrainingScreen() {
 
   // Solicitudes PT: el miembro solo puede chatear con su entrenador ASIGNADO
   // (solicitud en estado "aceptada"). Restringimos la lista a esos entrenadores.
-  const { data: ptData, loading: loadingPT } =
+  const { data: ptData, loading: loadingPT, refetch: refetchPT } =
     useFetch<{ solicitudes: PTSolicitud[] }>(ENDPOINTS.USER_PT_REQUEST);
 
   const rutinas     = toArray(rutinaData?.rutinas);
@@ -363,6 +405,8 @@ export default function TrainingScreen() {
               </View>
             </Card>
           ) : null}
+
+          {active ? <TrainerActions colors={colors} onTerminar={() => { setSelectedTrainer(null); refetchPT?.(); }} /> : null}
 
           {/* Chat */}
           <View style={styles.chatContainer}>

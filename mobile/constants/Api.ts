@@ -162,6 +162,8 @@ export const ENDPOINTS = {
   USER_ASSIGNED_ROUTINES: '/user/training/assigned-routines', // GET /api/user/training/assigned-routines
   USER_CHAT_BASE:       '/user/training/chat',     // GET|POST /api/user/training/chat/<trainer_id>
   USER_PT_REQUEST:      '/user/training/pt-request', // GET|POST /api/user/training/pt-request
+  USER_TRAINER_RATING:  '/user/training/trainer-rating', // GET|POST calificar entrenador
+  USER_PT_ACTIVO:       '/user/training/pt-activo', // DELETE terminar entrenador actual
 
   // Aliases legacy (mantenidos para no romper otras pantallas)
   USER_TRAINER:         '/user/training/trainers',
