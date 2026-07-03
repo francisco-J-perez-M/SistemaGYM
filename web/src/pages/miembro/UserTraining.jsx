@@ -16,6 +16,7 @@ import {
 } from "react-icons/fi";
 import { GiMuscleUp } from "react-icons/gi";
 import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import "../../css/CSSUnificado.css";
 
 /* ── Video helper (same as TrainerRoutines) ─────────────────── */
@@ -264,6 +265,7 @@ const fmtFecha = (iso) => {
    TAB 1 — RUTINAS
 ══════════════════════════════════════════════════════════════ */
 function TabRutinas() {
+  const navigate = useNavigate();
   const [propias,    setPropias]    = useState([]);
   const [asignadas,  setAsignadas]  = useState([]);
   const [loadP,      setLoadP]      = useState(true);
@@ -484,6 +486,12 @@ function TabRutinas() {
           </button>
         ))}
         <div style={{ flex: 1 }} />
+        <button
+          onClick={() => navigate("/user/routine")}
+          style={{ ...btn("var(--accent)", false), padding: "7px 14px" }}
+        >
+          <FiPlus size={13} /> Crear rutina
+        </button>
         <button
           onClick={() => vista === "propias" ? cargarPropias() : cargarAsignadas()}
           style={{ ...btn("#374151", true), padding: "7px 12px" }}
@@ -847,43 +855,47 @@ function TabEntrenador() {
                       </div>
                     )}
                   </div>
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
-                    <span style={{
-                      fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 99,
-                      background: `${ESTADO_COLOR[s.estado]}18`,
-                      color: ESTADO_COLOR[s.estado],
-                    }}>
-                      {ESTADO_LABEL[s.estado]}
-                    </span>
-                    <div style={{ display: "flex", gap: 6 }}>
-                      {s.estado === "aceptada" && (
-                        <button
-                          onClick={() => setChatOpen(s.id_entrenador_pg)}
-                          style={{ ...btn("var(--success)", true), padding: "5px 10px", fontSize: 11 }}
-                        >
-                          <FiMessageSquare size={11} /> Chat
-                        </button>
-                      )}
-                      {s.estado === "aceptada" && (
-                        <button
-                          onClick={terminarActivo}
-                          title="Terminar entrenamiento personal"
-                          style={{ ...btn("var(--danger)", true), padding: "5px 10px", fontSize: 11 }}
-                        >
-                          <FiX size={11} /> Terminar
-                        </button>
-                      )}
-                      {s.estado === "pendiente" && (
-                        <button
-                          onClick={() => cancelar(s.id)}
-                          style={{ ...btn("var(--danger)", true), padding: "5px 10px", fontSize: 11 }}
-                        >
-                          <FiX size={11} /> Cancelar
-                        </button>
-                      )}
-                    </div>
-                  </div>
+                  <span style={{
+                    fontSize: 11, fontWeight: 700, padding: "4px 12px", borderRadius: 99, flexShrink: 0,
+                    background: `${ESTADO_COLOR[s.estado]}18`,
+                    color: ESTADO_COLOR[s.estado],
+                  }}>
+                    {ESTADO_LABEL[s.estado]}
+                  </span>
                 </div>
+
+                {/* Barra de acciones (clara y bien ubicada) */}
+                {s.estado === "aceptada" && (
+                  <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
+                    <button
+                      onClick={() => setChatOpen(s.id_entrenador_pg)}
+                      style={{ ...btn("var(--accent)", false), flex: 1, justifyContent: "center", padding: "10px 0", fontSize: 13, fontWeight: 700 }}
+                    >
+                      <FiMessageSquare size={14} /> Chatear con tu entrenador
+                    </button>
+                    <button
+                      onClick={terminarActivo}
+                      title="Terminar entrenamiento personal"
+                      style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 16px", borderRadius: 9,
+                        background: "transparent", border: "1px solid var(--danger)", color: "var(--danger)",
+                        cursor: "pointer", fontSize: 13, fontWeight: 600 }}
+                    >
+                      <FiX size={14} /> Terminar
+                    </button>
+                  </div>
+                )}
+                {s.estado === "pendiente" && (
+                  <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
+                    <button
+                      onClick={() => cancelar(s.id)}
+                      style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 9,
+                        background: "transparent", border: "1px solid var(--danger)", color: "var(--danger)",
+                        cursor: "pointer", fontSize: 13, fontWeight: 600 }}
+                    >
+                      <FiX size={13} /> Cancelar solicitud
+                    </button>
+                  </div>
+                )}
 
                 {/* Calificación — solo para solicitudes aceptadas */}
                 {s.estado === "aceptada" && (
@@ -963,6 +975,31 @@ function TabEntrenador() {
                           <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>{t.especialidad}</div>
                         </div>
                       </div>
+
+                      {/* Calificación del entrenador */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 8 }}>
+                        {t.rating != null ? (
+                          <>
+                            <span style={{ display: "inline-flex", gap: 1 }}>
+                              {[1, 2, 3, 4, 5].map(i => (
+                                <FiStar key={i} size={12} style={{ color: i <= Math.round(t.rating) ? "var(--warning)" : "var(--border)", fill: i <= Math.round(t.rating) ? "var(--warning)" : "none" }} />
+                              ))}
+                            </span>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: "var(--warning)" }}>{t.rating}</span>
+                            <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>({t.num_ratings})</span>
+                          </>
+                        ) : (
+                          <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>Sin calificaciones aún</span>
+                        )}
+                      </div>
+
+                      {/* Rutinas del entrenador */}
+                      <div style={{ marginTop: 6, fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.5 }}>
+                        {(t.rutinas && t.rutinas.length > 0)
+                          ? <>Rutinas: {t.rutinas.map(r => r.nombre).slice(0, 3).join(" · ")}{t.total_rutinas > 3 ? ` +${t.total_rutinas - 3}` : ""}</>
+                          : <>{t.total_rutinas || 0} rutina{t.total_rutinas === 1 ? "" : "s"} creada{t.total_rutinas === 1 ? "" : "s"}</>}
+                      </div>
+
                       {selTrainer?.id === t.id && (
                         <div style={{ marginTop: 8, textAlign: "right" }}>
                           <FiCheckCircle size={14} color="var(--accent)" />
@@ -1274,6 +1311,27 @@ function TabAlertas() {
     prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]
   );
 
+  // Los recordatorios ahora son automáticos (los genera el backend según tu
+  // rutina). Esta pestaña solo lo explica; ya no se crean alertas a mano.
+  return (
+    <div style={{ padding: "20px 24px" }}>
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: 24, textAlign: "center", maxWidth: 560, margin: "0 auto" }}>
+        <div style={{ width: 56, height: 56, borderRadius: 16, background: "var(--accent-dim, rgba(51,119,255,.12))", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}>
+          <FiBell size={26} style={{ color: "var(--accent)" }} />
+        </div>
+        <h3 style={{ fontSize: 17, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 8px" }}>Recordatorios automáticos</h3>
+        <p style={{ fontSize: 13.5, color: "var(--text-secondary)", lineHeight: 1.7, margin: "0 auto", maxWidth: 440 }}>
+          Ya no necesitas crear alertas a mano. Cuando sea un día de entrenamiento de tu rutina y aún no lo hayas registrado, te llega una notificación en la campana para que no rompas tu racha.
+        </p>
+        <div style={{ marginTop: 16, display: "inline-flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "var(--text-secondary)", background: "var(--bg-input)", borderRadius: 10, padding: "10px 14px" }}>
+          <FiCheckCircle size={14} style={{ color: "var(--success)" }} />
+          Se activa con tus rutinas: no requiere configuración.
+        </div>
+      </div>
+    </div>
+  );
+
+  // eslint-disable-next-line no-unreachable
   return (
     <div style={{ padding: "20px 24px" }}>
       {/* Banner de notificaciones */}

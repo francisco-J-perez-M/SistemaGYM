@@ -67,7 +67,6 @@ const MENUS = {
       id: "training", label: "Entrenamiento", icon: <GiMuscleUp />,
       children: [
         { id: "training-hub", label: "Entrenamiento Personal", icon: <GiMuscleUp />   },
-        { id: "routine",      label: "Mi Rutina",              icon: <FiFileText />   },
         { id: "workout-log",  label: "Registrar Entreno",      icon: <FiActivity />   },
         { id: "progress",     label: "Progreso Físico",        icon: <FiTrendingUp /> },
         { id: "prediction",   label: "Mi Predicción",          icon: <FiCpu />        },

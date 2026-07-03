@@ -33,6 +33,8 @@ const normRoutine = (r) => ({
   ...r,
   dias: (r.dias || []).map(d => ({ ...d, ejercicios: (d.ejercicios || []).map(e => normEj(e, d.grupo)) })),
 });
+// Rutina nueva y vacía (el creador arranca así y se limpia tras guardar).
+const blankRoutine = () => ({ nombre: "", dias: [{ dia: "Lunes", grupo: "pecho", ejercicios: [normEj({}, "pecho")] }] });
 
 const SUGERENCIAS = {
   pecho:    ["Press Banca","Press Inclinado","Press Declinado","Aperturas con Mancuernas","Fondos en paralelas","Pullover","Cruce de poleas"],
@@ -219,16 +221,10 @@ export default function UserRoutineCreator() {
   }, []);
 
   const fetchRoutine = async () => {
-    try {
-      const res = await fetch("/api/user/routines", {
-        headers: { Authorization:`Bearer ${localStorage.getItem("token")}` },
-      });
-      if (res.ok) {
-        const d = await res.json();
-        if (d.rutinas?.length > 0) setRoutine(normRoutine(d.rutinas[0]));
-        else setRoutine({ nombre:"Mi Rutina", dias: [{ dia:"Lunes", grupo:"pecho", ejercicios:[normEj({}, "pecho")] }] });
-      }
-    } catch {}
+    // El creador siempre arranca en blanco para crear una rutina NUEVA.
+    // Tus rutinas guardadas se ven en "Entrenamiento Personal → Mis Rutinas".
+    setRoutine(blankRoutine());
+    setActiveDay(0);
   };
 
   /* ── Mutations ──────────────────────────────────────────────── */
@@ -293,6 +289,7 @@ export default function UserRoutineCreator() {
   };
 
   const save = async () => {
+    if (!routine.nombre.trim()) { setError("Ponle un nombre a tu rutina antes de guardarla."); return; }
     const valido = routine.dias.some(d => d.ejercicios.some(e => e.nombre.trim()));
     if (!valido) { setError("Agrega al menos un ejercicio con nombre."); return; }
     setSaving(true); setError(null);
@@ -311,10 +308,12 @@ export default function UserRoutineCreator() {
         body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error((await res.json()).error || "Error");
-      const d = await res.json();
-      if (d.rutina?.id) setRoutine(r => ({ ...r, id: d.rutina.id }));
+      await res.json();
       setSuccess(true);
-      setTimeout(() => setSuccess(false), 2500);
+      // Limpiar el creador para hacer otra rutina.
+      setRoutine(blankRoutine());
+      setActiveDay(0);
+      setTimeout(() => setSuccess(false), 3000);
     } catch(e) { setError(e.message); }
     finally { setSaving(false); }
   };
@@ -398,7 +397,7 @@ export default function UserRoutineCreator() {
             {success && (
               <motion.div key="ok" initial={{opacity:0,y:-8}} animate={{opacity:1,y:0}} exit={{opacity:0}}
                 style={{ display:"flex", alignItems:"center", gap:10, padding:"11px 16px", background:"rgba(34,197,94,.1)", border:"1px solid rgba(34,197,94,.3)", borderRadius:9, marginBottom:16, color:"#4ade80", fontSize:13 }}>
-                <FiCheckCircle /> Rutina guardada exitosamente.
+                <FiCheckCircle /> Rutina guardada. El creador quedó limpio para crear otra.
               </motion.div>
             )}
           </AnimatePresence>
