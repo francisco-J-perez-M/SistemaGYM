@@ -5,6 +5,7 @@ import Layout from "./components/compartido/Layout";
 // --- PÁGINAS PÚBLICAS ---
 import AuthPage    from "./components/auth/AuthPage";
 import RegisterGym from "./pages/publico/RegisterGym";
+import ForgotPassword from "./pages/publico/ForgotPassword";
 
 // --- PÁGINAS DE OWNER GYM ---
 import OwnerOnboarding    from "./pages/owner_gym/OwnerOnboarding";
@@ -78,6 +79,7 @@ function App() {
           {/* 1. RUTAS PÚBLICAS */}
           <Route path="/" element={<AuthPage />} />
           <Route path="/register" element={<AuthPage />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/register-gym"     element={<RegisterGym />} />
           <Route path="/owner/bienvenida" element={<OwnerOnboarding />} />
 

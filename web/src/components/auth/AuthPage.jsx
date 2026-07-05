@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { login } from "../../api/auth";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import useTheme from "../../hooks/useTheme";
 import { motion, AnimatePresence } from "framer-motion";
 import "../../css/CSSUnificado.css";
@@ -216,6 +216,12 @@ export default function AuthPage() {
                         {showPassword ? <FiEye /> : <FiEyeOff />}
                       </button>
                     </div>
+                  </div>
+
+                  <div style={{ textAlign: "right", marginTop: -8, marginBottom: 4 }}>
+                    <Link to="/forgot-password" style={{ fontSize: 13, color: "var(--accent, #6c63ff)", textDecoration: "none" }}>
+                      ¿Olvidaste tu contraseña?
+                    </Link>
                   </div>
 
                   {error && (

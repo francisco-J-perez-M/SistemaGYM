@@ -6,6 +6,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
@@ -115,6 +116,15 @@ export default function LoginScreen() {
               accessibilityLabel="Iniciar sesión"
             />
 
+            <TouchableOpacity
+              onPress={() => router.push('/(auth)/forgot-password')}
+              style={styles.forgotBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Olvidé mi contraseña"
+            >
+              <Text style={styles.forgotText}>¿Olvidaste tu contraseña?</Text>
+            </TouchableOpacity>
+
             <Text style={styles.hint}>
               Utiliza las mismas credenciales del portal web.{'\n'}
               Contacta al administrador de tu gimnasio si no tienes cuenta.
@@ -214,6 +224,8 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   },
   errorText: { color: colors.error, fontSize: 13 * fs, flex: 1 },
   loginBtn:  { marginTop: 8, width: '100%' },
+  forgotBtn:  { alignSelf: 'center', paddingVertical: 10 },
+  forgotText: { color: colors.accent, fontSize: 13 * fs, fontWeight: '600' },
   hint: {
     color:     colors.textMuted,
     fontSize: 12 * fs,
