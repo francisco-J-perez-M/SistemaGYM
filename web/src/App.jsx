@@ -70,6 +70,7 @@ import SuperadminPlanes       from "./pages/superadmin/SuperadminPlanes";
 import SuperadminUsuarios     from "./pages/superadmin/SuperadminUsuarios";
 import SuperadminBackups      from "./pages/superadmin/SuperadminBackups";
 import SuperadminAnalytics    from "./pages/superadmin/SuperadminAnalytics";
+import SuperadminModelos      from "./pages/superadmin/SuperadminModelos";
 
 function App() {
   return (
@@ -162,6 +163,7 @@ function App() {
             <Route path="/superadmin/usuarios"      element={<SuperadminUsuarios />}      />
             <Route path="/superadmin/backups"       element={<SuperadminBackups />}       />
             <Route path="/superadmin/analytics"     element={<SuperadminAnalytics />}     />
+            <Route path="/superadmin/modelos"       element={<SuperadminModelos />}       />
           </Route>
 
           {/* 7. RUTA 404 */}
