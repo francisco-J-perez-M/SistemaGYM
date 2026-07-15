@@ -83,7 +83,16 @@ services:
       context: ./api
       dockerfile: Dockerfile
     restart: unless-stopped
-    env_file: ./api/.env
+    # env_file en cascada: primero los valores por defecto de desarrollo
+    # (.env.example SÍ está versionado, así que un clon recién hecho arranca sin
+    # pasos manuales) y luego .env como override OPCIONAL para secretos reales.
+    # Docker Compose aplica los archivos en orden: las claves de .env pisan las de
+    # .env.example. Antes esto era `env_file: ./api/.env`, que en una PC nueva
+    # fallaba con "env file ./api/.env not found" porque .env está en .gitignore.
+    env_file:
+      - ./api/.env.example
+      - path: ./api/.env
+        required: false
     # Sobreescribir URIs para que apunten a los contenedores por nombre de servicio
     environment:
       MONGO_URI:          mongodb://mongo:27017/gymdb
