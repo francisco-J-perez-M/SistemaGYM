@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # ──────────────────────────────────────────────────────────────────────────────
 # Stage 1 — builder
 #   Node 20 LTS + react-scripts build (CRA 5)
@@ -11,7 +12,10 @@ WORKDIR /app
 # Si package.json no cambia, npm ci se saltea y reutiliza la capa anterior.
 COPY package.json package-lock.json ./
 
-RUN npm install --legacy-peer-deps
+# --mount=type=cache reutiliza el cache global de npm (~/.npm) entre builds:
+# cuando cambian dependencias, npm no vuelve a descargar los paquetes ya vistos.
+RUN --mount=type=cache,target=/root/.npm \
+    npm install --legacy-peer-deps
 
 # Build arg para URL base de la API en tiempo de compilación.
 # CRA embebe las variables REACT_APP_* en el bundle estático.
@@ -27,9 +31,16 @@ COPY . .
 #     RAM consume en `react-scripts build` (suele ser la causa del "cannot
 #     allocate memory"). Además acelera el build y reduce el bundle.
 #   - NODE_OPTIONS=--max-old-space-size=2048: techo explícito del heap de V8.
+#   - CI=false: evita que react-scripts trate los warnings de ESLint como errores
+#     si algún entorno define CI=true (localmente CI viene vacío y ya pasaba).
 ENV GENERATE_SOURCEMAP=false \
-    NODE_OPTIONS=--max-old-space-size=2048
-RUN npm run build
+    NODE_OPTIONS=--max-old-space-size=2048 \
+    CI=false
+# Cache mount de la carpeta de cache de CRA (babel-loader, terser-webpack-plugin):
+# en cambios SOLO de código el rebuild reutiliza el trabajo previo y el paso baja
+# de ~125 s a decenas de segundos.
+RUN --mount=type=cache,target=/app/node_modules/.cache \
+    npm run build
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Stage 2 — runtime
