@@ -1,0 +1,72 @@
+# docker-compose.prod.yml — Override de producción para VPS de 8 GB (Contabo Cloud VPS 10)
+#
+# Uso en el servidor:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
+#
+# Objetivo: que todo el stack (Postgres + Mongo + Redis + API + web + Ollama)
+# quepa con holgura en 8 GB RAM, optimizando cada servicio al mínimo necesario
+# sin perder funcionalidad.
+#
+# Presupuesto de RAM resultante (pico, sin ETL+IA simultáneos):
+#   SO+Docker 0.5 · Postgres 0.25 · Mongo 1.2 · Redis 0.05 · API 1.0 · web 0.03 · Ollama 4.0  ≈ 7 GB
+#   El swap (sección 7 del estudio) cubre picos puntuales.
+
+services:
+
+  # ── PostgreSQL ───────────────────────────────────────────────────────────────
+  postgres:
+    # Cierra el puerto al exterior: solo accesible dentro de la red interna gympro.
+    # (En dev se exponía 5433 para DBeaver; en prod se accede vía túnel SSH.)
+    ports: []
+    mem_limit: 512m
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_buffers=128MB"
+      - "-c"
+      - "max_connections=50"
+
+  # ── MongoDB ──────────────────────────────────────────────────────────────────
+  # CLAVE: WiredTiger toma por defecto ~50% de (RAM-1GB) ≈ 3.5 GB en 8 GB.
+  # Lo capamos a 1 GB — más que suficiente para el dataset de un solo gimnasio.
+  mongo:
+    ports: []
+    mem_limit: 1500m
+    command: ["--wiredTigerCacheSizeGB", "1"]
+    # Producción: habilitar autenticación (definir las credenciales en .env del host)
+    # environment:
+    #   MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+    #   MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+
+  # ── Redis ────────────────────────────────────────────────────────────────────
+  redis:
+    mem_limit: 128m
+    # maxmemory + política LRU: Redis nunca crece más de 96 MB (cache + rate-limit).
+    command: ["redis-server", "--maxmemory", "96mb", "--maxmemory-policy", "allkeys-lru"]
+
+  # ── API Flask + Gunicorn ─────────────────────────────────────────────────────
+  api:
+    mem_limit: 1536m
+    environment:
+      # SPARK_ENABLED ya no aplica (IA migrada a scikit-learn) → desactivado.
+      SPARK_ENABLED: "false"
+      # Gunicorn: 2 workers gthread × 4 threads (ver entrypoint.sh).
+      WEB_CONCURRENCY: "2"
+      GUNICORN_THREADS: "4"
+
+  # ── Web React + nginx ────────────────────────────────────────────────────────
+  web:
+    mem_limit: 128m
+
+  # ── Ollama — LLM local ───────────────────────────────────────────────────────
+  ollama:
+    ports: []
+    mem_limit: 5g
+    environment:
+      # Descarga el modelo de RAM tras 60 s de inactividad → libera ~4 GB cuando
+      # no se está usando el AI-ETL (la mayor parte del tiempo en un piloto).
+      OLLAMA_KEEP_ALIVE: "60s"
+      # Un solo modelo cargado y una sola inferencia a la vez: evita picos de RAM
+      # que tumbarían el host de 8 GB.
+      OLLAMA_MAX_LOADED_MODELS: "1"
+      OLLAMA_NUM_PARALLEL: "1"

@@ -1,0 +1,34 @@
+#!/bin/sh
+# ── GymPro Mobile — Auto-detect host IP for Metro bundler ───────────────────
+set -e
+
+if [ -z "$REACT_NATIVE_PACKAGER_HOSTNAME" ]; then
+
+  # Estrategia 1 (mayor prioridad): HOST_IP pasada explícitamente desde el host.
+  # El script start-mobile.ps1 la inyecta con la IP real del adaptador WiFi/LAN,
+  # que es la única que un teléfono físico puede alcanzar.
+  if [ -n "$HOST_IP" ]; then
+    DETECTED_IP="$HOST_IP"
+    echo "[entrypoint] Usando HOST_IP del entorno: $DETECTED_IP"
+
+  # Estrategia 2: host.docker.internal en IPv4 (útil si no se pasó HOST_IP y se
+  # usa Docker Desktop con red en modo host — solo sirve para emuladores, no para
+  # dispositivos físicos, porque resuelve a 192.168.65.254 en Windows/Mac).
+  elif getent ahostsv4 host.docker.internal > /dev/null 2>&1; then
+    DETECTED_IP=$(getent ahostsv4 host.docker.internal | awk 'NR==1{print $1}')
+    echo "[entrypoint] Detectada IP via host.docker.internal: $DETECTED_IP"
+
+  # Estrategia 3: default gateway IPv4 (Linux sin Docker Desktop)
+  else
+    DETECTED_IP=$(ip -4 route | awk '/default/{print $3; exit}')
+    echo "[entrypoint] Detectada IP via default gateway: $DETECTED_IP"
+  fi
+
+  export REACT_NATIVE_PACKAGER_HOSTNAME="$DETECTED_IP"
+fi
+
+echo "[entrypoint] REACT_NATIVE_PACKAGER_HOSTNAME = $REACT_NATIVE_PACKAGER_HOSTNAME"
+echo "[entrypoint] La app accederá a la API en: http://$REACT_NATIVE_PACKAGER_HOSTNAME:8080/api"
+
+# --host lan le dice a Metro que anuncie la IP LAN real (REACT_NATIVE_PACKAGER_HOSTNAME)
+exec npx expo start --host lan --port 8081

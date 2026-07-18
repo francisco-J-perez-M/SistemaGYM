@@ -1,132 +1,149 @@
-# Sistema de Gestión de Gimnasio
+# GymPro — Sistema para Gimnasios (Plataforma SaaS multi-tenant)
 
-Este proyecto es una solución integral para la administración de gimnasios, que abarca desde el control de socios y pagos hasta analíticas avanzadas de Big Data y Machine Learning. Es una aplicación **Full Stack** moderna construida con tecnologías de vanguardia para ofrecer una experiencia premium a administradores, entrenadores y miembros.
+GymPro es una plataforma de gestión integral para gimnasios y centros deportivos,
+construida como un servicio SaaS multi-tenant. Cada gimnasio (tenant) opera con sus
+datos aislados de los demás. El sistema se compone de tres clientes —un portal web,
+una aplicación móvil y consumidores de API— sobre una API REST central, y se despliega
+por completo con Docker Compose.
 
-### Vistas Previas del Sistema
-
-| Inicio de Sesión | Panel Administrativo | Analíticas de Big Data |
-| :---: | :---: | :---: |
-| ![Login](screenshots/login_preview.png) | ![Dashboard](screenshots/dashboard_preview.png) | ![Analytics](screenshots/analytics_preview.png) |
-
----
-
-## Arquitectura del Proyecto
-
-El sistema está diseñado bajo una arquitectura de micro-servicios y procesamiento distribuido:
-
-1.  **Backend (API):** Servidor RESTful robusto para la lógica de negocio.
-2.  **Capa de Big Data:** Motor de procesamiento distribuido para analíticas complejas y predicciones.
-3.  **Frontend (UI):** Interfaz SPA (Single Page Application) altamente interactiva.
-4.  **Persistencia Políglota:**
-    *   **MySQL:** Almacenamiento relacional para transacciones, usuarios y gestión operativa.
-    *   **MongoDB:** Almacenamiento NoSQL para grandes volúmenes de datos y resultados de analíticas.
+Rama de trabajo activa: `saas`.
 
 ---
 
-## Technical Stack
+## Navegación rápida
 
-### Backend: Gym Management API & Analytics
-Ubicado en la carpeta `gym_api/`.
-*   **Lenguaje:** Python 3.10+
-*   **Framework Web:** Flask 3.1+
-*   **Analítica de Datos:** **Apache Spark (PySpark)** para procesamiento distribuido.
-*   **Bases de Datos:** MySQL (SQLAlchemy ORM) y MongoDB (PyMongo).
-*   **Seguridad:** JSON Web Tokens (JWT) con rotación de claves y autorización por roles.
-*   **Notificaciones:** Flask-Mail para alertas SMTP y reportes automatizados.
-
-### Frontend: Interfaz de Usuario Premium
-Ubicado en la carpeta `frontend/`.
-*   **Framework:** **React 19** sustentado por **Vite**.
-*   **Navegación:** React Router 7.
-*   **UX/UI:** Framer Motion (animaciones), SweetAlert2 y CSS Vanilla (Design System Unificado).
-*   **Visualización de Datos:** Recharts / Chart.js para visualización de métricas y Big Data.
+| Módulo | README | Descripción |
+|---|---|---|
+| API (Flask) | [api/README.md](api/README.md) | Backend, contenedores, variables de entorno, endpoints |
+| Web (React) | [web/README.md](web/README.md) | Frontend, comandos, estructura, build |
+| Móvil (Expo) | [mobile/README.md](mobile/README.md) | Aplicación móvil Android, ejecución y build |
+| Documentación | [doc/README.md](doc/README.md) | Índice de documentación técnica del proyecto |
 
 ---
 
-## Módulos y Características
+## Inicio rápido
 
-### 1. Big Data & Machine Learning (Spark Integration)
-El sistema utiliza Apache Spark para procesar datos masivos almacenados en MongoDB:
-*   **Segmentación KMeans:** Agrupación inteligente de miembros basada en comportamiento y objetivos.
-*   **Estadísticas MapReduce:** Procesamiento de grandes volúmenes de asistencias y pagos para generar KPIS.
-*   **Regresión Lineal:** Predicción del progreso físico y tendencias de salud de los miembros.
-*   **Predicción de Peso:** Algoritmo dedicado para estimar la evolución corporal basada en el historial del usuario.
+Requisitos: Docker, Docker Compose y Git.
 
-### 2. Gestión Administrativa
-*   **Control de Miembros:** CRUD completo, gestión de estados (activo/inactivo) y carga de fotos.
-*   **Punto de Venta (POS):** Transacciones rápidas, venta de membresías y registro de métodos de pago.
-*   **Backups Maestros:** Sistema experto para copias de seguridad (Full, Incremental, Diferencial) con restauración automatizada.
+```bash
+# 1. Clonar y situarse en la rama de trabajo
+git clone <repo-url> && cd SistemaGYM
+git checkout saas
 
-### 3. Módulo de Entrenadores (Staff)
-*   **Gestión de Clientes:** Seguimiento personalizado de alumnos asignados.
-*   **Generador de Reportes:** Creación de informes de rendimiento y cumplimiento de objetivos.
-*   **Agenda Digital:** Control de sesiones de entrenamiento y calendarios de clases.
+# 2. Crear el archivo de entorno del backend y completarlo
+cp api/.env.example api/.env
+#    Editar api/.env (ver api/README.md -> Variables de entorno)
 
-### 4. Experiencia del Miembro (User Experience)
-*   **Creador de Rutinas:** Herramienta interactiva para diseñar planes de entrenamiento personalizados.
-*   **Monitoreo de Salud:** Seguimiento dinámico de IMC, grasa corporal y métricas antropométricas.
-*   **Nutrición y Dieta:** Acceso a planes de alimentación sugeridos y recetario saludable.
-*   **Historial de Pagos:** Consulta transparente de membresías y renovaciones.
+# 3. Construir y levantar todos los servicios
+docker compose up --build -d
 
----
+# 4. Verificar el estado
+curl http://localhost:5000/api/health     # API
+#    Portal web:  http://localhost:8080
+```
 
-## Base de Datos y Persistencia
-
-*   **Esquema Relacional:** El archivo `db2.sql` contiene la estructura para MySQL (Usuarios, Roles, Membresías, Pagos).
-*   **Esquema NoSQL:** MongoDB almacena los datasets para los procesos de Spark y los resultados de las analíticas.
-*   **Datos de Prueba:** Utiliza los scripts en `gym_api/app` para la población inicial del sistema.
+El contenedor de la API ejecuta automáticamente las migraciones de PostgreSQL
+(`flask db upgrade`, Alembic) antes de arrancar Gunicorn, por lo que no hay que
+correr migraciones a mano.
 
 ---
 
-## Instalación y Configuración
+## Contenedores (docker-compose.yml)
 
-### Requisitos Previos
-*   Python 3.10+
-*   Node.js 18+
-*   MySQL 8.0+
-*   MongoDB Atlas (o instancia local)
-*   Apache Spark (opcional para ejecución local de analíticas)
-
-### Configuración del Backend
-1. Navegar a `gym_api/`.
-2. Crear y activar entorno virtual:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # Linux/macOS
-   .\venv\Scripts\activate   # Windows
-   ```
-3. Instalar dependencias: `pip install -r requirements.txt`.
-4. Configurar el archivo `.env`:
-   ```env
-   MYSQL_URL=mysql+pymysql://user:pass@localhost/gym_db
-   MONGO_USER=...
-   MONGO_PASSWORD=...
-   MONGO_CLUSTER=...
-   MONGO_DB=GYMDB
-   JWT_SECRET_KEY=su_clave_secreta
-   ```
-5. Ejecutar servidor: `python run.py`.
-
-### Configuración del Frontend
-1. Navegar a `frontend/`.
-2. Instalar dependencias: `npm install`.
-3. Iniciar desarrollo: `npm run dev`.
+| Servicio | Imagen | Puerto (host:contenedor) | Función |
+|---|---|---|---|
+| postgres | postgres:16-alpine | 5433:5432 | Datos relacionales: usuarios, roles, gimnasios, planes y suscripciones |
+| mongo | mongo:7 | 27035:27017 | Datos flexibles: miembros, rutinas, progreso, asistencias, pagos, notificaciones |
+| redis | redis:7-alpine | interno | Caché y rate limiting (Flask-Limiter) |
+| api | build ./api (Flask + Gunicorn) | 5000 | API REST; corre migraciones Alembic al arrancar |
+| web | build ./web (React + nginx) | 8080:80 | Frontend; nginx sirve el bundle y proxea /api/ hacia api:5000 |
+| ollama | ollama/ollama:latest | 11434:11434 | Motor de IA local para el ETL de rutinas (opcional) |
 
 ---
 
-## Referencia de API Principal
+## Arquitectura
 
-| Método | Endpoint | Descripción |
-| :--- | :--- | :--- |
-| POST | `/api/auth/login` | Autenticación y generación de JWT |
-| GET | `/api/spark/kmeans` | Ejecuta segmentación de usuarios con Spark |
-| GET | `/api/spark/regression` | Obtiene predicciones de salud/peso |
-| GET | `/api/miembros` | Listado paginado de socios |
-| POST | `/api/user/routine` | Crea una rutina personalizada |
-| POST | `/api/backups/trigger` | Ejecuta tarea de backup de base de datos |
+```
+   Portal Web (React)      App Móvil (Expo)      Consumidores de API
+           \                     |                      /
+            \                    |                     /
+                       API REST  —  Flask + Gunicorn
+                                  |
+        ┌──────────────┬──────────┴───────────┬───────────────┐
+   PostgreSQL        MongoDB                 Redis           Ollama
+  (relacional)     (documental)         (caché/limits)     (IA local)
+```
+
+- Multi-tenant: cada peticion se filtra por el gimnasio del token JWT y la cabecera
+  `X-Gym-ID`, garantizando el aislamiento de datos entre gimnasios.
+- Autenticacion: JWT (Flask-JWT-Extended); el token incluye el rol y el id de gimnasio.
+- Autorizacion: control de acceso por rol (RBAC) en cada blueprint.
+- Seguridad: TLS 1.3 en tránsito, contraseñas con hash, rate limiting en endpoints
+  sensibles (login, registro, recuperación de contraseña).
+
+Roles del sistema: Miembro, Entrenador, Recepcionista, Propietario del gimnasio
+(owner_gym), Administrador y Superadministrador (plataforma).
+
+---
+
+## Funcionalidades principales
+
+- Gestion del gimnasio (propietario/administrador): dashboard en tiempo real,
+  miembros, planes de membresia, pagos, punto de venta (POS), personal, suscripcion
+  del gimnasio al SaaS y respaldos.
+- Miembro: rutina asignada y rutinas propias ("Mi Rutina") con grupos musculares y
+  unidades kg/lb, registro de entrenamiento, nutricion y recetas, salud y progreso
+  fisico, prediccion de peso, membresia y pagos, y eleccion/cambio/calificacion de
+  entrenador con chat.
+- Entrenador: clientes, rutinas y dietas, agenda y sesiones, solicitudes de
+  entrenamiento personal, reportes de desempeño y mensajeria.
+- Recepcion: check-ins de asistencia y consulta de miembros.
+- Superadmin: gestion de gimnasios, planes, suscripciones y usuarios de la plataforma.
+- Inteligencia artificial (scikit-learn en proceso): deteccion de riesgo de abandono,
+  laboratorio de modelos (regresion, clasificacion y matriz de confusion), segmentacion
+  de clientes (K-Means) y prediccion de peso corporal.
+- Cuenta: recuperacion de contraseña por correo mediante un codigo de 6 digitos.
+
+---
+
+## Estructura del proyecto
+
+```
+SistemaGYM/
+├── api/            Backend Flask (API REST) + IA (scikit-learn)
+├── web/            Frontend React (Vite), servido por nginx
+├── mobile/         Aplicacion movil Expo / React Native
+├── doc/            Documentacion tecnica del proyecto
+├── docs/           Notas de infraestructura y hosting
+├── docker-compose.yml       / docker-compose.prod.yml
+└── README.md
+```
+
+---
+
+## Stack tecnológico
+
+| Capa | Tecnologías |
+|---|---|
+| Backend | Python, Flask, Gunicorn, SQLAlchemy, Alembic, PyMongo, Flask-JWT-Extended, Flask-Mail, Flask-Limiter |
+| IA / analítica | scikit-learn (en proceso), Ollama (ETL de rutinas) |
+| Web | React, Vite, React Router, Axios, Recharts / Chart.js |
+| Móvil | React Native, Expo, expo-router, Axios, react-native-chart-kit, expo-notifications |
+| Datos | PostgreSQL 16, MongoDB 7, Redis 7 |
+| Infraestructura | Docker, Docker Compose, nginx |
+
+---
+
+## Despliegue
+
+- Desarrollo: `docker compose up --build -d` (usa `docker-compose.yml`).
+- Produccion: `docker compose -f docker-compose.prod.yml up --build -d api web`,
+  sobre un servidor Linux (VPS) con credenciales productivas y HTTPS.
+- Movil: build con EAS y publicacion en Google Play (ver mobile/README.md).
 
 ---
 
 ## Licencia
-Proyecto desarrollado con fines académicos y profesionales. Adaptable para implementaciones de alta escalabilidad.
 
+Proyecto desarrollado con fines académicos y profesionales en la Incubadora TIC de la
+Universidad Tecnológica del Valle de Toluca.

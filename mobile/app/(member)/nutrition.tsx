@@ -1,0 +1,244 @@
+/**
+ * Pantalla Nutrición — plan alimenticio y recetas.
+ */
+import React, { useState, useMemo } from 'react';
+import {
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, FlatList,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Colors } from '../../constants/Colors';
+import { useColors, useFontScale } from '../../hooks/useColors';
+import { ENDPOINTS } from '../../constants/Api';
+import { useFetch } from '../../hooks/useFetch';
+import { toArray } from '../../utils/format';
+import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import Card from '../../components/ui/Card';
+import Badge from '../../components/ui/Badge';
+import type { Receta, Dieta } from '../../types';
+
+type Tab = 'dietas' | 'recetas';
+
+export default function NutritionScreen() {
+  const colors = useColors();
+  const fs = useFontScale();
+  const styles = useMemo(() => make_styles(colors, fs), [colors, fs]);
+
+  const CAT_COLORS: Record<string, string> = {
+    'Alta proteína': colors.error,
+    'Bajo carbohidrato': colors.warning,
+    'Vegetariana': colors.success,
+    'Vegana': colors.success,
+    'Equilibrada': colors.info,
+    'Pre-entreno': colors.accent,
+    'Post-entreno': colors.purple,
+  };
+  const insets = useSafeAreaInsets();
+  const [activeTab, setActiveTab] = useState<Tab>('dietas');
+  const [catFilter, setCatFilter] = useState<string>('Todas');
+
+  const { data: dietasRes, loading: loadingD, refetch: refetchD } = useFetch<{ dietas: Dieta[] }>(ENDPOINTS.DIETAS);
+  const { data: recetasRes, loading: loadingR, refetch: refetchR } = useFetch<{ recetas: Receta[] }>(ENDPOINTS.RECETAS);
+
+  const dietas  = dietasRes?.dietas  ?? [];
+  const recetas = recetasRes?.recetas ?? [];
+  const categories = ['Todas', ...Array.from(new Set(recetas.map((r) => r.categoria).filter(Boolean)))] as string[];
+  const filteredRecetas = recetas.filter(
+    (r) => catFilter === 'Todas' || r.categoria === catFilter
+  );
+
+  const isLoading = loadingD || loadingR;
+
+  if (isLoading) return <LoadingSpinner fullScreen message="Cargando nutrición…" />;
+
+  return (
+    <View style={[styles.screen, { paddingTop: insets.top }]}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.title} accessibilityRole="header">Nutrición</Text>
+
+        {/* Tabs */}
+        <View style={styles.tabRow}>
+          {(['dietas', 'recetas'] as Tab[]).map((t) => (
+            <TouchableOpacity
+              key={t}
+              style={[styles.tab, activeTab === t && styles.tabActive]}
+              onPress={() => setActiveTab(t)}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: activeTab === t }}
+              accessibilityLabel={t === 'dietas' ? 'Planes alimenticios' : 'Recetas saludables'}
+            >
+              <Text style={[styles.tabText, activeTab === t && styles.tabTextActive]}>
+                {t === 'dietas' ? 'Planes' : 'Recetas'}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      {/* Dietas tab */}
+      {activeTab === 'dietas' && (
+        <ScrollView
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={loadingD} onRefresh={refetchD} tintColor={colors.accent} />}
+        >
+          {dietas.length === 0 ? (
+            <View style={styles.empty}>
+              <Ionicons name="nutrition-outline" size={44} color={colors.textMuted} />
+              <Text style={styles.emptyText}>No tienes planes alimenticios aún.</Text>
+              <Text style={styles.emptyHint}>Contacta a tu entrenador para que te asigne uno.</Text>
+            </View>
+          ) : (
+            dietas.map((d) => (
+              <Card key={d._id} style={styles.dietCard}>
+                <View style={styles.dietTop}>
+                  <View style={styles.dietIconBox}>
+                    <Ionicons name="leaf-outline" size={22} color={colors.success} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.dietName}>{d.nombre}</Text>
+                    {d.calorias_objetivo && (
+                      <Text style={styles.dietCals}>{d.calorias_objetivo} kcal / día</Text>
+                    )}
+                  </View>
+                </View>
+                {d.descripcion && (
+                  <Text style={styles.dietDesc}>{d.descripcion}</Text>
+                )}
+                {(d.comidas ?? []).length > 0 && (
+                  <View style={styles.mealList}>
+                    {d.comidas.map((c, i) => (
+                      <View key={i} style={styles.mealRow}>
+                        <Ionicons name="time-outline" size={14} color={colors.accent} />
+                        <Text style={styles.mealName}>{c.nombre}</Text>
+                        {c.hora && <Text style={styles.mealHora}>{c.hora}</Text>}
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </Card>
+            ))
+          )}
+        </ScrollView>
+      )}
+
+      {/* Recetas tab */}
+      {activeTab === 'recetas' && (
+        <>
+          {/* Category filter */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.catScroll}
+            contentContainerStyle={styles.catContent}
+          >
+            {categories.map((cat) => (
+              <TouchableOpacity
+                key={cat}
+                style={[styles.catChip, catFilter === cat && styles.catChipActive]}
+                onPress={() => setCatFilter(cat)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: catFilter === cat }}
+                accessibilityLabel={`Filtrar por ${cat}`}
+              >
+                <Text style={[styles.catChipText, catFilter === cat && styles.catChipTextActive]}>
+                  {cat}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          <FlatList
+            data={filteredRecetas}
+            keyExtractor={(r) => r._id}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            refreshControl={<RefreshControl refreshing={loadingR} onRefresh={refetchR} tintColor={colors.accent} />}
+            ListEmptyComponent={
+              <View style={styles.empty}>
+                <Ionicons name="restaurant-outline" size={44} color={colors.textMuted} />
+                <Text style={styles.emptyText}>No hay recetas en esta categoría.</Text>
+              </View>
+            }
+            renderItem={({ item: r }) => (
+              <Card style={styles.recipeCard}>
+                <View style={styles.recipeTop}>
+                  <View style={[styles.recipeAccent, { backgroundColor: CAT_COLORS[r.categoria] ?? colors.accent }]} />
+                  <View style={{ flex: 1, paddingLeft: 12 }}>
+                    <Text style={styles.recipeName}>{r.nombre}</Text>
+                    <Badge label={r.categoria} color="accent" />
+                  </View>
+                  <View style={styles.calBox}>
+                    <Text style={styles.calNum}>{r.calorias}</Text>
+                    <Text style={styles.calUnit}>kcal</Text>
+                  </View>
+                </View>
+
+                {/* Macros */}
+                <View style={styles.macroRow}>
+                  {r.proteinas    !== undefined && <MacroPill label="P" value={r.proteinas}    color={colors.error}   styles={styles} />}
+                  {r.carbohidratos !== undefined && <MacroPill label="C" value={r.carbohidratos} color={colors.warning} styles={styles} />}
+                  {r.grasas       !== undefined && <MacroPill label="G" value={r.grasas}       color={colors.info}    styles={styles} />}
+                </View>
+              </Card>
+            )}
+          />
+        </>
+      )}
+    </View>
+  );
+}
+
+function MacroPill({ label, value, color, styles }: { label: string; value: number; color: string; styles: ReturnType<typeof make_styles> }) {
+  return (
+    <View style={[styles.macroPill, { backgroundColor: `${color}22` }]}>
+      <Text style={[styles.macroLabel, { color }]}>{label}</Text>
+      <Text style={[styles.macroVal,   { color }]}>{value}g</Text>
+    </View>
+  );
+}
+
+function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
+  return StyleSheet.create({
+  screen:       { flex: 1, backgroundColor: colors.background },
+  header:       { paddingHorizontal: 20, paddingTop: 16, gap: 14, paddingBottom: 8 },
+  title:        { color: colors.text, fontSize: 26 * fs, fontWeight: '700' },
+  tabRow:       { flexDirection: 'row', backgroundColor: colors.card, borderRadius: 12, padding: 4, borderWidth: 1, borderColor: colors.border },
+  tab:          { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 10 },
+  tabActive:    { backgroundColor: colors.accent },
+  tabText:      { color: colors.textSecondary, fontSize: 14 * fs, fontWeight: '600' },
+  tabTextActive:{ color: '#fff' },
+  catScroll:    { maxHeight: 48, marginTop: 8 },
+  catContent:   { paddingHorizontal: 20, gap: 8, alignItems: 'center' },
+  catChip:      { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
+  catChipActive:{ backgroundColor: colors.accent, borderColor: colors.accent },
+  catChipText:  { color: colors.textSecondary, fontSize: 13 * fs, fontWeight: '600' },
+  catChipTextActive: { color: '#fff' },
+  listContent:  { padding: 20, gap: 12, paddingBottom: 32 },
+  empty:        { alignItems: 'center', paddingVertical: 40, gap: 10 },
+  emptyText:    { color: colors.textMuted, fontSize: 15 * fs, fontWeight: '600', textAlign: 'center' },
+  emptyHint:    { color: colors.textMuted, fontSize: 13 * fs, textAlign: 'center' },
+  dietCard:     { gap: 10 },
+  dietTop:      { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  dietIconBox:  { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.successBg, alignItems: 'center', justifyContent: 'center' },
+  dietName:     { color: colors.text, fontSize: 16 * fs, fontWeight: '700' },
+  dietCals:     { color: colors.accent, fontSize: 13 * fs },
+  dietDesc:     { color: colors.textSecondary, fontSize: 13 * fs, lineHeight: 18 },
+  mealList:     { gap: 6, marginTop: 4 },
+  mealRow:      { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  mealName:     { color: colors.text, fontSize: 13 * fs, flex: 1 },
+  mealHora:     { color: colors.textSecondary, fontSize: 12 * fs },
+  recipeCard:   { overflow: 'hidden', padding: 0 },
+  recipeTop:    { flexDirection: 'row', alignItems: 'center', padding: 14, paddingLeft: 0, gap: 0 },
+  recipeAccent: { width: 4, height: '100%', borderTopLeftRadius: 16, borderBottomLeftRadius: 16, minHeight: 60 },
+  recipeName:   { color: colors.text, fontSize: 15 * fs, fontWeight: '700', marginBottom: 4 },
+  calBox:       { alignItems: 'flex-end' },
+  calNum:       { color: colors.warning, fontSize: 20 * fs, fontWeight: '800' },
+  calUnit:      { color: colors.textSecondary, fontSize: 11 * fs },
+  macroRow:     { flexDirection: 'row', gap: 8, paddingHorizontal: 14, paddingBottom: 12 },
+  macroPill:    { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+  macroLabel:   { fontSize: 11 * fs, fontWeight: '700' },
+  macroVal:     { fontSize: 12 * fs, fontWeight: '600' },
+});
+}

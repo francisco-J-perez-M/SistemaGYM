@@ -1,0 +1,51 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# GymPro API — Dependencias Python
+# Generado: 2026-05-10 | Python 3.11
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Web framework ─────────────────────────────────────────────────────────────
+Flask==3.1.0
+flask-jwt-extended==4.7.1
+flask-mail==0.10.0
+flask-cors==5.0.0
+flask-sqlalchemy==3.1.1
+flask-migrate==4.0.7
+
+# ── WSGI server (producción) ──────────────────────────────────────────────────
+gunicorn==23.0.0
+
+# ── Rate limiting (US6 — Sprint 1) ───────────────────────────────────────────
+Flask-Limiter==3.9.0
+redis==5.2.1
+
+# ── Base de datos ─────────────────────────────────────────────────────────────
+pymongo==4.10.1
+dnspython==2.7.0
+
+# ── PostgreSQL (Sprint 2) ─────────────────────────────────────────────────────
+psycopg2-binary>=2.9.9
+alembic>=1.13.0
+
+# ── Analytics / ML (local, sin JVM, sin internet) ────────────────────────────
+scikit-learn==1.5.2    # Ridge, KMeans, RandomForest, NearestNeighbors
+numpy==1.26.4          # álgebra lineal
+pandas==2.2.3
+openpyxl==3.1.5        # motor Excel para pandas ExcelWriter (engine="openpyxl")
+
+# ── Utilidades ────────────────────────────────────────────────────────────────
+python-dotenv==1.0.1
+fpdf2==2.8.2
+python-dateutil==2.9.0
+stripe>=8.0.0,<9.0.0
+
+# ── Sprint 4 ──────────────────────────────────────────────────────────────────
+reportlab>=4.2.0          # Generacion de PDFs (US18)
+apscheduler>=3.10.0       # Scheduler de notificaciones (US21)
+
+# ── Módulo Nutrición + AI ETL (Ollama — LLM local, sin API externa) ─────────
+pdfplumber>=0.11.0        # Extracción de texto desde PDFs para AI ETL
+Pillow>=10.0.0            # Extracción y conversión de imágenes desde PDFs
+# openpyxl ya incluido arriba para pandas
+# Ollama corre como servicio Docker separado (http://ollama:11434)
+# No requiere librería Python adicional — se usa requests (stdlib-compatible)
+# request

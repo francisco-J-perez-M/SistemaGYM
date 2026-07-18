@@ -1,0 +1,225 @@
+# docker-compose.yml — Orquestación de servicios GymPro
+#
+# Uso:
+#   cp api/.env.example api/.env   # completar con tus credenciales reales
+#   docker compose up --build -d
+#   docker compose logs -f
+#
+# Servicios:
+#   mongo  → MongoDB 7 local (datos persistidos en volumen mongo_data)
+#   redis  → cache interno y rate limiting (Flask-Limiter)
+#   api    → Flask + Gunicorn (depende de mongo y redis)
+#   web    → React bundle servido por nginx, proxea /api/ → api:5000
+
+services:
+
+  # ── PostgreSQL (Sprint 2 — plataforma, finanzas, multi-tenant) ───────────────
+  # Roles, Gimnasios y Usuarios viven aquí. La URI se lee de POSTGRES_URI en api/.env.
+  # Para producción en EC2, asegurarse de que el security group solo abra 5432
+  # hacia la red interna (no al exterior).
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       ${POSTGRES_DB:-gymprodb}
+      POSTGRES_USER:     ${POSTGRES_USER:-gymuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gympassword}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gymuser} -d ${POSTGRES_DB:-gymprodb}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - gympro
+    # Puerto expuesto al host para herramientas de gestión (DBeaver, psql local)
+    # Usa 5433 para evitar conflicto con PostgreSQL local instalado en el host
+    # Comentar en producción y controlar acceso vía security groups de AWS
+    ports:
+      - "5433:5432"
+
+  # ── MongoDB local ────────────────────────────────────────────────────────────
+  # Sin autenticación en dev. Para producción en EC2, agregar:
+  #   environment:
+  #     MONGO_INITDB_ROOT_USERNAME: admin
+  #     MONGO_INITDB_ROOT_PASSWORD: secreto
+  # y actualizar MONGO_URI en api/.env a mongodb://admin:secreto@mongo:27017/gymdb
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping').ok", "--quiet"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    networks:
+      - gympro
+    # Puerto expuesto al host para MongoDB Compass / mongosh local
+    # Rangos excluidos por Hyper-V: 26935-27034 y 27046-27145
+    # → se usa 27035 que está libre entre ambos rangos excluidos
+    ports:
+      - "27035:27017"
+
+  # ── Redis ────────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - gympro
+
+  # ── API Flask + Gunicorn ─────────────────────────────────────────────────────
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+      # Sin attestations de provenance/SBOM: evita exportar manifests extra y la
+      # manifest-list, acelerando el export de la imagen en cada build.
+      provenance: false
+    restart: unless-stopped
+    # env_file en cascada: primero los valores por defecto de desarrollo
+    # (.env.example SÍ está versionado, así que un clon recién hecho arranca sin
+    # pasos manuales) y luego .env como override OPCIONAL para secretos reales.
+    # Docker Compose aplica los archivos en orden: las claves de .env pisan las de
+    # .env.example. Antes esto era `env_file: ./api/.env`, que en una PC nueva
+    # fallaba con "env file ./api/.env not found" porque .env está en .gitignore.
+    env_file:
+      - ./api/.env.example
+      - path: ./api/.env
+        required: false
+    # Sobreescribir URIs para que apunten a los contenedores por nombre de servicio
+    environment:
+      MONGO_URI:          mongodb://mongo:27017/gymdb
+      REDIS_URL:          redis://redis:6379/0
+      POSTGRES_URI:       postgresql+psycopg2://${POSTGRES_USER:-gymuser}:${POSTGRES_PASSWORD:-gympassword}@postgres:5432/${POSTGRES_DB:-gymprodb}
+      # Variables individuales para pg_dump (service.py las lee con os.getenv)
+      POSTGRES_HOST:      postgres
+      POSTGRES_PORT:      "5432"
+      POSTGRES_USER:      ${POSTGRES_USER:-gymuser}
+      POSTGRES_PASSWORD:  ${POSTGRES_PASSWORD:-gympassword}
+      POSTGRES_DB:        ${POSTGRES_DB:-gymprodb}
+      SPARK_ENABLED:      "true"
+      PYTHONUNBUFFERED:   "1"
+      OLLAMA_BASE_URL:    http://ollama:11434
+      OLLAMA_MODEL:       ${OLLAMA_MODEL:-phi3:mini}
+    volumes:
+      - ./backups:/app/storage/backups
+      - ./uploads:/app/storage/uploads
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      ollama:
+        condition: service_started  # No service_healthy: la API verifica Ollama en cada request
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-s", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - gympro
+
+  # ── Web React + nginx ────────────────────────────────────────────────────────
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      args:
+        REACT_APP_API_URL: /api
+      provenance: false
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - gympro
+
+  # ── Mobile Expo Dev Server ──────────────────────────────────────────────────
+  # Metro NO necesita Docker. Usa start-mobile.ps1 en Windows para arrancar
+  # el servidor Expo directamente con Node.js local (más simple y sin problemas
+  # de red, volúmenes ni TTY).
+  # Ver: mobile/README.md o start-mobile.ps1
+
+  # ── Ollama — LLM local para AI ETL ──────────────────────────────────────────
+  # Corre modelos open-source sin API externa ni costo.
+  # Los pesos se persisten en ollama_models (~2 GB para phi3:mini).
+  #
+  # El modelo se descarga SOLO automáticamente en el primer arranque (ver command
+  # más abajo); tarda ~2 min la primera vez y queda cacheado en el volumen. Para
+  # forzar/cambiar el modelo: variable OLLAMA_MODEL en el .env o el entorno.
+  #
+  # Para GPU NVIDIA, descomentar el bloque "deploy":
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    volumes:
+      - ollama_models:/root/.ollama
+    environment:
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-phi3:mini}
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+    #
+    # Entrypoint que descarga el modelo AUTOMÁTICAMENTE en el primer arranque, para
+    # que un integrante que levante el stack por primera vez no tenga que ejecutar
+    # manualmente `ollama pull`. Los pesos quedan en el volumen ollama_models, así que
+    # en arranques posteriores `ollama pull` detecta que ya existe y es un no-op.
+    # Los `$$` escapan la interpolación de Compose para que la expansión ocurra en el
+    # shell del contenedor (no en el host).
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        ollama serve &
+        pid=$$!
+        echo "==> Esperando a que el servidor Ollama responda..."
+        until ollama list >/dev/null 2>&1; do sleep 2; done
+        echo "==> Descargando modelo $${OLLAMA_MODEL:-phi3:mini} (solo la primera vez)..."
+        ollama pull "$${OLLAMA_MODEL:-phi3:mini}" || echo "AVISO: no se pudo descargar el modelo; se reintentará en el próximo arranque."
+        echo "==> Ollama listo."
+        wait $$pid
+    healthcheck:
+      # `ollama list` no depende de curl (que la imagen puede no incluir) y confirma
+      # que el servidor responde. Pasa a healthy en cuanto el server está arriba,
+      # aunque la descarga del modelo siga en curso en segundo plano.
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 8
+      start_period: 90s  # Ollama puede tardar 60-90s en el primer arranque (carga del runtime)
+    networks:
+      - gympro
+    ports:
+      - "11434:11434"
+
+# ── Volúmenes persistentes ───────────────────────────────────────────────────
+volumes:
+  mongo_data:
+    driver: local
+  pg_data:
+    driver: local
+  ollama_models:
+    driver: local
+
+# ── Red interna ────────────────────────────────────────────────────────────────
+networks:
+  gympro:
+    driver: bridge
