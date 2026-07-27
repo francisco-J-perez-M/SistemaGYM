@@ -55,6 +55,7 @@ const MENUS = {
       children: [
         { id: "ow-profile",      label: "Perfil del Gym",            icon: <FiUser />       },
         { id: "ow-subscription", label: "Mi Suscripción",            icon: <FiCreditCard /> },
+        { id: "ow-pagos-online", label: "Cobros en línea",           icon: <FiDollarSign /> },
         { id: "ow-backups",      label: "Respaldos y Restauración", icon: <FiUpload /> },
       ],
     },
