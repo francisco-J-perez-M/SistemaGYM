@@ -23,6 +23,7 @@ import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
 import api from '../../services/api';
+import BotonesPago from '../../components/BotonesPago';
 import type {
   MembershipResponse, PlansResponse, MembershipPlan, MetodoPago,
 } from '../../types';
@@ -223,6 +224,19 @@ export default function MembershipScreen() {
                 loading={renewing}
                 style={{ marginTop: 12 }}
               />
+
+              {/* ── Pago en línea con PayPal / Mercado Pago ──
+                  Abre la pasarela en el navegador seguro y regresa a la app. */}
+              <View style={{ marginTop: 16 }}>
+                <Text style={styles.sectionTitle}>O paga en línea ahora</Text>
+                <BotonesPago
+                  contexto="membresia"
+                  monto={Number(selectedPlan.precio)}
+                  descripcion={`Membresía ${selectedPlan.nombre}`}
+                  referenciaLocal={selectedPlan.id_membresia}
+                  onPagado={() => { setShowRenew(false); setSelectedPlan(null); refetch(); }}
+                />
+              </View>
             </>
           )}
         </Card>

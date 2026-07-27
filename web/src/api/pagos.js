@@ -39,6 +39,9 @@ export const eliminarPasarela = (proveedor) =>
 /** Métodos de pago en línea activos en el gimnasio actual. */
 export const getMetodosPago = () => API.get("/pagos/metodos");
 
+/** Métodos con los que la plataforma cobra la suscripción SaaS. */
+export const getMetodosPlataforma = () => API.get("/pagos/metodos-plataforma");
+
 /**
  * Inicia un cobro y devuelve la URL de pago.
  * @param {object} p

@@ -12,7 +12,7 @@
 import { useState, useEffect } from "react";
 import { FiCreditCard, FiLoader } from "react-icons/fi";
 import Swal from "sweetalert2";
-import { getMetodosPago, pagarYRedirigir } from "../../api/pagos";
+import { getMetodosPago, getMetodosPlataforma, pagarYRedirigir } from "../../api/pagos";
 
 const COLORES = {
   paypal:      { bg: "#ffc439", fg: "#111827" },
@@ -36,7 +36,10 @@ export default function BotonesPago({
     let vivo = true;
     (async () => {
       try {
-        const { data } = await getMetodosPago();
+        // La suscripción SaaS la cobra la plataforma; el resto, el gimnasio.
+        const { data } = contexto === "suscripcion"
+          ? await getMetodosPlataforma()
+          : await getMetodosPago();
         if (vivo) setMetodos(data.metodos || []);
       } catch {
         if (vivo) setMetodos([]);
@@ -45,7 +48,7 @@ export default function BotonesPago({
       }
     })();
     return () => { vivo = false; };
-  }, []);
+  }, [contexto]);
 
   const pagar = async (proveedor) => {
     if (!monto || monto <= 0) {
@@ -82,8 +85,9 @@ export default function BotonesPago({
         background: "var(--bg-input)", borderRadius: 8, padding: "12px 14px",
         fontSize: 12.5, color: "var(--text-secondary)", borderLeft: "3px solid var(--warning)",
       }}>
-        Este gimnasio aún no tiene activados los pagos en línea. El dueño puede
-        configurarlos en Configuración → Cobros en línea.
+        {contexto === "suscripcion"
+          ? "El pago en línea de la suscripción no está disponible por ahora. Contacta al administrador de la plataforma."
+          : "Este gimnasio aún no tiene activados los pagos en línea. El dueño puede configurarlos en Configuración → Cobros en línea."}
       </div>
     );
   }
