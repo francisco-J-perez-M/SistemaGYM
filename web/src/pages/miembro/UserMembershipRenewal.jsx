@@ -5,16 +5,20 @@ import {
   FiCreditCard, FiCheck, FiAlertCircle, FiDollarSign,
   FiCalendar, FiRefreshCw, FiArrowRight, FiInfo, FiSend, FiStar
 } from "react-icons/fi";
+import useMetodosPago from "../../hooks/useMetodosPago";
+import { pagarYRedirigir, reconciliarSilencioso } from "../../api/pagosOnline";
 import "../../css/CSSUnificado.css";
 
 const fmt = (n) =>
   new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(n ?? 0);
 
-const METODOS = [
-  { id: "Efectivo",       label: "Efectivo",       Icon: FiDollarSign, desc: "Pago en caja" },
-  { id: "Tarjeta",        label: "Tarjeta",         Icon: FiCreditCard, desc: "Débito o crédito" },
-  { id: "Transferencia",  label: "Transferencia",   Icon: FiSend,       desc: "Transferencia bancaria" },
-];
+// Los métodos aceptados son Efectivo, PayPal y Mercado Pago. Los dos últimos
+// se añaden dinámicamente según lo que el gimnasio tenga activo (useMetodosPago).
+const ICONOS_METODO = {
+  Efectivo:    FiDollarSign,
+  paypal:      FiCreditCard,
+  mercadopago: FiCreditCard,
+};
 
 export default function UserMembershipRenewal() {
   const navigate = useNavigate();
@@ -26,6 +30,8 @@ export default function UserMembershipRenewal() {
   const [error,          setError]          = useState(null);
   const [success,        setSuccess]        = useState(null);
   const [currentMem,     setCurrentMem]     = useState(null);
+  // Efectivo + las pasarelas que el gimnasio tenga activas
+  const { metodos } = useMetodosPago("membresia");
 
   useEffect(() => {
     if (!localStorage.getItem("token")) { navigate("/", { replace: true }); return; }
@@ -34,6 +40,9 @@ export default function UserMembershipRenewal() {
 
   const fetchData = async () => {
     setLoading(true);
+    // Confirma pagos en línea pendientes antes de leer el estado de la
+    // membresía, para que ya se vea renovada si el pago se completó.
+    await reconciliarSilencioso();
     const token = localStorage.getItem("token");
     const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
 
@@ -61,6 +70,29 @@ export default function UserMembershipRenewal() {
 
   const handleRenew = async () => {
     if (!selectedPlan) { setError("Selecciona un plan."); return; }
+
+    // Si el método elegido es una pasarela, el cobro ocurre en PayPal o Mercado
+    // Pago: se crea la transacción y se redirige. La membresía se renueva al
+    // confirmarse el pago (páginas de retorno /pago/exito).
+    const metodoSel = metodos.find((m) => m.id === selectedMethod);
+    if (metodoSel?.esPasarela) {
+      setProcessing(true);
+      setError(null);
+      try {
+        await pagarYRedirigir({
+          proveedor: metodoSel.proveedor,
+          contexto: "membresia",
+          monto: Number(selectedPlan.precio),
+          descripcion: `Membresía ${selectedPlan.nombre}`,
+          referencia_local: selectedPlan.id_membresia,
+        });
+      } catch (e) {
+        setError(e?.response?.data?.msg || "No se pudo iniciar el pago en línea.");
+        setProcessing(false);
+      }
+      return;
+    }
+
     setProcessing(true);
     setError(null);
     try {
@@ -223,20 +255,25 @@ export default function UserMembershipRenewal() {
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: 16 }}>
             {plans.map((plan, i) => {
-              const isSelected = selectedPlan === plan;
+              // Comparación por id: no depende de la referencia del objeto
+              const isSelected = selectedPlan?.id_membresia === plan.id_membresia;
+              const esPromo = plan.tipo === "promocion";
               return (
-                <motion.div
+                // div normal (sin animación de entrada) para que al elegir otro
+                // plan solo cambie la selección, sin re-animar la lista.
+                <div
                   key={plan.id_membresia}
-                  initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.07 }}
-                  whileHover={{ scale: 1.02 }}
                   onClick={() => setSelectedPlan(plan)}
                   style={{
                     position: "relative", padding: "24px 22px", cursor: "pointer",
                     background: isSelected ? "linear-gradient(135deg,rgba(99,102,241,.12),rgba(99,102,241,.04))" : "var(--bg-card)",
-                    border: `2px solid ${isSelected ? "var(--accent)" : "var(--border)"}`,
-                    borderRadius: 14, transition: "all .25s",
-                    borderTop: `3px solid ${isSelected ? "var(--accent)" : plan.ahorro > 0 ? "#22c55e" : "var(--border)"}`,
+                    border: `2px solid ${isSelected ? "var(--accent)" : esPromo ? "rgba(245,158,11,.55)" : "var(--border)"}`,
+                    borderRadius: 14, transition: "border-color .2s, background .2s, box-shadow .2s",
+                    borderTop: `3px solid ${isSelected ? "var(--accent)" : esPromo ? "#f59e0b" : plan.ahorro > 0 ? "#22c55e" : "var(--border)"}`,
+                    // Las promociones brillan para destacarse del resto
+                    boxShadow: esPromo
+                      ? "0 0 0 1px rgba(245,158,11,.25), 0 0 22px rgba(245,158,11,.28)"
+                      : "none",
                   }}
                 >
                   {plan.ahorro > 0 && !isSelected && (
@@ -303,7 +340,47 @@ export default function UserMembershipRenewal() {
                       Acceso completo al gimnasio durante {plan.duracion_meses === 1 ? "1 mes" : `${plan.duracion_meses} meses`}.
                     </p>
                   )}
-                </motion.div>
+
+                  {/* Beneficios definidos por el gimnasio */}
+                  {Array.isArray(plan.beneficios) && plan.beneficios.length > 0 && (
+                    <ul style={{ listStyle: "none", padding: 0, margin: "12px 0 0", display: "flex", flexDirection: "column", gap: 6 }}>
+                      {plan.beneficios.map((b, k) => (
+                        <li key={k} style={{ display: "flex", gap: 7, fontSize: 12.5, color: "var(--text-primary)", lineHeight: 1.4 }}>
+                          <FiCheck size={12} style={{ color: "#22c55e", flexShrink: 0, marginTop: 3 }} />
+                          <span>{b}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  {/* Qué incluye el combo */}
+                  {plan.es_combo && Array.isArray(plan.items_combo) && plan.items_combo.length > 0 && (
+                    <div style={{ marginTop: 12, background: "var(--bg-input)", borderRadius: 8, padding: "9px 11px" }}>
+                      <div style={{ fontSize: 10.5, fontWeight: 800, color: "var(--accent)", letterSpacing: ".05em", marginBottom: 4 }}>
+                        COMBO INCLUYE
+                      </div>
+                      {plan.items_combo.map((it, k) => (
+                        <div key={k} style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.55 }}>
+                          {it.cantidad}× {it.nombre}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Vigencia de la promoción */}
+                  {plan.dias_restantes_promo != null && plan.dias_restantes_promo >= 0 && (
+                    <div style={{
+                      marginTop: 12, display: "inline-flex", alignItems: "center", gap: 5,
+                      background: "rgba(245,158,11,.14)", color: "#f59e0b",
+                      borderRadius: 7, padding: "4px 9px", fontSize: 11.5, fontWeight: 700,
+                    }}>
+                      <FiCalendar size={11} />
+                      {plan.dias_restantes_promo === 0
+                        ? "Último día"
+                        : `Solo ${plan.dias_restantes_promo} día${plan.dias_restantes_promo === 1 ? "" : "s"} más`}
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>
@@ -316,24 +393,36 @@ export default function UserMembershipRenewal() {
           Método de pago
         </h3>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-          {METODOS.map((m) => {
+          {metodos.map((m) => {
             const sel = selectedMethod === m.id;
+            const Icon = ICONOS_METODO[m.id] || FiCreditCard;
             return (
-              <motion.button
+              // botón normal: al cambiar de método solo se actualiza el estilo
+              <button
                 key={m.id}
-                whileHover={{ scale: 1.03 }}
+                type="button"
                 onClick={() => setSelectedMethod(m.id)}
                 style={{
                   flex: "1 1 140px", padding: "16px 12px", textAlign: "center",
                   background: sel ? "linear-gradient(135deg,rgba(99,102,241,.14),rgba(99,102,241,.05))" : "var(--bg-card)",
                   border: `2px solid ${sel ? "var(--accent)" : "var(--border)"}`,
-                  borderRadius: 12, cursor: "pointer", transition: "all .2s",
+                  borderRadius: 12, cursor: "pointer", position: "relative",
+                  transition: "border-color .2s, background .2s",
                 }}
               >
-                <m.Icon size={26} style={{ marginBottom: 6, color: sel ? "var(--accent)" : "var(--text-secondary)" }} />
+                {m.esPasarela && m.modo === "sandbox" && (
+                  <span style={{
+                    position: "absolute", top: 8, right: 8, fontSize: 9, fontWeight: 800,
+                    background: "var(--bg-input)", color: "var(--text-secondary)",
+                    padding: "2px 6px", borderRadius: 5, letterSpacing: ".04em",
+                  }}>
+                    PRUEBAS
+                  </span>
+                )}
+                <Icon size={26} style={{ marginBottom: 6, color: sel ? "var(--accent)" : "var(--text-secondary)" }} />
                 <div style={{ fontWeight: 700, fontSize: 14, color: "var(--text-primary)", marginBottom: 2 }}>{m.label}</div>
                 <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{m.desc}</div>
-              </motion.button>
+              </button>
             );
           })}
         </div>
@@ -358,7 +447,7 @@ export default function UserMembershipRenewal() {
           <div style={{ padding: "20px 24px" }}>
             <Row label="Plan" value={selectedPlan.nombre} />
             <Row label="Duración" value={selectedPlan.duracion_meses === 1 ? "1 mes" : `${selectedPlan.duracion_meses} meses`} />
-            <Row label="Método" value={METODOS.find(m => m.id === selectedMethod)?.label || selectedMethod} />
+            <Row label="Método" value={metodos.find(m => m.id === selectedMethod)?.label || selectedMethod} />
             {selectedPlan.ahorro > 0 && (
               <Row label="Ahorro incluido" value={`- ${fmt(selectedPlan.ahorro)}`} valueColor="#4ade80" />
             )}
@@ -384,13 +473,20 @@ export default function UserMembershipRenewal() {
               {processing ? (
                 <><div className="dashboard-spinner" style={{ width: 18, height: 18, borderWidth: 2 }} /> Procesando pago…</>
               ) : (
-                <><FiCheck /> Confirmar y pagar {fmt(selectedPlan.precio)} <FiArrowRight /></>
+                <>
+                  <FiCheck />
+                  {metodos.find(m => m.id === selectedMethod)?.esPasarela
+                    ? `Pagar ${fmt(selectedPlan.precio)} con ${metodos.find(m => m.id === selectedMethod)?.label}`
+                    : `Confirmar y pagar ${fmt(selectedPlan.precio)}`}
+                  <FiArrowRight />
+                </>
               )}
             </motion.button>
 
             <p style={{ textAlign: "center", fontSize: 12, color: "var(--text-secondary)", marginTop: 12 }}>
               Al confirmar aceptas los términos y condiciones del gimnasio.
             </p>
+
           </div>
         </motion.section>
       )}

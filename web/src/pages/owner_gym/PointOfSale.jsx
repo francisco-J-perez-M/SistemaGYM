@@ -16,7 +16,9 @@ import {
   FiClock, FiChevronLeft, FiChevronRight, FiCreditCard, FiUser,
   FiFileText,
 } from "react-icons/fi";
+import Swal from "sweetalert2";
 import { getProductos, toggleProducto, eliminarProducto, getMiembros, getVentas } from "../../api/owner_gym";
+import { reconciliarSilencioso } from "../../api/pagosOnline";
 import ProductoModal       from "./POSProductoModal";
 import ProductoDetailModal from "./POSProductoDetailModal";
 import CheckoutModal       from "./POSCheckoutModal";
@@ -299,6 +301,21 @@ function TabVenta() {
   const load = useCallback(async () => {
     setLoadingInit(true);
     try {
+      // Confirma primero los pagos en línea que hayan quedado pendientes, para
+      // que la venta y el stock ya estén actualizados al pintar el catálogo.
+      const confirmadas = await reconciliarSilencioso();
+      if (confirmadas.length > 0) {
+        Swal.fire({
+          icon: "success",
+          title: confirmadas.length === 1 ? "Pago confirmado" : "Pagos confirmados",
+          text: confirmadas.length === 1
+            ? "Se registró una venta pagada en línea."
+            : `Se registraron ${confirmadas.length} ventas pagadas en línea.`,
+          timer: 2600, showConfirmButton: false,
+          background: "var(--bg-card)", color: "var(--text-primary)",
+        });
+      }
+
       const tasks = [getProductos({ activos: true })];
       if (!isMiembroRole) tasks.push(getMiembros());
 

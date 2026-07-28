@@ -61,6 +61,26 @@ export const crearCheckout = (p) => API.post("/pagos/checkout", p);
 export const getEstadoPago = (txId) => API.get(`/pagos/estado/${txId}`);
 
 /**
+ * Confirma los pagos que quedaron pendientes (el pagador cerró la pestaña, la
+ * pasarela no devolvió al sitio o el webhook no llegó). Devuelve las
+ * transacciones que se acaban de aprobar para poder avisar al usuario.
+ */
+export const reconciliarPagos = () => API.post("/pagos/reconciliar");
+
+/**
+ * Versión silenciosa para llamar al cargar una pantalla: nunca lanza error.
+ * Retorna el arreglo de pagos recién confirmados (vacío si no hubo).
+ */
+export const reconciliarSilencioso = async () => {
+  try {
+    const { data } = await reconciliarPagos();
+    return data?.confirmadas ?? [];
+  } catch {
+    return [];
+  }
+};
+
+/**
  * Atajo: crea el cobro y redirige el navegador a la pasarela.
  * Devuelve la transacción creada por si se quiere guardar antes de salir.
  */

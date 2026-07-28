@@ -1,12 +1,13 @@
 /**
  * POSCheckoutModal.jsx — Modal de confirmacion de cobro con seleccion
- * de miembro y datos segun metodo de pago (Efectivo / Tarjeta / Transferencia).
+ * de miembro y metodo de pago (Efectivo, PayPal o Mercado Pago).
  */
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { FiX, FiCheck, FiAlertCircle, FiCreditCard, FiRefreshCw, FiDollarSign, FiUser, FiLock } from "react-icons/fi";
 import { registrarVenta } from "../../api/owner_gym";
-import BotonesPago from "../../components/compartido/BotonesPago";
+import useMetodosPago from "../../hooks/useMetodosPago";
+import { pagarYRedirigir } from "../../api/pagosOnline";
 
 const fmt = (n) => `$${Number(n).toLocaleString("es-MX", { minimumFractionDigits: 2 })}`;
 const nowStr = () => new Date().toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" });
@@ -26,8 +27,8 @@ const labelSt = {
 export default function CheckoutModal({ cart, miembros, onClose, onComplete }) {
   const [miembro,    setMiembro]  = useState("");
   const [metodo,     setMetodo]   = useState("Efectivo");
-  const [tarjeta,    setTarjeta]  = useState("");
-  const [referencia, setRef]      = useState("");
+  // Efectivo + pasarelas activas del gimnasio (PayPal / Mercado Pago)
+  const { metodos: metodosPago } = useMetodosPago("producto");
   const [loading,    setLoading]  = useState(false);
   const [err,        setErr]      = useState("");
 
@@ -47,8 +48,33 @@ export default function CheckoutModal({ cart, miembros, onClose, onComplete }) {
   const total = cart.reduce((s, i) => s + i.precio * i.qty, 0);
 
   const handlePagar = async () => {
-    if (metodo === "Tarjeta"       && !tarjeta.trim())    { setErr("Ingresa el numero de tarjeta");        return; }
-    if (metodo === "Transferencia" && !referencia.trim()) { setErr("Ingresa la referencia de transferencia"); return; }
+    // Con PayPal o Mercado Pago el cobro se hace en la pasarela y se redirige.
+    const metodoSel = metodosPago.find(m => m.id === metodo);
+    if (metodoSel?.esPasarela) {
+      setLoading(true); setErr("");
+      try {
+        await pagarYRedirigir({
+          proveedor: metodoSel.proveedor,
+          contexto: "producto",
+          monto: Number(total.toFixed(2)),
+          descripcion: `Venta de productos (${cart.length} artículo${cart.length === 1 ? "" : "s"})`,
+          referencia_local: lockedMiembro?.pgId || miembro || null,
+          // El backend registra la venta y descuenta inventario al confirmarse
+          metadatos: {
+            items: cart.map(({ id, nombre, precio, qty, categoria }) => ({ id, nombre, precio, qty, categoria })),
+            id_miembro: lockedMiembro ? lockedMiembro.pgId : (miembro || null),
+            nombre_miembro: lockedMiembro
+              ? lockedMiembro.nombre
+              : (miembros.find(m => String(m.id) === String(miembro))?.nombre || ""),
+          },
+        });
+      } catch (e) {
+        setErr(e.response?.data?.msg || "No se pudo iniciar el pago en línea");
+        setLoading(false);
+      }
+      return;
+    }
+
     setLoading(true); setErr("");
     try {
       // Miembro auto-asignado (rol Miembro): usa el PG user ID para el lookup de email en backend.
@@ -66,8 +92,6 @@ export default function CheckoutModal({ cart, miembros, onClose, onComplete }) {
         metodo_pago:    metodo,
         id_miembro:     id_miem,
         nombre_miembro: nom_miem,
-        numero_tarjeta: metodo === "Tarjeta"       ? tarjeta    : "",
-        referencia:     metodo === "Transferencia" ? referencia : "",
       };
       const res = await registrarVenta(payload);
       onComplete({ ...payload, id: res.data?.id, fecha: nowStr() });
@@ -146,12 +170,9 @@ export default function CheckoutModal({ cart, miembros, onClose, onComplete }) {
             {/* Metodo de pago */}
             <div>
               <label style={labelSt}>Metodo de pago</label>
+              {/* Efectivo + pasarelas activas del gimnasio */}
               <div style={{ display: "flex", gap: 8 }}>
-                {[
-                  { id: "Efectivo",      label: "Efectivo"     },
-                  { id: "Tarjeta",       label: "Tarjeta"      },
-                  { id: "Transferencia", label: "Transferencia" },
-                ].map(m => (
+                {metodosPago.map(m => (
                   <button key={m.id} type="button" onClick={() => { setMetodo(m.id); setErr(""); }}
                     style={{ flex: 1, padding: "8px 4px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600,
                       background: metodo === m.id ? "var(--accent)" : "var(--bg-input, rgba(255,255,255,.05))",
@@ -161,20 +182,6 @@ export default function CheckoutModal({ cart, miembros, onClose, onComplete }) {
                 ))}
               </div>
             </div>
-
-            {/* Campo condicional */}
-            {metodo === "Tarjeta" && (
-              <div>
-                <label style={labelSt}><FiCreditCard style={{ display: "inline", marginRight: 4 }} size={11} />Numero de tarjeta</label>
-                <input style={inputSt} placeholder="**** **** **** ****" value={tarjeta} onChange={e => setTarjeta(e.target.value)} maxLength={19} />
-              </div>
-            )}
-            {metodo === "Transferencia" && (
-              <div>
-                <label style={labelSt}><FiRefreshCw style={{ display: "inline", marginRight: 4 }} size={11} />Referencia / CLABE</label>
-                <input style={inputSt} placeholder="Referencia de transferencia" value={referencia} onChange={e => setRef(e.target.value)} />
-              </div>
-            )}
 
             {err && (
               <div style={{ display: "flex", gap: 8, alignItems: "center", background: "rgba(239,68,68,.12)", border: "1px solid rgba(239,68,68,.3)", borderRadius: 8, padding: "8px 12px", color: "var(--danger)", fontSize: 12 }}>
@@ -193,23 +200,19 @@ export default function CheckoutModal({ cart, miembros, onClose, onComplete }) {
                   background: loading ? "#4f46e5" : "var(--accent)", color: "#fff",
                   fontSize: 15, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer",
                   display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: loading ? 0.8 : 1 }}>
-                {loading ? "Procesando..." : <><FiCheck size={16} /> Confirmar cobro</>}
+                {loading
+                  ? "Procesando..."
+                  : <><FiCheck size={16} />
+                      {metodosPago.find(m => m.id === metodo)?.esPasarela
+                        ? `Cobrar con ${metodosPago.find(m => m.id === metodo)?.label}`
+                        : "Confirmar cobro"}
+                    </>}
               </button>
 
-              {/* ── Cobro en línea con pasarela ──
-                  El importe llega directo a la cuenta configurada por el gimnasio. */}
-              {total > 0 && (
-                <div style={{ marginTop: 14, borderTop: "1px dashed var(--border)", paddingTop: 12 }}>
-                  <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 8px" }}>
-                    O cobra en línea: se abrirá la pasarela para pagar {fmt(total)}.
-                  </p>
-                  <BotonesPago
-                    contexto="producto"
-                    monto={Number(total.toFixed(2))}
-                    descripcion={`Venta de productos (${cart.length} artículo${cart.length === 1 ? "" : "s"})`}
-                    referenciaLocal={lockedMiembro || miembro || null}
-                  />
-                </div>
+              {metodosPago.find(m => m.id === metodo)?.esPasarela && (
+                <p style={{ fontSize: 11.5, color: "var(--text-secondary)", margin: "10px 0 0", lineHeight: 1.5 }}>
+                  Se abrirá la pasarela para cobrar {fmt(total)}. La venta se registra al confirmarse el pago.
+                </p>
               )}
             </div>
           </div>
