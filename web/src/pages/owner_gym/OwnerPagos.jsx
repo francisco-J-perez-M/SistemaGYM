@@ -15,7 +15,7 @@ import {
 } from "react-icons/fi";
 import {
   getPasarelas, guardarPasarela, probarPasarela, togglePasarela, eliminarPasarela,
-} from "../../api/pagos";
+} from "../../api/pagosOnline";
 
 const card = (extra = {}) => ({
   background: "var(--bg-card)", border: "1px solid var(--border)",
