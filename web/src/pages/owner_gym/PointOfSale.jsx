@@ -205,7 +205,24 @@ function TabProductos() {
                 }
                 <div style={{ padding: "12px 14px 8px" }}>
                   <span style={{ fontSize: 10, color: catColor(p.categoria), fontWeight: 700, textTransform: "uppercase" }}>{p.categoria}</span>
-                  <p style={{ margin: "4px 0 6px", fontSize: 13, fontWeight: 600, color: "var(--text-primary)", lineHeight: 1.3 }}>{p.nombre}</p>
+                  <p style={{ margin: "4px 0 6px", fontSize: 13, fontWeight: 600, color: "var(--text-primary)", lineHeight: 1.3 }}>
+                    {p.nombre}
+                    {p.es_combo && (
+                      <span style={{
+                        marginLeft: 6, fontSize: 9.5, fontWeight: 800, letterSpacing: ".05em",
+                        background: "var(--accent)", color: "#fff",
+                        padding: "2px 6px", borderRadius: 5, verticalAlign: "middle",
+                      }}>
+                        COMBO
+                      </span>
+                    )}
+                  </p>
+                  {/* Contenido del combo, para que el cajero sepa qué entrega */}
+                  {p.es_combo && Array.isArray(p.items_combo) && p.items_combo.length > 0 && (
+                    <p style={{ margin: "0 0 6px", fontSize: 10.5, color: "var(--text-secondary)", lineHeight: 1.4 }}>
+                      {p.items_combo.map(it => `${it.cantidad}× ${it.nombre}`).join(" · ")}
+                    </p>
+                  )}
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: p.stock === 0 || p.stock <= LOW_STOCK ? 6 : 0 }}>
                     <span style={{ fontSize: 16, fontWeight: 800, color: "var(--success)" }}>{fmt(p.precio)}</span>
                     <span style={{ fontSize: 11, color: p.stock === 0 ? "var(--danger)" : p.stock <= LOW_STOCK ? "var(--warning)" : "var(--text-secondary)", fontWeight: p.stock <= LOW_STOCK ? 700 : 400 }}>

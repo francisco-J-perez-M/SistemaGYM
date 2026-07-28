@@ -2,9 +2,11 @@ import { useEffect, useState } from "react";
 import Swal from "sweetalert2";
 import {
   FiPlus, FiEdit2, FiToggleLeft, FiToggleRight,
-  FiTrash2, FiX, FiTag, FiStar,
+  FiTrash2, FiX, FiTag, FiStar, FiCheck, FiClock, FiPackage,
 } from "react-icons/fi";
 import { getMembresias, crearMembresia, editarMembresia, toggleMembresia, eliminarMembresia } from "../../api/owner_gym";
+import ListaEditable from "../../components/compartido/ListaEditable";
+import ListaCombo from "../../components/compartido/ListaCombo";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 const fmt = (n) =>
@@ -26,17 +28,21 @@ const S = {
   sub:     { fontSize: 13, color: "var(--text-secondary)", marginTop: 4 },
   grid:    { display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(290px,1fr))", gap: 18 },
 
+  // Las promociones activas llevan un halo ámbar que las destaca del resto.
   card: (activo, tipo) => ({
     background:    "var(--bg-card)",
-    border:        "1px solid var(--border)",
+    border:        `1px solid ${tipo === "promocion" && activo ? "rgba(245,158,11,.55)" : "var(--border)"}`,
     borderTop:     `3px solid ${tipo === "promocion" ? "#f59e0b" : activo ? "#6366f1" : "#374151"}`,
     borderRadius:  12,
     padding:       "20px 22px",
     display:       "flex",
     flexDirection: "column",
     gap:           10,
-    transition:    "box-shadow .15s",
+    transition:    "box-shadow .15s, transform .15s",
     opacity:       activo ? 1 : 0.6,
+    boxShadow:     tipo === "promocion" && activo
+      ? "0 0 0 1px rgba(245,158,11,.25), 0 0 22px rgba(245,158,11,.28)"
+      : "none",
   }),
 
   pill: (color) => ({
@@ -80,6 +86,13 @@ function MembresiaModal({ initial, onClose, onSave }) {
     precio:         initial?.precio         ?? "",
     duracion_meses: initial?.duracion_meses ?? 1,
     descripcion:    initial?.descripcion    ?? "",
+    // Beneficios que el dueño define y que se muestran en la tarjeta del plan
+    beneficios:     initial?.beneficios     ?? [],
+    // Vigencia de la promoción: al pasar esta fecha se desactiva sola
+    fecha_fin_promo: initial?.fecha_fin_promo ?? "",
+    // Combo: agrupa varios conceptos en un solo precio
+    es_combo:       initial?.es_combo       ?? false,
+    items_combo:    initial?.items_combo    ?? [],
   });
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState("");
@@ -101,6 +114,11 @@ function MembresiaModal({ initial, onClose, onSave }) {
         precio:         parseFloat(form.precio),
         duracion_meses: parseInt(form.duracion_meses),
         descripcion:    form.descripcion.trim(),
+        beneficios:     (form.beneficios || []).map(b => String(b).trim()).filter(Boolean),
+        es_combo:       !!form.es_combo,
+        items_combo:    form.es_combo ? (form.items_combo || []).filter(i => i?.nombre?.trim()) : [],
+        // Solo las promociones llevan fecha de caducidad
+        fecha_fin_promo: form.tipo === "promocion" ? (form.fecha_fin_promo || null) : null,
       });
       onClose();
     } catch (e) {
@@ -170,10 +188,63 @@ function MembresiaModal({ initial, onClose, onSave }) {
             </div>
           </div>
 
+          {/* Vigencia — solo para promociones */}
+          {form.tipo === "promocion" && (
+            <div style={S.fGroup}>
+              <label style={S.label}>Disponible hasta</label>
+              <input
+                style={S.input}
+                type="date"
+                value={form.fecha_fin_promo || ""}
+                onChange={set("fecha_fin_promo")}
+              />
+              <p style={{ fontSize: 11.5, color: "var(--text-secondary)", marginTop: 5, lineHeight: 1.45 }}>
+                Al pasar esta fecha la promoción se desactiva automáticamente y deja de ofrecerse.
+                Déjalo vacío si no quieres que caduque.
+              </p>
+            </div>
+          )}
+
           {/* Descripción */}
           <div style={S.fGroup}>
             <label style={S.label}>Descripción <span style={{ fontWeight: 400, textTransform: "none" }}>(opcional)</span></label>
             <textarea style={S.textarea} value={form.descripcion} onChange={set("descripcion")} placeholder="Acceso completo + clases grupales…" />
+          </div>
+
+          {/* Beneficios incluidos */}
+          <div style={S.fGroup}>
+            <label style={S.label}>Beneficios incluidos</label>
+            <p style={{ fontSize: 11.5, color: "var(--text-secondary)", margin: "0 0 8px", lineHeight: 1.45 }}>
+              Lo que el cliente obtiene con este plan. Se muestran como lista en la tarjeta.
+            </p>
+            <ListaEditable
+              items={form.beneficios}
+              onChange={(v) => setForm(f => ({ ...f, beneficios: v }))}
+              placeholder="Ej. Acceso a todas las clases grupales"
+              max={12}
+            />
+          </div>
+
+          {/* Combo */}
+          <div style={S.fGroup}>
+            <label style={{ ...S.label, display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+              <input
+                type="checkbox"
+                checked={!!form.es_combo}
+                onChange={(e) => setForm(f => ({ ...f, es_combo: e.target.checked }))}
+                style={{ width: 15, height: 15, cursor: "pointer" }}
+              />
+              Es un combo
+            </label>
+            <p style={{ fontSize: 11.5, color: "var(--text-secondary)", margin: "4px 0 8px", lineHeight: 1.45 }}>
+              Agrupa varios conceptos en un solo precio (por ejemplo: mensualidad + producto).
+            </p>
+            {form.es_combo && (
+              <ListaCombo
+                items={form.items_combo}
+                onChange={(v) => setForm(f => ({ ...f, items_combo: v }))}
+              />
+            )}
           </div>
 
           {error && <p style={{ color: "var(--danger)", fontSize: 12, marginBottom: 8 }}>{error}</p>}
@@ -358,11 +429,61 @@ export default function OwnerMemberships() {
                   </span>
                 </div>
 
+                {/* Vigencia de la promoción */}
+                {m.fecha_fin_promo && (
+                  <div style={{
+                    display: "inline-flex", alignItems: "center", gap: 6, alignSelf: "flex-start",
+                    background: m.dias_restantes_promo != null && m.dias_restantes_promo < 0
+                      ? "rgba(239,68,68,.12)" : "rgba(245,158,11,.14)",
+                    color: m.dias_restantes_promo != null && m.dias_restantes_promo < 0
+                      ? "var(--danger)" : "#f59e0b",
+                    borderRadius: 8, padding: "5px 10px", fontSize: 11.5, fontWeight: 600,
+                  }}>
+                    <FiClock size={12} />
+                    {m.dias_restantes_promo == null
+                      ? `Hasta ${m.fecha_fin_promo}`
+                      : m.dias_restantes_promo < 0
+                        ? "Promoción vencida"
+                        : m.dias_restantes_promo === 0
+                          ? "Último día"
+                          : `Quedan ${m.dias_restantes_promo} día${m.dias_restantes_promo === 1 ? "" : "s"}`}
+                  </div>
+                )}
+
                 {/* Descripción */}
                 {m.descripcion
                   ? <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0, lineHeight: 1.5 }}>{m.descripcion}</p>
                   : <p style={{ fontSize: 12, color: "var(--text-tertiary)", margin: 0, fontStyle: "italic" }}>Sin descripción</p>
                 }
+
+                {/* Beneficios incluidos */}
+                {Array.isArray(m.beneficios) && m.beneficios.length > 0 && (
+                  <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+                    {m.beneficios.map((b, i) => (
+                      <li key={i} style={{ display: "flex", gap: 7, fontSize: 12.5, color: "var(--text-primary)", lineHeight: 1.4 }}>
+                        <FiCheck size={13} style={{ color: "var(--success)", flexShrink: 0, marginTop: 2 }} />
+                        <span>{b}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                {/* Contenido del combo */}
+                {m.es_combo && Array.isArray(m.items_combo) && m.items_combo.length > 0 && (
+                  <div style={{ background: "var(--bg-input)", borderRadius: 9, padding: "10px 12px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                      <FiPackage size={12} style={{ color: "var(--accent)" }} />
+                      <span style={{ fontSize: 11, fontWeight: 800, color: "var(--accent)", letterSpacing: ".05em" }}>
+                        COMBO INCLUYE
+                      </span>
+                    </div>
+                    {m.items_combo.map((it, i) => (
+                      <div key={i} style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.6 }}>
+                        {it.cantidad}× {it.nombre}
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 {/* Acciones */}
                 <div style={{ display: "flex", gap: 6, marginTop: 4, borderTop: "1px solid var(--border)", paddingTop: 10 }}>
