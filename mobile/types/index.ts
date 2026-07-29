@@ -119,6 +119,12 @@ export interface ComidaDieta {
 // ── Membership ────────────────────────────────────────────────────────────────
 
 /** Plan disponible — contrato real de GET /api/user/membership/plans → { planes: [...] } */
+export interface ItemCombo {
+  nombre:       string;
+  cantidad:     number;
+  id_producto?: string | number;
+}
+
 export interface MembershipPlan {
   id:             string;   // 'monthly' | 'quarterly' | 'annual'
   id_membresia:   number;   // entero PG — requerido por /renew
@@ -126,6 +132,14 @@ export interface MembershipPlan {
   precio:         number;
   duracion_meses: number;
   ahorro?:        number;
+  // Información comercial que define el dueño del gimnasio
+  tipo?:            'estandar' | 'promocion';
+  descripcion?:     string | null;
+  beneficios?:      string[];
+  es_combo?:        boolean;
+  items_combo?:     ItemCombo[];
+  fecha_fin_promo?: string | null;
+  dias_restantes_promo?: number | null;
 }
 
 /** Membresía activa — contrato real de GET /api/user/membership → { tieneMembresia, membresia } */
@@ -147,7 +161,8 @@ export interface MembershipResponse {
 
 export interface PlansResponse { planes: MembershipPlan[] }
 
-export type MetodoPago = 'Efectivo' | 'Tarjeta' | 'Transferencia';
+// Métodos aceptados: efectivo en caja o pago en línea por pasarela.
+export type MetodoPago = 'Efectivo' | 'paypal' | 'mercadopago';
 
 // ── Payments (GET /api/user/payments) ──────────────────────────────────────────
 
