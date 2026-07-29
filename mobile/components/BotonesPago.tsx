@@ -38,13 +38,17 @@ interface Props {
   descripcion?: string;
   referenciaLocal?: string | number | null;
   emailPagador?: string | null;
+  /** Datos que el backend necesita para aplicar el pago (artículos de la venta…). */
+  metadatos?: Record<string, any> | null;
   deshabilitado?: boolean;
+  /** Se ejecuta antes de abrir la pasarela; si devuelve false, se cancela. */
+  onAntesDePagar?: () => boolean;
   onPagado?: (tx?: TransaccionPago) => void;
 }
 
 export default function BotonesPago({
-  contexto, monto, descripcion, referenciaLocal, emailPagador,
-  deshabilitado = false, onPagado,
+  contexto, monto, descripcion, referenciaLocal, emailPagador, metadatos,
+  deshabilitado = false, onAntesDePagar, onPagado,
 }: Props) {
   const colors = useColors();
   const fs     = useFontScale();
@@ -58,7 +62,8 @@ export default function BotonesPago({
     let vivo = true;
     (async () => {
       try {
-        const lista = await getMetodosPago();
+        // El contexto decide quién cobra: el gimnasio o la plataforma.
+        const lista = await getMetodosPago(contexto);
         if (vivo) setMetodos(lista);
       } catch {
         if (vivo) setMetodos([]);
@@ -67,18 +72,19 @@ export default function BotonesPago({
       }
     })();
     return () => { vivo = false; };
-  }, []);
+  }, [contexto]);
 
   const pagar = async (proveedor: ProveedorPago) => {
     if (!monto || monto <= 0) {
       Alert.alert('Monto inválido', 'El importe debe ser mayor que cero.');
       return;
     }
+    if (onAntesDePagar && onAntesDePagar() === false) return;
     setProcesando(proveedor);
     try {
       const res = await pagarEnApp({
         proveedor, contexto, monto,
-        descripcion, referenciaLocal, emailPagador,
+        descripcion, referenciaLocal, emailPagador, metadatos,
       });
       const info = mensajePorEstado(res.estado);
       Alert.alert(info.titulo, res.mensaje ?? info.texto);
@@ -108,8 +114,9 @@ export default function BotonesPago({
     return (
       <View style={styles.aviso}>
         <Text style={styles.avisoTexto}>
-          Este gimnasio aún no tiene activados los pagos en línea.
-          Puedes pagar directamente en recepción.
+          {contexto === 'suscripcion'
+            ? 'La plataforma aún no tiene configurados los pagos en línea. Contacta al administrador para regularizar tu suscripción.'
+            : 'Este gimnasio aún no tiene activados los pagos en línea. Puedes pagar directamente en recepción.'}
         </Text>
       </View>
     );

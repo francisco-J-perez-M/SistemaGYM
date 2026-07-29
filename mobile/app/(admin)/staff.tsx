@@ -2,9 +2,9 @@
  * Staff del Gimnasio — Owner Gym
  * GET /api/owner_gym/staff → lista de entrenadores y recepcionistas
  */
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, RefreshControl, Image,
+  View, Text, StyleSheet, FlatList, RefreshControl, Image, TouchableOpacity,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,6 +14,7 @@ import { useFetch } from '../../hooks/useFetch';
 import { toStr, toArray, toInitial } from '../../utils/format';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Badge from '../../components/ui/Badge';
+import DetalleUsuario, { fechaFicha, UsuarioDetalle } from '../../components/usuarios/DetalleUsuario';
 
 interface StaffMember {
   id?:       number;
@@ -23,7 +24,28 @@ interface StaffMember {
   activo?:   boolean;
   telefono?: string;
   especializacion?: string;
+  created_at?: string | null;
   foto_perfil?: string | null;   // base64 data URI (Usuario.to_dict)
+}
+
+/** Traduce un integrante del staff a la ficha genérica del detalle. */
+function aDetalle(s: StaffMember): UsuarioDetalle {
+  return {
+    nombre:    s.nombre,
+    email:     s.email,
+    telefono:  s.telefono,
+    foto:      s.foto_perfil,
+    activo:    s.activo !== false,
+    subtitulo: s.rol ?? null,
+    datos: [
+      { icono: 'shield-outline',   etiqueta: 'Puesto',        valor: s.rol },
+      { icono: 'ribbon-outline',   etiqueta: 'Especialidad',  valor: s.especializacion },
+      { icono: 'mail-outline',     etiqueta: 'Correo',        valor: s.email },
+      { icono: 'call-outline',     etiqueta: 'Teléfono',      valor: s.telefono },
+      { icono: 'calendar-outline', etiqueta: 'Alta',          valor: fechaFicha(s.created_at) },
+      { icono: 'key-outline',      etiqueta: 'Identificador', valor: s.id },
+    ],
+  };
 }
 
 interface StaffResponse {
@@ -38,6 +60,7 @@ export default function StaffScreen() {
   const styles = useMemo(() => make_styles(colors, fs), [colors, fs]);
   const insets = useSafeAreaInsets();
   const { data, loading, refetch } = useFetch<StaffMember[] | StaffResponse>(ENDPOINTS.OWNER_STAFF);
+  const [detalle, setDetalle] = useState<UsuarioDetalle | null>(null);
 
   if (loading) return <LoadingSpinner fullScreen message="Cargando staff…" />;
 
@@ -68,7 +91,13 @@ export default function StaffScreen() {
           </View>
         }
         renderItem={({ item: s }) => (
-          <View style={styles.card} accessible accessibilityLabel={`${s.nombre}, ${s.rol ?? 'Staff'}`}>
+          <TouchableOpacity
+            style={styles.card}
+            onPress={() => setDetalle(aDetalle(s))}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel={`Ver detalle de ${toStr(s.nombre)}, ${s.rol ?? 'staff'}`}
+          >
             {s.foto_perfil && s.foto_perfil.startsWith('data:image') ? (
               <Image source={{ uri: s.foto_perfil }} style={styles.avatarImg} resizeMode="cover" />
             ) : (
@@ -100,9 +129,16 @@ export default function StaffScreen() {
                 label={s.activo !== false ? 'Activo' : 'Inactivo'}
                 color={s.activo !== false ? 'success' : 'error'}
               />
+              <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
             </View>
-          </View>
+          </TouchableOpacity>
         )}
+      />
+
+      <DetalleUsuario
+        usuario={detalle}
+        onClose={() => setDetalle(null)}
+        titulo="Detalle del staff"
       />
     </View>
   );

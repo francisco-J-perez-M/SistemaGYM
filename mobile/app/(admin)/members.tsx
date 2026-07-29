@@ -10,7 +10,32 @@ import { useFetch } from '../../hooks/useFetch';
 import { toDateStr, toInitial, toStr, matchesSearch, toArray } from '../../utils/format';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Badge from '../../components/ui/Badge';
+import DetalleUsuario, { fechaFicha, UsuarioDetalle } from '../../components/usuarios/DetalleUsuario';
 import type { MiembrosResponse } from '../../types';
+
+/** Traduce un miembro de la API a la ficha genérica del detalle. */
+function aDetalle(m: any): UsuarioDetalle {
+  return {
+    nombre:    m.nombre,
+    email:     m.email,
+    telefono:  m.telefono,
+    foto:      m.foto_perfil,
+    activo:    m.activo !== false,
+    subtitulo: m.membresia?.nombre ?? null,
+    datos: [
+      { icono: 'card-outline',      etiqueta: 'Membresía',      valor: m.membresia?.nombre },
+      { icono: 'time-outline',      etiqueta: 'Vence',          valor: fechaFicha(m.membresia?.fecha_fin) },
+      { icono: 'calendar-outline',  etiqueta: 'Ingreso',        valor: fechaFicha(m.registrationDate ?? m.fecha_ingreso) },
+      { icono: 'gift-outline',      etiqueta: 'Nacimiento',     valor: fechaFicha(m.birthDate) },
+      { icono: 'male-female-outline', etiqueta: 'Sexo',         valor: m.sexo },
+      { icono: 'barbell-outline',   etiqueta: 'Peso inicial',   valor: m.peso_inicial ? `${m.peso_inicial} kg` : null },
+      { icono: 'resize-outline',    etiqueta: 'Estatura',       valor: m.estatura ? `${m.estatura} m` : null },
+      { icono: 'flag-outline',      etiqueta: 'Objetivo',       valor: m.objetivo },
+      { icono: 'trending-down-outline', etiqueta: 'Peso meta',  valor: m.peso_objetivo ? `${m.peso_objetivo} kg` : null },
+      { icono: 'pulse-outline',     etiqueta: 'Última sesión',  valor: fechaFicha(m.ultima_sesion) },
+    ],
+  };
+}
 
 export default function AdminMembersScreen() {
   const colors = useColors();
@@ -20,6 +45,7 @@ export default function AdminMembersScreen() {
   // API devuelve { miembros: [...], total: N, pages: N, current_page: N }
   const { data, loading, refetch } = useFetch<MiembrosResponse>(ENDPOINTS.MIEMBROS);
   const [search, setSearch] = useState('');
+  const [detalle, setDetalle] = useState<UsuarioDetalle | null>(null);
 
   const allMembers = toArray(data?.miembros);
   const filtered   = allMembers.filter(
@@ -65,7 +91,13 @@ export default function AdminMembersScreen() {
           </View>
         }
         renderItem={({ item: m }) => (
-          <View style={styles.memberCard} accessible accessibilityLabel={`Miembro: ${m.nombre}`}>
+          <TouchableOpacity
+            style={styles.memberCard}
+            onPress={() => setDetalle(aDetalle(m))}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel={`Ver detalle de ${toStr(m.nombre)}`}
+          >
             {m.foto_perfil && m.foto_perfil.startsWith('data:image') ? (
               <Image source={{ uri: m.foto_perfil }} style={styles.avatarImg} resizeMode="cover" />
             ) : (
@@ -79,12 +111,21 @@ export default function AdminMembersScreen() {
               {m.membresia?.nombre ? <Text style={styles.membresia}>{m.membresia.nombre}</Text> : null}
               {m.fecha_ingreso ? <Text style={styles.fecha}>Ingreso: {toDateStr(m.fecha_ingreso)}</Text> : null}
             </View>
-            <Badge
-              label={m.activo === false ? 'Inactivo' : 'Activo'}
-              color={m.activo === false ? 'warning' : 'success'}
-            />
-          </View>
+            <View style={styles.derecha}>
+              <Badge
+                label={m.activo === false ? 'Inactivo' : 'Activo'}
+                color={m.activo === false ? 'warning' : 'success'}
+              />
+              <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+            </View>
+          </TouchableOpacity>
         )}
+      />
+
+      <DetalleUsuario
+        usuario={detalle}
+        onClose={() => setDetalle(null)}
+        titulo="Detalle del miembro"
       />
     </View>
   );
@@ -114,6 +155,7 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
     width: 44, height: 44, borderRadius: 14,
     backgroundColor: colors.accentBg, alignItems: 'center', justifyContent: 'center',
   },
+  derecha:   { alignItems: 'flex-end', gap: 4 },
   avatarImg: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.surface },
   initial:   { color: colors.accent, fontSize: 18 * fs, fontWeight: '700' },
   nombre:    { color: colors.text, fontSize: 15 * fs, fontWeight: '600' },
