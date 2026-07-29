@@ -67,6 +67,19 @@ export default function PagoResultado({ resultado = "exito" }) {
   const [detalle, setDetalle] = useState(null);
   const [error, setError]     = useState(null);
 
+  // ── Retorno a la app móvil ────────────────────────────────────────────────
+  // Cuando el pago se inició desde la aplicación, la pasarela devuelve aquí con
+  // 'app=1'. Se salta a gympro:// para que el navegador se cierre solo y la app
+  // recupere el control; ella confirma el estado por su cuenta.
+  const vieneDeApp = params.get("app") === "1";
+  useEffect(() => {
+    if (!vieneDeApp) return;
+    const destino = `gympro://pago?tx=${txId || ""}&resultado=${resultado}`;
+    // Pequeño retraso: da tiempo a pintar el mensaje si el salto no procede
+    const t = setTimeout(() => { window.location.href = destino; }, 400);
+    return () => clearTimeout(t);
+  }, [vieneDeApp, txId, resultado]);
+
   useEffect(() => {
     if (resultado === "cancelado" || !txId) return;
     let vivo = true;
@@ -124,6 +137,16 @@ export default function PagoResultado({ resultado = "exito" }) {
 
             {error && (
               <p style={{ fontSize: 12.5, color: "var(--warning)", marginBottom: 16 }}>{error}</p>
+            )}
+
+            {vieneDeApp && (
+              <p style={{ fontSize: 12.5, color: "var(--text-secondary)", marginBottom: 16, lineHeight: 1.5 }}>
+                Regresando a la aplicación…{" "}
+                <a href={`gympro://pago?tx=${txId || ""}&resultado=${resultado}`}
+                   style={{ color: "var(--accent)", fontWeight: 600 }}>
+                  Abrir GymPro
+                </a>
+              </p>
             )}
 
             <button
