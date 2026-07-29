@@ -2,7 +2,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../constants/Colors';
 import { useColors, useFontScale } from '../../hooks/useColors';
 import { toDateStr, toStr } from '../../utils/format';
 import type { Membership } from '../../types';
@@ -15,8 +14,11 @@ export default function MembershipCard({ membership }: Props) {
   const styles = useMemo(() => make_styles(colors, fs), [colors, fs]);
   if (!membership) return null;
 
+  // Los días restantes son un dato: si apremian, hablan en tono "atención";
+  // si no, en tono "progreso". El HEX lo pone la paleta activa.
   const isUrgent = membership.dias_restantes <= 7;
-  const color    = isUrgent ? colors.warning : colors.success;
+  const color    = isUrgent ? colors.dataAtencion   : colors.dataProgreso;
+  const colorBg  = isUrgent ? colors.dataAtencionBg : colors.dataProgresoBg;
 
   return (
     <View style={styles.card}>
@@ -25,7 +27,7 @@ export default function MembershipCard({ membership }: Props) {
           <Ionicons name="card-outline" size={20} color={colors.accent} />
         </View>
         <View
-          style={[styles.statusPill, { backgroundColor: isUrgent ? colors.warningBg : colors.successBg }]}
+          style={[styles.statusPill, { backgroundColor: colorBg }]}
           accessibilityRole="text"
           accessibilityLabel={`Estado: ${membership.estado}`}
         >
@@ -58,7 +60,9 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
     borderRadius:    20,
     padding:         20,
     gap:             10,
-    backgroundColor: colors.heroTop,
+    backgroundColor: colors.card,
+    borderWidth:     1,
+    borderColor:     colors.border,
   },
   topRow: {
     flexDirection:  'row',
@@ -67,7 +71,7 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   },
   iconWrap: {
     width: 36, height: 36, borderRadius: 10,
-    backgroundColor: 'rgba(108,99,255,0.2)',
+    backgroundColor: colors.surface,
     alignItems: 'center', justifyContent: 'center',
   },
   statusPill: {
@@ -77,17 +81,17 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   },
   dot:        { width: 6, height: 6, borderRadius: 3 },
   statusText: { fontSize: 12 * fs, fontWeight: '600' },
-  plan:       { color: '#fff', fontSize: 20 * fs, fontWeight: '700' },
+  plan:       { color: colors.text, fontSize: 20 * fs, fontWeight: '700' },
   bottomRow: {
     flexDirection:  'row',
     justifyContent: 'space-between',
     alignItems:     'flex-end',
     marginTop:      4,
   },
-  miniLabel: { color: 'rgba(255,255,255,0.55)', fontSize: 11 * fs },
-  miniVal:   { color: 'rgba(255,255,255,0.9)',  fontSize: 14 * fs, fontWeight: '600' },
+  miniLabel: { color: colors.textMuted,     fontSize: 11 * fs },
+  miniVal:   { color: colors.text,          fontSize: 14 * fs, fontWeight: '600' },
   daysBox:   { alignItems: 'flex-end' },
-  daysNum:   { fontSize: 28 * fs, fontWeight: '800', lineHeight: 30 },
-  daysLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 11 * fs },
+  daysNum:   { fontSize: 30 * fs, fontWeight: '800', lineHeight: 33 * fs, letterSpacing: -0.5 },
+  daysLabel: { color: colors.textMuted,     fontSize: 11 * fs },
 });
 }

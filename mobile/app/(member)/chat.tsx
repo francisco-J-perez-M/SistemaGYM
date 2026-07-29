@@ -139,7 +139,7 @@ export default function MemberChatScreen() {
                 accessibilityRole="button"
                 accessibilityState={{ selected: isActive }}
               >
-                <Text style={[styles.trainerChipText, isActive && { color: '#fff' }]}>
+                <Text style={[styles.trainerChipText, isActive && { color: colors.onAccent }]}>
                   {trainerName(t)}
                 </Text>
               </TouchableOpacity>
@@ -204,7 +204,8 @@ export default function MemberChatScreen() {
                   <Ionicons
                     name={m.leido ? 'checkmark-done' : 'checkmark'}
                     size={12}
-                    color={m.leido ? '#a0f0c0' : 'rgba(255,255,255,0.5)'}
+                    color={colors.onAccent}
+                    style={{ opacity: m.leido ? 1 : 0.55 }}
                   />
                 )}
               </View>
@@ -236,7 +237,7 @@ export default function MemberChatScreen() {
           accessibilityLabel="Enviar mensaje"
           accessibilityRole="button"
         >
-          <Ionicons name={sending ? 'hourglass-outline' : 'send'} size={18} color="#fff" />
+          <Ionicons name={sending ? 'hourglass-outline' : 'send'} size={18} color={colors.onAccent} />
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -258,7 +259,7 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
                   backgroundColor: colors.card },
   trainerAvatar:{ width: 40, height: 40, borderRadius: 12, backgroundColor: colors.accent,
                   alignItems: 'center', justifyContent: 'center' },
-  trainerInitial:{ color: '#fff', fontSize: 17 * fs, fontWeight: '800' },
+  trainerInitial:{ color: colors.onAccent, fontSize: 17 * fs, fontWeight: '800' },
   trainerName:  { color: colors.text, fontSize: 15 * fs, fontWeight: '700' },
   trainerSpec:  { color: colors.accent, fontSize: 11 * fs },
   refreshBtn:   { padding: 6 },
@@ -271,10 +272,10 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   bubbleThem:   { alignSelf: 'flex-start', backgroundColor: colors.card,
                   borderWidth: 1, borderColor: colors.border, borderBottomLeftRadius: 4 },
   bubbleText:   { color: colors.text, fontSize: 14 * fs, lineHeight: 20 },
-  bubbleTextMe: { color: '#fff' },
+  bubbleTextMe: { color: colors.onAccent },
   bubbleMeta:   { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-end' },
   bubbleTime:   { color: colors.textMuted, fontSize: 10 * fs },
-  bubbleTimeMine: { color: 'rgba(255,255,255,0.6)' },
+  bubbleTimeMine: { color: colors.onAccent, opacity: 0.7 },
   inputBar:     { flexDirection: 'row', alignItems: 'flex-end', gap: 10,
                   paddingTop: 8, paddingHorizontal: 16,
                   borderTopWidth: 1, borderTopColor: colors.border,

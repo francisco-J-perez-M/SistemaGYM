@@ -10,7 +10,6 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
-import { Colors } from '../../constants/Colors';
 import { useColors, useFontScale } from '../../hooks/useColors';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -55,7 +54,7 @@ export default function LoginScreen() {
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
             >
-              <Ionicons name="barbell" size={40} color="#fff" />
+              <Ionicons name="barbell" size={40} color={colors.onAccent} />
             </LinearGradient>
             <Text style={styles.appName}>GymPro</Text>
             <Text style={styles.tagline}>Tu gimnasio en tu bolsillo</Text>
@@ -246,7 +245,7 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
     width:           44,
     height:          44,
     borderRadius:    14,
-    backgroundColor: 'rgba(108,99,255,0.12)',
+    backgroundColor: colors.accentBg,
     alignItems:      'center',
     justifyContent:  'center',
   },

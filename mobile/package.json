@@ -24,6 +24,7 @@
     "expo-font": "~56.0.5",
     "expo-haptics": "~56.0.3",
     "expo-linear-gradient": "~56.0.4",
+    "expo-dev-client": "~56.0.24",
     "expo-linking": "~56.0.12",
     "expo-notifications": "~56.0.17",
     "expo-web-browser": "~56.0.6",

@@ -1,7 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../constants/Colors';
 import { useColors, useFontScale } from '../../hooks/useColors';
 import type { Exercise } from '../../types';
 
@@ -26,7 +25,7 @@ export default function WorkoutRow({ exercise, index, onToggle }: Props) {
     >
       <View style={[styles.check, exercise.completed && styles.checkDone]}>
         {exercise.completed && (
-          <Ionicons name="checkmark" size={14} color="#fff" />
+          <Ionicons name="checkmark" size={14} color={colors.onAccent} />
         )}
       </View>
       <View style={styles.info}>

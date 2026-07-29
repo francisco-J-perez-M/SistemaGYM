@@ -108,7 +108,7 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
     row:     { flexDirection: 'row', alignItems: 'center', gap: 12 },
     avatar:  { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.accent,
                alignItems: 'center', justifyContent: 'center' },
-    initial: { color: '#fff', fontSize: 18 * fs, fontWeight: '800' },
+    initial: { color: colors.onAccent, fontSize: 18 * fs, fontWeight: '800' },
     name:    { color: colors.text, fontSize: 15 * fs, fontWeight: '600' },
     sub:     { color: colors.textSecondary, fontSize: 12 * fs, marginTop: 2 },
     plan:    { color: colors.accent, fontSize: 11 * fs, marginTop: 2 },

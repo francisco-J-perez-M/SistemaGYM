@@ -70,7 +70,7 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
     hero:   { alignItems: 'center', paddingBottom: 28, gap: 8, backgroundColor: colors.heroTop },
     avatar: { width: 80, height: 80, borderRadius: 24, backgroundColor: colors.accent,
               alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
-    initials: { color: '#fff', fontSize: 30 * fs, fontWeight: '800' },
+    initials: { color: colors.onAccent, fontSize: 30 * fs, fontWeight: '800' },
     name:   { color: colors.text, fontSize: 22 * fs, fontWeight: '700' },
     body:   { padding: 20, gap: 16 },
     sectionTitle: { color: colors.text, fontSize: 15 * fs, fontWeight: '700', marginBottom: 12 },

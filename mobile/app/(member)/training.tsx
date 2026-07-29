@@ -15,7 +15,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors } from '../../constants/Colors';
 import { useColors, useFontScale } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
@@ -118,12 +117,13 @@ function TrainerActions({ colors, onTerminar }: { colors: any; onTerminar: () =>
       <View style={{ flexDirection: 'row', gap: 6, marginBottom: 12 }}>
         {[1, 2, 3, 4, 5].map(i => (
           <TouchableOpacity key={i} onPress={() => submit(i)} hitSlop={6}>
-            <Ionicons name={i <= rating ? 'star' : 'star-outline'} size={26} color={i <= rating ? '#FFB300' : colors.textMuted} />
+            <Ionicons name={i <= rating ? 'star' : 'star-outline'} size={26}
+                      color={i <= rating ? colors.promo : colors.textMuted} />
           </TouchableOpacity>
         ))}
       </View>
       <TouchableOpacity onPress={terminar} style={{ alignSelf: 'flex-start' }}>
-        <Text style={{ color: '#EF4444', fontSize: 13, fontWeight: '600' }}>Terminar entrenamiento personal</Text>
+        <Text style={{ color: colors.dataRiesgo, fontSize: 13, fontWeight: '600' }}>Terminar entrenamiento personal</Text>
       </TouchableOpacity>
     </Card>
   );
@@ -268,7 +268,7 @@ export default function TrainingScreen() {
                     accessibilityLabel={`Ver detalle de ${r.nombre}`}
                     accessibilityRole="button"
                   >
-                    <Ionicons name="eye-outline" size={13} color="#fff" />
+                    <Ionicons name="eye-outline" size={13} color={colors.onAccent} />
                     <Text style={mbS.verBtnText}>Ver</Text>
                   </TouchableOpacity>
                   <Ionicons
@@ -332,7 +332,7 @@ export default function TrainingScreen() {
                           }}
                           accessibilityLabel={`Ver detalle de ${ej.nombre}`}
                           accessibilityRole="button">
-                          <Ionicons name="eye-outline" size={13} color="#fff" />
+                          <Ionicons name="eye-outline" size={13} color={colors.onAccent} />
                           <Text style={mbS.verBtnText}>Ver</Text>
                         </TouchableOpacity>
                       </View>
@@ -363,7 +363,7 @@ export default function TrainingScreen() {
                     style={[styles.trainerChip, isActive && styles.trainerChipActive]}
                     onPress={() => setSelectedTrainer(t)}
                   >
-                    <Text style={[styles.trainerChipText, isActive && { color: '#fff' }]}>
+                    <Text style={[styles.trainerChipText, isActive && { color: colors.onAccent }]}>
                       {trainerName(t)}
                     </Text>
                   </TouchableOpacity>
@@ -437,7 +437,7 @@ export default function TrainingScreen() {
                   <View style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleThem]}>
                     <Text style={[styles.bubbleText, isMe && styles.bubbleTextMe]}>{texto}</Text>
                     {hora ? (
-                      <Text style={[styles.bubbleTime, isMe && { color: 'rgba(255,255,255,0.6)' }]}>
+                      <Text style={[styles.bubbleTime, isMe && { color: colors.onAccent, opacity: 0.7 }]}>
                         {toDateStr(hora, 16).slice(11, 16)}
                       </Text>
                     ) : null}
@@ -460,7 +460,7 @@ export default function TrainingScreen() {
                 onPress={handleSend}
                 disabled={!msg.trim() || sending || !trainerId}
               >
-                <Ionicons name="send" size={18} color="#fff" />
+                <Ionicons name="send" size={18} color={colors.onAccent} />
               </TouchableOpacity>
             </View>
           </View>
@@ -484,7 +484,7 @@ export default function TrainingScreen() {
 function make_mbS(colors: ReturnType<typeof useColors>, fs = 1) {
   return StyleSheet.create({
   verBtn:     { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.accent, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 8 },
-  verBtnText: { color: '#fff', fontSize: 11 * fs, fontWeight: '700' },
+  verBtnText: { color: colors.onAccent, fontSize: 11 * fs, fontWeight: '700' },
 });
 }
 
@@ -493,7 +493,7 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   screen:  { flex: 1, backgroundColor: colors.background },
   tabRow:  { flexDirection: 'row', marginHorizontal: 20, marginBottom: 16, backgroundColor: colors.card, borderRadius: 12, padding: 4, borderWidth: 1, borderColor: colors.border },
   tabBtn:  { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 9, borderRadius: 10 },
-  tabBtnActive:  { backgroundColor: 'rgba(108,99,255,0.15)' },
+  tabBtnActive:  { backgroundColor: colors.accentBg },
   tabLabel:      { color: colors.textSecondary, fontSize: 14 * fs, fontWeight: '600' },
   tabLabelActive:{ color: colors.accent },
   list:    { paddingHorizontal: 20, gap: 14, paddingBottom: 32 },
@@ -502,19 +502,19 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   emptyHint: { color: colors.textMuted, fontSize: 13 * fs, textAlign: 'center' },
   rutinaCard:   { gap: 10 },
   rutinaHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  rutinaIconBox:{ width: 44, height: 44, borderRadius: 12, backgroundColor: 'rgba(108,99,255,0.1)', alignItems: 'center', justifyContent: 'center' },
+  rutinaIconBox:{ width: 44, height: 44, borderRadius: 12, backgroundColor: colors.accentBg, alignItems: 'center', justifyContent: 'center' },
   rutinaNombre: { color: colors.text, fontSize: 16 * fs, fontWeight: '700' },
   rutinaMeta:   { color: colors.textSecondary, fontSize: 12 * fs, marginTop: 2 },
   rutinaTrainer:{ color: colors.accent, fontSize: 11 * fs, marginTop: 1 },
   rutinaDesc:   { color: colors.textSecondary, fontSize: 13 * fs, lineHeight: 18 },
-  notasBox:     { flexDirection: 'row', alignItems: 'flex-start', gap: 6, backgroundColor: 'rgba(108,99,255,0.08)', borderRadius: 8, padding: 8 },
+  notasBox:     { flexDirection: 'row', alignItems: 'flex-start', gap: 6, backgroundColor: colors.accentBg, borderRadius: 8, padding: 8 },
   notasText:    { color: colors.textSecondary, fontSize: 12 * fs, flex: 1 },
   diaSection:   { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 10, gap: 8 },
   diaHeader:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
   diaNombre:    { color: colors.accent, fontSize: 13 * fs, fontWeight: '700' },
   diaGrupo:     { color: colors.textSecondary, fontSize: 12 * fs },
   ejRow:        { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  ejNum:        { width: 22, height: 22, borderRadius: 8, backgroundColor: 'rgba(108,99,255,0.12)', alignItems: 'center', justifyContent: 'center' },
+  ejNum:        { width: 22, height: 22, borderRadius: 8, backgroundColor: colors.accentBg, alignItems: 'center', justifyContent: 'center' },
   ejNumText:    { color: colors.accent, fontSize: 11 * fs, fontWeight: '700' },
   ejNombre:     { color: colors.text, fontSize: 14 * fs, fontWeight: '600' },
   ejDetalle:    { color: colors.accent, fontSize: 12 * fs },
@@ -527,7 +527,7 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   trainerRow:   { flexDirection: 'row', alignItems: 'center', gap: 12 },
   trainerAvatar:{ width: 52, height: 52, borderRadius: 16, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   trainerAvatarImg:{ width: 52, height: 52, borderRadius: 16, backgroundColor: colors.surface },
-  trainerInitials: { color: '#fff', fontSize: 22 * fs, fontWeight: '800' },
+  trainerInitials: { color: colors.onAccent, fontSize: 22 * fs, fontWeight: '800' },
   trainerName:  { color: colors.text, fontSize: 16 * fs, fontWeight: '700' },
   trainerSpec:  { color: colors.accent, fontSize: 12 * fs },
   trainerEmail: { color: colors.textSecondary, fontSize: 12 * fs },
@@ -540,7 +540,7 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   bubbleMe:     { alignSelf: 'flex-end', backgroundColor: colors.accent, borderBottomRightRadius: 4 },
   bubbleThem:   { alignSelf: 'flex-start', backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderBottomLeftRadius: 4 },
   bubbleText:   { color: colors.text, fontSize: 14 * fs, lineHeight: 20 },
-  bubbleTextMe: { color: '#fff' },
+  bubbleTextMe: { color: colors.onAccent },
   bubbleTime:   { color: colors.textMuted, fontSize: 10 * fs, alignSelf: 'flex-end' },
   inputBar:     { flexDirection: 'row', alignItems: 'flex-end', gap: 10, paddingTop: 8, borderTopWidth: 1, borderTopColor: colors.border },
   textInput:    { flex: 1, maxHeight: 100, backgroundColor: colors.card, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, color: colors.text, fontSize: 14 * fs, borderWidth: 1, borderColor: colors.border },

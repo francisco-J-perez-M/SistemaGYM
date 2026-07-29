@@ -42,11 +42,13 @@ export default function Button({
     ghost:     { backgroundColor: 'transparent' },
     danger:    { backgroundColor: colors.error },
   };
+  // El texto del botón primario NO es blanco fijo: lo decide la paleta, porque
+  // sobre un acento luminoso el blanco no se lee. Ver `onAccent` en themes.ts.
   const labelColors: Record<Variant, string> = {
-    primary:   '#fff',
+    primary:   colors.onAccent,
     secondary: colors.text,
     ghost:     colors.accent,
-    danger:    '#fff',
+    danger:    '#FFFFFF',   // el rojo de error siempre es oscuro en toda paleta
   };
 
   return (

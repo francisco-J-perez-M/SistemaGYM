@@ -51,10 +51,12 @@ export default function CustomDrawer(props: DrawerContentComponentProps) {
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
           <View style={styles.headerTop}>
             {user?.foto_perfil && user.foto_perfil.startsWith('data:image') ? (
-              <Image source={{ uri: user.foto_perfil }} style={styles.avatarImg} resizeMode="cover" />
+              <Image source={{ uri: user.foto_perfil }}
+                     style={[styles.avatarImg, { backgroundColor: colors.surface }]}
+                     resizeMode="cover" />
             ) : (
               <View style={[styles.avatar, { backgroundColor: colors.accent }]}>
-                <Text style={styles.initials}>{initials}</Text>
+                <Text style={[styles.initials, { color: colors.onAccent }]}>{initials}</Text>
               </View>
             )}
             <View style={styles.headerActions}>
@@ -171,8 +173,8 @@ const styles = StyleSheet.create({
   headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
   headerActions: { flexDirection: 'row', gap: 8 },
   avatar:    { width: 60, height: 60, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  avatarImg: { width: 60, height: 60, borderRadius: 20, backgroundColor: '#1e293b' },
-  initials:  { color: '#fff', fontSize: 24, fontWeight: '800' },
+  avatarImg: { width: 60, height: 60, borderRadius: 20 },
+  initials:  { fontSize: 24, fontWeight: '800' },   // color: colors.onAccent en línea
   a11yBtn:   { width: 36, height: 36, borderRadius: 10, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   name:      { fontWeight: '700' },
   email:     {},

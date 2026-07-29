@@ -78,7 +78,7 @@ export default function CheckinsScreen() {
             </View>
             <TouchableOpacity style={styles.addBtn} onPress={() => setPicker(true)}
               accessibilityRole="button" accessibilityLabel="Registrar check-in">
-              <Ionicons name="add" size={20} color="#fff" />
+              <Ionicons name="add" size={20} color={colors.onAccent} />
               <Text style={styles.addBtnText}>Registrar</Text>
             </TouchableOpacity>
           </View>
@@ -164,13 +164,13 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
     subtitle:{ color: colors.textSecondary, fontSize: 13 * fs },
     addBtn:  { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.accent,
                borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 },
-    addBtnText: { color: '#fff', fontSize: 13 * fs, fontWeight: '700' },
+    addBtnText: { color: colors.onAccent, fontSize: 13 * fs, fontWeight: '700' },
     empty:     { alignItems: 'center', paddingVertical: 40, gap: 10 },
     emptyText: { color: colors.textMuted, fontSize: 14 * fs, textAlign: 'center', paddingVertical: 8 },
     row:     { flexDirection: 'row', alignItems: 'center', gap: 12 },
     avatar:  { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.accent,
                alignItems: 'center', justifyContent: 'center' },
-    initial: { color: '#fff', fontSize: 18 * fs, fontWeight: '800' },
+    initial: { color: colors.onAccent, fontSize: 18 * fs, fontWeight: '800' },
     name:    { color: colors.text, fontSize: 15 * fs, fontWeight: '600' },
     time:    { color: colors.textSecondary, fontSize: 12 * fs, marginTop: 2 },
 

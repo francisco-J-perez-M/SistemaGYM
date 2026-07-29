@@ -28,12 +28,39 @@ cd mobile/
 npm install
 
 # Iniciar el bundler de Expo
-npx expo start
-#   Escanea el QR con Expo Go, o abre en un emulador Android.
+npm start          # equivale a: expo start --host lan
 ```
 
-En Windows también existe el script `start-mobile.ps1` en la raíz del proyecto como
-atajo para iniciar el entorno móvil.
+El teléfono y la computadora deben estar en la **misma red WiFi**, y los contenedores
+del backend levantados (`docker compose up -d`), porque la app consume la API en el
+puerto 8080 de esa máquina.
+
+### Development build (recomendado)
+
+El proyecto usa **development build** en lugar de Expo Go. La razón: Expo Go solo
+soporta la última versión del SDK y trae un conjunto fijo de módulos nativos, por lo
+que rompe cada vez que Expo publica un SDK nuevo o cuando el proyecto agrega una
+librería nativa propia (por ejemplo `expo-web-browser`, que usa el checkout de pagos).
+
+Se genera **una sola vez** y luego se reutiliza:
+
+```bash
+# 1. Generar el APK de desarrollo (tarda unos minutos, corre en la nube de Expo)
+npx eas build -p android --profile development
+
+# 2. Instalar el APK en el teléfono (link o QR que entrega EAS al terminar)
+
+# 3. A partir de aquí, el día a día es solo esto:
+npm start
+#   Se abre la app instalada y se conecta al bundler. Fast Refresh incluido.
+```
+
+Solo hay que volver a generar el build cuando se agregan o actualizan **dependencias
+nativas**; los cambios de JavaScript se aplican al instante con Fast Refresh.
+
+> Si se prefiere Expo Go, debe instalarse la versión correspondiente al SDK del
+> proyecto desde https://expo.dev/go (la de Google Play siempre es la más reciente y
+> suele ser incompatible).
 
 ### Resolución de la URL de la API
 
@@ -42,23 +69,44 @@ bundler de Expo. Para fijarla de forma explícita (emuladores o producción) se 
 variable de entorno:
 
 ```
-EXPO_PUBLIC_API_BASE_URL=http://<host>:5000/api
+EXPO_PUBLIC_API_BASE_URL=http://<host>:8080/api
 ```
 
-Referencias por defecto: emulador Android usa `10.0.2.2:5000`; en un dispositivo físico
+Referencias por defecto: emulador Android usa `10.0.2.2:8080`; en un dispositivo físico
 se usa la IP de la máquina que corre la API.
+
+**Importante para los builds de release** (`preview` y `production`): en esos perfiles
+`__DEV__` es `false`, por lo que la detección automática NO aplica y la app usaría
+`localhost` — que dentro del teléfono apunta al propio teléfono. La URL debe fijarse en
+el bloque `env` del perfil correspondiente en `eas.json`. En el perfil `preview` hay un
+valor de ejemplo (`192.168.1.100`) que debe reemplazarse por la IP real de la máquina
+(`ipconfig` → IPv4 del adaptador WiFi).
+
+El perfil `development` no necesita esa variable: se conecta al bundler y resuelve la
+IP automáticamente.
 
 ---
 
 ## Compilación (Android)
 
 ```bash
+# Development build — para desarrollar (se instala una vez y se reutiliza)
+npx eas build -p android --profile development
+
+# APK instalable para probar la app compilada (requiere EXPO_PUBLIC_API_BASE_URL)
+npx eas build -p android --profile preview
+
 # Build de producción (App Bundle para Google Play)
 npx eas build -p android --profile production
-
-# Build de desarrollo (habilita notificaciones push reales, que no funcionan en Expo Go)
-npx eas build -p android --profile development
 ```
+
+La primera vez EAS pedirá iniciar sesión (`npx eas login`) y generará automáticamente
+la keystore de firma de Android.
+
+> El proyecto no incluye `expo-updates`, por lo que **no hay actualizaciones por aire
+> (OTA)**: cualquier cambio en un APK ya instalado (`preview` / `production`) exige
+> generar e instalar un build nuevo. Esto no aplica al development build, donde el
+> código se sirve desde el bundler.
 
 ---
 

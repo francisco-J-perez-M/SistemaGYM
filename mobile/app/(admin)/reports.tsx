@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LineChart } from 'react-native-chart-kit';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors, useFontScale } from '../../hooks/useColors';
+import { conAlfa } from '../../constants/themes';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
 import { toArray, toDateStr } from '../../utils/format';
@@ -95,7 +96,7 @@ export default function ReportsScreen() {
           </TouchableOpacity>
           <TouchableOpacity style={styles.pdfBtn} onPress={downloadPdf} disabled={downloading}
             accessibilityRole="button" accessibilityLabel="Descargar PDF de ingresos">
-            <Ionicons name={downloading ? 'hourglass-outline' : 'document-text-outline'} size={16} color="#fff" />
+            <Ionicons name={downloading ? 'hourglass-outline' : 'document-text-outline'} size={16} color={colors.onAccent} />
             <Text style={styles.pdfText}>{downloading ? 'Generando…' : 'PDF'}</Text>
           </TouchableOpacity>
         </View>
@@ -163,7 +164,7 @@ export default function ReportsScreen() {
               backgroundGradientFrom: colors.card,
               backgroundGradientTo:   colors.card,
               decimalPlaces: 0,
-              color:      (o = 1) => `rgba(108,99,255,${o})`,
+              color:      (o = 1) => conAlfa(colors.dataActividad, o),
               labelColor: () => colors.textSecondary,
               propsForDots: { r: '4', strokeWidth: '2', stroke: colors.accentLight },
             }}
@@ -221,7 +222,7 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
     iconBtn:  { backgroundColor: colors.accent + '1A', borderRadius: 12, padding: 9 },
     pdfBtn:   { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.accent,
                 borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9 },
-    pdfText:  { color: '#fff', fontSize: 13 * fs, fontWeight: '700' },
+    pdfText:  { color: colors.onAccent, fontSize: 13 * fs, fontWeight: '700' },
 
     cardLabel:{ color: colors.textSecondary, fontSize: 13 * fs },
     bigValue: { color: colors.text, fontSize: 34 * fs, fontWeight: '800', marginTop: 4 },

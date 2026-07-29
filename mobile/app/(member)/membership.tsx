@@ -216,7 +216,7 @@ export default function MembershipScreen() {
         label={showRenew ? 'Cerrar' : (membership ? 'Renovar membresía' : 'Contratar plan')}
         variant={showRenew ? 'secondary' : 'primary'}
         onPress={() => setShowRenew((v) => !v)}
-        icon={<Ionicons name={showRenew ? 'close' : 'refresh-outline'} size={18} color={showRenew ? colors.text : '#fff'} />}
+        icon={<Ionicons name={showRenew ? 'close' : 'refresh-outline'} size={18} color={showRenew ? colors.text : colors.onAccent} />}
       />
 
       {/* ── Apartado de renovación ────────────────────────────── */}
@@ -280,7 +280,7 @@ export default function MembershipScreen() {
 
                   {/* Precio protagonista */}
                   <View style={styles.precioRow}>
-                    <Text style={[styles.planPrice, esPromo && { color: '#f59e0b' }]}>
+                    <Text style={[styles.planPrice, esPromo && { color: colors.promo }]}>
                       ${plan.precio}
                     </Text>
                     <Text style={styles.precioMoneda}>MXN</Text>
@@ -305,7 +305,7 @@ export default function MembershipScreen() {
                     )}
                     {esPromo && (
                       <View style={styles.tagPromo}>
-                        <Ionicons name="flame" size={11} color="#f59e0b" />
+                        <Ionicons name="flame" size={11} color={colors.promo} />
                         <Text style={styles.tagPromoText}>
                           {plan.dias_restantes_promo == null
                             ? 'Promoción'
@@ -326,7 +326,7 @@ export default function MembershipScreen() {
                     <View style={styles.beneficios}>
                       {plan.beneficios.map((b, i) => (
                         <View key={i} style={styles.beneficioRow}>
-                          <Ionicons name="checkmark-circle" size={14} color="#22c55e" />
+                          <Ionicons name="checkmark-circle" size={14} color={colors.dataProgreso} />
                           <Text style={styles.beneficioText}>{b}</Text>
                         </View>
                       ))}
@@ -382,9 +382,9 @@ export default function MembershipScreen() {
                       <Ionicons
                         name={m.id === 'Efectivo' ? 'cash-outline' : 'card-outline'}
                         size={16}
-                        color={active ? '#fff' : colors.textSecondary}
+                        color={active ? colors.onAccent : colors.textSecondary}
                       />
-                      <Text style={[styles.metodoText, active && { color: '#fff' }]}>{m.label}</Text>
+                      <Text style={[styles.metodoText, active && { color: colors.onAccent }]}>{m.label}</Text>
                     </TouchableOpacity>
                   );
                 })}
@@ -475,10 +475,10 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
       borderColor: colors.accent, borderWidth: 2,
       backgroundColor: colors.accent + '12',
     },
-    // Las promociones se destacan con un halo ámbar, como en la web
+    // Las promociones se destacan con un halo del color comercial de la paleta
     planCardPromo: {
-      borderColor: 'rgba(245,158,11,0.55)',
-      shadowColor: '#f59e0b', shadowOpacity: 0.35, shadowRadius: 10,
+      borderColor: colors.promo,
+      shadowColor: colors.promo, shadowOpacity: 0.35, shadowRadius: 10,
       shadowOffset: { width: 0, height: 0 }, elevation: 6,
     },
     planHeader:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
@@ -487,10 +487,10 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
     // Cinta superior de las promociones
     cintaPromo: {
       position: 'absolute', top: 0, alignSelf: 'center',
-      backgroundColor: '#f59e0b', paddingHorizontal: 12, paddingVertical: 3,
+      backgroundColor: colors.promo, paddingHorizontal: 12, paddingVertical: 3,
       borderBottomLeftRadius: 8, borderBottomRightRadius: 8,
     },
-    cintaPromoText: { color: '#fff', fontSize: 9.5 * fs, fontWeight: '800', letterSpacing: 0.6 },
+    cintaPromoText: { color: colors.background, fontSize: 9.5 * fs, fontWeight: '800', letterSpacing: 0.6 },
 
     precioRow:    { flexDirection: 'row', alignItems: 'baseline', gap: 5, marginTop: 10 },
     precioMoneda: { color: colors.textSecondary, fontSize: 12 * fs, fontWeight: '600' },
@@ -513,12 +513,13 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
     planDesc:     { color: colors.textSecondary, fontSize: 12.5 * fs, lineHeight: 18 * fs, marginTop: 10 },
 
     planTags:     { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
-    tagSave:      { backgroundColor: 'rgba(34,197,94,0.14)', borderRadius: 7, paddingHorizontal: 8, paddingVertical: 3 },
-    tagSaveText:  { color: '#22c55e', fontSize: 11 * fs, fontWeight: '700' },
+    // Ahorro = el usuario gana -> tono progreso.  Promoción -> tono comercial.
+    tagSave:      { backgroundColor: colors.dataProgresoBg, borderRadius: 7, paddingHorizontal: 8, paddingVertical: 3 },
+    tagSaveText:  { color: colors.dataProgreso, fontSize: 11 * fs, fontWeight: '700' },
     tagPromo:     { flexDirection: 'row', alignItems: 'center', gap: 4,
-                    backgroundColor: 'rgba(245,158,11,0.16)', borderRadius: 7,
+                    backgroundColor: colors.promoBg, borderRadius: 7,
                     paddingHorizontal: 8, paddingVertical: 3 },
-    tagPromoText: { color: '#f59e0b', fontSize: 11 * fs, fontWeight: '700' },
+    tagPromoText: { color: colors.promo, fontSize: 11 * fs, fontWeight: '700' },
 
     beneficios:    { marginTop: 12, gap: 6 },
     beneficioRow:  { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },

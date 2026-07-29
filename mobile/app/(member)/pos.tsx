@@ -58,7 +58,7 @@ function ProductImage({ uri, size, colors }: { uri?: string; size: number; color
   if (!uri || err) {
     return (
       <View style={{ width: size, height: size, borderRadius: 12,
-        backgroundColor: 'rgba(108,99,255,0.1)', alignItems: 'center', justifyContent: 'center' }}>
+        backgroundColor: colors.accentBg, alignItems: 'center', justifyContent: 'center' }}>
         <Ionicons name="cube-outline" size={size * 0.45} color={colors.accent} />
       </View>
     );
@@ -240,7 +240,7 @@ export default function MemberPOSScreen() {
                     <TouchableOpacity style={styles.addBtn}
                       onPress={() => { addToCart(p); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
                       accessibilityLabel={`Agregar ${p.nombre} al carrito`}>
-                      <Ionicons name="add" size={18} color="#fff" />
+                      <Ionicons name="add" size={18} color={colors.onAccent} />
                       <Text style={styles.addBtnText}>Agregar</Text>
                     </TouchableOpacity>
                   ) : (
@@ -263,7 +263,7 @@ export default function MemberPOSScreen() {
             <TouchableOpacity style={styles.checkoutBtn}
               onPress={() => setShowCheckout(true)}
               accessibilityLabel={`Finalizar compra, total $${cartTotal.toFixed(2)}`}>
-              <Ionicons name="cart-outline" size={20} color="#fff" />
+              <Ionicons name="cart-outline" size={20} color={colors.onAccent} />
               <Text style={styles.checkoutText}>
                 Comprar ({cartCount}) — ${cartTotal.toFixed(2)}
               </Text>
@@ -363,7 +363,7 @@ export default function MemberPOSScreen() {
                 ) : (
                   <TouchableOpacity style={[styles.addBtn, { marginTop: 12 }]}
                     onPress={() => { addToCart(detailProd); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setDetailProd(null); }}>
-                    <Ionicons name="cart-outline" size={18} color="#fff" />
+                    <Ionicons name="cart-outline" size={18} color={colors.onAccent} />
                     <Text style={styles.addBtnText}>Agregar al carrito</Text>
                   </TouchableOpacity>
                 )}
@@ -410,8 +410,8 @@ export default function MemberPOSScreen() {
                     accessibilityRole="radio" accessibilityState={{ checked: metodo === m }}>
                     <Ionicons
                       name={m === 'Efectivo' ? 'cash-outline' : m === 'Tarjeta' ? 'card-outline' : 'swap-horizontal-outline'}
-                      size={16} color={metodo === m ? '#fff' : colors.textSecondary} />
-                    <Text style={[styles.metodoText, metodo === m && { color: '#fff' }]}>{m}</Text>
+                      size={16} color={metodo === m ? colors.onAccent : colors.textSecondary} />
+                    <Text style={[styles.metodoText, metodo === m && { color: colors.onAccent }]}>{m}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -452,7 +452,7 @@ export default function MemberPOSScreen() {
                 disabled={buying}
                 accessibilityLabel="Confirmar y pagar"
                 accessibilityRole="button">
-                <Ionicons name={buying ? 'hourglass-outline' : 'checkmark-circle-outline'} size={20} color="#fff" />
+                <Ionicons name={buying ? 'hourglass-outline' : 'checkmark-circle-outline'} size={20} color={colors.onAccent} />
                 <Text style={styles.confirmBtnText}>{buying ? 'Procesando…' : 'Confirmar pago'}</Text>
               </TouchableOpacity>
             </ScrollView>
@@ -470,13 +470,14 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   tabBtn:  { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
              gap: 6, paddingVertical: 10, borderRadius: 12, position: 'relative',
              backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
-  tabBtnActive:  { backgroundColor: 'rgba(108,99,255,0.15)', borderColor: colors.accent },
+  tabBtnActive:  { backgroundColor: colors.accentBg, borderColor: colors.accent },
   tabLabel:      { color: colors.textSecondary, fontSize: 13 * fs, fontWeight: '600' },
   tabLabelActive:{ color: colors.accent },
   cartBadge: { position: 'absolute', top: -6, right: -6, backgroundColor: colors.error,
                borderRadius: 10, minWidth: 20, height: 20, alignItems: 'center',
                justifyContent: 'center', paddingHorizontal: 4 },
-  cartBadgeText: { color: '#fff', fontSize: 11 * fs, fontWeight: '800' },
+  // Va sobre colors.error, que es rojo saturado en toda paleta: blanco fijo.
+  cartBadgeText: { color: '#FFFFFF', fontSize: 11 * fs, fontWeight: '800' },
   grid: { padding: 16, gap: 12, paddingBottom: 110 },
   list: { padding: 16, gap: 10, paddingBottom: 32 },
   productCard: { flex: 1, backgroundColor: colors.card, borderRadius: 16,
@@ -488,9 +489,9 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   productStock: { color: colors.textMuted, fontSize: 11 * fs },
   addBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
             backgroundColor: colors.accent, borderRadius: 10, paddingVertical: 8, width: '100%' },
-  addBtnText: { color: '#fff', fontSize: 13 * fs, fontWeight: '700' },
+  addBtnText: { color: colors.onAccent, fontSize: 13 * fs, fontWeight: '700' },
   qtyRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-            backgroundColor: 'rgba(108,99,255,0.1)', borderRadius: 10,
+            backgroundColor: colors.accentBg, borderRadius: 10,
             paddingHorizontal: 4, paddingVertical: 4, width: '100%' },
   qtyBtn: { padding: 6 },
   qtyNum: { color: colors.accent, fontSize: 16 * fs, fontWeight: '700', minWidth: 24, textAlign: 'center' },
@@ -498,11 +499,11 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
                  flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
                  backgroundColor: colors.accent, borderRadius: 16, paddingVertical: 16,
                  shadowColor: colors.accent, shadowOpacity: 0.4, shadowRadius: 10, elevation: 8 },
-  checkoutText: { color: '#fff', fontSize: 16 * fs, fontWeight: '700' },
+  checkoutText: { color: colors.onAccent, fontSize: 16 * fs, fontWeight: '700' },
   compraCard:    { flexDirection: 'row', alignItems: 'flex-start', gap: 12,
                    backgroundColor: colors.card, borderRadius: 14, padding: 14,
                    borderWidth: 1, borderColor: colors.border },
-  compraIconBox: { width: 38, height: 38, borderRadius: 10, backgroundColor: 'rgba(108,99,255,0.1)',
+  compraIconBox: { width: 38, height: 38, borderRadius: 10, backgroundColor: colors.accentBg,
                    alignItems: 'center', justifyContent: 'center' },
   compraFecha:   { color: colors.textSecondary, fontSize: 12 * fs, marginBottom: 2 },
   compraMetodo:  { color: colors.accent, fontSize: 11 * fs, marginBottom: 4 },
@@ -511,14 +512,14 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   empty:         { alignItems: 'center', paddingVertical: 60, gap: 12 },
   emptyText:     { color: colors.textMuted, fontSize: 14 * fs, fontWeight: '600', textAlign: 'center' },
   // Modal
-  modalOverlay:  { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' },
+  modalOverlay:  { flex: 1, justifyContent: 'flex-end', backgroundColor: colors.overlay },
   modalBackdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   modalSheet:    { backgroundColor: colors.background, borderTopLeftRadius: 24, borderTopRightRadius: 24,
                    padding: 20, maxHeight: '90%' },
   modalHandle:   { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border,
                    alignSelf: 'center', marginBottom: 16 },
   noImgPlaceholder: { width: 260, height: 260, borderRadius: 16, alignSelf: 'center',
-                      backgroundColor: 'rgba(108,99,255,0.08)', alignItems: 'center', justifyContent: 'center' },
+                      backgroundColor: colors.accentBg, alignItems: 'center', justifyContent: 'center' },
   imgDots:       { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 8 },
   imgDot:        { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.border },
   imgDotActive:  { backgroundColor: colors.accent, width: 16 },
@@ -550,6 +551,6 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
                    borderWidth: 1, borderColor: colors.border },
   confirmBtn:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
                    backgroundColor: colors.accent, borderRadius: 14, paddingVertical: 16, marginTop: 8 },
-  confirmBtnText:{ color: '#fff', fontSize: 16 * fs, fontWeight: '700' },
+  confirmBtnText:{ color: colors.onAccent, fontSize: 16 * fs, fontWeight: '700' },
 });
 }

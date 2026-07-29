@@ -203,7 +203,7 @@ export default function WorkoutLogScreen() {
                 return (
                   <TouchableOpacity key={r.id} onPress={() => onRoutine(r)}
                     style={[styles.chip, active && { backgroundColor: colors.accent, borderColor: colors.accent }]}>
-                    <Text style={[styles.chipTxt, active && { color: '#fff' }]}>{r.nombre}</Text>
+                    <Text style={[styles.chipTxt, active && { color: colors.onAccent }]}>{r.nombre}</Text>
                   </TouchableOpacity>
                 );
               })}
@@ -219,7 +219,7 @@ export default function WorkoutLogScreen() {
                     return (
                       <TouchableOpacity key={d.id} onPress={() => onDay(d)}
                         style={[styles.chip, active && { backgroundColor: colors.accent, borderColor: colors.accent }]}>
-                        <Text style={[styles.chipTxt, active && { color: '#fff' }]}>
+                        <Text style={[styles.chipTxt, active && { color: colors.onAccent }]}>
                           {(d.dia || 'Día') + (d.grupo ? ` · ${d.grupo}` : '') + (dayMatchesToday(d) ? ' · hoy' : '')}
                         </Text>
                       </TouchableOpacity>

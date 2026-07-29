@@ -114,7 +114,7 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
     tabRow:  { flexDirection: 'row', marginHorizontal: 20, marginBottom: 10, backgroundColor: colors.card,
                borderRadius: 12, padding: 4, borderWidth: 1, borderColor: colors.border },
     tabBtn:  { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 10 },
-    tabBtnActive:  { backgroundColor: 'rgba(108,99,255,0.15)' },
+    tabBtnActive:  { backgroundColor: colors.accentBg },
     tabLabel:      { color: colors.textSecondary, fontSize: 13 * fs, fontWeight: '600' },
     tabLabelActive:{ color: colors.accent },
     totalBanner: { flexDirection: 'row', alignItems: 'center', gap: 14, marginHorizontal: 20, marginBottom: 10,

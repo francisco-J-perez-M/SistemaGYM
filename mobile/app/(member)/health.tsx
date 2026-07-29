@@ -192,7 +192,7 @@ export default function HealthScreen() {
           accessibilityRole="button"
           accessibilityLabel="Registrar medidas"
         >
-          <Ionicons name="add" size={22} color="#fff" />
+          <Ionicons name="add" size={22} color={colors.onAccent} />
         </TouchableOpacity>
       </View>
 
@@ -397,7 +397,7 @@ function ChipEditor({
           placeholderTextColor={colors.textMuted}
         />
         <TouchableOpacity style={styles.chipAddBtn} onPress={add} accessibilityLabel={`Añadir a ${title}`}>
-          <Ionicons name="add" size={20} color="#fff" />
+          <Ionicons name="add" size={20} color={colors.onAccent} />
         </TouchableOpacity>
       </View>
     </View>
