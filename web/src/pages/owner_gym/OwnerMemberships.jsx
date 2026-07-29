@@ -30,6 +30,7 @@ const S = {
 
   // Las promociones activas llevan un halo ámbar que las destaca del resto.
   card: (activo, tipo) => ({
+    position:      "relative",   // ancla la cinta de "Promoción"
     background:    "var(--bg-card)",
     border:        `1px solid ${tipo === "promocion" && activo ? "rgba(245,158,11,.55)" : "var(--border)"}`,
     borderTop:     `3px solid ${tipo === "promocion" ? "#f59e0b" : activo ? "#6366f1" : "#374151"}`,
@@ -402,10 +403,27 @@ export default function OwnerMemberships() {
           {displayed.map(m => {
             const tcfg = TIPO_CFG[m.tipo] || TIPO_CFG.estandar;
             return (
-              <div key={m.id} style={S.card(m.activo, m.tipo)}>
+              <div key={m.id} style={{
+                ...S.card(m.activo, m.tipo),
+                paddingTop: m.tipo === "promocion" && m.activo ? 30 : 20,
+              }}>
+                {/* Cinta de promoción, al estilo del plan destacado */}
+                {m.tipo === "promocion" && m.activo && (
+                  <div style={{
+                    position: "absolute", top: 0, left: "50%", transform: "translateX(-50%)",
+                    background: "#f59e0b", color: "#fff", fontSize: 10.5, fontWeight: 800,
+                    letterSpacing: ".06em", padding: "4px 14px", borderRadius: "0 0 8px 8px",
+                    textTransform: "uppercase",
+                  }}>
+                    Promoción
+                  </div>
+                )}
+
                 {/* Cabecera */}
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-                  <span style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)", lineHeight: 1.3 }}>{m.nombre}</span>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 17, fontWeight: 800, color: "var(--text-primary)", lineHeight: 1.3 }}>
+                    {m.nombre}
+                  </span>
                   <div style={{ display: "flex", gap: 6, flexShrink: 0, flexWrap: "wrap", justifyContent: "flex-end" }}>
                     <span style={S.pill(tcfg.color)}>
                       <tcfg.Icon size={10} /> {tcfg.label}
@@ -416,17 +434,33 @@ export default function OwnerMemberships() {
                   </div>
                 </div>
 
-                {/* Precio */}
-                <div style={{ fontSize: 30, fontWeight: 800, letterSpacing: "-.02em", color: m.tipo === "promocion" ? "#f59e0b" : "#6366f1" }}>
-                  {fmt(m.precio)}
+                {/* Descripción como subtítulo comercial */}
+                <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "2px 0 0", minHeight: 32, lineHeight: 1.4 }}>
+                  {m.descripcion || "Sin descripción"}
+                </p>
+
+                {/* Precio protagonista */}
+                <div style={{ display: "flex", alignItems: "baseline", gap: 5, margin: "10px 0 4px" }}>
+                  <span style={{
+                    fontSize: 30, fontWeight: 800, letterSpacing: "-.5px",
+                    color: m.tipo === "promocion" ? "#f59e0b" : "var(--text-primary)",
+                  }}>
+                    {fmt(m.precio)}
+                  </span>
+                  <span style={{ fontSize: 12.5, color: "var(--text-secondary)", fontWeight: 600 }}>
+                    MXN
+                  </span>
                 </div>
 
-                {/* Duración + precio mensual */}
-                <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                {/* Duración como chip */}
+                <div style={{
+                  display: "inline-flex", alignItems: "center", gap: 6, alignSelf: "flex-start",
+                  background: "var(--bg-input)", borderRadius: 8, padding: "5px 10px",
+                  fontSize: 11.5, color: "var(--text-secondary)", fontWeight: 600, marginBottom: 4,
+                }}>
+                  <FiClock size={12} />
                   {m.duracion_meses === 1 ? "1 mes" : `${m.duracion_meses} meses`}
-                  <span style={{ marginLeft: 8, color: "var(--text-tertiary)", fontSize: 12 }}>
-                    · {fmt(m.precio / m.duracion_meses)}/mes
-                  </span>
+                  {m.duracion_meses > 1 && ` · ${fmt(m.precio / m.duracion_meses)}/mes`}
                 </div>
 
                 {/* Vigencia de la promoción */}
@@ -450,22 +484,21 @@ export default function OwnerMemberships() {
                   </div>
                 )}
 
-                {/* Descripción */}
-                {m.descripcion
-                  ? <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0, lineHeight: 1.5 }}>{m.descripcion}</p>
-                  : <p style={{ fontSize: 12, color: "var(--text-tertiary)", margin: 0, fontStyle: "italic" }}>Sin descripción</p>
-                }
-
-                {/* Beneficios incluidos */}
-                {Array.isArray(m.beneficios) && m.beneficios.length > 0 && (
-                  <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+                {/* Beneficios incluidos — ocupan el espacio libre para que
+                    todas las tarjetas alineen sus acciones a la misma altura */}
+                {Array.isArray(m.beneficios) && m.beneficios.length > 0 ? (
+                  <ul style={{ listStyle: "none", padding: 0, margin: "4px 0 0", display: "flex", flexDirection: "column", gap: 7, flex: 1 }}>
                     {m.beneficios.map((b, i) => (
-                      <li key={i} style={{ display: "flex", gap: 7, fontSize: 12.5, color: "var(--text-primary)", lineHeight: 1.4 }}>
+                      <li key={i} style={{ display: "flex", gap: 8, fontSize: 12.5, color: "var(--text-primary)", lineHeight: 1.45 }}>
                         <FiCheck size={13} style={{ color: "var(--success)", flexShrink: 0, marginTop: 2 }} />
                         <span>{b}</span>
                       </li>
                     ))}
                   </ul>
+                ) : (
+                  <p style={{ fontSize: 12, color: "var(--text-tertiary)", margin: "4px 0 0", fontStyle: "italic", flex: 1 }}>
+                    Sin beneficios definidos
+                  </p>
                 )}
 
                 {/* Contenido del combo */}

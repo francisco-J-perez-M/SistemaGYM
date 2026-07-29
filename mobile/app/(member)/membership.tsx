@@ -237,22 +237,39 @@ export default function MembershipScreen() {
                   accessibilityState={{ checked: isSel }}
                   accessibilityLabel={`${plan.nombre}, $${plan.precio}, ${plan.duracion_meses} meses`}
                 >
-                  {/* Encabezado: nombre + precio */}
+                  {/* Cinta de promoción, igual que en la web */}
+                  {esPromo && (
+                    <View style={styles.cintaPromo}>
+                      <Text style={styles.cintaPromoText}>PROMOCIÓN</Text>
+                    </View>
+                  )}
+
+                  {/* Encabezado: selector + nombre */}
                   <View style={styles.planHeader}>
                     <View style={styles.planHeaderLeft}>
                       <View style={[styles.radio, isSel && styles.radioActive]}>
                         {isSel && <View style={styles.radioDot} />}
                       </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.planName}>{plan.nombre}</Text>
-                        <Text style={styles.planDuration}>
-                          {plan.duracion_meses} {plan.duracion_meses === 1 ? 'mes' : 'meses'}
-                          {plan.duracion_meses > 1 &&
-                            ` · $${Math.round(plan.precio / plan.duracion_meses)}/mes`}
-                        </Text>
-                      </View>
+                      <Text style={styles.planName}>{plan.nombre}</Text>
                     </View>
-                    <Text style={styles.planPrice}>${plan.precio}</Text>
+                  </View>
+
+                  {/* Precio protagonista */}
+                  <View style={styles.precioRow}>
+                    <Text style={[styles.planPrice, esPromo && { color: '#f59e0b' }]}>
+                      ${plan.precio}
+                    </Text>
+                    <Text style={styles.precioMoneda}>MXN</Text>
+                  </View>
+
+                  {/* Duración como chip */}
+                  <View style={styles.chipDuracion}>
+                    <Ionicons name="time-outline" size={12} color={colors.textSecondary} />
+                    <Text style={styles.chipDuracionText}>
+                      {plan.duracion_meses} {plan.duracion_meses === 1 ? 'mes' : 'meses'}
+                      {plan.duracion_meses > 1 &&
+                        ` · $${Math.round(plan.precio / plan.duracion_meses)}/mes`}
+                    </Text>
                   </View>
 
                   {/* Etiquetas: ahorro y vigencia de la promoción */}
@@ -421,6 +438,24 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
     },
     planHeader:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
     planHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
+
+    // Cinta superior de las promociones
+    cintaPromo: {
+      position: 'absolute', top: 0, alignSelf: 'center',
+      backgroundColor: '#f59e0b', paddingHorizontal: 12, paddingVertical: 3,
+      borderBottomLeftRadius: 8, borderBottomRightRadius: 8,
+    },
+    cintaPromoText: { color: '#fff', fontSize: 9.5 * fs, fontWeight: '800', letterSpacing: 0.6 },
+
+    precioRow:    { flexDirection: 'row', alignItems: 'baseline', gap: 5, marginTop: 10 },
+    precioMoneda: { color: colors.textSecondary, fontSize: 12 * fs, fontWeight: '600' },
+
+    chipDuracion: {
+      flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start',
+      backgroundColor: colors.card, borderRadius: 8,
+      paddingHorizontal: 9, paddingVertical: 5, marginTop: 8,
+    },
+    chipDuracionText: { color: colors.textSecondary, fontSize: 11.5 * fs, fontWeight: '600' },
 
     radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: colors.border,
              alignItems: 'center', justifyContent: 'center' },
