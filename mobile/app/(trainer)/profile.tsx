@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors, useFontScale } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
-import { toStr } from '../../utils/format';
+import { toStr, toArray } from '../../utils/format';
 import { useAuth } from '../../hooks/useAuth';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import AccessibilityPanel from '../../components/settings/AccessibilityPanel';
@@ -24,6 +24,15 @@ import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
 import api from '../../services/api';
 
+/** Certificación tal como la guarda y devuelve la API. */
+interface Certificacion {
+  id?:     string;
+  nombre?: string;
+  emisor?: string;
+  anio?:   string | number;
+  url_archivo?: string;
+}
+
 interface TrainerProfile {
   name:           string;
   email:          string;
@@ -32,7 +41,11 @@ interface TrainerProfile {
   address?:       string;
   specialization?: string;
   experience?:    string;
-  certifications?: string;
+  /**
+   * La API devuelve un ARREGLO de objetos, no texto. Tratarlo como cadena era
+   * la razón de que las certificaciones aparecieran vacías en el perfil.
+   */
+  certifications?: Certificacion[];
   bio?:           string;
   stats?: {
     totalClients:   number;
@@ -64,7 +77,7 @@ export default function TrainerProfileScreen() {
   const [address,        setAddress]        = useState('');
   const [specialization, setSpecialization] = useState('');
   const [bio,            setBio]            = useState('');
-  const [certifications, setCertifications] = useState('');
+  const [certifications, setCertifications] = useState<Certificacion[]>([]);
 
   useEffect(() => {
     if (profile) {
@@ -74,14 +87,36 @@ export default function TrainerProfileScreen() {
       setAddress(toStr(profile.address));
       setSpecialization(toStr(profile.specialization));
       setBio(toStr(profile.bio));
-      setCertifications(toStr(profile.certifications));
+      setCertifications(toArray<Certificacion>(profile.certifications));
     }
   }, [profile]);
+
+  // ── Certificaciones ───────────────────────────────────────────────────────
+  const agregarCert = () =>
+    setCertifications((prev) => [...prev, { nombre: '', emisor: '', anio: '' }]);
+
+  const editarCert = (i: number, campo: keyof Certificacion, valor: string) =>
+    setCertifications((prev) =>
+      prev.map((c, j) => (j === i ? { ...c, [campo]: valor } : c)));
+
+  const quitarCert = (i: number) =>
+    setCertifications((prev) => prev.filter((_, j) => j !== i));
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      await api.put(ENDPOINTS.TRAINER_PROFILE, { name, email, phone, address, specialization, bio, certifications });
+      // Se descartan las filas sin nombre: el backend las ignoraría igual y
+      // así no se guardan certificaciones en blanco.
+      const certs = certifications
+        .filter((c) => toStr(c.nombre).trim())
+        .map((c) => ({
+          nombre: toStr(c.nombre).trim(),
+          emisor: toStr(c.emisor).trim(),
+          anio:   toStr(c.anio).trim(),
+        }));
+      await api.put(ENDPOINTS.TRAINER_PROFILE, {
+        name, email, phone, address, specialization, bio, certifications: certs,
+      });
       setEditing(false);
       refetch();
     } catch (e: any) {
@@ -168,8 +203,79 @@ export default function TrainerProfileScreen() {
               fieldStyles={fieldStyles} colors={colors} />
           <Field label="Especialización" value={specialization} onChangeText={setSpecialization} editing={editing}
               fieldStyles={fieldStyles} colors={colors} />
-          <Field label="Certificaciones" value={certifications} onChangeText={setCertifications} editing={editing} multiline
-              fieldStyles={fieldStyles} colors={colors} />
+          {/* Certificaciones: lista estructurada, igual que en la web */}
+          <View style={styles.certSeccion}>
+            <View style={styles.certCabecera}>
+              <Text style={styles.certTitulo}>Certificaciones</Text>
+              {editing ? (
+                <TouchableOpacity onPress={agregarCert} accessibilityRole="button"
+                                  accessibilityLabel="Agregar certificación">
+                  <Text style={styles.certAgregar}>+ Agregar</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+
+            {certifications.length === 0 ? (
+              <Text style={styles.certVacio}>
+                {editing ? 'Agrega tus certificaciones con el botón de arriba.'
+                         : 'Sin certificaciones registradas.'}
+              </Text>
+            ) : (
+              certifications.map((c, i) => (
+                editing ? (
+                  <View key={i} style={styles.certEditor}>
+                    <View style={styles.certEditorTop}>
+                      <TextInput
+                        style={[styles.certInput, { flex: 1 }]}
+                        value={toStr(c.nombre)}
+                        onChangeText={(v) => editarCert(i, 'nombre', v)}
+                        placeholder="Nombre de la certificación"
+                        placeholderTextColor={colors.textMuted}
+                        accessibilityLabel={`Nombre de la certificación ${i + 1}`}
+                      />
+                      <TouchableOpacity onPress={() => quitarCert(i)} hitSlop={8}
+                                        accessibilityRole="button"
+                                        accessibilityLabel={`Quitar certificación ${i + 1}`}>
+                        <Ionicons name="close-circle" size={22} color={colors.dataRiesgo} />
+                      </TouchableOpacity>
+                    </View>
+                    <View style={styles.certEditorFila}>
+                      <TextInput
+                        style={[styles.certInput, { flex: 2 }]}
+                        value={toStr(c.emisor)}
+                        onChangeText={(v) => editarCert(i, 'emisor', v)}
+                        placeholder="Emisor"
+                        placeholderTextColor={colors.textMuted}
+                        accessibilityLabel="Emisor"
+                      />
+                      <TextInput
+                        style={[styles.certInput, { flex: 1 }]}
+                        value={toStr(c.anio)}
+                        onChangeText={(v) => editarCert(i, 'anio', v.replace(/\D/g, '').slice(0, 4))}
+                        placeholder="Año"
+                        placeholderTextColor={colors.textMuted}
+                        keyboardType="number-pad"
+                        accessibilityLabel="Año"
+                      />
+                    </View>
+                  </View>
+                ) : (
+                  <View key={i} style={styles.certFila}>
+                    <View style={styles.certIcono}>
+                      <Ionicons name="ribbon-outline" size={16} color={colors.accent} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.certNombre}>{toStr(c.nombre)}</Text>
+                      <Text style={styles.certMeta}>
+                        {[toStr(c.emisor), toStr(c.anio)].filter(Boolean).join(' · ') || '—'}
+                      </Text>
+                    </View>
+                  </View>
+                )
+              ))
+            )}
+          </View>
+
           <Field label="Biografía" value={bio}           onChangeText={setBio}            editing={editing} multiline
               fieldStyles={fieldStyles} colors={colors} />
         </Card>
@@ -269,6 +375,35 @@ function make_fieldStyles(colors: ReturnType<typeof useColors>, fs = 1) {
 function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   return StyleSheet.create({
   screen:  { flex: 1, backgroundColor: colors.background },
+
+  // ── Certificaciones ───────────────────────────────────────────────────────
+  certSeccion:  { marginTop: 14, gap: 8 },
+  certCabecera: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  certTitulo:   { color: colors.textSecondary, fontSize: 11 * fs, fontWeight: '700' },
+  certAgregar:  { color: colors.accent, fontSize: 12.5 * fs, fontWeight: '700' },
+  certVacio:    { color: colors.textMuted, fontSize: 12 * fs },
+  certFila: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: colors.surface, borderRadius: 11, padding: 11,
+  },
+  certIcono: {
+    width: 30, height: 30, borderRadius: 9, backgroundColor: colors.accentBg,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  certNombre: { color: colors.text, fontSize: 13 * fs, fontWeight: '700' },
+  certMeta:   { color: colors.textSecondary, fontSize: 11 * fs, marginTop: 1 },
+  certEditor: {
+    gap: 8, backgroundColor: colors.surface, borderRadius: 11, padding: 11,
+  },
+  certEditorTop:  { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  certEditorFila: { flexDirection: 'row', gap: 8 },
+  certInput: {
+    backgroundColor: colors.inputBg, borderRadius: 9,
+    paddingHorizontal: 11, paddingVertical: 9,
+    color: colors.text, fontSize: 13 * fs,
+    borderWidth: 1, borderColor: colors.border,
+  },
+
   hero:    { alignItems: 'center', paddingBottom: 24, paddingHorizontal: 24, gap: 6, backgroundColor: colors.heroTop },
   avatar:  { width: 80, height: 80, borderRadius: 24, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
   avatarImg: { width: 80, height: 80, borderRadius: 24, backgroundColor: colors.surface, marginBottom: 4 },

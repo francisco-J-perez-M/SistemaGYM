@@ -54,9 +54,19 @@ const normTxt = (s?: string) =>
 const todayName = () => WEEKDAYS_ES[new Date().getDay()];
 // ¿El día de la rutina (p.ej. "Martes") coincide con hoy?
 const dayMatchesToday = (d?: RoutineDay | null) => normTxt(d?.dia).includes(todayName());
-// Día que cae hoy; si ninguno coincide, el primero.
-const pickTodayOrFirst = (dias?: RoutineDay[]) =>
-  (dias || []).find(dayMatchesToday) || (dias || [])[0] || null;
+
+/**
+ * Índice del día que toca hoy dentro de la rutina; 0 si ninguno coincide.
+ *
+ * Se trabaja con el ÍNDICE y no con `id` porque el backend no siempre envía un
+ * identificador por día: cuando falta, la selección quedaba vacía y la pantalla
+ * caía al primer día de la semana aunque hoy fuera otro.
+ */
+const indiceDeHoy = (dias?: RoutineDay[]): number => {
+  const lista = dias || [];
+  const i = lista.findIndex(dayMatchesToday);
+  return i >= 0 ? i : 0;
+};
 const exercisesFromDay = (day?: RoutineDay | null): Exercise[] =>
   (day?.ejercicios || []).filter(e => e.nombre).map(e => ({
     nombre: e.nombre, grupo: e.grupo || '', unidad: e.unidad || 'kg', series: seriesFrom(e),
@@ -87,7 +97,7 @@ export default function WorkoutLogScreen() {
   const routines = toArray<Routine>(routinesData?.rutinas);
 
   const [routineId, setRoutineId] = useState('');
-  const [dayId, setDayId] = useState('');
+  const [dayIdx, setDayIdx] = useState(0);
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [duracion, setDuracion] = useState('');
   const [pesoCorporal, setPeso] = useState('');
@@ -96,21 +106,21 @@ export default function WorkoutLogScreen() {
 
   const selectedRoutine = routines.find(r => r.id === routineId) || null;
   const days = selectedRoutine?.dias || [];
-  const selectedDay = days.find(d => d.id === dayId) || null;
+  const selectedDay = days[dayIdx] || null;
 
   // Aplica una rutina: fija duración y preselecciona el día que cae HOY
   // (o el primero si ninguno coincide), cargando sus ejercicios.
   const applyRoutine = useCallback((r?: Routine | null) => {
-    if (!r) { setRoutineId(''); setDayId(''); setExercises([]); return; }
+    if (!r) { setRoutineId(''); setDayIdx(0); setExercises([]); return; }
     setRoutineId(r.id);
     setDuracion(r.duracion_minutos ? String(r.duracion_minutos) : '');
-    const day = pickTodayOrFirst(r.dias);
-    setDayId(day?.id || '');
-    setExercises(exercisesFromDay(day));
+    const i = indiceDeHoy(r.dias);
+    setDayIdx(i);
+    setExercises(exercisesFromDay((r.dias || [])[i]));
   }, []);
 
   const onRoutine = (r: Routine) => applyRoutine(r);
-  const onDay = (d: RoutineDay) => { setDayId(d.id); setExercises(exercisesFromDay(d)); };
+  const onDay = (d: RoutineDay, i: number) => { setDayIdx(i); setExercises(exercisesFromDay(d)); };
 
   // Auto-selección inicial: primera rutina activa + día de hoy (una sola vez).
   const [autoApplied, setAutoApplied] = useState(false);
@@ -214,10 +224,10 @@ export default function WorkoutLogScreen() {
               <>
                 <Text style={styles.inputLabel}>Día</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-                  {days.map(d => {
-                    const active = d.id === dayId;
+                  {days.map((d, i) => {
+                    const active = i === dayIdx;
                     return (
-                      <TouchableOpacity key={d.id} onPress={() => onDay(d)}
+                      <TouchableOpacity key={d.id ?? i} onPress={() => onDay(d, i)}
                         style={[styles.chip, active && { backgroundColor: colors.accent, borderColor: colors.accent }]}>
                         <Text style={[styles.chipTxt, active && { color: colors.onAccent }]}>
                           {(d.dia || 'Día') + (d.grupo ? ` · ${d.grupo}` : '') + (dayMatchesToday(d) ? ' · hoy' : '')}

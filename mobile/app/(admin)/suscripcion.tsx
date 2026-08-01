@@ -57,10 +57,15 @@ interface Suscripcion {
 
 interface Factura {
   id:      number;
-  monto?:  number;
-  estado?: string;
+  /** En centavos, como se guarda. Para mostrar se usa monto_mxn. */
+  monto?:      number;
+  monto_mxn?:  number;
+  estado?:     string;
+  plan?:       string | null;
+  concepto?:   string | null;
   fecha_emision?: string | null;
-  concepto?: string | null;
+  fecha_pago?:    string | null;
+  fecha_vencimiento?: string | null;
 }
 
 /** Cómo se llama y se pinta cada estado de la suscripción. */
@@ -405,12 +410,18 @@ export default function SuscripcionScreen() {
 
       {/* ── Facturas ──────────────────────────────────────────────────────── */}
       <Text style={styles.seccion}>Historial de cobros</Text>
+      <Text style={styles.seccionSub}>Renovaciones y cambios de plan</Text>
       {facturas.length === 0 ? (
-        <Text style={styles.vacio}>Aún no hay facturas.</Text>
+        <Text style={styles.vacio}>Aún no hay cobros registrados.</Text>
       ) : (
         <View style={styles.facturas}>
           {facturas.map((f) => {
             const pagada = f.estado === 'pagada';
+            // El importe se toma de monto_mxn (pesos). El campo 'monto' está en
+            // centavos y pintarlo tal cual mostraba $49,900 por una factura de $499.
+            const importe = f.monto_mxn ?? (f.monto ? f.monto / 100 : 0);
+            // La fecha del cobro es cuando se pagó; si sigue pendiente, cuándo se emitió.
+            const fecha = f.fecha_pago ?? f.fecha_emision;
             return (
               <View key={f.id} style={styles.factura}>
                 <View style={[
@@ -425,12 +436,19 @@ export default function SuscripcionScreen() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.facturaConcepto} numberOfLines={1}>
-                    {toStr(f.concepto, 'Suscripción')}
+                    {toStr(f.concepto ?? (f.plan ? `Suscripción ${f.plan}` : null), 'Suscripción')}
                   </Text>
-                  <Text style={styles.facturaFecha}>{toDateStr(f.fecha_emision)}</Text>
+                  <Text style={styles.facturaFecha}>
+                    {toDateStr(fecha)}
+                    {!pagada ? '  ·  Pendiente' : ''}
+                    {f.fecha_vencimiento ? `  ·  vigente hasta ${toDateStr(f.fecha_vencimiento)}` : ''}
+                  </Text>
                 </View>
-                <Text style={styles.facturaMonto}>
-                  ${Number(f.monto ?? 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                <Text style={[
+                  styles.facturaMonto,
+                  !pagada && { color: colors.dataAtencion },
+                ]}>
+                  ${importe.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                 </Text>
               </View>
             );

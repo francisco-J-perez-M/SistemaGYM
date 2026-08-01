@@ -17,6 +17,7 @@ import api from '../../services/api';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
+import RoutineDetailModal, { type RoutineForModal } from '../../components/routines/RoutineDetailModal';
 
 const DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 
@@ -63,6 +64,41 @@ export default function MiRutinaScreen() {
 
   const [editing, setEditing] = useState<Rutina | null>(null);
   const [saving, setSaving]   = useState(false);
+
+  // ── Ver una rutina a detalle (solo lectura) ────────────────────────────────
+  // Se reutiliza RoutineDetailModal, el mismo que ve el miembro cuando su
+  // entrenador le asigna una rutina, así ambas se leen igual.
+  const [detalle, setDetalle] = useState<RoutineForModal | null>(null);
+
+  const verDetalle = useCallback(async (id: string) => {
+    try {
+      const res = await api.get(`${ENDPOINTS.USER_ROUTINES}/${id}`);
+      const r = res.data ?? {};
+      setDetalle({
+        id,
+        nombre: r.nombre ?? 'Mi rutina',
+        categoria: r.categoria,
+        dias: (r.dias ?? []).map((d: any, i: number) => ({
+          id:    String(d.id ?? i),
+          dia:   d.dia ?? '',
+          grupo: d.grupo ?? '',
+          ejercicios: (d.ejercicios ?? []).map((e: any) => ({
+            nombre:   e.nombre ?? '',
+            series:   e.series,
+            reps:     e.reps,
+            peso:     e.peso,
+            unidad:   e.unidad,
+            grupo:    e.grupo ?? d.grupo,
+            notas:    e.notas,
+            imagenes: e.imagenes,
+            video:    e.video,
+          })),
+        })),
+      });
+    } catch {
+      Alert.alert('Error', 'No se pudo cargar el detalle de la rutina.');
+    }
+  }, []);
 
   // ── Cargar una rutina para editar ──────────────────────────────────────────
   const cargarRutina = useCallback(async (id: string) => {
@@ -342,15 +378,27 @@ export default function MiRutinaScreen() {
                 {r.categoria ? ` · ${r.categoria}` : ''}
               </Text>
             </View>
+            <TouchableOpacity style={styles.iconBtn} onPress={() => verDetalle(String(r.id))}
+                              accessibilityLabel={`Ver ${r.nombre || 'la rutina'} a detalle`}>
+              <Ionicons name="eye-outline" size={20} color={colors.accent} />
+            </TouchableOpacity>
             <TouchableOpacity style={styles.iconBtn} onPress={() => cargarRutina(String(r.id))} accessibilityLabel="Editar">
               <Ionicons name="create-outline" size={20} color={colors.accent} />
             </TouchableOpacity>
             <TouchableOpacity style={styles.iconBtn} onPress={() => eliminar(String(r.id), r.nombre)} accessibilityLabel="Eliminar">
-              <Ionicons name="trash-outline" size={20} color={colors.error} />
+              <Ionicons name="trash-outline" size={20} color={colors.dataRiesgo} />
             </TouchableOpacity>
           </Card>
         ))
       )}
+
+      {/* Detalle en solo lectura, ejercicio por ejercicio */}
+      <RoutineDetailModal
+        visible={!!detalle}
+        routine={detalle}
+        mode="member"
+        onClose={() => setDetalle(null)}
+      />
     </ScrollView>
   );
 }

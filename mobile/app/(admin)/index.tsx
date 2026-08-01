@@ -47,9 +47,14 @@ export default function AdminDashboardScreen() {
   const totalMiembros = dash?.miembros?.total ?? 0;
   const nuevosMes     = dash?.miembros?.nuevos_mes ?? 0;
   const porVencer     = dash?.miembros?.por_vencer ?? 0;
-  const ingresosMes   = dash?.ingresos?.mes_actual ?? 0;
-  const variacion     = dash?.ingresos?.variacion_pct ?? 0;
   const entrenadores  = dash?.staff?.entrenadores ?? 0;
+
+  // 'mes_actual' es el total de membresías + punto de venta, la misma cifra que
+  // muestra Reportes. Cuando el mes anterior no tuvo ingresos no hay porcentaje
+  // que calcular, así que no se pinta una flecha de caída que no significa nada.
+  const ingresosMes    = dash?.ingresos?.mes_actual ?? 0;
+  const sinComparativa = dash?.ingresos?.sin_comparativa ?? false;
+  const variacion      = sinComparativa ? 0 : (dash?.ingresos?.variacion_pct ?? 0);
 
   return (
     <ScrollView
@@ -106,7 +111,7 @@ export default function AdminDashboardScreen() {
           value={ingresosMes > 0 ? `$${Math.round(ingresosMes).toLocaleString()}` : '$0'}
           icon={<Ionicons name="cash-outline" size={20} color={colors.dataProgreso} />}
           tono="progreso"
-          trend={variacion !== 0 ? variacion : undefined}
+          trend={!sinComparativa && variacion !== 0 ? variacion : undefined}
         />
         <StatCard
           label="Por vencer"

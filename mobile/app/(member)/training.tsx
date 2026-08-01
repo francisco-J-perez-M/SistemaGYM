@@ -24,6 +24,7 @@ import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
 import RoutineDetailModal, { type RoutineForModal } from '../../components/routines/RoutineDetailModal';
 import ExerciseDetailSheet, { type ExerciseDetail, cacheVideo, cacheImages } from '../../components/routines/ExerciseDetailSheet';
+import PerfilEntrenador from '../../components/usuarios/PerfilEntrenador';
 import api from '../../services/api';
 import * as Haptics from 'expo-haptics';
 
@@ -86,48 +87,9 @@ function trainerName(t: Trainer): string {
   return toStr(t.nombre ?? t.name, 'Entrenador');
 }
 
-// ── Calificación + terminar entrenamiento personal ─────────────────────────────
-function TrainerActions({ colors, onTerminar }: { colors: any; onTerminar: () => void }) {
-  const [rating, setRating] = useState(0);
-  const [saved, setSaved]   = useState(false);
-  useEffect(() => {
-    api.get(ENDPOINTS.USER_TRAINER_RATING)
-      .then(({ data }) => { if (data?.rating != null) { setRating(data.rating); setSaved(true); } })
-      .catch(() => {});
-  }, []);
-  const submit = async (v: number) => {
-    setRating(v);
-    try { await api.post(ENDPOINTS.USER_TRAINER_RATING, { calificacion: v }); setSaved(true); }
-    catch (e: any) { Alert.alert('Error', e?.response?.data?.error ?? 'No se pudo guardar la calificación.'); }
-  };
-  const terminar = () => {
-    Alert.alert('Terminar entrenamiento', '¿Terminar con este entrenador? Después podrás solicitar a otro.', [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Terminar', style: 'destructive', onPress: async () => {
-        try { await api.delete(ENDPOINTS.USER_PT_ACTIVO); onTerminar(); }
-        catch (e: any) { Alert.alert('Error', e?.response?.data?.error ?? 'No se pudo terminar.'); }
-      } },
-    ]);
-  };
-  return (
-    <Card>
-      <Text style={{ color: colors.textSecondary, fontSize: 12, marginBottom: 6 }}>
-        {saved ? 'Tu calificación' : 'Califica a tu entrenador'}
-      </Text>
-      <View style={{ flexDirection: 'row', gap: 6, marginBottom: 12 }}>
-        {[1, 2, 3, 4, 5].map(i => (
-          <TouchableOpacity key={i} onPress={() => submit(i)} hitSlop={6}>
-            <Ionicons name={i <= rating ? 'star' : 'star-outline'} size={26}
-                      color={i <= rating ? colors.promo : colors.textMuted} />
-          </TouchableOpacity>
-        ))}
-      </View>
-      <TouchableOpacity onPress={terminar} style={{ alignSelf: 'flex-start' }}>
-        <Text style={{ color: colors.dataRiesgo, fontSize: 13, fontWeight: '600' }}>Terminar entrenamiento personal</Text>
-      </TouchableOpacity>
-    </Card>
-  );
-}
+// La calificación y el botón de terminar viven ahora en PerfilEntrenador, la
+// hoja que se abre al tocar la tarjeta del entrenador. Estaban aquí ocupando
+// media pantalla y dejaban el chat reducido a unas pocas líneas.
 
 // ── Componente ────────────────────────────────────────────────────────────────
 export default function TrainingScreen() {
@@ -141,6 +103,7 @@ export default function TrainingScreen() {
   const [expandedRutina, setExpandedRutina]   = useState<string | null>(null);
   const [selectedRutina, setSelectedRutina]   = useState<RoutineForModal | null>(null);
   const [selectedEj, setSelectedEj] = useState<ExerciseDetail | null>(null);
+  const [perfilId, setPerfilId]     = useState<number | null>(null);
   const [msg, setMsg]     = useState('');
   const [sending, setSending] = useState(false);
   const flatRef = useRef<FlatList>(null);
@@ -385,28 +348,37 @@ export default function TrainingScreen() {
               </View>
             </Card>
           ) : active ? (
-            <Card style={styles.trainerCard}>
-              <View style={styles.trainerRow}>
-                {active.foto && active.foto.startsWith('data:image') ? (
-                  <Image source={{ uri: active.foto }} style={styles.trainerAvatarImg} resizeMode="cover" />
-                ) : (
-                  <View style={styles.trainerAvatar}>
-                    <Text style={styles.trainerInitials}>
-                      {trainerName(active).charAt(0).toUpperCase()}
-                    </Text>
+            // La tarjeta abre la ficha completa: datos, certificaciones y
+            // calificación. Al sacarlas de aquí, el chat recupera la pantalla.
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => setPerfilId(Number(active.id ?? 0) || null)}
+              accessibilityRole="button"
+              accessibilityLabel={`Ver el perfil de ${trainerName(active)}`}
+              accessibilityHint="Muestra su información, certificaciones y la calificación"
+            >
+              <Card style={styles.trainerCard}>
+                <View style={styles.trainerRow}>
+                  {active.foto && active.foto.startsWith('data:image') ? (
+                    <Image source={{ uri: active.foto }} style={styles.trainerAvatarImg} resizeMode="cover" />
+                  ) : (
+                    <View style={styles.trainerAvatar}>
+                      <Text style={styles.trainerInitials}>
+                        {trainerName(active).charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+                  )}
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.trainerName}>{trainerName(active)}</Text>
+                    {active.especialidad ? <Text style={styles.trainerSpec}>{active.especialidad}</Text> : null}
+                    <Text style={styles.trainerVerMas}>Ver perfil y calificar</Text>
                   </View>
-                )}
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.trainerName}>{trainerName(active)}</Text>
-                  {active.especialidad ? <Text style={styles.trainerSpec}>{active.especialidad}</Text> : null}
-                  {active.email ? <Text style={styles.trainerEmail}>{active.email}</Text> : null}
+                  <Badge label="PT" color="accent" />
+                  <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
                 </View>
-                <Badge label="PT" color="accent" />
-              </View>
-            </Card>
+              </Card>
+            </TouchableOpacity>
           ) : null}
-
-          {active ? <TrainerActions colors={colors} onTerminar={() => { setSelectedTrainer(null); refetchPT?.(); }} /> : null}
 
           {/* Chat */}
           <View style={styles.chatContainer}>
@@ -466,6 +438,12 @@ export default function TrainingScreen() {
           </View>
         </View>
       )}
+      <PerfilEntrenador
+        trainerId={perfilId}
+        onClose={() => setPerfilId(null)}
+        esMiEntrenador={!!active && Number(active.id) === perfilId}
+        onTerminar={() => { setSelectedTrainer(null); refetchPT?.(); }}
+      />
       <ExerciseDetailSheet
         visible={!!selectedEj}
         exercise={selectedEj}
@@ -531,7 +509,10 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   trainerName:  { color: colors.text, fontSize: 16 * fs, fontWeight: '700' },
   trainerSpec:  { color: colors.accent, fontSize: 12 * fs },
   trainerEmail: { color: colors.textSecondary, fontSize: 12 * fs },
-  chatContainer:{ flex: 1, marginHorizontal: 20 },
+  trainerVerMas:{ color: colors.accent, fontSize: 11.5 * fs, fontWeight: '600', marginTop: 3 },
+  // minHeight evita que el chat quede aplastado entre las tarjetas superiores
+  // cuando la pantalla es corta: siempre conserva alto útil de conversación.
+  chatContainer:{ flex: 1, minHeight: 280, marginHorizontal: 20 },
   chatTitle:    { color: colors.textSecondary, fontSize: 12 * fs, fontWeight: '700', marginBottom: 8 },
   chatList:     { paddingVertical: 8, gap: 8, flexGrow: 1, justifyContent: 'flex-end' },
   chatEmpty:    { alignItems: 'center', gap: 8, paddingVertical: 24 },

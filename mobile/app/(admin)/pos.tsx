@@ -28,6 +28,8 @@ import api from '../../services/api';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
+import SelectorPeriodo, { etiquetaPeriodo } from '../../components/ui/SelectorPeriodo';
+import Paginador from '../../components/ui/Paginador';
 
 type Tab = 'productos' | 'ventas';
 
@@ -88,15 +90,23 @@ function ProductImage({ uri, size, radius, colors }: { uri?: string; size: numbe
 
 interface VentaItem {
   _id?: string;
+  id?: string;
   nombre_miembro?: string;
   total?: number;
   fecha?: string;
-  items?: { nombre: string; cantidad: number; precio_unitario: number }[];
+  metodo_pago?: string;
+  items?: { nombre: string; cantidad?: number; qty?: number; precio_unitario?: number }[];
 }
 
 interface VentasResponse {
   ventas?: VentaItem[];
   total?: number;
+  pages?: number;
+  page?: number;
+  /** Importe de todo el periodo filtrado, no solo de la página. */
+  monto_total?: number;
+  /** Años con ventas; alimenta el selector de periodo. */
+  anios?: number[];
 }
 
 interface ProductosResponse {
@@ -113,17 +123,30 @@ export default function POSScreen() {
   const [detail, setDetail] = useState<Producto | null>(null);
   const [imgIdx, setImgIdx] = useState(0);
 
+  // Periodo y página del historial de ventas
+  const [anio,   setAnio]   = useState(0);   // 0 = histórico completo
+  const [mes,    setMes]    = useState(0);   // 0 = año completo
+  const [pagina, setPagina] = useState(1);
+
   const { data: prodData, loading: loadingP, refetch: refetchP } =
     useFetch<ProductosResponse>(ENDPOINTS.OWNER_PRODUCTOS);
 
+  const consultaVentas =
+    `${ENDPOINTS.OWNER_VENTAS}?page=${pagina}&per_page=10` +
+    (anio ? `&anio=${anio}` : '') +
+    (anio && mes ? `&mes=${mes}` : '');
+
   const { data: ventasData, loading: loadingV, refetch: refetchV } =
-    useFetch<VentasResponse>(ENDPOINTS.OWNER_VENTAS);
+    useFetch<VentasResponse>(consultaVentas);
 
   const loading   = tab === 'productos' ? loadingP : loadingV;
   const productos = toArray(prodData?.productos ?? (Array.isArray(prodData) ? prodData : []));
   const ventas    = toArray(ventasData?.ventas   ?? (Array.isArray(ventasData) ? ventasData : []));
 
   const handleRefresh = () => { tab === 'productos' ? refetchP() : refetchV(); };
+
+  /** Cambiar de periodo vuelve a la primera página. */
+  const cambiarPeriodo = (a: number, m: number) => { setAnio(a); setMes(m); setPagina(1); };
 
   // ── Alta y edición de productos ───────────────────────────────────────────
   const [editando, setEditando] = useState<Producto | null>(null);  // null = alta
@@ -307,35 +330,74 @@ export default function POSScreen() {
 
       {/* Historial de ventas */}
       {tab === 'ventas' && (
-        <FlatList
-          data={ventas}
-          keyExtractor={(v, i) => v._id ?? String(i)}
-          contentContainerStyle={styles.list}
-          refreshControl={<RefreshControl refreshing={loadingV} onRefresh={refetchV} tintColor={colors.accent} />}
-          ListHeaderComponent={
-            <Card style={{ marginBottom: 12 }} padding={14}>
-              <Text style={styles.totalLabel}>Total ventas</Text>
-              <Text style={styles.totalValue}>{ventasData?.total ?? ventas.length} transacciones</Text>
-            </Card>
-          }
-          ListEmptyComponent={<EmptyState icon="receipt-outline" msg="No hay ventas registradas."
-              styles={styles} colors={colors} />}
-          renderItem={({ item: v }) => (
-            <View style={styles.ventaCard} accessible>
-              <View style={styles.ventaIconBox}>
-                <Ionicons name="receipt-outline" size={18} color={colors.warning} />
+        <>
+          <SelectorPeriodo
+            anio={anio} mes={mes}
+            anios={toArray<number>(ventasData?.anios)}
+            onChange={cambiarPeriodo}
+          />
+
+          <FlatList
+            data={ventas}
+            keyExtractor={(v, i) => v._id ?? String(i)}
+            contentContainerStyle={styles.list}
+            refreshControl={
+              <RefreshControl refreshing={loadingV} onRefresh={refetchV} tintColor={colors.accent} />
+            }
+            ListHeaderComponent={
+              <Card style={{ marginBottom: 12 }} padding={14}>
+                <Text style={styles.totalLabel}>
+                  Ventas · {etiquetaPeriodo(anio, mes)}
+                </Text>
+                <Text style={styles.totalValue}>
+                  ${Math.round(ventasData?.monto_total ?? 0).toLocaleString('es-MX')}
+                </Text>
+                <Text style={styles.totalSub}>
+                  {ventasData?.total ?? ventas.length} transacciones
+                </Text>
+              </Card>
+            }
+            ListEmptyComponent={
+              <EmptyState
+                icon="receipt-outline"
+                msg={anio
+                  ? `Sin ventas en ${etiquetaPeriodo(anio, mes)}.`
+                  : 'No hay ventas registradas.'}
+                styles={styles} colors={colors}
+              />
+            }
+            ListFooterComponent={
+              <Paginador
+                pagina={ventasData?.page ?? pagina}
+                paginas={ventasData?.pages ?? 0}
+                total={ventasData?.total}
+                etiquetaTotal="ventas"
+                onCambio={setPagina}
+              />
+            }
+            renderItem={({ item: v }) => (
+              <View style={styles.ventaCard} accessible>
+                <View style={styles.ventaIconBox}>
+                  <Ionicons name="receipt-outline" size={18} color={colors.dataAtencion} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.ventaCliente}>{toStr(v.nombre_miembro, 'Cliente general')}</Text>
+                  <Text style={styles.ventaFecha}>
+                    {toDateStr(v.fecha)}{v.metodo_pago ? `  ·  ${v.metodo_pago}` : ''}
+                  </Text>
+                  {toArray(v.items).slice(0, 2).map((it, i) => (
+                    <Text key={i} style={styles.ventaItem}>
+                      · {it.nombre} ×{it.cantidad ?? (it as any).qty ?? 1}
+                    </Text>
+                  ))}
+                </View>
+                <Text style={styles.ventaTotal}>
+                  ${Math.round(v.total ?? 0).toLocaleString('es-MX')}
+                </Text>
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.ventaCliente}>{toStr(v.nombre_miembro, 'Cliente general')}</Text>
-                <Text style={styles.ventaFecha}>{toDateStr(v.fecha)}</Text>
-                {toArray(v.items).slice(0, 2).map((it, i) => (
-                  <Text key={i} style={styles.ventaItem}>· {it.nombre} ×{it.cantidad}</Text>
-                ))}
-              </View>
-              <Text style={styles.ventaTotal}>${v.total ?? 0}</Text>
-            </View>
-          )}
-        />
+            )}
+          />
+        </>
       )}
 
       {/* Modal detalle de producto */}
@@ -598,7 +660,9 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   ventaItem:    { color: colors.textSecondary, fontSize: 12 * fs },
   ventaTotal:   { color: colors.warning, fontSize: 18 * fs, fontWeight: '800', marginLeft: 'auto' },
   totalLabel:   { color: colors.textSecondary, fontSize: 12 * fs },
-  totalValue:   { color: colors.text, fontSize: 20 * fs, fontWeight: '700' },
+  totalValue:   { color: colors.text, fontSize: 24 * fs, fontWeight: '800',
+                  letterSpacing: -0.5, marginTop: 2 },
+  totalSub:     { color: colors.textMuted, fontSize: 11.5 * fs, marginTop: 2 },
   empty:        { alignItems: 'center', paddingVertical: 60, gap: 12 },
   emptyText:    { color: colors.textMuted, fontSize: 14 * fs },
 

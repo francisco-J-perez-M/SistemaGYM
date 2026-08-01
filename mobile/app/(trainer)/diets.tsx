@@ -19,7 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors, useFontScale } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
-import { toArray } from '../../utils/format';
+import { toArray, toStr } from '../../utils/format';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
@@ -56,27 +56,58 @@ export default function TrainerDietsScreen() {
   const recipes = toArray<Recipe>(recData?.recipes);
   const members = toArray<TrainerMember>(memData?.members);
 
-  // ── Crear receta ──────────────────────────────────────────────
+  // ── Ver a detalle ─────────────────────────────────────────────
+  // Una hoja de solo lectura para revisar el contenido sin entrar a editar.
+  const [verReceta, setVerReceta] = useState<Recipe | null>(null);
+  const [verPlan,   setVerPlan]   = useState<DietPlan | null>(null);
+
+  // ── Crear y editar receta ─────────────────────────────────────
   const [showRecipe, setShowRecipe] = useState(false);
   const emptyRecipe = { nombre: '', calorias: '', proteinas: '', carbohidratos: '', grasas: '', descripcion: '' };
   const [rForm, setRForm] = useState(emptyRecipe);
   const [savingR, setSavingR] = useState(false);
+  /** Receta que se está editando; null = alta. */
+  const [editandoR, setEditandoR] = useState<Recipe | null>(null);
+
+  const abrirAltaReceta = () => {
+    setEditandoR(null);
+    setRForm(emptyRecipe);
+    setShowRecipe(true);
+  };
+
+  const abrirEdicionReceta = (r: Recipe) => {
+    setEditandoR(r);
+    setRForm({
+      nombre:        toStr(r.nombre),
+      calorias:      r.calorias != null ? String(r.calorias) : '',
+      proteinas:     r.proteinas_g != null ? String(r.proteinas_g) : '',
+      carbohidratos: r.carbohidratos_g != null ? String(r.carbohidratos_g) : '',
+      grasas:        r.grasas_g != null ? String(r.grasas_g) : '',
+      descripcion:   toStr(r.descripcion),
+    });
+    setShowRecipe(true);
+  };
 
   const createRecipe = async () => {
     if (!rForm.nombre.trim()) { Alert.alert('Falta nombre', 'La receta necesita un nombre.'); return; }
     setSavingR(true);
     try {
-      await api.post(ENDPOINTS.TRAINER_RECIPES, {
+      const payload = {
         nombre:          rForm.nombre.trim(),
         descripcion:     rForm.descripcion,
         calorias:        num(rForm.calorias),
         proteinas_g:     num(rForm.proteinas),
         carbohidratos_g: num(rForm.carbohidratos),
         grasas_g:        num(rForm.grasas),
-      });
-      setShowRecipe(false); setRForm(emptyRecipe); refetchR();
+      };
+      if (editandoR) {
+        await api.put(`${ENDPOINTS.TRAINER_RECIPES}/${editandoR.id}`, payload);
+      } else {
+        await api.post(ENDPOINTS.TRAINER_RECIPES, payload);
+      }
+      setShowRecipe(false); setEditandoR(null); setRForm(emptyRecipe); refetchR();
     } catch (e: any) {
-      Alert.alert('Error', e?.response?.data?.error ?? 'No se pudo crear la receta');
+      Alert.alert('Error', e?.response?.data?.error ?? 'No se pudo guardar la receta');
     } finally { setSavingR(false); }
   };
 
@@ -112,6 +143,37 @@ export default function TrainerDietsScreen() {
   const totalKcal = comidas.reduce(
     (s, c) => s + c.recetas.reduce((ss, r) => ss + (r.calorias ?? 0), 0), 0);
 
+  /** Plan que se está editando; null = alta. */
+  const [editandoP, setEditandoP] = useState<DietPlan | null>(null);
+
+  const abrirAltaPlan = () => {
+    setEditandoP(null);
+    resetPlan();
+    setShowPlan(true);
+  };
+
+  /**
+   * Carga un plan en el formulario. Los planes se guardan en estructura v2
+   * (semanas → días → comidas → items); esta pantalla trabaja con un único día
+   * genérico, así que se aplanan sus comidas y cada item se vuelve a enlazar
+   * con la receta de la biblioteca por id.
+   */
+  const abrirEdicionPlan = (d: DietPlan) => {
+    setEditandoP(d);
+    setPForm({ nombre: toStr(d.nombre), objetivo: toStr(d.objetivo, 'mantenimiento') });
+
+    const dias = toArray<any>(toArray<any>((d as any).semanas)[0]?.dias);
+    const comidasPlan = toArray<any>(dias[0]?.comidas).map((c: any) => ({
+      nombre: toStr(c.nombre, 'Comida'),
+      recetas: toArray<any>(c.items)
+        .map((it: any) => recipes.find((r) => r.id === it.id_receta))
+        .filter(Boolean) as Recipe[],
+    }));
+
+    setComidas(comidasPlan);
+    setShowPlan(true);
+  };
+
   const createPlan = async () => {
     if (!pForm.nombre.trim()) { Alert.alert('Falta nombre', 'El plan necesita un nombre.'); return; }
     const comidasValidas = comidas.filter((c) => c.recetas.length > 0);
@@ -137,13 +199,18 @@ export default function TrainerDietsScreen() {
           })),
         }],
       }];
-      await api.post(ENDPOINTS.TRAINER_DIETS, {
+      const payload = {
         nombre: pForm.nombre.trim(), objetivo: pForm.objetivo,
         calorias_meta: totalKcal || null, duracion_semanas: 1, semanas,
-      });
-      setShowPlan(false); resetPlan(); refetchD();
+      };
+      if (editandoP) {
+        await api.put(`${ENDPOINTS.TRAINER_DIETS}/${editandoP.id}`, payload);
+      } else {
+        await api.post(ENDPOINTS.TRAINER_DIETS, payload);
+      }
+      setShowPlan(false); setEditandoP(null); resetPlan(); refetchD();
     } catch (e: any) {
-      Alert.alert('Error', e?.response?.data?.error ?? 'No se pudo crear el plan');
+      Alert.alert('Error', e?.response?.data?.error ?? 'No se pudo guardar el plan');
     } finally { setSavingP(false); }
   };
 
@@ -193,7 +260,7 @@ export default function TrainerDietsScreen() {
           refreshControl={<RefreshControl refreshing={loadingD} onRefresh={refetchD} tintColor={colors.accent} />}>
           <View style={styles.topRow}>
             <Text style={styles.subtitle}>{diets.length} {diets.length === 1 ? 'plan' : 'planes'}</Text>
-            <TouchableOpacity style={styles.addBtn} onPress={() => { resetPlan(); setShowPlan(true); }}>
+            <TouchableOpacity style={styles.addBtn} onPress={abrirAltaPlan}>
               <Ionicons name="add" size={18} color={colors.onAccent} />
               <Text style={styles.addBtnText}>Nuevo plan</Text>
             </TouchableOpacity>
@@ -216,9 +283,20 @@ export default function TrainerDietsScreen() {
                       {!!d.calorias_meta && <Text style={styles.metaText}>{d.calorias_meta} kcal</Text>}
                     </View>
                   </View>
-                  <TouchableOpacity onPress={() => deletePlan(d)} hitSlop={8} accessibilityLabel={`Eliminar ${d.nombre}`}>
-                    <Ionicons name="trash-outline" size={20} color={colors.error} />
-                  </TouchableOpacity>
+                  <View style={styles.accionesFila}>
+                    <TouchableOpacity onPress={() => setVerPlan(d)} hitSlop={8}
+                                      accessibilityLabel={`Ver ${d.nombre}`}>
+                      <Ionicons name="eye-outline" size={20} color={colors.accent} />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => abrirEdicionPlan(d)} hitSlop={8}
+                                      accessibilityLabel={`Editar ${d.nombre}`}>
+                      <Ionicons name="create-outline" size={20} color={colors.accent} />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => deletePlan(d)} hitSlop={8}
+                                      accessibilityLabel={`Eliminar ${d.nombre}`}>
+                      <Ionicons name="trash-outline" size={20} color={colors.dataRiesgo} />
+                    </TouchableOpacity>
+                  </View>
                 </View>
                 <View style={styles.assignRow}>
                   <Ionicons name={asignado ? 'person-circle' : 'person-add-outline'} size={16}
@@ -242,7 +320,7 @@ export default function TrainerDietsScreen() {
           refreshControl={<RefreshControl refreshing={loadingR} onRefresh={refetchR} tintColor={colors.accent} />}>
           <View style={styles.topRow}>
             <Text style={styles.subtitle}>{recipes.length} recetas</Text>
-            <TouchableOpacity style={styles.addBtn} onPress={() => setShowRecipe(true)}>
+            <TouchableOpacity style={styles.addBtn} onPress={abrirAltaReceta}>
               <Ionicons name="add" size={18} color={colors.onAccent} />
               <Text style={styles.addBtnText}>Nueva receta</Text>
             </TouchableOpacity>
@@ -266,9 +344,20 @@ export default function TrainerDietsScreen() {
                   </View>
                   {!!r.descripcion && <Text style={styles.recDesc} numberOfLines={2}>{r.descripcion}</Text>}
                 </View>
-                <TouchableOpacity onPress={() => deleteRecipe(r)} hitSlop={8} accessibilityLabel={`Eliminar ${r.nombre}`}>
-                  <Ionicons name="trash-outline" size={20} color={colors.error} />
-                </TouchableOpacity>
+                <View style={styles.accionesFila}>
+                  <TouchableOpacity onPress={() => setVerReceta(r)} hitSlop={8}
+                                    accessibilityLabel={`Ver ${r.nombre}`}>
+                    <Ionicons name="eye-outline" size={20} color={colors.accent} />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => abrirEdicionReceta(r)} hitSlop={8}
+                                    accessibilityLabel={`Editar ${r.nombre}`}>
+                    <Ionicons name="create-outline" size={20} color={colors.accent} />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => deleteRecipe(r)} hitSlop={8}
+                                    accessibilityLabel={`Eliminar ${r.nombre}`}>
+                    <Ionicons name="trash-outline" size={20} color={colors.dataRiesgo} />
+                  </TouchableOpacity>
+                </View>
               </View>
             </Card>
           ))}
@@ -280,8 +369,8 @@ export default function TrainerDietsScreen() {
         <View style={styles.overlay}>
           <View style={styles.modalBox}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Nueva receta</Text>
-              <TouchableOpacity onPress={() => setShowRecipe(false)}><Ionicons name="close" size={24} color={colors.text} /></TouchableOpacity>
+              <Text style={styles.modalTitle}>{editandoR ? 'Editar receta' : 'Nueva receta'}</Text>
+              <TouchableOpacity onPress={() => { setShowRecipe(false); setEditandoR(null); }}><Ionicons name="close" size={24} color={colors.text} /></TouchableOpacity>
             </View>
             <ScrollView showsVerticalScrollIndicator={false}>
               <Field label="Nombre *" value={rForm.nombre} onChange={(t) => setRForm({ ...rForm, nombre: t })} colors={colors} styles={styles} placeholder="Ej: Avena con plátano" />
@@ -305,8 +394,8 @@ export default function TrainerDietsScreen() {
         <View style={styles.overlay}>
           <View style={[styles.modalBox, { maxHeight: '88%' }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Nuevo plan</Text>
-              <TouchableOpacity onPress={() => setShowPlan(false)}><Ionicons name="close" size={24} color={colors.text} /></TouchableOpacity>
+              <Text style={styles.modalTitle}>{editandoP ? 'Editar plan' : 'Nuevo plan'}</Text>
+              <TouchableOpacity onPress={() => { setShowPlan(false); setEditandoP(null); }}><Ionicons name="close" size={24} color={colors.text} /></TouchableOpacity>
             </View>
             <ScrollView showsVerticalScrollIndicator={false}>
               <Field label="Nombre del plan *" value={pForm.nombre} onChange={(t) => setPForm({ ...pForm, nombre: t })} colors={colors} styles={styles} placeholder="Ej: Definición 1800 kcal" />
@@ -426,6 +515,104 @@ export default function TrainerDietsScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* ── Detalle de receta ────────────────────────────────── */}
+      <Modal visible={!!verReceta} transparent animationType="slide"
+             onRequestClose={() => setVerReceta(null)}>
+        <View style={styles.overlay}>
+          <View style={styles.modalBox}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle} numberOfLines={1}>{toStr(verReceta?.nombre)}</Text>
+              <TouchableOpacity onPress={() => setVerReceta(null)} accessibilityLabel="Cerrar">
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View style={styles.macrosGrid}>
+                {[
+                  ['Calorías', verReceta?.calorias, 'kcal'],
+                  ['Proteínas', verReceta?.proteinas_g, 'g'],
+                  ['Carbohidratos', verReceta?.carbohidratos_g, 'g'],
+                  ['Grasas', verReceta?.grasas_g, 'g'],
+                ].map(([etiqueta, valor, unidad]) => (
+                  <View key={String(etiqueta)} style={styles.macroBox}>
+                    <Text style={styles.macroValor}>
+                      {valor != null ? `${valor}` : '—'}
+                      <Text style={styles.macroUnidad}> {valor != null ? unidad : ''}</Text>
+                    </Text>
+                    <Text style={styles.macroEtiqueta}>{etiqueta}</Text>
+                  </View>
+                ))}
+              </View>
+              {verReceta?.descripcion ? (
+                <>
+                  <Text style={styles.fieldLabel}>Preparación</Text>
+                  <Text style={styles.detalleTexto}>{verReceta.descripcion}</Text>
+                </>
+              ) : (
+                <Text style={styles.detalleVacio}>Sin descripción registrada.</Text>
+              )}
+              <TouchableOpacity
+                style={styles.detalleEditar}
+                onPress={() => { const r = verReceta!; setVerReceta(null); abrirEdicionReceta(r); }}
+                accessibilityRole="button" accessibilityLabel="Editar esta receta"
+              >
+                <Ionicons name="create-outline" size={17} color={colors.onAccent} />
+                <Text style={styles.detalleEditarText}>Editar receta</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Detalle de plan ──────────────────────────────────── */}
+      <Modal visible={!!verPlan} transparent animationType="slide"
+             onRequestClose={() => setVerPlan(null)}>
+        <View style={styles.overlay}>
+          <View style={[styles.modalBox, { maxHeight: '85%' }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle} numberOfLines={1}>{toStr(verPlan?.nombre)}</Text>
+              <TouchableOpacity onPress={() => setVerPlan(null)} accessibilityLabel="Cerrar">
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View style={styles.metaRow}>
+                <Badge label={OBJ_LABEL[verPlan?.objetivo ?? 'mantenimiento'] ?? '—'} color="purple" />
+                {verPlan?.calorias_meta ? (
+                  <Text style={styles.metaText}>{verPlan.calorias_meta} kcal por día</Text>
+                ) : null}
+              </View>
+
+              {/* Comidas del plan, aplanadas desde la estructura por semanas */}
+              {toArray<any>(toArray<any>(toArray<any>((verPlan as any)?.semanas)[0]?.dias)[0]?.comidas)
+                .map((c: any, i: number) => (
+                  <View key={i} style={styles.comidaDetalle}>
+                    <Text style={styles.comidaTitulo}>{toStr(c.nombre, `Comida ${i + 1}`)}</Text>
+                    {toArray<any>(c.items).map((it: any, j: number) => (
+                      <View key={j} style={styles.itemDetalle}>
+                        <Ionicons name="ellipse" size={6} color={colors.accent} />
+                        <Text style={styles.itemNombre}>{toStr(it.nombre_alimento)}</Text>
+                        {it.calorias != null ? (
+                          <Text style={styles.itemKcal}>{it.calorias} kcal</Text>
+                        ) : null}
+                      </View>
+                    ))}
+                  </View>
+                ))}
+
+              <TouchableOpacity
+                style={styles.detalleEditar}
+                onPress={() => { const d = verPlan!; setVerPlan(null); abrirEdicionPlan(d); }}
+                accessibilityRole="button" accessibilityLabel="Editar este plan"
+              >
+                <Ionicons name="create-outline" size={17} color={colors.onAccent} />
+                <Text style={styles.detalleEditarText}>Editar plan</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -449,6 +636,36 @@ function Field({ label, value, onChange, placeholder, keyboard, multiline, flex,
 function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   return StyleSheet.create({
     screen:  { flex: 1, backgroundColor: colors.background },
+
+    // ── Acciones de cada tarjeta ────────────────────────────────────────────
+    accionesFila: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+
+    // ── Hojas de detalle ────────────────────────────────────────────────────
+    macrosGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
+    macroBox: {
+      flex: 1, minWidth: '45%', backgroundColor: colors.surface,
+      borderRadius: 12, padding: 12, gap: 2,
+    },
+    macroValor:    { color: colors.text, fontSize: 18 * fs, fontWeight: '800' },
+    macroUnidad:   { color: colors.textSecondary, fontSize: 12 * fs, fontWeight: '600' },
+    macroEtiqueta: { color: colors.textMuted, fontSize: 11 * fs },
+    detalleTexto:  { color: colors.text, fontSize: 13.5 * fs, lineHeight: 20 },
+    detalleVacio:  { color: colors.textMuted, fontSize: 12.5 * fs, marginTop: 12 },
+    comidaDetalle: {
+      backgroundColor: colors.surface, borderRadius: 12, padding: 12,
+      marginTop: 10, gap: 6,
+    },
+    comidaTitulo: { color: colors.text, fontSize: 13.5 * fs, fontWeight: '700' },
+    itemDetalle:  { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    itemNombre:   { color: colors.textSecondary, fontSize: 12.5 * fs, flex: 1 },
+    itemKcal:     { color: colors.textMuted, fontSize: 11.5 * fs },
+    detalleEditar: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+      backgroundColor: colors.accent, borderRadius: 12, paddingVertical: 13,
+      marginTop: 20, marginBottom: 6,
+    },
+    detalleEditarText: { color: colors.onAccent, fontSize: 14 * fs, fontWeight: '700' },
+
     tabRow:  { flexDirection: 'row', marginHorizontal: 20, marginBottom: 8, backgroundColor: colors.card,
                borderRadius: 12, padding: 4, borderWidth: 1, borderColor: colors.border },
     tabBtn:  { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 9, borderRadius: 10 },
