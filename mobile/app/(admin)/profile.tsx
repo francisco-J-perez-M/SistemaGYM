@@ -7,10 +7,10 @@
  *
  *   GET /api/owner_gym/perfil → datos del gimnasio + bloque 'propietario'
  */
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Alert, RefreshControl, Image,
+  Alert, RefreshControl, Image, TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,6 +20,8 @@ import { useFetch } from '../../hooks/useFetch';
 import { toStr, toDateStr } from '../../utils/format';
 import { useAuth } from '../../hooks/useAuth';
 import { router } from 'expo-router';
+import api from '../../services/api';
+import { elegirFoto } from '../../services/media';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Card from '../../components/ui/Card';
 import AccessibilityPanel from '../../components/settings/AccessibilityPanel';
@@ -69,6 +71,65 @@ export default function AdminProfileScreen() {
   // aquí solo se consulta el nombre del negocio para el acceso directo.
   const [showA11y, setShowA11y] = useState(false);
 
+  // ── Edición de la persona ─────────────────────────────────────────────────
+  const [editando,  setEditando]  = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const [subiendo,  setSubiendo]  = useState(false);
+  const [form, setForm] = useState({ nombre: '', email: '', telefono: '' });
+
+  useEffect(() => {
+    const p = gymData?.propietario;
+    if (p) {
+      setForm({
+        nombre:   toStr(p.nombre),
+        email:    toStr(p.email),
+        telefono: toStr(p.telefono),
+      });
+    }
+  }, [gymData]);
+
+  const guardar = async () => {
+    if (!form.nombre.trim()) {
+      Alert.alert('Falta el nombre', 'Escribe tu nombre.');
+      return;
+    }
+    if (!form.email.includes('@')) {
+      Alert.alert('Correo inválido', 'Revisa tu correo de acceso.');
+      return;
+    }
+    setGuardando(true);
+    try {
+      await api.put(ENDPOINTS.OWNER_PERFIL_PROPIETARIO, {
+        nombre:   form.nombre.trim(),
+        email:    form.email.trim().toLowerCase(),
+        telefono: form.telefono.trim(),
+      });
+      setEditando(false);
+      refetchGym();
+    } catch (e: any) {
+      Alert.alert('No se pudo guardar', e?.response?.data?.msg ?? 'Revisa tu conexión.');
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const cambiarFoto = async () => {
+    const r = await elegirFoto();
+    if (!r.ok) {
+      if (r.error) Alert.alert('No se pudo usar la imagen', r.error);
+      return;   // error null = el usuario canceló, no hay nada que avisar
+    }
+    setSubiendo(true);
+    try {
+      await api.put(ENDPOINTS.OWNER_PERFIL_PROPIETARIO, { foto_perfil: r.dataUrl });
+      refetchGym();
+    } catch (e: any) {
+      Alert.alert('No se pudo guardar la foto', e?.response?.data?.msg ?? 'Revisa tu conexión.');
+    } finally {
+      setSubiendo(false);
+    }
+  };
+
   const handleLogout = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     Alert.alert('Cerrar sesión', '¿Estás seguro?', [
@@ -99,13 +160,31 @@ export default function AdminProfileScreen() {
     >
       {/* Hero: la persona, no el negocio */}
       <View style={[styles.hero, { paddingTop: insets.top + 20 }]}>
-        {fotoPerfil && fotoPerfil.startsWith('data:image') ? (
-          <Image source={{ uri: fotoPerfil }} style={styles.avatarImg} resizeMode="cover" />
-        ) : (
-          <View style={styles.avatar}><Text style={styles.initials}>{initials}</Text></View>
-        )}
+        <TouchableOpacity
+          onPress={cambiarFoto}
+          disabled={subiendo}
+          accessibilityRole="button"
+          accessibilityLabel="Cambiar mi foto de perfil"
+        >
+          {fotoPerfil && fotoPerfil.startsWith('data:image') ? (
+            <Image source={{ uri: fotoPerfil }} style={styles.avatarImg} resizeMode="cover" />
+          ) : (
+            <View style={styles.avatar}><Text style={styles.initials}>{initials}</Text></View>
+          )}
+          <View style={styles.camaraBadge}>
+            <Ionicons
+              name={subiendo ? 'hourglass-outline' : 'camera'}
+              size={14} color={colors.onAccent}
+            />
+          </View>
+        </TouchableOpacity>
+
         <Text style={styles.name}>{displayNombre}</Text>
-        <Badge label={roleLabel} color="accent" />
+        {/* alignSelf center: la insignia mide lo que su texto, sin esto se
+            alineaba a la izquierda mientras el nombre iba centrado. */}
+        <View style={styles.rolCentrado}>
+          <Badge label={roleLabel} color="accent" />
+        </View>
         <Text style={styles.email}>{displayEmail}</Text>
         {gymData?.nombre ? (
           <Text style={styles.plan}>
@@ -118,30 +197,92 @@ export default function AdminProfileScreen() {
       <View style={styles.body}>
         {/* Ficha del propietario */}
         <Card>
-          <Text style={styles.sectionTitle}>Mis datos</Text>
-          <View style={styles.infoRow}>
-            <Ionicons name="person-outline" size={16} color={colors.accent} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.infoLabel}>Nombre</Text>
-              <Text style={styles.infoValue}>{displayNombre}</Text>
-            </View>
-          </View>
-          <View style={styles.infoRow}>
-            <Ionicons name="mail-outline" size={16} color={colors.accent} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.infoLabel}>Correo de acceso</Text>
-              <Text style={styles.infoValue}>{displayEmail}</Text>
-            </View>
-          </View>
-          {propietario?.telefono ? (
-            <View style={styles.infoRow}>
-              <Ionicons name="call-outline" size={16} color={colors.accent} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.infoLabel}>Teléfono</Text>
-                <Text style={styles.infoValue}>{toStr(propietario.telefono)}</Text>
+          <View style={styles.tituloFila}>
+            <Text style={styles.sectionTitle}>Mis datos</Text>
+            {editando ? (
+              <View style={styles.accionesEdicion}>
+                <TouchableOpacity onPress={() => { setEditando(false); refetchGym(); }}
+                                  accessibilityRole="button" accessibilityLabel="Cancelar">
+                  <Text style={styles.cancelarText}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={guardar} disabled={guardando}
+                                  accessibilityRole="button" accessibilityLabel="Guardar cambios">
+                  <Text style={styles.guardarText}>{guardando ? 'Guardando…' : 'Guardar'}</Text>
+                </TouchableOpacity>
               </View>
-            </View>
-          ) : null}
+            ) : (
+              <TouchableOpacity onPress={() => setEditando(true)}
+                                accessibilityRole="button" accessibilityLabel="Editar mis datos">
+                <Text style={styles.editarText}>Editar</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {editando ? (
+            <>
+              <Text style={styles.campoLabel}>Nombre</Text>
+              <TextInput
+                style={styles.campo}
+                value={form.nombre}
+                onChangeText={(v) => setForm((f) => ({ ...f, nombre: v }))}
+                placeholder="Tu nombre"
+                placeholderTextColor={colors.textMuted}
+                accessibilityLabel="Nombre"
+              />
+              <Text style={styles.campoLabel}>Correo de acceso</Text>
+              <TextInput
+                style={styles.campo}
+                value={form.email}
+                onChangeText={(v) => setForm((f) => ({ ...f, email: v }))}
+                placeholder="correo@ejemplo.com"
+                placeholderTextColor={colors.textMuted}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                accessibilityLabel="Correo de acceso"
+              />
+              <Text style={styles.campoAyuda}>
+                Con este correo entras a la aplicación. Si lo cambias, usa el nuevo
+                la próxima vez.
+              </Text>
+              <Text style={styles.campoLabel}>Teléfono</Text>
+              <TextInput
+                style={styles.campo}
+                value={form.telefono}
+                onChangeText={(v) => setForm((f) => ({ ...f, telefono: v }))}
+                placeholder="7191055865"
+                placeholderTextColor={colors.textMuted}
+                keyboardType="phone-pad"
+                accessibilityLabel="Teléfono"
+              />
+            </>
+          ) : (
+            <>
+              <View style={styles.infoRow}>
+                <Ionicons name="person-outline" size={16} color={colors.accent} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.infoLabel}>Nombre</Text>
+                  <Text style={styles.infoValue}>{displayNombre}</Text>
+                </View>
+              </View>
+              <View style={styles.infoRow}>
+                <Ionicons name="mail-outline" size={16} color={colors.accent} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.infoLabel}>Correo de acceso</Text>
+                  <Text style={styles.infoValue}>{displayEmail}</Text>
+                </View>
+              </View>
+              <View style={styles.infoRow}>
+                <Ionicons name="call-outline" size={16} color={colors.accent} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.infoLabel}>Teléfono</Text>
+                  <Text style={styles.infoValue}>
+                    {toStr(propietario?.telefono, 'Sin registrar')}
+                  </Text>
+                </View>
+              </View>
+            </>
+          )}
+
           <View style={styles.infoRow}>
             <Ionicons name="shield-outline" size={16} color={colors.accent} />
             <View style={{ flex: 1 }}>
@@ -217,11 +358,39 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   avatar:  { width: 84, height: 84, borderRadius: 26, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
   avatarImg: { width: 84, height: 84, borderRadius: 26, backgroundColor: colors.surface, marginBottom: 4 },
   initials:{ color: colors.onAccent, fontSize: 32 * fs, fontWeight: '800' },
+  // Insignia de la cámara sobre el avatar, para que se vea que es tocable
+  camaraBadge: {
+    position: 'absolute', right: -2, bottom: 2,
+    width: 26, height: 26, borderRadius: 13,
+    backgroundColor: colors.accent,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: colors.heroTop,
+  },
   name:    { color: colors.text, fontSize: 22 * fs, fontWeight: '700', textAlign: 'center' },
-  email:   { color: colors.textSecondary, fontSize: 13 * fs },
-  plan:    { color: colors.accent, fontSize: 12 * fs },
+  // La insignia de rol mide lo que su texto; sin este contenedor se pegaba a
+  // la izquierda mientras el nombre iba centrado.
+  rolCentrado: { alignSelf: 'center' },
+  email:   { color: colors.textSecondary, fontSize: 13 * fs, textAlign: 'center' },
+  plan:    { color: colors.accent, fontSize: 12 * fs, textAlign: 'center' },
   body:    { padding: 20, gap: 16 },
   editBar: { flexDirection: 'row', gap: 10 },
+
+  // ── Edición de los datos de la persona ──────────────────────────────────
+  tituloFila: { flexDirection: 'row', alignItems: 'center',
+                justifyContent: 'space-between', marginBottom: 4 },
+  accionesEdicion: { flexDirection: 'row', gap: 16 },
+  editarText:   { color: colors.accent, fontSize: 13 * fs, fontWeight: '700' },
+  guardarText:  { color: colors.accent, fontSize: 13 * fs, fontWeight: '700' },
+  cancelarText: { color: colors.textSecondary, fontSize: 13 * fs, fontWeight: '600' },
+  campoLabel: { color: colors.textSecondary, fontSize: 11.5 * fs, fontWeight: '700',
+                marginTop: 12, marginBottom: 5 },
+  campoAyuda: { color: colors.textMuted, fontSize: 11 * fs, marginTop: 5 },
+  campo: {
+    backgroundColor: colors.inputBg, borderRadius: 10,
+    paddingHorizontal: 13, paddingVertical: 10,
+    color: colors.text, fontSize: 14 * fs,
+    borderWidth: 1, borderColor: colors.border,
+  },
   sectionTitle: { color: colors.text, fontSize: 14 * fs, fontWeight: '700', marginBottom: 4 },
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
   infoLabel:{ color: colors.textSecondary, fontSize: 11 * fs },

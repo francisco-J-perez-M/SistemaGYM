@@ -35,7 +35,10 @@ export default function ReceptionistProfileScreen() {
       <View style={[styles.hero, { paddingTop: insets.top + 20 }]}>
         <View style={styles.avatar}><Text style={styles.initials}>{initials}</Text></View>
         <Text style={styles.name}>{nombre}</Text>
-        <Badge label="Recepcionista" color="accent" />
+        {/* Contenedor centrado: la insignia mide lo que su texto. */}
+        <View style={styles.rolCentrado}>
+          <Badge label="Recepcionista" color="accent" />
+        </View>
       </View>
 
       <View style={styles.body}>
@@ -68,6 +71,7 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   return StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.background },
     hero:   { alignItems: 'center', paddingBottom: 28, gap: 8, backgroundColor: colors.heroTop },
+    rolCentrado: { alignSelf: 'center' },
     avatar: { width: 80, height: 80, borderRadius: 24, backgroundColor: colors.accent,
               alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
     initials: { color: colors.onAccent, fontSize: 30 * fs, fontWeight: '800' },

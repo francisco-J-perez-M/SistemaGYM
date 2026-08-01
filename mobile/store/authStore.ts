@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { router } from 'expo-router';
-import { loginRequest, persistSession, loadSession, clearSession } from '../services/auth';
+import {
+  loginRequest, persistSession, loadSession, clearSession, refrescarSesion,
+} from '../services/auth';
 import { configureApi } from '../services/api';
 import type { AuthUser } from '../types';
 
@@ -44,6 +46,14 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
   clearError: () => set({ error: null }),
 
+  /**
+   * Restaura la sesión al abrir la aplicación.
+   *
+   * Si hay sesión guardada se entra directo, sin pedir credenciales. Cuando el
+   * access token ya caducó (más de 8 horas sin abrir la app), se renueva en
+   * silencio con el token de refresco antes de continuar; solo si ese también
+   * expiró —90 días— se manda a la pantalla de acceso.
+   */
   hydrate: async () => {
     set({ loading: true });
     try {
@@ -53,10 +63,18 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         configureApi(user.id_gimnasio, get().logout);
         set({ user, token, loading: false });
         router.replace(resolveHomeRoute(user.role) as any);
-      } else {
-        set({ loading: false });
-        router.replace('/(auth)/login');
+
+        // Renovación oportunista: no bloquea la entrada. Si el token seguía
+        // vigente no cambia nada, y si estaba por caducar la primera petición
+        // ya sale con uno fresco.
+        refrescarSesion().then((r) => {
+          if (r) set({ token: r.token, user: r.user ?? get().user });
+        });
+        return;
       }
+
+      set({ loading: false });
+      router.replace('/(auth)/login');
     } catch {
       set({ loading: false });
       router.replace('/(auth)/login');
@@ -66,8 +84,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   login: async (email, password) => {
     set({ loading: true, error: null });
     try {
-      const { access_token, user } = await loginRequest(email, password);
-      await persistSession(access_token, user);
+      const { access_token, refresh_token, user } = await loginRequest(email, password);
+      await persistSession(access_token, user, refresh_token);
       configureApi(user.id_gimnasio, get().logout);
       set({ user, token: access_token, loading: false });
       router.replace(resolveHomeRoute(user.role) as any);
