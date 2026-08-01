@@ -10,7 +10,29 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import type { DrawerContentComponentProps } from '@react-navigation/drawer';
+/**
+ * Contrato del contenido del cajón.
+ *
+ * No se reutiliza DrawerContentComponentProps de @react-navigation/drawer
+ * porque expo-router reexporta el Drawer con SUS PROPIOS tipos: mismos objetos
+ * en ejecución, pero declaraciones distintas. Las dos difieren, entre otras
+ * cosas, en si `tintColor` es `string` o `ColorValue`, y TypeScript rechaza el
+ * paso de props aunque el código funcione.
+ *
+ * Se declara aquí lo único que este componente consume. Es un contrato más
+ * pequeño y más honesto: si algún día deja de recibirse, el error saldrá aquí
+ * y no enterrado en veinte niveles de tipos genéricos.
+ */
+interface PropsCajon {
+  state: {
+    routes: { key: string; name: string }[];
+    index:  number;
+  };
+  /** Se consume solo navigate(); el objeto real trae decenas de métodos
+   *  con firmas sobrecargadas que no aportan nada aquí. */
+  navigation: any;
+  descriptors: Record<string, { options: any }>;
+}
 import { useColors, useFontScale } from '../../hooks/useColors';
 import { useAuth } from '../../hooks/useAuth';
 import { toStr } from '../../utils/format';
@@ -30,7 +52,7 @@ function getRoleLabel(role?: string): string {
   }
 }
 
-export default function CustomDrawer(props: DrawerContentComponentProps) {
+export default function CustomDrawer(props: PropsCajon) {
   const { state, navigation, descriptors } = props;
   const insets  = useSafeAreaInsets();
   const colors  = useColors();

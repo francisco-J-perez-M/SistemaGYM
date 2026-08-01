@@ -113,7 +113,7 @@ function ExerciseCard({
   colors: any; fs: number; index: number;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const imgs = toArray(imagenes).filter(Boolean);
+  const imgs = toArray<string>(imagenes).filter(Boolean);
   const hasMedia = imgs.length > 0 || !!video;
 
   return (
@@ -324,7 +324,7 @@ export default function RoutineDetailModal({ visible, routine, onClose, mode }: 
                       </Text>
                     ) : null}
                   </View>
-                  {toArray(dia.ejercicios).map((ej, i) => (
+                  {toArray<any>(dia.ejercicios).map((ej, i) => (
                     <ExerciseCard
                       key={i}
                       index={i}

@@ -236,7 +236,7 @@ export default function MembresiasScreen() {
 
   if (loading) return <LoadingSpinner fullScreen message="Cargando membresías…" />;
 
-  const membresias = toArray(data);
+  const membresias = toArray<TipoMembresia>(data);
 
   return (
     <View style={[styles.screen, { paddingBottom: insets.bottom }]}>

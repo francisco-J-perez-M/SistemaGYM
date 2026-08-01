@@ -61,7 +61,7 @@ export default function MemberChatScreen() {
   // Entrenadores disponibles
   const { data: trainersData, loading: loadingT, refetch: refetchT } =
     useFetch<Trainer[] | { trainers: Trainer[] }>(ENDPOINTS.USER_TRAINERS_LIST);
-  const trainers = toArray(
+  const trainers = toArray<Trainer>(
     Array.isArray(trainersData) ? trainersData : (trainersData as any)?.trainers ?? []
   );
 

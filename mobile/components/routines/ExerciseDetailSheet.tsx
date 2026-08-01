@@ -230,7 +230,7 @@ export default function ExerciseDetailSheet({ visible, exercise, onClose }: Prop
   // Resolver imágenes: primero desde imageKey (caché), luego prop directo
   const imgs = exercise.imageKey
     ? (_imageCache.get(exercise.imageKey) ?? []).filter(Boolean)
-    : toArray(exercise.imagenes).filter(Boolean);
+    : toArray<string>(exercise.imagenes).filter(Boolean);
 
   const hasVideo = !!(exercise.video || exercise.videoKey);
 

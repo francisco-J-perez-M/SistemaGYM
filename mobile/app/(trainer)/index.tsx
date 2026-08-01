@@ -40,7 +40,7 @@ export default function TrainerDashboardScreen() {
   const sessionsToday= data?.stats?.sessions_today  ?? 0;
   const sessionsWeek = data?.stats?.sessions_week   ?? 0;
   const completionRate= data?.stats?.completion_rate ?? 0;
-  const clients      = toArray(clientsData?.clients);
+  const clients      = toArray<TrainerClientAPI>(clientsData?.clients);
 
   return (
     <ScrollView

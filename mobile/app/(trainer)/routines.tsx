@@ -304,7 +304,7 @@ export default function TrainerRoutinesScreen() {
               {isOpen && toArray(r.exerciseList).length > 0 && (
                 <View style={styles.exList}>
                   <Text style={styles.exListTitle}>Ejercicios</Text>
-                  {r.exerciseList.map((ex, i) => (
+                  {toArray(r.exerciseList).map((ex: any, i: number) => (
                     <View key={i} style={styles.exRow}>
                       <View style={styles.exNumBox}>
                         <Text style={styles.exNum}>{i + 1}</Text>
