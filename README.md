@@ -14,6 +14,7 @@ Rama de trabajo activa: `saas`.
 
 | Módulo | README | Descripción |
 |---|---|---|
+| **Novedades** | [CHANGELOG.md](CHANGELOG.md) | **Qué se ha agregado, cuándo, y qué queda pendiente** |
 | API (Flask) | [api/README.md](api/README.md) | Backend, contenedores, variables de entorno, endpoints |
 | Web (React) | [web/README.md](web/README.md) | Frontend, comandos, estructura, build |
 | Móvil (Expo) | [mobile/README.md](mobile/README.md) | Aplicación móvil, ejecución y build con EAS |
@@ -110,11 +111,117 @@ sudo service docker start
 
 ## 1.2 Instalar Git
 
-| Sistema | Cómo |
+Git es necesario para descargar el proyecto y para enviar cambios. En Windows conviene
+instalarlo aunque se use otra terminal, porque **Git Bash** permite usar los mismos
+comandos que en macOS y Linux, y así toda la documentación sirve igual para el equipo.
+
+| Sistema | Cómo | Enlace |
+|---|---|---|
+| Windows | Instalador oficial; incluye Git Bash | https://git-scm.com/download/win |
+| macOS | `brew install git`, o se instala al ejecutar `git` la primera vez | https://git-scm.com/download/mac |
+| Linux | `sudo apt install git` | https://git-scm.com/download/linux |
+
+Comprobar:
+
+```bash
+git --version
+```
+
+### GitHub CLI (opcional, pero facilita mucho las credenciales)
+
+`gh` resuelve el inicio de sesión en GitHub sin tener que crear tokens a mano. Es la vía
+más cómoda para quien se incorpora al proyecto.
+
+| Sistema | Instalación |
 |---|---|
-| Windows | https://git-scm.com/download/win (incluye Git Bash) |
-| macOS | `brew install git`, o se instala solo al ejecutar `git` la primera vez |
-| Linux | `sudo apt install git` |
+| Windows | https://cli.github.com — o `winget install --id GitHub.cli` |
+| macOS | `brew install gh` |
+| Linux | https://github.com/cli/cli/blob/trunk/docs/install_linux.md |
+
+## 1.3 Configurar tus credenciales
+
+**Identidad** (aparece en cada commit que hagas):
+
+```bash
+git config --global user.name "Tu Nombre"
+git config --global user.email "tucorreo@ejemplo.com"
+```
+
+Usa el mismo correo que tienes en GitHub para que los commits se asocien a tu cuenta.
+
+**Autenticación.** GitHub no acepta contraseñas desde 2021: hay que usar un token o una
+llave SSH. La forma más simple es con GitHub CLI:
+
+```bash
+gh auth login
+```
+
+Responde: `GitHub.com` → `HTTPS` → `Y` (autenticar Git con tus credenciales) → `Login
+with a web browser`. Copia el código que aparece, pégalo en el navegador y listo. A
+partir de ahí `git clone`, `git pull` y `git push` funcionan sin pedir nada.
+
+**Sin GitHub CLI**, se usa un token personal:
+
+1. Entrar a https://github.com/settings/tokens → *Generate new token (classic)*.
+2. Marcar el permiso `repo` y generar. Copiar el token: solo se muestra una vez.
+3. La primera vez que Git pida contraseña, pegar el token en su lugar.
+
+Para no repetirlo en cada operación, activa el gestor de credenciales:
+
+```bash
+# Windows (viene incluido con Git for Windows)
+git config --global credential.helper manager
+
+# macOS (guarda en el Llavero del sistema)
+git config --global credential.helper osxkeychain
+
+# Linux (guarda en disco; alternativa: libsecret para cifrado real)
+git config --global credential.helper store
+```
+
+**Con SSH**, si prefieres llaves a tokens:
+
+```bash
+ssh-keygen -t ed25519 -C "tucorreo@ejemplo.com"     # Enter en todas las preguntas
+cat ~/.ssh/id_ed25519.pub                            # copiar la salida
+```
+
+Pegar esa llave en https://github.com/settings/keys y comprobar:
+
+```bash
+ssh -T git@github.com
+```
+
+## 1.4 Flujo de trabajo
+
+```bash
+# Clonar (HTTPS)
+git clone https://github.com/<usuario>/SistemaGYM.git
+# o con SSH
+git clone git@github.com:<usuario>/SistemaGYM.git
+
+cd SistemaGYM
+git checkout saas          # rama de trabajo del proyecto
+
+# Traer los cambios del equipo antes de empezar
+git pull
+
+# Ver qué has modificado
+git status
+
+# Enviar tus cambios
+git add .
+git commit -m "feat(modulo): descripcion breve de lo que hiciste"
+git push
+```
+
+> Tras un `git pull` que traiga migraciones o cambios en el `Dockerfile`, hay que
+> reconstruir: `docker compose up -d --build`. Y si cambiaron las dependencias del
+> móvil, `npm install` dentro de `mobile/`.
+
+Los mensajes de commit del proyecto siguen el formato `tipo(ámbito): descripción`, con
+tipos `feat`, `fix`, `docs`, `refactor`, `chore` y `style`. Ayuda a que el registro de
+cambios se lea solo.
 
 ---
 
