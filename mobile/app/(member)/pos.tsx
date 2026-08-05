@@ -32,6 +32,7 @@ import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
 import api from '../../services/api';
 import BotonesPago from '../../components/BotonesPago';
+import TicketVenta, { TicketVentaData } from '../../components/admin/TicketVenta';
 import { useAuth } from '../../hooks/useAuth';
 import * as Haptics from 'expo-haptics';
 
@@ -87,6 +88,8 @@ export default function MemberPOSScreen() {
 
   const { user } = useAuth();
   const [tab,     setTab]     = useState<Tab>('productos');
+  // Compra cuyo comprobante se está mostrando
+  const [ticket,  setTicket]  = useState<TicketVentaData | null>(null);
   const [cart,    setCart]    = useState<Cart>({});
   const [buying,  setBuying]  = useState(false);
 
@@ -280,7 +283,15 @@ export default function MemberPOSScreen() {
             </View>
           }
           renderItem={({ item: c }) => (
-            <View style={styles.compraCard}>
+            // Tocar la compra abre su comprobante, el mismo que emite el POS del
+            // gimnasio, para que el miembro tenga constancia de lo que pagó.
+            <TouchableOpacity
+              style={styles.compraCard}
+              onPress={() => setTicket(c as TicketVentaData)}
+              accessibilityRole="button"
+              accessibilityLabel={`Ver comprobante de la compra del ${toDateStr(c.fecha)}`}
+              activeOpacity={0.75}
+            >
               <View style={styles.compraIconBox}>
                 <Ionicons name="receipt-outline" size={18} color={colors.accent} />
               </View>
@@ -295,11 +306,17 @@ export default function MemberPOSScreen() {
                   </Text>
                 ))}
               </View>
-              <Text style={styles.compraTotal}>${(c.total ?? 0).toFixed(2)}</Text>
-            </View>
+              <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                <Text style={styles.compraTotal}>${(c.total ?? 0).toFixed(2)}</Text>
+                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+              </View>
+            </TouchableOpacity>
           )}
         />
       )}
+
+      {/* Comprobante de la compra seleccionada */}
+      <TicketVenta venta={ticket} onClose={() => setTicket(null)} />
 
       {/* ── MODAL DETALLE PRODUCTO ─────────────────────────────────── */}
       <Modal visible={!!detailProd} animationType="slide" transparent onRequestClose={() => setDetailProd(null)}>

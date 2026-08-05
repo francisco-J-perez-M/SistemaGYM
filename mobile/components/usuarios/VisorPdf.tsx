@@ -170,8 +170,11 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
       borderWidth: 1, borderColor: colors.border,
     },
     web:  { flex: 1, backgroundColor: colors.surface },
+    // La capa de carga se estira sobre el WebView. `absoluteFillObject` no está
+    // en los tipos de esta versión de RN, así que se escriben las cuatro
+    // posiciones, que es exactamente lo que aquel atajo produce.
     capa: {
-      ...StyleSheet.absoluteFillObject,
+      position: 'absolute', top: 0, right: 0, bottom: 0, left: 0,
       alignItems: 'center', justifyContent: 'center', gap: 10,
       backgroundColor: colors.surface,
     },

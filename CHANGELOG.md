@@ -33,6 +33,79 @@ siguiente cuatrimestre.
 | Imágenes de productos | Se administran únicamente desde la web; el móvil no las sube | Parcial |
 | Reportes del propietario | El PDF se descarga; podría verse dentro de la app con el visor ya construido para certificados | Pendiente |
 | Almacenamiento de archivos | Fotos, logotipos y certificados se guardan como base64 en la propia base. Funciona, pero un servidor de archivos u objeto sería lo correcto al crecer | Pendiente |
+| Auto-renovación con cobro real | El ciclo diario ya renueva y factura, pero el cargo es simulado, igual que el botón "Renovar 30 días". Con una pasarela real esto lo dispararía su webhook | Parcial |
+| Archivo suelto `web/src/pages/owner_gym/sedkodaW0` | Copia de `POSProductoModal.jsx`, aparentemente un residuo del editor. Conviene borrarlo | Pendiente |
+
+---
+
+## v1.0 — Paridad web/móvil, respaldos y arranque reproducible · 5 de agosto de 2026
+
+**Arranque en cualquier computadora** · Completo
+
+- Resuelto el fallo que impedía levantar los contenedores en algunas computadoras:
+  `exec /app/entrypoint.sh: no such file or directory`, seguido de
+  `host not found in upstream "api"` en nginx. La causa eran los finales de línea de
+  Windows (CRLF) en el script de arranque; el segundo error era solo una consecuencia
+  del primero. Explicado a fondo en el apartado 10.1 del README.
+- `.gitattributes` ampliado con `* text=auto` y reglas explícitas para `.sh`,
+  `Dockerfile`, `.yml` y `.conf`. El resultado de `git clone` ya no depende de la
+  configuración personal de `core.autocrlf` de cada quien.
+- `api/Dockerfile` normaliza el `entrypoint.sh` durante el build. Cubre el caso que el
+  punto anterior no puede: `docker build` copia desde el disco, no desde Git.
+- `backups/` y `uploads/` viajan con un `.gitkeep`. Antes no existían en un clon nuevo,
+  Docker las creaba como `root` y el contenedor —que corre como `gymuser`— no podía
+  escribir respaldos ni fotos de perfil.
+
+**Respaldos** · Completo
+
+- El respaldo por gimnasio guardaba las rutinas pero no sus días ni sus ejercicios, así
+  que al restaurar aparecían rutinas vacías. Se añadió la cascada completa
+  `rutinas → rutina_dias → rutina_ejercicios`, las asignaciones a miembros, y las
+  colecciones que faltaban: chats, citas, solicitudes PT, recetas, consumos, métricas
+  históricas, entrenamientos y las certificaciones y perfiles del staff.
+- El Excel y el PDF del respaldo global solo recorrían MongoDB. Ahora incluyen las
+  tablas de PostgreSQL —entre ellas el catálogo de ejercicios—, dejando fuera a
+  propósito las credenciales cifradas de las pasarelas de pago.
+- La restauración descarta documentos de otro gimnasio en lugar de mezclarlos.
+
+**Suscripción de la plataforma** · Completo
+
+- `auto_renovar` era una casilla que se guardaba y nadie leía: activarla no renovaba
+  nada. Ahora un proceso diario a las 03:00 renueva y factura las suscripciones que la
+  tienen activa, y marca `past_due` las que no.
+- El interruptor de la web ya no se mueve en pantalla si el servidor rechaza el cambio.
+
+**Propietario** · Completo
+
+- Panel de control sincronizado entre web y móvil: el móvil incorpora los indicadores
+  que le faltaban (punto de venta, tipos de membresía, mes anterior, recepcionistas),
+  más alertas operativas y actividad reciente.
+- La web dejó de mostrar una variación engañosa cuando no hay mes previo con ingresos.
+- Pagos y punto de venta en la web con filtro por año y mes, y el total de todo el
+  filtro, no solo de la página visible.
+
+**Entrenador** · Completo
+
+- Reporte de desempeño en PDF con filtros de año, mes y secciones. Lo genera el
+  servidor y lo consumen igual la web y el móvil, así que ambos documentos son el
+  mismo. Nuevo módulo `api/app/routes/entrenador/reportes_entrenador.py`.
+- Alta y edición de ejercicios desde el móvil, y creación de rutinas completas en dos
+  pasos eligiendo de la biblioteca personal.
+
+**Miembro** · Completo
+
+- Marcar un día de rutina como completado desde el móvil: registra la bitácora, cuenta
+  la asistencia del día y alimenta la racha y las gráficas de progreso.
+- Plan alimenticio completo. Antes solo leía las comidas planas e ignoraba la
+  estructura `semanas → días → comidas` que usa el entrenador, y por eso el plan se
+  veía a medias.
+- Recetas con imagen y ficha de detalle con ingredientes y preparación. Los valores
+  nutrimentales no aparecían porque llegan como `proteinas_g` y se leían como
+  `proteinas`.
+- Comprobantes del punto de venta en el móvil, para propietario y miembro, con opción
+  de compartir.
+- Se retiraron los accesos rápidos del panel web: repetían punto por punto el menú
+  lateral, que está siempre visible.
 
 ---
 

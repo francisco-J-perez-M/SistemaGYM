@@ -90,30 +90,89 @@ export interface BodyProgress {
 
 // ── Nutrition ─────────────────────────────────────────────────────────────────
 
+/** Ingrediente de una receta. El backend lo guarda como objeto. */
+export interface IngredienteReceta {
+  nombre?:   string;
+  cantidad?: number | string;
+  unidad?:   string;
+}
+
+/**
+ * Receta — GET /api/user/nutrition/recetas.
+ *
+ * Los macros llegan con sufijo `_g` desde la biblioteca del entrenador
+ * (`proteinas_g`) pero las recetas antiguas del miembro los guardaron sin él
+ * (`proteinas`). Se declaran ambos y la pantalla toma el primero que exista;
+ * confiar solo en uno dejaba los macros en blanco según quién creó la receta.
+ */
 export interface Receta {
   _id:         string;
   nombre:      string;
-  calorias:    number;
-  proteinas?:  number;
-  carbohidratos?: number;
-  grasas?:     number;
-  categoria:   string;
-  ingredientes?: string;
-  instrucciones?: string;
-}
-
-export interface Dieta {
-  _id:         string;
-  nombre:      string;
+  calorias?:   number;
+  categoria?:  string;
   descripcion?: string;
-  calorias_objetivo?: number;
-  comidas:     ComidaDieta[];
+  /** base64 (data URL) o URL. */
+  imagen?:     string | null;
+  tiempo_preparacion_min?: number;
+
+  proteinas?:      number;
+  carbohidratos?:  number;
+  grasas?:         number;
+  proteinas_g?:     number;
+  carbohidratos_g?: number;
+  grasas_g?:        number;
+
+  /** Texto libre en recetas viejas, lista de objetos en las nuevas. */
+  ingredientes?:  string | IngredienteReceta[];
+  instrucciones?: string;
+  consumida_hoy?: boolean;
 }
 
+/** Una comida dentro de un día del plan. */
 export interface ComidaDieta {
-  nombre:    string;
+  nombre?:   string;
   hora?:     string;
-  recetas:   string[];
+  /** Nombres o ids de receta, según cómo se armara el plan. */
+  recetas?:  string[];
+  alimentos?: string[];
+  calorias?: number;
+  notas?:    string;
+}
+
+export interface DiaDieta {
+  dia?:     string;
+  comidas?: ComidaDieta[];
+}
+
+export interface SemanaDieta {
+  semana?: number;
+  dias?:   DiaDieta[];
+}
+
+/**
+ * Plan alimenticio — GET /api/user/nutrition/dietas.
+ *
+ * Convive con dos formatos. Los planes que arma el entrenador anidan
+ * `semanas → dias → comidas`; los antiguos, y los que crea el propio miembro,
+ * traen `comidas` planas. La pantalla aplana el primero para tratar ambos
+ * igual: leer solo `comidas` era la razón de que el plan se viera incompleto.
+ */
+export interface Dieta {
+  _id:          string;
+  nombre:       string;
+  descripcion?: string;
+  objetivo?:    string;
+  notas?:       string;
+  duracion_semanas?: number;
+
+  calorias_objetivo?: number;
+  calorias_meta?:     number;
+  proteinas_meta_g?:  number;
+  carbohidratos_meta_g?: number;
+  grasas_meta_g?:     number;
+
+  semanas?: SemanaDieta[];
+  comidas?: ComidaDieta[];
 }
 
 // ── Membership ────────────────────────────────────────────────────────────────
@@ -452,6 +511,22 @@ export interface OwnerDashboard {
     recepcionistas: number;
   };
   tipos_membresia: number;
+}
+
+/* El feed de actividad ya está declarado arriba como `ActividadItem`. */
+
+/** Alerta operativa — GET /owner_gym/alertas. */
+export interface AlertaOperativa {
+  nivel:   'error' | 'warning' | 'info';
+  tipo:    string;
+  titulo:  string;
+  detalle: string;
+  icono?:  string;
+}
+
+export interface AlertasResponse {
+  alertas: AlertaOperativa[];
+  total:   number;
 }
 
 /** Membresía activa anidada en el miembro (Miembro.to_dict) */

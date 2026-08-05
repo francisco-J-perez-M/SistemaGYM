@@ -159,7 +159,11 @@ export default function OwnerDashboard() {
 
   useEffect(() => { load(); }, [load]);
 
-  const variacion = kpis?.ingresos?.variacion_pct ?? 0;
+  // Sin ingresos el mes pasado no hay porcentaje que calcular: pintar "-100 %"
+  // o "0 %" haría creer que el negocio cayó cuando en realidad no hay base de
+  // comparación. El backend lo avisa con `sin_comparativa`, igual que el móvil.
+  const sinComparativa = kpis?.ingresos?.sin_comparativa ?? false;
+  const variacion = sinComparativa ? 0 : (kpis?.ingresos?.variacion_pct ?? 0);
   const varPositive = variacion >= 0;
 
   return (
@@ -190,18 +194,23 @@ export default function OwnerDashboard() {
           label="Ingresos del Mes"
           value={fmt(kpis?.ingresos?.mes_actual)}
           sub={
-            <span style={{ color: varPositive ? "var(--success)" : "var(--danger)" }}>
-              {varPositive ? "▲" : "▼"} {Math.abs(variacion)}% vs mes anterior
-            </span>
+            sinComparativa
+              ? <span style={{ color: "var(--text-tertiary)" }}>Membresías + POS · sin mes previo</span>
+              : (
+                <span style={{ color: varPositive ? "var(--success)" : "var(--danger)" }}>
+                  {varPositive ? "▲" : "▼"} {Math.abs(variacion)}% vs mes anterior
+                </span>
+              )
           }
           icon={<FiDollarSign />}
           accent="var(--success)"
           loading={loading}
         />
+        {/* El POS ya va sumado dentro de "Ingresos del Mes"; aquí se desglosa. */}
         <KpiCard
           label="Ventas POS (Mes)"
           value={fmt(kpis?.ventas_pos?.total_mes)}
-          sub={`${kpis?.ventas_pos?.transacciones ?? 0} transacciones`}
+          sub={`${kpis?.ventas_pos?.transacciones ?? 0} transacciones · incluidas arriba`}
           icon={<FiShoppingCart />}
           accent="var(--warning)"
           loading={loading}

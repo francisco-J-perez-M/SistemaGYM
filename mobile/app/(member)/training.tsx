@@ -456,6 +456,8 @@ export default function TrainingScreen() {
         routine={selectedRutina}
         onClose={() => setSelectedRutina(null)}
         mode="member"
+        // Registrar el día refresca la rutina asignada por el entrenador.
+        onCompletado={refetchR}
       />
     </KeyboardAvoidingView>
   );

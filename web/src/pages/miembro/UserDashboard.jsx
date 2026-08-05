@@ -4,23 +4,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   FiActivity, FiTrendingUp, FiTrendingDown, FiZap, FiAward,
   FiCalendar, FiCheckCircle, FiAlertTriangle,
-  FiUser, FiHeart, FiBarChart2, FiBook, FiCoffee, FiDollarSign,
+  FiUser, FiHeart,
   FiMoon, FiShield,
 } from "react-icons/fi";
 import "../../css/CSSUnificado.css";
 
 const DIAS = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
-
-const QUICK_LINKS = [
-  { icon: <FiActivity />,    label: "Mi Rutina",       path: "/user/routine",    color: "#6366f1" },
-  { icon: <FiTrendingUp />,  label: "Progreso",        path: "/user/progress",   color: "#22c55e" },
-  { icon: <FiHeart />,       label: "Salud",           path: "/user/health",     color: "#ef4444" },
-  { icon: <FiBarChart2 />,   label: "Predicción",      path: "/user/prediction", color: "#f59e0b" },
-  { icon: <FiCoffee />,      label: "Alimentación",    path: "/user/nutrition",  color: "#8b5cf6" },
-  { icon: <FiBook />,        label: "Recetas",         path: "/user/recipes",    color: "#06b6d4" },
-  { icon: <FiDollarSign />,  label: "Pagos",           path: "/user/payments",   color: "#10b981" },
-  { icon: <FiUser />,        label: "Mi Perfil",       path: "/user/profile",    color: "var(--text-secondary)" },
-];
 
 const OBJETIVO_LABELS = {
   "Pérdida de peso":           { Icon: FiTrendingDown, color: "#ef4444" },
@@ -409,36 +398,9 @@ export default function UserDashboard() {
             </motion.div>
           </div>
 
-          {/* ── Accesos rápidos ──────────────────────── */}
-          <motion.div
-            data-guide="us-quicklinks"
-            initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }} transition={{ delay:.35 }}
-            style={{ marginBottom:24 }}
-          >
-            <h3 style={{ fontSize:14, fontWeight:700, color:"var(--text-secondary)", marginBottom:12, textTransform:"uppercase", letterSpacing:".06em" }}>
-              Accesos rápidos
-            </h3>
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(120px,1fr))", gap:10 }}>
-              {QUICK_LINKS.map((ql, i) => (
-                <motion.div
-                  key={ql.path}
-                  initial={{ opacity:0, scale:.9 }} animate={{ opacity:1, scale:1 }} transition={{ delay: .35 + i*.04 }}
-                  whileHover={{ scale:1.04, y:-2 }}
-                  onClick={() => navigate(ql.path)}
-                  style={{
-                    background:"var(--bg-card)", border:"1px solid var(--border)",
-                    borderRadius:10, padding:"14px 10px", textAlign:"center",
-                    cursor:"pointer", transition:"box-shadow .2s",
-                  }}
-                >
-                  <div style={{ width:36, height:36, borderRadius:9, background:`${ql.color}18`, display:"flex", alignItems:"center", justifyContent:"center", color:ql.color, fontSize:18, margin:"0 auto 8px" }}>
-                    {ql.icon}
-                  </div>
-                  <div style={{ fontSize:12, fontWeight:600, color:"var(--text-primary)" }}>{ql.label}</div>
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
+          {/* Los accesos rápidos se retiraron: duplicaban punto por punto las
+              entradas del menú lateral, que está siempre visible. Ocupaban una
+              franja del panel sin ofrecer nada que el menú no diera ya. */}
 
           {/* ── Logros ──────────────────────────────── */}
           {achievements.length > 0 && (

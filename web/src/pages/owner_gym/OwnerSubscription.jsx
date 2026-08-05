@@ -73,13 +73,29 @@ export default function OwnerSubscription() {
 
   const toggleAuto = async () => {
     if (!sub) return;
+    const destino = !sub.auto_renovar;
     try {
-      await fetch(`/api/billing/suscripcion/${sub.id}`, {
+      const r = await fetch(`/api/billing/suscripcion/${sub.id}`, {
         method: "PUT", headers: authHeaders(),
-        body: JSON.stringify({ auto_renovar: !sub.auto_renovar }),
+        body: JSON.stringify({ auto_renovar: destino }),
       });
-      setSub(s => ({ ...s, auto_renovar: !s.auto_renovar }));
-    } catch { setMsg({ type: "error", text: "No se pudo actualizar la auto-renovación." }); }
+      // fetch no lanza en 4xx/5xx: sin esta comprobación el interruptor se
+      // movía en pantalla aunque el servidor hubiera rechazado el cambio, y el
+      // dueño creía tener el cargo recurrente activo sin tenerlo.
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        throw new Error(j.msg || "El servidor rechazó el cambio.");
+      }
+      setSub((s) => ({ ...s, auto_renovar: destino }));
+      setMsg({
+        type: "ok",
+        text: destino
+          ? "Cargo recurrente activado: tu plan se renovará solo al vencer."
+          : "Cargo recurrente desactivado: tendrás que renovar manualmente.",
+      });
+    } catch (e) {
+      setMsg({ type: "error", text: e.message || "No se pudo actualizar la auto-renovación." });
+    }
   };
 
   const confirmarPago = async () => {
@@ -159,7 +175,9 @@ export default function OwnerSubscription() {
                 <div>
                   <div style={{ fontWeight: 700, color: "var(--text-primary)", fontSize: 14 }}>Cargo recurrente</div>
                   <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-                    {sub.auto_renovar ? "Tu plan se renovará automáticamente al vencer." : "La renovación es manual."}
+                    {sub.auto_renovar
+                      ? `Se renovará solo el ${fechaCorta(sub.fecha_proximo_cobro)} por otros 30 días.`
+                      : `Sin cargo automático: el ${fechaCorta(sub.fecha_proximo_cobro)} tendrás que renovar a mano.`}
                   </div>
                 </div>
               </div>

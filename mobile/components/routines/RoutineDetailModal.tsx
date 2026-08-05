@@ -8,12 +8,14 @@
 import React, { useState } from 'react';
 import {
   Modal, View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, Image, Dimensions, Linking,
+  StyleSheet, Image, Dimensions, Linking, Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors, useFontScale } from '../../hooks/useColors';
 import { toStr, toArray } from '../../utils/format';
+import { ENDPOINTS } from '../../constants/Api';
+import api from '../../services/api';
 import Badge from '../ui/Badge';
 
 const { width: SW } = Dimensions.get('window');
@@ -76,6 +78,12 @@ interface Props {
   routine:  RoutineForModal | null;
   onClose:  () => void;
   mode:     'trainer' | 'member';
+  /**
+   * Si se pasa, cada día muestra un botón para darlo por hecho. Registra el
+   * entrenamiento en la bitácora, cuenta la asistencia del día y alimenta la
+   * racha y las gráficas de progreso. Solo tiene sentido en modo 'member'.
+   */
+  onCompletado?: () => void;
 }
 
 // ── Componente imagen ─────────────────────────────────────────────────────────
@@ -191,10 +199,17 @@ const exS = StyleSheet.create({
 });
 
 // ── Modal principal ───────────────────────────────────────────────────────────
-export default function RoutineDetailModal({ visible, routine, onClose, mode }: Props) {
+export default function RoutineDetailModal({
+  visible, routine, onClose, mode, onCompletado,
+}: Props) {
   const insets = useSafeAreaInsets();
   const colors = useColors();
   const fs     = useFontScale();
+
+  // Día que se está registrando y días ya marcados en esta sesión, para no
+  // dejar que un doble toque cuente el mismo entrenamiento dos veces.
+  const [guardandoDia, setGuardandoDia] = useState<string | null>(null);
+  const [diasHechos,   setDiasHechos]   = useState<string[]>([]);
 
   if (!routine) return null;
 
@@ -205,6 +220,61 @@ export default function RoutineDetailModal({ visible, routine, onClose, mode }: 
   const duration    = routine.duration ?? (routine.duracion_minutos ? `${routine.duracion_minutos} min` : '');
   const description = toStr(routine.description ?? routine.descripcion, '');
   const active      = routine.active ?? routine.activa ?? true;
+
+  /**
+   * Marca un día como completado.
+   *
+   * Se envían los ejercicios con sus series y pesos planificados: el backend
+   * calcula con ellos el volumen total y las calorías, así que mandar solo el
+   * nombre del día dejaría la bitácora sin las cifras que luego pintan las
+   * gráficas de progreso.
+   */
+  const completarDia = (dia: DiaRutinaDetail) => {
+    const ejercicios = toArray<any>(dia.ejercicios).map((ej) => ({
+      nombre: toStr(ej.nombre, 'Ejercicio'),
+      series: Array.from({ length: Math.max(1, Number(ej.series) || 1) }, () => ({
+        repeticiones: Number(ej.reps) || 0,
+        peso:         Number(ej.peso) || 0,
+      })),
+    }));
+
+    if (ejercicios.length === 0) {
+      Alert.alert('Día sin ejercicios', 'Este día no tiene ejercicios que registrar.');
+      return;
+    }
+
+    Alert.alert(
+      '¿Terminaste este día?',
+      `Se registrará "${toStr(dia.dia)}" en tu bitácora y contará tu asistencia de hoy.`,
+      [
+        { text: 'Todavía no', style: 'cancel' },
+        {
+          text: 'Sí, lo completé',
+          onPress: async () => {
+            setGuardandoDia(dia.id);
+            try {
+              await api.post(ENDPOINTS.WORKOUT_COMPLETE, {
+                id_rutina:      routine.id,
+                nombre_rutina:  `${name} — ${toStr(dia.dia)}`,
+                grupo_muscular: toStr(dia.grupo),
+                ejercicios,
+              });
+              setDiasHechos((prev) => [...prev, dia.id]);
+              onCompletado?.();
+              Alert.alert('Registrado', 'Tu entrenamiento quedó guardado. Buen trabajo.');
+            } catch (e: any) {
+              Alert.alert(
+                'No se pudo registrar',
+                e?.response?.data?.error || 'Revisa tu conexión e inténtalo de nuevo.',
+              );
+            } finally {
+              setGuardandoDia(null);
+            }
+          },
+        },
+      ],
+    );
+  };
 
   return (
     <Modal
@@ -338,6 +408,45 @@ export default function RoutineDetailModal({ visible, routine, onClose, mode }: 
                       fs={fs}
                     />
                   ))}
+
+                  {/* Marcar el día como hecho */}
+                  {onCompletado && toArray(dia.ejercicios).length > 0 && (() => {
+                    const hecho     = diasHechos.includes(dia.id);
+                    const guardando = guardandoDia === dia.id;
+                    return (
+                      <TouchableOpacity
+                        onPress={() => !hecho && !guardando && completarDia(dia)}
+                        disabled={hecho || guardando}
+                        activeOpacity={0.8}
+                        accessibilityRole="button"
+                        accessibilityLabel={
+                          hecho
+                            ? `${toStr(dia.dia)} ya registrado`
+                            : `Marcar ${toStr(dia.dia)} como completado`
+                        }
+                        style={[
+                          styles.completarBtn,
+                          {
+                            backgroundColor: hecho ? colors.successBg ?? (colors.success + '22') : colors.accent,
+                            borderColor:     hecho ? colors.success : 'transparent',
+                            opacity:         guardando ? 0.6 : 1,
+                          },
+                        ]}
+                      >
+                        <Ionicons
+                          name={hecho ? 'checkmark-circle' : 'checkmark-circle-outline'}
+                          size={18}
+                          color={hecho ? colors.success : colors.onAccent}
+                        />
+                        <Text style={[
+                          styles.completarTxt,
+                          { color: hecho ? colors.success : colors.onAccent, fontSize: 14 * fs },
+                        ]}>
+                          {hecho ? 'Día completado' : guardando ? 'Registrando…' : 'Marcar día como completado'}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })()}
                 </View>
               ))}
             </>
@@ -376,6 +485,11 @@ const styles = StyleSheet.create({
   notasText:   { flex: 1, lineHeight: 18 },
   sectionTitle:{ fontWeight: '700', marginBottom: -8 },
   dayBlock:    { gap: 8 },
+  completarBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    paddingVertical: 12, borderRadius: 12, borderWidth: 1, marginTop: 4,
+  },
+  completarTxt: { fontWeight: '700' },
   dayHeader:   { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 },
   dayName:     { fontWeight: '700' },
   dayGrupo:    {},

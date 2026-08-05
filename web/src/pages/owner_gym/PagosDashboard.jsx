@@ -20,6 +20,11 @@ const ReceiptIcon  = () => (<svg width="28" height="28" viewBox="0 0 24 24" fill
 const FilterIcon   = () => (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>);
 
 /* ── Helpers ── */
+const MESES_CORTOS = [
+  "Ene", "Feb", "Mar", "Abr", "May", "Jun",
+  "Jul", "Ago", "Sep", "Oct", "Nov", "Dic",
+];
+
 const formatMoney = (v) =>
   Number(v).toLocaleString("es-MX", { style: "currency", currency: "MXN" });
 
@@ -169,10 +174,16 @@ export default function PagosDashboard() {
   const [categorias,  setCategorias]  = useState([]);
   const [loading,     setLoading]     = useState(false);
   const [pagination,  setPagination]  = useState({ page: 1, pages: 1, total: 0 });
+  // Importe de TODO el filtro, no solo de la página visible, y años con datos
+  // para el selector de periodo. Ambos los calcula el backend.
+  const [montoTotal,  setMontoTotal]  = useState(0);
+  const [anios,       setAnios]       = useState([]);
 
   // Filtros
   const [tipoFiltro,  setTipoFiltro]  = useState("todos");   // todos | membresia | venta
   const [catFiltro,   setCatFiltro]   = useState("");         // "" | nombre categoría
+  const [anio,        setAnio]        = useState(0);          // 0 = histórico completo
+  const [mes,         setMes]         = useState(0);          // 0 = año completo
 
   // Cargar categorías cuando se activa el filtro POS
   useEffect(() => {
@@ -183,13 +194,21 @@ export default function PagosDashboard() {
     }
   }, [tipoFiltro]); // eslint-disable-line
 
-  const loadData = useCallback(async (page = 1, tipo = tipoFiltro, cat = catFiltro) => {
+  const loadData = useCallback(async (
+    page = 1, tipo = tipoFiltro, cat = catFiltro, a = anio, m = mes,
+  ) => {
     setLoading(true);
     try {
-      const res = await getTodosMovimientos({ page, tipo, categoria: cat });
+      const params = { page, tipo, categoria: cat, per_page: 10 };
+      if (a) params.anio = a;
+      if (a && m) params.mes = m;
+
+      const res = await getTodosMovimientos(params);
 
       setMovimientos(res.movimientos || []);
       setPagination({ page: res.page, pages: res.pages, total: res.total });
+      setMontoTotal(res.monto_total ?? 0);
+      if (Array.isArray(res.anios) && res.anios.length) setAnios(res.anios);
     } catch (err) {
       const status = err.response?.status;
       // 401/403 es esperado en gym nuevo (sin pagos aún)
@@ -198,29 +217,40 @@ export default function PagosDashboard() {
         toast.error("Error de conexión", "No se pudieron cargar los movimientos.");
       }
       setMovimientos([]);
+      setMontoTotal(0);
     } finally {
       setLoading(false);
     }
-  }, [tipoFiltro, catFiltro]); // eslint-disable-line
+  }, [tipoFiltro, catFiltro, anio, mes]); // eslint-disable-line
 
   // Carga inicial
-  useEffect(() => { loadData(1, "todos", ""); }, []); // eslint-disable-line
+  useEffect(() => { loadData(1, "todos", "", 0, 0); }, []); // eslint-disable-line
 
-  // Cambiar filtro de tipo
+  // Cualquier cambio de filtro vuelve a la primera página: quedarse en la 5
+  // de un filtro que ahora tiene 2 páginas mostraría una lista vacía.
   const handleTipo = (nuevoTipo) => {
     setTipoFiltro(nuevoTipo);
     setCatFiltro("");
-    loadData(1, nuevoTipo, "");
+    loadData(1, nuevoTipo, "", anio, mes);
   };
 
-  // Cambiar filtro de categoría
   const handleCategoria = (cat) => {
     const nueva = cat === catFiltro ? "" : cat; // toggle
     setCatFiltro(nueva);
-    loadData(1, "venta", nueva);
+    loadData(1, "venta", nueva, anio, mes);
   };
 
-  const handlePage = (p) => loadData(p, tipoFiltro, catFiltro);
+  const handlePeriodo = (nuevoAnio, nuevoMes) => {
+    setAnio(nuevoAnio);
+    setMes(nuevoMes);
+    loadData(1, tipoFiltro, catFiltro, nuevoAnio, nuevoMes);
+  };
+
+  const handlePage = (p) => loadData(p, tipoFiltro, catFiltro, anio, mes);
+
+  const etiquetaPeriodo = !anio
+    ? "histórico completo"
+    : !mes ? `año ${anio}` : `${MESES_CORTOS[mes - 1]} ${anio}`;
 
   return (
     <div className="dashboard-content">
@@ -261,6 +291,37 @@ export default function PagosDashboard() {
           </FilterPill>
         </div>
 
+        {/* Periodo: año y, si hay uno elegido, mes */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 12, color: "var(--text-secondary)", fontWeight: 600, marginRight: 4 }}>
+            Periodo:
+          </span>
+          <FilterPill active={anio === 0} onClick={() => handlePeriodo(0, 0)}>
+            Todo
+          </FilterPill>
+          {(anios.length ? anios : [new Date().getFullYear()]).map((a) => (
+            <FilterPill key={a} active={anio === a} onClick={() => handlePeriodo(a, mes)}>
+              {a}
+            </FilterPill>
+          ))}
+        </div>
+
+        {anio !== 0 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 12, color: "var(--text-secondary)", fontWeight: 600, marginRight: 4 }}>
+              Mes:
+            </span>
+            <FilterPill active={mes === 0} onClick={() => handlePeriodo(anio, 0)}>
+              Año
+            </FilterPill>
+            {MESES_CORTOS.map((m, i) => (
+              <FilterPill key={m} active={mes === i + 1} onClick={() => handlePeriodo(anio, i + 1)}>
+                {m}
+              </FilterPill>
+            ))}
+          </div>
+        )}
+
         {/* Fila 2: categorías (sólo cuando tipo = venta y hay categorías) */}
         {tipoFiltro === "venta" && categorias.length > 0 && (
           <div style={{
@@ -286,6 +347,35 @@ export default function PagosDashboard() {
           </div>
         )}
       </div>
+
+      {/* ── Total del filtro ──
+          Suma TODOS los movimientos que cumplen el filtro, no solo los de la
+          página en pantalla: el backend lo calcula sobre la consulta completa. */}
+      {movimientos.length > 0 && (
+        <div style={{
+          display: "flex", alignItems: "baseline", justifyContent: "space-between",
+          flexWrap: "wrap", gap: 10,
+          padding: "16px 20px", marginBottom: 18,
+          background: "var(--bg-card)",
+          border: "1px solid var(--border)",
+          borderLeft: "3px solid var(--accent)",
+          borderRadius: 12,
+        }}>
+          <div>
+            <p style={{ margin: 0, fontSize: 11.5, fontWeight: 700, letterSpacing: ".05em", textTransform: "uppercase", color: "var(--text-secondary)" }}>
+              Total del filtro
+            </p>
+            <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "var(--text-tertiary, var(--text-secondary))" }}>
+              {pagination.total} movimiento{pagination.total === 1 ? "" : "s"} · {etiquetaPeriodo}
+              {tipoFiltro !== "todos" && ` · ${tipoFiltro === "venta" ? "POS" : "membresías"}`}
+              {catFiltro && ` · ${catFiltro}`}
+            </p>
+          </div>
+          <p style={{ margin: 0, fontSize: 26, fontWeight: 800, color: "var(--accent)" }}>
+            {formatMoney(montoTotal)}
+          </p>
+        </div>
+      )}
 
       {/* ── Lista ── */}
       {loading && movimientos.length === 0 ? (

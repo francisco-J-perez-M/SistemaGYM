@@ -30,6 +30,8 @@ import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
 import SelectorPeriodo, { etiquetaPeriodo } from '../../components/ui/SelectorPeriodo';
 import Paginador from '../../components/ui/Paginador';
+import TicketVenta, { TicketVentaData } from '../../components/admin/TicketVenta';
+import { useAuth } from '../../hooks/useAuth';
 
 type Tab = 'productos' | 'ventas';
 
@@ -127,6 +129,10 @@ export default function POSScreen() {
   const [anio,   setAnio]   = useState(0);   // 0 = histórico completo
   const [mes,    setMes]    = useState(0);   // 0 = año completo
   const [pagina, setPagina] = useState(1);
+  // Venta cuyo comprobante se está mostrando
+  const [ticket, setTicket] = useState<TicketVentaData | null>(null);
+
+  const { user } = useAuth();
 
   const { data: prodData, loading: loadingP, refetch: refetchP } =
     useFetch<ProductosResponse>(ENDPOINTS.OWNER_PRODUCTOS);
@@ -376,7 +382,15 @@ export default function POSScreen() {
               />
             }
             renderItem={({ item: v }) => (
-              <View style={styles.ventaCard} accessible>
+              // Toda la tarjeta abre el comprobante: en una pantalla táctil un
+              // botón diminuto junto al importe sería difícil de acertar.
+              <TouchableOpacity
+                style={styles.ventaCard}
+                onPress={() => setTicket(v as TicketVentaData)}
+                accessibilityRole="button"
+                accessibilityLabel={`Ver comprobante de la venta de ${toStr(v.nombre_miembro, 'cliente general')}`}
+                activeOpacity={0.75}
+              >
                 <View style={styles.ventaIconBox}>
                   <Ionicons name="receipt-outline" size={18} color={colors.dataAtencion} />
                 </View>
@@ -391,14 +405,24 @@ export default function POSScreen() {
                     </Text>
                   ))}
                 </View>
-                <Text style={styles.ventaTotal}>
-                  ${Math.round(v.total ?? 0).toLocaleString('es-MX')}
-                </Text>
-              </View>
+                <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                  <Text style={styles.ventaTotal}>
+                    ${Math.round(v.total ?? 0).toLocaleString('es-MX')}
+                  </Text>
+                  <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                </View>
+              </TouchableOpacity>
             )}
           />
         </>
       )}
+
+      {/* Comprobante de la venta seleccionada */}
+      <TicketVenta
+        venta={ticket}
+        gimnasio={toStr((user as any)?.nombre_gimnasio) || undefined}
+        onClose={() => setTicket(null)}
+      />
 
       {/* Modal detalle de producto */}
       <Modal visible={!!detail} transparent animationType="slide" onRequestClose={() => setDetail(null)}>

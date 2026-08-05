@@ -106,6 +106,8 @@ export const ENDPOINTS = {
   TRAINER_SCHEDULE:   '/trainer/schedule',       // GET /api/trainer/schedule
   TRAINER_SESSIONS:   '/trainer/sessions',       // GET /api/trainer/sessions
   TRAINER_REPORTS:    '/trainer/reports',        // GET /api/trainer/reports?range=week|month|quarter
+  TRAINER_REP_OPCIONES: '/trainer/reportes/opciones', // GET años con sesiones y secciones
+  TRAINER_REP_PDF:      '/trainer/reportes/pdf',      // GET ?anio=&mes=&secciones= → PDF
   TRAINER_MEMBERS:    '/trainer/members',        // GET /api/trainer/members
   TRAINER_DIETS:      '/trainer/diets',          // GET/POST/PUT/DELETE /api/trainer/diets
   TRAINER_RECIPES:    '/trainer/recipes',        // GET/POST /api/trainer/recipes
@@ -118,6 +120,7 @@ export const ENDPOINTS = {
   OWNER_MEMBRESIAS:   '/owner_gym/membresias',   // GET /api/owner_gym/membresias (tipos de membresía)
   OWNER_INGRESOS:     '/owner_gym/dashboard/ingresos',   // GET ?meses=6  → tendencia mensual
   OWNER_ACTIVIDAD:    '/owner_gym/dashboard/actividad',  // GET ?limit=20 → feed reciente
+  OWNER_ALERTAS:      '/owner_gym/alertas',      // GET → { alertas: [...], total } stock y membresías
 
   // ── Suscripción del gimnasio con la plataforma ────────────────────────────
   // billing_bp: url_prefix="/api/billing"

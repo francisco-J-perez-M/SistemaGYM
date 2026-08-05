@@ -7,6 +7,7 @@
  *   3. Asignar      — grid de rutinas + selector de miembro
  */
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   FiUser, FiMessageSquare, FiFileText, FiCheck, FiX, FiSend,
   FiRefreshCw, FiAlertCircle, FiClock, FiCheckCircle, FiXCircle,
@@ -785,7 +786,15 @@ function ChatView({ miembro, onBack }) {
 /* ═══════════════════════════════════════════════════════════════
    TAB 2 — CHAT
 ══════════════════════════════════════════════════════════════════ */
-function TabChat({ chatTarget, onClearTarget }) {
+/**
+ * Bandeja de conversaciones con los miembros.
+ *
+ * Se exporta para que la pantalla de Mensajes la reutilice: mensajes y
+ * solicitudes son cosas distintas —una es hablar con clientes actuales, la otra
+ * atender peticiones de quienes aún no lo son— y tenerlas en pestañas de la
+ * misma pantalla obligaba a pasar por Solicitudes para leer un mensaje.
+ */
+export function TabChat({ chatTarget, onClearTarget }) {
   const [miembros,   setMiembros]   = useState([]);
   const [loading,    setLoading]    = useState(true);
   const [error,      setError]      = useState("");
@@ -1201,19 +1210,22 @@ function TabAsignar() {
 /* ═══════════════════════════════════════════════════════════════
    COMPONENTE PRINCIPAL
 ══════════════════════════════════════════════════════════════════ */
+// El chat se movió a su propia pantalla (TrainerMessages). Aquí quedan las dos
+// tareas que sí forman parte del mismo flujo: aceptar a alguien y asignarle
+// una rutina al aceptarlo.
 const TABS = [
-  { id: "solicitudes", label: "Solicitudes", icon: <FiUser size={16} />         },
-  { id: "chat",        label: "Chat",        icon: <FiMessageSquare size={16} /> },
-  { id: "asignar",     label: "Asignar",     icon: <FiFileText size={16} />      },
+  { id: "solicitudes", label: "Solicitudes", icon: <FiUser size={16} />     },
+  { id: "asignar",     label: "Asignar",     icon: <FiFileText size={16} /> },
 ];
 
 export default function TrainerRequests() {
-  const [tab,        setTab]        = useState("solicitudes");
-  const [chatTarget, setChatTarget] = useState(null);
+  const [tab, setTab] = useState("solicitudes");
+  const navigate = useNavigate();
 
+  // Al pulsar "Chat" en una solicitud se va a la pantalla de Mensajes con ese
+  // miembro ya abierto, en lugar de cambiar de pestaña dentro de esta.
   const handleChatWith = (miembro) => {
-    setChatTarget(miembro);
-    setTab("chat");
+    navigate("/trainer/messages", { state: { miembro } });
   };
 
   return (
@@ -1229,9 +1241,9 @@ export default function TrainerRequests() {
             <GiMuscleUp size={26} color="#fff" />
           </div>
           <div>
-            <h1 className="page-title" style={{ margin: 0 }}>Entrenamiento Personal</h1>
+            <h1 className="page-title" style={{ margin: 0 }}>Solicitudes de Entrenamiento</h1>
             <p style={{ margin: "3px 0 0", fontSize: "0.84rem", color: "var(--text-secondary)" }}>
-              Gestiona solicitudes, chatea con miembros y asigna rutinas
+              Acepta o rechaza peticiones y asigna la rutina inicial
             </p>
           </div>
         </div>
@@ -1276,7 +1288,6 @@ export default function TrainerRequests() {
           exit="exit"
         >
           {tab === "solicitudes" && <TabSolicitudes onChatWith={handleChatWith} />}
-          {tab === "chat"        && <TabChat chatTarget={chatTarget} onClearTarget={() => setChatTarget(null)} />}
           {tab === "asignar"     && <TabAsignar />}
         </motion.div>
       </AnimatePresence>
