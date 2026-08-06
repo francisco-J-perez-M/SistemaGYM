@@ -5,8 +5,13 @@
  *   GET  /api/billing/suscripcion            estado del plan contratado
  *   GET  /api/billing/planes                 catálogo de planes de la plataforma
  *   GET  /api/billing/facturas?limit=10      historial de cobros
- *   PUT  /api/billing/suscripcion/<id>       { auto_renovar } cargo recurrente
  *   POST /api/billing/suscripcion/renovar    { id_plan? } renovar o mejorar
+ *
+ * Cargo recurrente (el dueño autoriza una vez y la pasarela cobra sola):
+ *   GET    /api/billing/suscripcion/recurrente               estado del acuerdo
+ *   POST   /api/billing/suscripcion/recurrente               crear -> url de autorización
+ *   POST   /api/billing/suscripcion/recurrente/sincronizar   reconciliar al volver
+ *   DELETE /api/billing/suscripcion/recurrente               dar de baja
  *
  * Los planes se recorren en carrusel horizontal, con el mismo formato que las
  * membresías del miembro. El cobro real lo hace la plataforma (no el gimnasio),
@@ -16,7 +21,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl,
-  Switch, Alert, Dimensions,
+  Alert, Dimensions, Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -27,6 +32,26 @@ import { toStr, toArray, toDateStr } from '../../utils/format';
 import api from '../../services/api';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import BotonesPago from '../../components/BotonesPago';
+
+/** Método con el que la plataforma puede cobrar de forma recurrente. */
+interface MetodoRecurrente {
+  proveedor: string;          // 'paypal' | 'mercadopago'
+  nombre:    string;
+  modo:      string;          // 'sandbox' | 'live'
+}
+
+/** Estado del acuerdo de cobro recurrente y métodos disponibles. */
+interface AcuerdoRecurrente {
+  acuerdo: {
+    pasarela:      string | null;
+    estado:        string | null;   // pendiente | activo | pausado | cancelado | vencido
+    /** Solo es true si el dueño lo pidió Y la pasarela confirma el acuerdo. */
+    activo:        boolean;
+    auto_renovar:  boolean;
+    proximo_cobro: string | null;
+  } | null;
+  metodos: MetodoRecurrente[];
+}
 
 const SCREEN_W = Dimensions.get('window').width;
 const CARD_W   = Math.min(300, SCREEN_W * 0.78);
@@ -122,19 +147,119 @@ export default function SuscripcionScreen() {
     }
   }, []);
 
-  // Al volver de la pasarela conviene releer: el pago pudo acreditarse fuera.
-  useFocusEffect(useCallback(() => { cargar(true); }, [cargar]));
 
-  const alternarAuto = async () => {
-    if (!sub) return;
-    const nuevo = !sub.auto_renovar;
-    setSub((s) => (s ? { ...s, auto_renovar: nuevo } : s));   // respuesta inmediata
+  // ── Cargo recurrente ──────────────────────────────────────────────────────
+  //
+  // Ya no es un interruptor. GymPro no cobra ni guarda tarjetas: el dueño
+  // autoriza una vez en PayPal o Mercado Pago y la pasarela cobra sola cada 30
+  // días. Autorizar implica salir de la app hacia la pasarela y volver, así que
+  // al regresar hay que preguntar cómo quedó el acuerdo: en desarrollo los
+  // webhooks no llegan a localhost.
+  const [recurrente, setRecurrente] = useState<AcuerdoRecurrente | null>(null);
+  const [procesando, setProcesando] = useState(false);
+
+  const cargarRecurrente = useCallback(async () => {
     try {
-      await api.put(`${ENDPOINTS.BILLING_SUSCRIPCION}/${sub.id}`, { auto_renovar: nuevo });
-    } catch {
-      setSub((s) => (s ? { ...s, auto_renovar: !nuevo } : s)); // se revierte si falla
-      Alert.alert('Error', 'No se pudo cambiar el cargo recurrente.');
+      const r = await api.get(ENDPOINTS.BILLING_RECURRENTE);
+      setRecurrente(r.data ?? null);
+    } catch { /* la pantalla funciona sin esto */ }
+  }, []);
+
+  const sincronizarRecurrente = useCallback(async (silencioso = false) => {
+    setProcesando(true);
+    try {
+      const r = await api.post(ENDPOINTS.BILLING_RECURRENTE_SYNC);
+      await Promise.all([cargarRecurrente(), cargar(true)]);
+      if (!silencioso) {
+        Alert.alert(
+          r.data?.activo ? 'Cargo recurrente activo' : 'Todavía no cobra',
+          r.data?.activo
+            ? 'Tu plan se renovará solo cada 30 días.'
+            : `La pasarela reporta el acuerdo como "${r.data?.estado}".`,
+        );
+      }
+    } catch (e: any) {
+      if (!silencioso) {
+        Alert.alert('Error', e?.response?.data?.msg ?? 'No se pudo consultar la pasarela.');
+      }
+    } finally {
+      setProcesando(false);
     }
+  }, [cargarRecurrente, cargar]);
+
+  // Al volver de la pasarela conviene releer: el pago pudo acreditarse fuera.
+  // También se reconcilia el acuerdo recurrente en silencio, porque autorizar
+  // implica salir de la app y en desarrollo el webhook no llega a localhost:
+  // sin esto el acuerdo se quedaría "pendiente" para siempre.
+  //
+  // Va aquí, después de declarar las dos funciones que usa: en JavaScript las
+  // constantes no se elevan, así que arriba estarían sin asignar.
+  useFocusEffect(useCallback(() => {
+    cargar(true);
+    cargarRecurrente().then(() => sincronizarRecurrente(true).catch(() => {}));
+  }, [cargar, cargarRecurrente, sincronizarRecurrente]));
+
+  const autorizarRecurrente = async (proveedor: string) => {
+    setProcesando(true);
+    try {
+      const r = await api.post(ENDPOINTS.BILLING_RECURRENTE, { proveedor, origen: 'mobile' });
+      const url = r.data?.url_autorizacion;
+      if (!url) throw new Error('La pasarela no devolvió la URL de autorización.');
+      await Linking.openURL(url);
+      // Al volver, useFocusEffect dispara la sincronización y confirma el estado.
+    } catch (e: any) {
+      Alert.alert('Error', e?.response?.data?.msg ?? e?.message ?? 'No se pudo iniciar la autorización.');
+    } finally {
+      setProcesando(false);
+    }
+  };
+
+  const elegirPasarela = () => {
+    const metodos = toArray<MetodoRecurrente>(recurrente?.metodos);
+    if (metodos.length === 0) {
+      Alert.alert(
+        'Sin métodos disponibles',
+        'La plataforma todavía no tiene configurada ninguna pasarela para cobros recurrentes.',
+      );
+      return;
+    }
+    Alert.alert(
+      'Activar cargo recurrente',
+      'Te llevaremos a la pasarela para que autorices el cobro. No guardamos tu tarjeta.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        ...metodos.map((m) => ({
+          text: m.modo === 'sandbox' ? `${m.nombre} (pruebas)` : m.nombre,
+          onPress: () => autorizarRecurrente(m.proveedor),
+        })),
+      ],
+    );
+  };
+
+  const cancelarRecurrente = () => {
+    Alert.alert(
+      '¿Cancelar el cargo recurrente?',
+      'Tu plan seguirá activo hasta la fecha ya pagada, pero después tendrás que renovarlo a mano.',
+      [
+        { text: 'Conservarlo', style: 'cancel' },
+        {
+          text: 'Cancelar cargo',
+          style: 'destructive',
+          onPress: async () => {
+            setProcesando(true);
+            try {
+              const r = await api.delete(ENDPOINTS.BILLING_RECURRENTE);
+              await Promise.all([cargarRecurrente(), cargar(true)]);
+              Alert.alert('Listo', r.data?.msg ?? 'Cargo recurrente cancelado.');
+            } catch (e: any) {
+              Alert.alert('Error', e?.response?.data?.msg ?? 'No se pudo cancelar.');
+            } finally {
+              setProcesando(false);
+            }
+          },
+        },
+      ],
+    );
   };
 
   /** Renovación sin pasarela: la plataforma la registra como pago manual. */
@@ -242,25 +367,77 @@ export default function SuscripcionScreen() {
         </View>
 
         {/* Cargo recurrente */}
-        {sub ? (
-          <View style={styles.recurrente}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.recurrenteTitulo}>Cargo recurrente</Text>
-              <Text style={styles.recurrenteTexto}>
-                {sub.auto_renovar
-                  ? 'Tu plan se renovará automáticamente al vencer.'
-                  : 'La renovación es manual.'}
-              </Text>
+        {sub ? (() => {
+          const ac      = recurrente?.acuerdo;
+          const activo  = !!ac?.activo;
+          // Acuerdo creado pero sin terminar de autorizar: es el caso que más
+          // confunde, porque el dueño cree haberlo dejado listo.
+          const aMedias = !!ac?.pasarela && !activo;
+
+          return (
+            <View style={[
+              styles.recurrente,
+              { flexDirection: 'column', alignItems: 'stretch', gap: 10,
+                borderWidth: 1,
+                borderColor: activo ? colors.success : aMedias ? colors.warning : colors.border },
+            ]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Ionicons
+                  name={activo ? 'sync-circle' : 'sync-circle-outline'}
+                  size={22}
+                  color={activo ? colors.success : colors.accent}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.recurrenteTitulo}>Cargo recurrente</Text>
+                  <Text style={styles.recurrenteTexto}>
+                    {activo
+                      ? `Activo con ${ac!.pasarela === 'paypal' ? 'PayPal' : 'Mercado Pago'}. Se cobra solo.`
+                      : aMedias
+                        ? `El acuerdo está en "${ac!.estado}": aún no cobra nada.`
+                        : 'La renovación es manual.'}
+                  </Text>
+                </View>
+              </View>
+
+              {!ac?.pasarela ? (
+                <TouchableOpacity
+                  style={[styles.accionRecurrente, procesando && { opacity: 0.6 }]}
+                  onPress={elegirPasarela}
+                  disabled={procesando}
+                  accessibilityRole="button"
+                  accessibilityLabel="Activar el cargo recurrente"
+                >
+                  <Ionicons name="repeat" size={16} color={colors.onAccent} />
+                  <Text style={styles.accionRecurrenteTxt}>Activar cargo recurrente</Text>
+                </TouchableOpacity>
+              ) : (
+                <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                  <TouchableOpacity
+                    style={[styles.accionSecundaria, procesando && { opacity: 0.6 }]}
+                    onPress={() => sincronizarRecurrente()}
+                    disabled={procesando}
+                    accessibilityRole="button"
+                    accessibilityLabel="Comprobar el estado del acuerdo"
+                  >
+                    <Ionicons name="refresh" size={15} color={colors.textSecondary} />
+                    <Text style={styles.accionSecundariaTxt}>
+                      {procesando ? 'Consultando…' : 'Comprobar estado'}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.accionSecundaria, procesando && { opacity: 0.6 }]}
+                    onPress={cancelarRecurrente}
+                    disabled={procesando}
+                    accessibilityRole="button"
+                    accessibilityLabel="Cancelar el cargo recurrente"
+                  >
+                    <Text style={styles.accionSecundariaTxt}>Cancelar</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
-            <Switch
-              value={!!sub.auto_renovar}
-              onValueChange={alternarAuto}
-              trackColor={{ false: colors.border, true: colors.accent }}
-              thumbColor={sub.auto_renovar ? colors.onAccent : colors.textMuted}
-              accessibilityLabel="Cargo recurrente"
-            />
-          </View>
-        ) : null}
+          );
+        })() : null}
 
         {/* Renovar el plan actual */}
         {sub?.plan ? (
@@ -502,6 +679,20 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
     },
     recurrenteTitulo: { color: colors.text, fontSize: 13.5 * fs, fontWeight: '700' },
     recurrenteTexto:  { color: colors.textSecondary, fontSize: 11.5 * fs, marginTop: 2 },
+
+    // Acción principal del bloque de cargo recurrente
+    accionRecurrente: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+      backgroundColor: colors.accent, paddingVertical: 12, borderRadius: 11,
+    },
+    accionRecurrenteTxt: { color: colors.onAccent, fontSize: 14 * fs, fontWeight: '700' },
+    // Acciones sobre un acuerdo ya creado: no compiten con "Renovar plan"
+    accionSecundaria: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+      flexGrow: 1, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 11,
+      borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background,
+    },
+    accionSecundariaTxt: { color: colors.textSecondary, fontSize: 12.5 * fs, fontWeight: '600' },
 
     renovarBtn: {
       flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9,

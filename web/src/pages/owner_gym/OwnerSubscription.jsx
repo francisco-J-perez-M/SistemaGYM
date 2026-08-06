@@ -71,30 +71,94 @@ export default function OwnerSubscription() {
 
   useEffect(() => { load(); }, [load]);
 
-  const toggleAuto = async () => {
-    if (!sub) return;
-    const destino = !sub.auto_renovar;
+  // ── Cargo recurrente ──────────────────────────────────────────────────────
+  //
+  // GymPro no cobra ni guarda tarjetas: el dueño autoriza una vez en PayPal o
+  // Mercado Pago y la pasarela cobra sola cada 30 días. Por eso esto ya no es
+  // un interruptor, sino una autorización que se hace fuera del sistema y
+  // después se confirma.
+  const [recurrente, setRecurrente] = useState(null);   // { acuerdo, metodos }
+  const [eligiendo,  setEligiendo]  = useState(false);
+  const [procesando, setProcesando] = useState(false);
+
+  const cargarRecurrente = useCallback(async () => {
     try {
-      const r = await fetch(`/api/billing/suscripcion/${sub.id}`, {
-        method: "PUT", headers: authHeaders(),
-        body: JSON.stringify({ auto_renovar: destino }),
+      const r = await fetch("/api/billing/suscripcion/recurrente", { headers: authHeaders() });
+      if (r.ok) setRecurrente(await r.json());
+    } catch { /* el panel funciona sin esto */ }
+  }, []);
+
+  useEffect(() => { cargarRecurrente(); }, [cargarRecurrente]);
+
+  // Al volver de autorizar, la pasarela nos regresa con ?recurrente=exito. En
+  // desarrollo los webhooks no llegan a localhost, así que se pregunta el
+  // estado real en lugar de darlo por hecho.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("recurrente") !== "exito") return;
+    (async () => {
+      await sincronizarRecurrente(true);
+      window.history.replaceState({}, "", window.location.pathname);
+    })();
+  }, []); // eslint-disable-line
+
+  const autorizarRecurrente = async (proveedor) => {
+    setProcesando(true); setMsg(null);
+    try {
+      const r = await fetch("/api/billing/suscripcion/recurrente", {
+        method: "POST", headers: authHeaders(),
+        body: JSON.stringify({ proveedor, origen: "web" }),
       });
-      // fetch no lanza en 4xx/5xx: sin esta comprobación el interruptor se
-      // movía en pantalla aunque el servidor hubiera rechazado el cambio, y el
-      // dueño creía tener el cargo recurrente activo sin tenerlo.
-      if (!r.ok) {
-        const j = await r.json().catch(() => ({}));
-        throw new Error(j.msg || "El servidor rechazó el cambio.");
-      }
-      setSub((s) => ({ ...s, auto_renovar: destino }));
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.msg || "No se pudo crear el acuerdo.");
+      // Se sale del sitio: la autorización ocurre en la pasarela.
+      window.location.href = j.url_autorizacion;
+    } catch (e) {
+      setMsg({ type: "error", text: e.message });
+      setProcesando(false);
+    }
+  };
+
+  const sincronizarRecurrente = async (silencioso = false) => {
+    setProcesando(true);
+    try {
+      const r = await fetch("/api/billing/suscripcion/recurrente/sincronizar", {
+        method: "POST", headers: authHeaders(),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.msg || "No se pudo consultar la pasarela.");
+      await Promise.all([cargarRecurrente(), load()]);
       setMsg({
-        type: "ok",
-        text: destino
-          ? "Cargo recurrente activado: tu plan se renovará solo al vencer."
-          : "Cargo recurrente desactivado: tendrás que renovar manualmente.",
+        type: j.activo ? "ok" : "error",
+        text: j.activo
+          ? "Cargo recurrente activo. Tu plan se renovará solo cada 30 días."
+          : `La pasarela reporta el acuerdo como "${j.estado}". Todavía no cobra.`,
       });
     } catch (e) {
-      setMsg({ type: "error", text: e.message || "No se pudo actualizar la auto-renovación." });
+      if (!silencioso) setMsg({ type: "error", text: e.message });
+    } finally {
+      setProcesando(false);
+    }
+  };
+
+  const cancelarRecurrente = async () => {
+    if (!window.confirm(
+      "¿Cancelar el cargo recurrente?\n\n" +
+      "Tu plan seguirá activo hasta la fecha ya pagada, pero después tendrás " +
+      "que renovarlo a mano.")) return;
+    setProcesando(true); setMsg(null);
+    try {
+      const r = await fetch("/api/billing/suscripcion/recurrente", {
+        method: "DELETE", headers: authHeaders(),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.msg || "No se pudo cancelar.");
+      await Promise.all([cargarRecurrente(), load()]);
+      setMsg({ type: "ok", text: j.msg });
+    } catch (e) {
+      setMsg({ type: "error", text: e.message });
+    } finally {
+      setProcesando(false);
     }
   };
 
@@ -167,27 +231,91 @@ export default function OwnerSubscription() {
               </div>
             </div>
 
-            {/* Auto-renovación */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
-              marginTop: 18, padding: "12px 14px", background: "var(--bg-input)", borderRadius: 10, flexWrap: "wrap" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <FiRepeat style={{ color: "var(--accent)" }} />
-                <div>
-                  <div style={{ fontWeight: 700, color: "var(--text-primary)", fontSize: 14 }}>Cargo recurrente</div>
-                  <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-                    {sub.auto_renovar
-                      ? `Se renovará solo el ${fechaCorta(sub.fecha_proximo_cobro)} por otros 30 días.`
-                      : `Sin cargo automático: el ${fechaCorta(sub.fecha_proximo_cobro)} tendrás que renovar a mano.`}
+            {/* Cargo recurrente */}
+            {(() => {
+              const ac       = recurrente?.acuerdo;
+              const metodos  = recurrente?.metodos ?? [];
+              const activo   = !!ac?.activo;
+              // Acuerdo creado pero sin terminar de autorizar: el caso que más
+              // confunde, porque el dueño cree haberlo dejado listo.
+              const aMedias  = !!ac?.pasarela && !activo;
+
+              return (
+                <div style={{
+                  marginTop: 18, padding: "14px 16px", background: "var(--bg-input)",
+                  borderRadius: 10,
+                  border: `1px solid ${activo ? "var(--success)" : aMedias ? "var(--warning)" : "var(--border)"}`,
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                    <FiRepeat style={{ color: activo ? "var(--success)" : "var(--accent)" }} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700, color: "var(--text-primary)", fontSize: 14 }}>
+                        Cargo recurrente
+                      </div>
+                      <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                        {activo
+                          ? `Activo con ${ac.pasarela === "paypal" ? "PayPal" : "Mercado Pago"}. Se cobra solo el ${fechaCorta(sub.fecha_proximo_cobro)}.`
+                          : aMedias
+                            ? `El acuerdo está en "${ac.estado}": aún no cobra nada. Termina de autorizarlo o vuelve a intentarlo.`
+                            : `Sin cargo automático: el ${fechaCorta(sub.fecha_proximo_cobro)} tendrás que renovar a mano.`}
+                      </div>
+                    </div>
+                    {activo && (
+                      <span style={{ ...S.badge, background: "var(--success)22", color: "var(--success)" }}>
+                        Activo
+                      </span>
+                    )}
                   </div>
+
+                  {/* Sin acuerdo: elegir con qué pasarela autorizarlo */}
+                  {!ac?.pasarela && (
+                    metodos.length === 0 ? (
+                      <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: 0 }}>
+                        La plataforma todavía no tiene configurada ninguna pasarela para cobros
+                        recurrentes.
+                      </p>
+                    ) : !eligiendo ? (
+                      <button style={S.primaryBtn} onClick={() => setEligiendo(true)} disabled={procesando}>
+                        <FiRepeat size={14} /> Activar cargo recurrente
+                      </button>
+                    ) : (
+                      <div>
+                        <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 8px" }}>
+                          Elige con qué método autorizarlo. Te llevaremos a la pasarela para que
+                          confirmes; nosotros no guardamos tu tarjeta.
+                        </p>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          {metodos.map((m) => (
+                            <button key={m.proveedor} style={S.primaryBtn} disabled={procesando}
+                              onClick={() => autorizarRecurrente(m.proveedor)}>
+                              {m.nombre}
+                              {m.modo === "sandbox" && (
+                                <span style={{ fontSize: 10, opacity: .8 }}> (pruebas)</span>
+                              )}
+                            </button>
+                          ))}
+                          <button style={S.ghostBtn} onClick={() => setEligiendo(false)} disabled={procesando}>
+                            Cancelar
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  )}
+
+                  {/* Con acuerdo: sincronizar o cancelar */}
+                  {ac?.pasarela && (
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <button style={S.ghostBtn} onClick={() => sincronizarRecurrente()} disabled={procesando}>
+                        <FiRefreshCw size={13} /> {procesando ? "Consultando…" : "Comprobar estado"}
+                      </button>
+                      <button style={S.ghostBtn} onClick={cancelarRecurrente} disabled={procesando}>
+                        Cancelar cargo recurrente
+                      </button>
+                    </div>
+                  )}
                 </div>
-              </div>
-              <button onClick={toggleAuto}
-                style={{ width: 52, height: 28, borderRadius: 99, border: "none", cursor: "pointer", position: "relative",
-                  background: sub.auto_renovar ? "var(--success)" : "var(--border)", transition: "background .2s" }}>
-                <span style={{ position: "absolute", top: 3, left: sub.auto_renovar ? 27 : 3, width: 22, height: 22,
-                  borderRadius: "50%", background: "#fff", transition: "left .2s" }} />
-              </button>
-            </div>
+              );
+            })()}
 
             <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
               <button style={S.primaryBtn} onClick={() => { setMetodo("tarjeta"); setPay({ modo: "renovar", plan: planActual }); }}>
@@ -386,6 +514,14 @@ const S = {
   planBtn: { marginTop: "auto", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, background: "var(--bg-input)", border: "1px solid var(--border)", color: "var(--text-primary)", borderRadius: 10, padding: "11px 0", fontSize: 13, fontWeight: 700, width: "100%" },
   primaryBtn: { display: "inline-flex", alignItems: "center", gap: 8, background: "var(--accent)", color: "#fff", border: "none", borderRadius: 10, padding: "11px 20px", fontSize: 14, fontWeight: 700, cursor: "pointer" },
   badge: { fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20 },
+  // Botón secundario para las acciones del cargo recurrente: no compiten
+  // visualmente con "Renovar", que es la acción principal de la tarjeta.
+  ghostBtn: {
+    display: "inline-flex", alignItems: "center", gap: 7,
+    background: "transparent", color: "var(--text-secondary)",
+    border: "1px solid var(--border)", borderRadius: 10,
+    padding: "9px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer",
+  },
   banner: { display: "flex", alignItems: "center", gap: 8, padding: "11px 16px", borderRadius: 10, marginBottom: 16, fontSize: 13 },
   bannerOk: { background: "rgba(0,230,118,.12)", color: "var(--success)" },
   bannerErr: { background: "rgba(255,23,68,.12)", color: "var(--danger)" },

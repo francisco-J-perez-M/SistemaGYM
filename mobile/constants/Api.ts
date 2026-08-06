@@ -128,6 +128,9 @@ export const ENDPOINTS = {
   BILLING_PLANES:      '/billing/planes',        // GET catálogo de planes SaaS
   BILLING_FACTURAS:    '/billing/facturas',      // GET ?limit=10 historial
   BILLING_RENOVAR:     '/billing/suscripcion/renovar', // POST { id_plan? } renovar o mejorar
+  // Cargo recurrente: el dueño autoriza una vez en la pasarela y ella cobra sola.
+  BILLING_RECURRENTE:      '/billing/suscripcion/recurrente',  // GET estado | POST crear | DELETE cancelar
+  BILLING_RECURRENTE_SYNC: '/billing/suscripcion/recurrente/sincronizar', // POST reconciliar
 
   // ── Reporte ejecutivo del gimnasio ────────────────────────────────────────
   REPORTES_OPCIONES:   '/owner_gym/reportes/opciones', // GET años y secciones disponibles

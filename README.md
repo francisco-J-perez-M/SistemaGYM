@@ -351,6 +351,55 @@ Se escribe seguida, sin espacios. Detalles y prueba de envío en
 > `api/.env` contiene secretos. Si el repositorio es público, conviene sacarlo del
 > control de versiones (`git rm --cached api/.env`) y rotar las credenciales.
 
+## 3.1 Cargo recurrente de la suscripción
+
+El gimnasio puede dejar que su plan se cobre solo cada 30 días. **GymPro no guarda
+tarjetas ni dispara cargos**: el dueño autoriza una vez en la pasarela y a partir de
+ahí es ella quien cobra, igual que Netflix o Spotify. El sistema se limita a preguntar
+cómo va el acuerdo y a registrar lo que la pasarela reporta.
+
+Esto es deliberado. Almacenar medios de pago obligaría a cumplir PCI-DSS, y disparar
+cargos desde nuestro servidor requiere permisos que PayPal concede caso por caso.
+
+| Pasarela | Qué se crea |
+|---|---|
+| PayPal | *Subscription* (producto → plan → suscripción) |
+| Mercado Pago | *Preapproval* con `auto_recurring` |
+
+Cómo se usa, desde **Mi Suscripción** en la web o el móvil:
+
+1. **Activar cargo recurrente** y elegir la pasarela.
+2. El sistema lleva al dueño a PayPal o Mercado Pago para que autorice.
+3. Al volver, **Comprobar estado** confirma que el acuerdo quedó activo.
+4. La pasarela cobra sola; cada cargo aparece en el historial de facturas.
+5. **Cancelar cargo recurrente** lo da de baja. El plan sigue vigente hasta la fecha
+   ya pagada.
+
+El paso 3 es necesario porque en desarrollo los webhooks no llegan a `localhost`: sin
+él, el acuerdo se quedaría marcado como "pendiente" aunque la pasarela ya lo tuviera
+activo. Es la misma reconciliación manual que el sistema ya usa para los pagos de
+membresías. En producción, con `PUBLIC_API_URL` apuntando a un dominio real, los
+webhooks llegan y el estado se actualiza solo.
+
+Un proceso diario a las 03:00 revisa las suscripciones cuya fecha de cobro ya pasó y
+pregunta a la pasarela cómo quedó cada acuerdo. Si sigue activo, lee de ella la nueva
+fecha de cobro; si se canceló o quedó suspendido por pagos fallidos, marca la
+suscripción como `past_due`. Si la pasarela no responde, no toca nada y reintenta al
+día siguiente: cortarle el servicio a un gimnasio que sí pagó por un fallo de red
+sería peor que esperar.
+
+Para probarlo en sandbox hace falta `PLATAFORMA_PAYPAL_CLIENT_ID` /
+`PLATAFORMA_PAYPAL_SECRET` o `PLATAFORMA_MP_ACCESS_TOKEN` en `api/.env`, con
+`PLATAFORMA_PAGOS_MODO=sandbox`. En PayPal hay que activar además *Subscriptions* en
+la app de developer.paypal.com; sin eso la creación del plan responde 403.
+
+Para forzar el ciclo diario sin esperar (solo superadministrador):
+
+```bash
+curl -X POST http://localhost:8080/api/billing/suscripcion/auto-renovar \
+  -H "Authorization: Bearer <token>"
+```
+
 ---
 
 # 4. Aplicación móvil
@@ -491,6 +540,8 @@ SistemaGYM/
 | El contenedor `api` queda en `unhealthy` | Falló una migración o falta una variable | `docker compose logs api` |
 | Las fechas se guardan con un día de diferencia | Falta `APP_TIMEZONE` | Añadirla a `api/.env` y `docker compose up -d --build api` |
 | El correo de recuperación no llega | Se usó la contraseña de la cuenta y no una de aplicación | Ver el apartado 3; revisar `docker compose logs api \| grep forgot-password` |
+| El cargo recurrente se queda en "pendiente" | Falta terminar de autorizarlo, o el webhook no llegó a `localhost` | Pulsar **Comprobar estado** en Mi Suscripción; ver el apartado 3.1 |
+| PayPal responde 403 al activar el cargo recurrente | La app de sandbox no tiene habilitado *Subscriptions* | Activarlo en developer.paypal.com → Apps & Credentials → tu app |
 | La app móvil no conecta con la API | Teléfono en otra red, o la IP no coincide | Misma WiFi; ver [mobile/README.md](mobile/README.md) |
 | `docker: command not found` en WSL | El servicio no está arrancado | `sudo service docker start` |
 | Falta espacio en disco | Imágenes y capas huérfanas | `docker system prune -a` (no toca los volúmenes de datos) |

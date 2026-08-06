@@ -33,8 +33,7 @@ siguiente cuatrimestre.
 | Imágenes de productos | Se administran únicamente desde la web; el móvil no las sube | Parcial |
 | Reportes del propietario | El PDF se descarga; podría verse dentro de la app con el visor ya construido para certificados | Pendiente |
 | Almacenamiento de archivos | Fotos, logotipos y certificados se guardan como base64 en la propia base. Funciona, pero un servidor de archivos u objeto sería lo correcto al crecer | Pendiente |
-| Auto-renovación con cobro real | El ciclo diario ya renueva y factura, pero el cargo es simulado, igual que el botón "Renovar 30 días". Con una pasarela real esto lo dispararía su webhook | Parcial |
-| Archivo suelto `web/src/pages/owner_gym/sedkodaW0` | Copia de `POSProductoModal.jsx`, aparentemente un residuo del editor. Conviene borrarlo | Pendiente |
+| Webhooks del cargo recurrente en producción | Funciona con reconciliación manual. Al desplegar con dominio público hay que registrar la URL de webhook en PayPal y Mercado Pago para que el estado se actualice solo | Parcial |
 
 ---
 
@@ -68,12 +67,35 @@ siguiente cuatrimestre.
   propósito las credenciales cifradas de las pasarelas de pago.
 - La restauración descarta documentos de otro gimnasio en lugar de mezclarlos.
 
-**Suscripción de la plataforma** · Completo
+**Cobro recurrente de la suscripción** · Completo
 
 - `auto_renovar` era una casilla que se guardaba y nadie leía: activarla no renovaba
-  nada. Ahora un proceso diario a las 03:00 renueva y factura las suscripciones que la
-  tienen activa, y marca `past_due` las que no.
-- El interruptor de la web ya no se mueve en pantalla si el servidor rechaza el cambio.
+  ni cobraba nada. Ahora el cargo recurrente es real, con **PayPal Subscriptions** y
+  **Mercado Pago Preapproval**.
+- El modelo es el de cualquier SaaS: el dueño autoriza una vez en la pasarela y ella
+  cobra sola cada 30 días. GymPro no guarda tarjetas ni dispara cargos, así que no
+  queda sujeto a PCI-DSS ni depende de permisos especiales de PayPal.
+- La capa de pasarelas gana un contrato de suscripciones (`crear_suscripcion`,
+  `consultar_suscripcion`, `cancelar_suscripcion`) que normaliza el vocabulario de
+  ambos proveedores: PayPal dice `ACTIVE` y Mercado Pago `authorized`, y quien
+  consume la capa no debería tener que saberlo.
+- El ciclo diario dejó de renovar a ciegas y pasó a reconciliar: pregunta a la
+  pasarela cómo quedó cada acuerdo y registra lo que reporta. Si la pasarela no
+  responde, no toca la suscripción y reintenta al día siguiente, porque cortarle el
+  servicio a un gimnasio que sí pagó por un fallo de red sería peor.
+- El interruptor de la web y del móvil se sustituyó por el flujo real de
+  autorización, con un botón para comprobar el estado al volver de la pasarela. Un
+  acuerdo creado pero sin autorizar ahora se ve como tal en lugar de aparentar estar
+  activo.
+- Las facturas de un cobro recurrente llevan la referencia del cargo, con
+  restricción de unicidad: las pasarelas reenvían la misma notificación si no reciben
+  respuesta, y sin eso el historial mostraría el doble de lo cobrado.
+- Migración 015. Documentado en el apartado 3.1 del README.
+
+**Limpieza** · Completo
+
+- Eliminado `web/src/pages/owner_gym/sedkodaW0`, una copia antigua de
+  `POSProductoModal.jsx` anterior a los combos que nadie importaba.
 
 **Propietario** · Completo
 
