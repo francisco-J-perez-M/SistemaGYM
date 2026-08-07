@@ -1,11 +1,19 @@
 # Registro de cambios — GymPro
 
-Historial de lo que se ha ido incorporando al sistema, con el estado de su
-documentación. Sirve para dos cosas: saber qué se hizo y cuándo, y detectar lo que ya
-funciona pero todavía no está documentado o cerrado del todo.
+Historial de lo que se ha ido incorporando al sistema y hacia dónde va. Sirve para
+tres cosas: saber qué se hizo y cuándo, detectar lo que funciona pero no está cerrado
+del todo, y tener por escrito el plan del siguiente periodo.
 
 Las versiones agrupan trabajo por bloques temáticos, no por publicaciones formales. La
 fecha es la del último commit del bloque.
+
+**Cómo leer el documento:**
+
+| Sección | Qué contiene |
+|---|---|
+| Pendientes al cierre | Lo que queda abierto del cuatrimestre que termina |
+| Plan del cuatrimestre | Hacia dónde va el proyecto en el periodo siguiente |
+| Versiones (v1.2, v1.1…) | Lo que se entregó, de lo más reciente a lo más antiguo |
 
 **Cómo leer las etiquetas de estado:**
 
@@ -18,22 +26,149 @@ fecha es la del último commit del bloque.
 
 ---
 
-## Sin publicar — pendientes conocidos
+## Pendientes al cierre del cuatrimestre mayo-agosto 2026
 
-Lo que está detectado y aún no se ha resuelto. Es el punto de partida para planear el
-siguiente cuatrimestre.
+Lo que queda abierto al terminar este periodo. Es el punto de partida del plan de
+septiembre-diciembre que viene a continuación.
 
 | Tema | Detalle | Estado |
 |---|---|---|
 | Bloqueo por plan de suscripción | Los planes ya guardan sus límites en el campo `limites` (JSON) y el modelo tiene el método `permite()`, pero **ningún módulo lo consulta todavía**. Falta aplicar el bloqueo real: máximo de miembros, acceso a analítica, número de administradores | Pendiente |
-| `api/.env` versionado | El archivo con secretos sigue en el repositorio. Hay que sacarlo con `git rm --cached api/.env` y rotar credenciales si el repositorio es público | Pendiente |
+| `api/.env` versionado | El archivo con secretos sigue en el repositorio. Hay que sacarlo con `git rm --cached api/.env` y rotar credenciales | Pendiente |
 | Webhooks de pago | En desarrollo no llegan a `localhost`, por eso existe la reconciliación manual. En producción con dominio público habría que activarlos y quitar esa muleta | Parcial |
-| Manuales de usuario | Solo MU-04 se entregó en el formato nuevo; faltan MU-01, MU-02, MU-03 y MU-05 | Parcial |
-| Combos de membresías y productos | Se muestran en el móvil pero solo se editan desde el portal web | Parcial |
-| Imágenes de productos | Se administran únicamente desde la web; el móvil no las sube | Parcial |
-| Reportes del propietario | El PDF se descarga; podría verse dentro de la app con el visor ya construido para certificados | Pendiente |
+| Webhooks del cargo recurrente | Igual que el anterior, para las suscripciones de PayPal y Mercado Pago | Parcial |
+| Modelo 3D del cuerpo | `BodyModel.jsx` y `BodyViewer.jsx` dependen de `three`, `@react-three/fiber` y `@react-three/drei`. Pesan en el bundle y no funcionan bien en equipos modestos ni en móviles de gama baja | Pendiente |
 | Almacenamiento de archivos | Fotos, logotipos y certificados se guardan como base64 en la propia base. Funciona, pero un servidor de archivos u objeto sería lo correcto al crecer | Pendiente |
-| Webhooks del cargo recurrente en producción | Funciona con reconciliación manual. Al desplegar con dominio público hay que registrar la URL de webhook en PayPal y Mercado Pago para que el estado se actualice solo | Parcial |
+| Reportes dentro de la app | El PDF se descarga; podría verse en la aplicación con el visor ya construido para los certificados | Pendiente |
+| Respaldos por gimnasio | Ya guardan todo lo necesario, pero no se pueden acotar por fecha ni por módulo: siempre se lleva el gimnasio entero | Pendiente |
+
+### Cerrado en este cuatrimestre
+
+Lo que estuvo en la lista de pendientes y ya quedó resuelto:
+
+| Tema | Cómo quedó |
+|---|---|
+| Manuales de usuario y técnicos | Entregados en el formato nuevo |
+| Combos de membresías y productos | Se editan desde la web y se consultan desde el móvil |
+| Imágenes de productos | Se administran desde la web y se muestran en ambas plataformas |
+| Reportes del propietario | Generador con filtros de periodo y secciones, en web y móvil, con gráficas opcionales |
+
+---
+
+## Plan del cuatrimestre septiembre-diciembre 2026
+
+Ocho frentes de trabajo, ordenados por lo que aporta antes. Los cuatro primeros
+cierran deuda que ya está identificada; los cuatro siguientes son crecimiento.
+
+### 1. Bloqueo por plan de suscripción
+
+El modelo ya tiene `limites` y `permite()`, pero nadie los consulta: hoy un gimnasio
+del plan básico puede dar de alta miembros sin tope y entrar a la analítica. Es la
+pieza que convierte el sistema en un SaaS de verdad, porque sin ella los planes son
+una etiqueta sin consecuencia.
+
+- Decorador `@requiere_limite("miembros")` aplicado en las altas, el staff y la
+  analítica, para no repetir la comprobación en cada endpoint.
+- Aviso al acercarse al límite, no solo al chocar con él: enterarse de que no puedes
+  dar de alta a un cliente teniéndolo delante es la peor forma de descubrirlo.
+- Pantalla que explique qué se gana subiendo de plan, enlazada desde el bloqueo.
+
+### 2. Seguridad y credenciales
+
+- Sacar `api/.env` del control de versiones y **rotar todas las credenciales**:
+  `JWT_SECRET_KEY`, `POSTGRES_PASSWORD`, `PAYMENTS_ENCRYPTION_KEY` y las de las
+  pasarelas. Mientras sigan en el historial de Git hay que darlas por comprometidas.
+- Revisar que ningún endpoint devuelva datos de otro gimnasio. El multi-tenant se
+  apoya en `require_tenant`, y conviene una prueba automática que lo confirme en vez
+  de confiar en que está bien puesto en todas partes.
+- Limitar los intentos de inicio de sesión por IP.
+
+### 3. Webhooks en producción
+
+- Registrar la URL pública en PayPal y Mercado Pago, tanto para los pagos sueltos
+  como para el cargo recurrente.
+- **Verificar la firma de cada notificación.** Hoy se acepta cualquier petición que
+  llegue al endpoint; en producción eso permitiría a un tercero marcar pagos como
+  aprobados.
+- Conservar la reconciliación manual como red de seguridad: un webhook perdido no
+  debe dejar un cobro sin registrar.
+
+### 4. Corrección de fallos de interfaz
+
+Un repaso ordenado, pantalla por pantalla, con una lista de comprobación:
+
+- Comportamiento con datos vacíos y con datos desbordados (nombres muy largos,
+  cifras de siete dígitos, listas de cientos de elementos).
+- Responsive real en tabletas y en pantallas de 1366×768, que es lo que suele haber
+  en la recepción de un gimnasio.
+- Accesibilidad: contraste, navegación con teclado y etiquetas para lector de
+  pantalla. El sistema ya usa `accessibilityLabel` en el móvil, pero la web va por
+  detrás.
+- Estados de carga y de error coherentes: hoy cada pantalla los resuelve a su manera.
+
+### 5. Sustituir el modelo 3D
+
+`three` + `@react-three/fiber` + `@react-three/drei` son unos 700 KB de JavaScript
+para mostrar un cuerpo humano, y en equipos sin GPU decente va a tirones. La
+alternativa es un **SVG por zonas musculares**: pesa una fracción, funciona en
+cualquier navegador, se puede colorear por intensidad de trabajo y es accesible
+—cada zona puede llevar su etiqueta, cosa que un lienzo WebGL no permite.
+
+- Mapa corporal en SVG con las zonas como rutas independientes.
+- Vista frontal y posterior, alternables.
+- Color según el volumen entrenado en el periodo, reaprovechando la lógica de
+  `entrenamientos_realizados` que ya existe.
+
+### 6. Dietas y ejercicios
+
+- Biblioteca de ejercicios con vídeo y con la ejecución paso a paso, no solo el
+  nombre y una imagen.
+- Sustituciones de alimentos: si al miembro no le gusta algo, que el plan ofrezca un
+  equivalente con macros parecidos en lugar de dejarle el hueco.
+- Cálculo de macros del plan completo, para contrastarlo con el objetivo del miembro
+  y avisar cuando no cuadran.
+- Duplicar una dieta o una rutina como plantilla, que hoy obliga a rehacerla entera.
+
+### 7. Respaldos con filtros
+
+Los respaldos ya guardan todo lo que hay que guardar, pero es todo o nada:
+
+- Acotar por rango de fechas y por módulo (solo pagos, solo rutinas, solo miembros).
+- Vista previa de qué contiene un respaldo antes de restaurarlo.
+- Restauración selectiva, en lugar de volcar el archivo entero.
+- Respaldo automático programado por gimnasio, no solo el global de la plataforma.
+
+### 8. Ideas para valorar
+
+Ninguna es imprescindible; están por orden de lo que aportaría antes al gimnasio:
+
+- **Recordatorios automáticos.** Avisar al miembro cuando su membresía está por
+  vencer y al que lleva dos semanas sin aparecer. La infraestructura de
+  notificaciones ya existe y hoy solo se usa para vencimientos.
+- **Panel del recepcionista.** Es un rol que ya existe en la base pero casi no tiene
+  pantallas propias: registrar asistencia, cobrar y dar de alta a un miembro.
+- **Check-in con código QR.** Cada miembro con su código y una pantalla de lectura en
+  la entrada. Sustituye el registro manual de asistencia, que es donde más se pierde
+  información hoy.
+- **Exportar a Excel.** El PDF sirve para leer; para cruzar datos con otra
+  herramienta hace falta CSV o XLSX.
+- **Historial de cambios.** Quién modificó un precio, quién dio de baja a un miembro.
+  En un negocio con varios empleados acaba haciendo falta.
+- **Modo oscuro coherente en la web.** El móvil tiene sistema de temas documentado;
+  la web va con variables CSS sueltas.
+- **Pruebas automáticas.** No hay ninguna. Empezar por lo que más ha fallado: cálculo
+  de importes, multi-tenant y predicciones.
+- **Aplicación instalable (PWA).** Que la web funcione sin conexión para consultar
+  rutinas, sin necesidad de publicar en las tiendas.
+
+### Criterio de priorización
+
+Si el tiempo no alcanza para todo, el orden que recomiendo es:
+
+1. **Seguridad** (punto 2). Es lo único que no puede quedarse a medias.
+2. **Bloqueo por plan** (punto 1). Sin esto el modelo de negocio no existe.
+3. **Fallos de interfaz** (punto 4). Es lo que se ve en una demostración.
+4. El resto, según lo que pida quien evalúe el proyecto.
 
 ---
 
