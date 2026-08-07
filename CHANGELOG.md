@@ -37,6 +37,54 @@ siguiente cuatrimestre.
 
 ---
 
+## v1.2 — Reportes con identidad y gráficas que informan · 8 de agosto de 2026
+
+**Diseño de los reportes en PDF** · Completo
+
+- Nuevo módulo `api/app/utils/estilo_pdf.py` con la maquetación compartida: portada,
+  encabezado y pie por página, tarjetas de indicadores y tablas. Los dos reportes
+  definían cada uno su paleta y su tabla, así que se parecían sin llegar a ser
+  iguales y cualquier retoque había que hacerlo dos veces.
+- **El logotipo del gimnasio aparece en la portada y en el encabezado de cada
+  página.** Sin logotipo se dibuja una marca con la inicial, en lugar de dejar un
+  hueco que parece un fallo.
+- Las cifras clave van en tarjetas destacadas antes de las tablas, las columnas de
+  importes se alinean a la derecha para poder compararlas de un vistazo, las filas
+  alternan color y cada sección lleva una frase que explica qué se está mirando.
+- Los nombres largos ya no se cortan con `[:52]`: el texto salta de línea dentro de
+  la celda.
+
+**Gráficas con más información** · Completo
+
+- Cada gráfica lleva un subtítulo con el total, el promedio y los extremos. Una
+  gráfica dice cómo se reparte algo, pero no cuánto es ese algo: "PayPal 79.5 %" no
+  aclara si son ochocientos pesos o cien mil.
+- Las barras muestran su valor encima y las líneas el de cada vértice. Se omiten
+  cuando hay demasiadas categorías, porque los números se pisarían entre sí.
+- El pastel indica el importe junto al porcentaje, dice cuántas categorías se
+  agruparon en "Otros" y señala cuál predomina.
+- Los rankings numeran las posiciones, muestran el porcentaje sobre el total y
+  llevan un riel de fondo para ver cuánto le falta a cada barra respecto al primero.
+  Si la lista se recorta, se avisa de cuántos elementos quedaron fuera.
+- La línea de evolución añade la variación entre el primer y el último punto.
+- En la gráfica de predicción, lo medido lleva punto relleno y lo proyectado punto
+  hueco: la forma distingue ambas series aunque el PDF se imprima en blanco y negro,
+  cosa que el color por sí solo no logra.
+
+**Fotos entre móvil y web** · Completo
+
+- El logotipo del gimnasio se podía cargar desde la app pero la web ni lo mostraba
+  ni permitía subirlo. Ahora el perfil del gimnasio en web lo muestra y admite
+  cargarlo, con el mismo formato que usa el móvil. De ahí lo toman los reportes.
+- El perfil del entrenador en web mostraba siempre las iniciales aunque hubiera
+  foto: el backend ya la enviaba en `photo` y la pantalla la ignoraba.
+
+> Este bloque se escribió sin poder ejecutar el código: el entorno de pruebas
+> estuvo caído durante su desarrollo. La revisión fue manual, así que conviene
+> levantar la API y descargar un reporte antes de darlo por bueno.
+
+---
+
 ## v1.1 — Predicciones que sí predicen y gráficos que se explican · 7 de agosto de 2026
 
 **Predicciones** · Completo
@@ -57,7 +105,6 @@ siguiente cuatrimestre.
   de contarlas por su cuenta, que era el origen de la contradicción.
 - La proyección se acota a un rango humano: un ajuste lineal extrapolado a seis
   meses podía dar pesos negativos o de 300 kg.
-
 - El peso que se anota al cerrar un entrenamiento ya cuenta para la predicción.
   Antes solo se leía la ficha de Progreso Físico, así que quien registraba su peso
   al terminar de entrenar veía "0 / 3 registros" con la bitácora llena. Las dos
@@ -87,29 +134,6 @@ siguiente cuatrimestre.
 - Las etiquetas del eje se recortaban a diez caracteres siempre, así que "Punto de
   venta" salía como "Punto de …" aunque sobrara espacio. Ahora el límite depende de
   cuántas categorías haya.
-
-**Identidad visual de los reportes** · Completo
-
-- Nuevo módulo `api/app/utils/estilo_pdf.py` con la maquetación compartida:
-  portada, encabezado y pie por página, tarjetas de indicadores y tablas. Los dos
-  reportes definían su propia paleta y su propia tabla, así que se parecían sin
-  llegar a ser iguales y cualquier retoque había que hacerlo dos veces.
-- **El logotipo del gimnasio aparece en la portada y en el encabezado de cada
-  página.** Sin logotipo se dibuja una marca con la inicial, en lugar de dejar un
-  hueco que parece un fallo.
-- Las cifras clave van en tarjetas destacadas antes de las tablas, las columnas de
-  importes se alinean a la derecha para poder compararlas de un vistazo, las filas
-  alternan color y cada sección lleva una frase que explica qué se está mirando.
-- Los nombres largos ya no se cortan con `[:52]`: el texto salta de línea dentro de
-  la celda.
-
-**Fotos entre móvil y web** · Completo
-
-- El logotipo del gimnasio se podía cargar desde la app pero la web ni lo mostraba
-  ni permitía subirlo. Ahora el perfil del gimnasio en web lo muestra y admite
-  cargarlo, con el mismo formato que usa el móvil.
-- El perfil del entrenador en web mostraba siempre las iniciales aunque hubiera
-  foto: el backend ya la enviaba y la pantalla la ignoraba.
 
 **Mis Clientes del entrenador** · Completo
 
