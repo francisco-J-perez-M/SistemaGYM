@@ -305,11 +305,19 @@ export default function UserWorkoutLog() {
                 </div>
                 <div>
                   <label style={S.label}><FiTrendingUp /> Peso corporal (opcional)</label>
-                  <input style={S.input} type="number" value={pesoCorporal} onChange={e => setPeso(e.target.value)} placeholder="Solo si te pesaste" />
+                  <input style={S.input} type="number" value={pesoCorporal} onChange={e => setPeso(e.target.value)} placeholder="Ej. 78.5" />
                 </div>
               </div>
-              <p style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 6 }}>
-                Al guardar, tu entrenamiento queda registrado y se calculan tus calorías quemadas automáticamente. El peso es opcional.
+              {/* El peso es el único dato del formulario que alimenta la
+                  predicción. Sin decirlo, la gente lo dejaba vacío y luego no
+                  entendía por qué "Mi Predicción" seguía en cero registros
+                  teniendo la bitácora llena de entrenamientos. */}
+              <p style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 6, lineHeight: 1.5 }}>
+                Al guardar, tu entrenamiento queda registrado y se calculan tus calorías
+                quemadas automáticamente.{" "}
+                <strong style={{ color: "var(--accent)" }}>
+                  Si anotas tu peso, cuenta para tu predicción de peso corporal.
+                </strong>
               </p>
               <label style={S.label}>Notas</label>
               <input style={S.input} value={notas} onChange={e => setNotas(e.target.value)} placeholder="Cómo te sentiste…" />

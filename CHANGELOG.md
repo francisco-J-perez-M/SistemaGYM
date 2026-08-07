@@ -58,6 +58,15 @@ siguiente cuatrimestre.
 - La proyección se acota a un rango humano: un ajuste lineal extrapolado a seis
   meses podía dar pesos negativos o de 300 kg.
 
+- El peso que se anota al cerrar un entrenamiento ya cuenta para la predicción.
+  Antes solo se leía la ficha de Progreso Físico, así que quien registraba su peso
+  al terminar de entrenar veía "0 / 3 registros" con la bitácora llena. Las dos
+  fuentes se unifican y se deduplican por día, porque anotar el peso al entrenar ya
+  crea de por sí un registro de progreso.
+- El formulario de entrenamiento y la pantalla de predicción explican que el peso es
+  lo que alimenta el modelo: registrar el entrenamiento solo, sin anotar el peso, no
+  aporta nada a la proyección.
+
 **Gráficos** · Completo
 
 - Nuevo componente `InfoGrafico` con un botón "Cómo leerlo" que explica qué
@@ -75,6 +84,9 @@ siguiente cuatrimestre.
   matplotlib y unos 60 MB a la imagen de Docker.
 - Casilla "Incluir gráficas" en el reporte del propietario y en el del entrenador,
   tanto en web como en móvil.
+- Las etiquetas del eje se recortaban a diez caracteres siempre, así que "Punto de
+  venta" salía como "Punto de …" aunque sobrara espacio. Ahora el límite depende de
+  cuántas categorías haya.
 
 **Mis Clientes del entrenador** · Completo
 
