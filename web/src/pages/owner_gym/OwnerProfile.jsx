@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import Swal from "sweetalert2";
-import { FiSave, FiInfo, FiAlertCircle, FiRefreshCw } from "react-icons/fi";
+import { FiSave, FiInfo, FiAlertCircle, FiRefreshCw, FiImage } from "react-icons/fi";
 import { getOwnerPerfil, updateOwnerPerfil } from "../../api/owner_gym";
 
 const getSwalTheme = () => {
@@ -47,12 +47,17 @@ export default function OwnerProfile() {
   const [loading,   setLoading]   = useState(true);
   const [loadError, setLoadError] = useState(false);
 
+  // Logotipo pendiente de guardar. Se separa del formulario para poder
+  // mostrarlo de inmediato al elegir el archivo, antes de pulsar Guardar.
+  const [logoNuevo, setLogoNuevo] = useState(null);
+
   const loadPerfil = () => {
     setLoading(true);
     setLoadError(false);
     getOwnerPerfil()
       .then(({ data }) => {
         setPerfil(data);
+        setLogoNuevo(null);
         setForm({
           nombre:        data.nombre           || "",
           email_contacto: data.email_contacto  || "",
@@ -68,13 +73,46 @@ export default function OwnerProfile() {
 
   const handleChange = (e) => setForm(f => ({ ...f, [e.target.name]: e.target.value }));
 
+  /**
+   * Lee el archivo elegido como data URL, el mismo formato que envía la app
+   * móvil. Así el logotipo se ve igual venga de donde venga: antes solo se
+   * podía cargar desde el móvil y en la web no aparecía por ningún lado.
+   *
+   * El límite de 2 MB lo impone el backend, que lo guarda en la propia fila
+   * del gimnasio; se comprueba aquí para avisar antes de subir nada.
+   */
+  const handleLogo = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      Swal.fire("Archivo no válido", "El logotipo debe ser una imagen.", "warning");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      Swal.fire("Imagen muy pesada",
+                "El logotipo no puede pasar de 2 MB. Prueba con una versión más ligera.",
+                "warning");
+      return;
+    }
+
+    const lector = new FileReader();
+    lector.onload = () => setLogoNuevo(lector.result);
+    lector.onerror = () => Swal.fire("Error", "No se pudo leer la imagen.", "error");
+    lector.readAsDataURL(file);
+  };
+
   const handleSave = async (e) => {
     e.preventDefault();
     if (!form.nombre?.trim()) { Swal.fire("Campo requerido", "El nombre del gimnasio no puede estar vacío", "warning"); return; }
     setSaving(true);
     try {
-      const { data } = await updateOwnerPerfil(form);
+      // El logotipo solo viaja si cambió: mandarlo en cada guardado obligaría
+      // a reescribir varios cientos de kilobytes por cambiar un teléfono.
+      const cuerpo = logoNuevo ? { ...form, logo: logoNuevo } : form;
+      const { data } = await updateOwnerPerfil(cuerpo);
       setPerfil(data);
+      setLogoNuevo(null);
       Swal.fire({ icon: "success", title: "Perfil actualizado", timer: 1500, showConfirmButton: false, ...getSwalTheme() });
     } catch (e) {
       Swal.fire("Error", e.response?.data?.msg || "No se pudo guardar", "error");
@@ -103,6 +141,57 @@ export default function OwnerProfile() {
       <p style={S.sub}>Información y configuración de tu establecimiento</p>
 
       <div style={S.card}>
+        {/* Logotipo. Aparece arriba del todo porque es lo que identifica al
+            gimnasio en los reportes en PDF y en la app. */}
+        <div style={{
+          display: "flex", alignItems: "center", gap: 18, marginBottom: 24,
+          paddingBottom: 22, borderBottom: "1px solid var(--border)",
+        }}>
+          <label
+            htmlFor="logo-gimnasio"
+            title="Cambiar el logotipo"
+            style={{
+              width: 96, height: 96, borderRadius: 20, cursor: "pointer",
+              background: "var(--bg-main)",
+              border: `2px dashed ${(logoNuevo || perfil?.logo) ? "transparent" : "var(--border)"}`,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              overflow: "hidden", flexShrink: 0, position: "relative",
+            }}
+          >
+            {(logoNuevo || perfil?.logo) ? (
+              <img
+                src={logoNuevo || perfil.logo}
+                alt="Logotipo del gimnasio"
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+            ) : (
+              <FiImage size={30} style={{ color: "var(--text-secondary)" }} />
+            )}
+          </label>
+          <input
+            id="logo-gimnasio"
+            type="file"
+            accept="image/*"
+            onChange={handleLogo}
+            style={{ display: "none" }}
+          />
+
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>
+              Logotipo del gimnasio
+            </div>
+            <p style={{ fontSize: 12.5, color: "var(--text-secondary)", margin: 0, lineHeight: 1.6 }}>
+              Aparece en la portada de los reportes en PDF y en la aplicación móvil.
+              Haz clic en el recuadro para cambiarlo. Máximo 2 MB.
+            </p>
+            {logoNuevo && (
+              <p style={{ fontSize: 12, color: "var(--accent)", margin: "8px 0 0", fontWeight: 600 }}>
+                Logotipo listo — pulsa Guardar para aplicarlo.
+              </p>
+            )}
+          </div>
+        </div>
+
         {/* Info de solo lectura */}
         <div style={{ display: "flex", gap: 16, marginBottom: 24, padding: "14px 18px", background: "var(--bg-main)", borderRadius: 10, border: "1px solid rgba(255,255,255,.06)", alignItems: "center" }}>
           <FiInfo color="#6366f1" size={18} />

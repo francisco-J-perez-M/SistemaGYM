@@ -88,6 +88,29 @@ siguiente cuatrimestre.
   venta" salía como "Punto de …" aunque sobrara espacio. Ahora el límite depende de
   cuántas categorías haya.
 
+**Identidad visual de los reportes** · Completo
+
+- Nuevo módulo `api/app/utils/estilo_pdf.py` con la maquetación compartida:
+  portada, encabezado y pie por página, tarjetas de indicadores y tablas. Los dos
+  reportes definían su propia paleta y su propia tabla, así que se parecían sin
+  llegar a ser iguales y cualquier retoque había que hacerlo dos veces.
+- **El logotipo del gimnasio aparece en la portada y en el encabezado de cada
+  página.** Sin logotipo se dibuja una marca con la inicial, en lugar de dejar un
+  hueco que parece un fallo.
+- Las cifras clave van en tarjetas destacadas antes de las tablas, las columnas de
+  importes se alinean a la derecha para poder compararlas de un vistazo, las filas
+  alternan color y cada sección lleva una frase que explica qué se está mirando.
+- Los nombres largos ya no se cortan con `[:52]`: el texto salta de línea dentro de
+  la celda.
+
+**Fotos entre móvil y web** · Completo
+
+- El logotipo del gimnasio se podía cargar desde la app pero la web ni lo mostraba
+  ni permitía subirlo. Ahora el perfil del gimnasio en web lo muestra y admite
+  cargarlo, con el mismo formato que usa el móvil.
+- El perfil del entrenador en web mostraba siempre las iniciales aunque hubiera
+  foto: el backend ya la enviaba y la pantalla la ignoraba.
+
 **Mis Clientes del entrenador** · Completo
 
 - La edad mostraba un "?" porque el backend nunca la enviaba. Ahora se calcula y,
