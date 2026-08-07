@@ -14,6 +14,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import InfoGrafico, { COLORES_GRAFICO } from "../../components/compartido/InfoGrafico";
 import "../../css/CSSUnificado.css";
 
 const API_BASE       = "";
@@ -242,15 +243,46 @@ function PredictionModal({ member, onClose }) {
                 ))}
               </div>
 
-              {/* Leyenda */}
+              {/* Cabecera del gráfico con la explicación de qué es cada trazo */}
+              <InfoGrafico
+                titulo="Evolución del peso"
+                subtitulo={
+                  data?.modelo === "personal"
+                    ? "Proyección calculada con las mediciones de este miembro."
+                    : "Proyección calculada con el modelo del gimnasio."
+                }
+                series={[
+                  {
+                    color: COLORES_GRAFICO.real,
+                    nombre: "Historial real",
+                    descripcion: "Cada punto es una medición que el miembro registró en Progreso Físico. Es dato medido, no estimado.",
+                  },
+                  {
+                    color: COLORES_GRAFICO.prediccion,
+                    nombre: "Predicción",
+                    descripcion: "Línea discontinua: hacia dónde apunta su tendencia si mantiene el ritmo actual. No es un dato observado.",
+                  },
+                ]}
+                notas={[
+                  data?.registros
+                    ? `Basado en ${data.registros} medicion${data.registros === 1 ? "" : "es"} registradas.`
+                    : null,
+                  data?.calidad_ajuste != null
+                    ? `Ajuste del modelo: ${(data.calidad_ajuste * 100).toFixed(0)} %. Cuanto más alto, más regular ha sido la evolución del peso y más fiable la proyección.`
+                    : null,
+                  "El eje vertical está en kilogramos y el horizontal en fechas. El tramo punteado empieza donde terminan las mediciones reales.",
+                ].filter(Boolean)}
+              />
+
+              {/* Leyenda compacta junto al gráfico */}
               <div style={{ display: "flex", gap: 16, marginBottom: 10, fontSize: 12, color: "var(--text-secondary)" }}>
                 <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ width: 24, height: 3, background: "#38bdf8", borderRadius: 2, display: "inline-block" }} />
+                  <span style={{ width: 24, height: 3, background: COLORES_GRAFICO.real, borderRadius: 2, display: "inline-block" }} />
                   Historial real
                 </span>
                 <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ width: 24, height: 0, borderTop: "3px dashed #a78bfa", display: "inline-block" }} />
-                  Predicción IA
+                  <span style={{ width: 24, height: 0, borderTop: `3px dashed ${COLORES_GRAFICO.prediccion}`, display: "inline-block" }} />
+                  Predicción
                 </span>
               </div>
 
@@ -261,10 +293,10 @@ function PredictionModal({ member, onClose }) {
                   <XAxis dataKey="label" tick={{ fill: "var(--text-secondary)", fontSize: 10 }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => `${v.toFixed(0)} kg`} />
                   <Tooltip content={<ChartTooltip />} />
-                  <Line type="monotone" dataKey="real" name="Historial" stroke="#38bdf8" strokeWidth={2.5}
-                    dot={{ r: 3, fill: "#38bdf8", strokeWidth: 0 }} connectNulls={false} />
-                  <Line type="monotone" dataKey="prediccion" name="Predicción" stroke="#a78bfa" strokeWidth={2.5}
-                    strokeDasharray="6 4" dot={{ r: 3, fill: "#a78bfa", strokeWidth: 0 }} connectNulls={false} />
+                  <Line type="monotone" dataKey="real" name="Historial" stroke={COLORES_GRAFICO.real} strokeWidth={2.5}
+                    dot={{ r: 3, fill: COLORES_GRAFICO.real, strokeWidth: 0 }} connectNulls={false} />
+                  <Line type="monotone" dataKey="prediccion" name="Predicción" stroke={COLORES_GRAFICO.prediccion} strokeWidth={2.5}
+                    strokeDasharray="6 4" dot={{ r: 3, fill: COLORES_GRAFICO.prediccion, strokeWidth: 0 }} connectNulls={false} />
                 </LineChart>
               </ResponsiveContainer>
 
@@ -526,8 +558,8 @@ export default function TrainerRegresion() {
                 <XAxis dataKey="mes" tick={{ fill: "var(--text-secondary)", fontSize: 10 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => `${v.toFixed(0)} kg`} />
                 <Tooltip content={<ChartTooltip />} />
-                <Line type="monotone" dataKey="peso" name="Promedio" stroke="#38bdf8" strokeWidth={2.5}
-                  dot={{ r: 3.5, fill: "#38bdf8", strokeWidth: 0 }} connectNulls={false} />
+                <Line type="monotone" dataKey="peso" name="Promedio" stroke={COLORES_GRAFICO.real} strokeWidth={2.5}
+                  dot={{ r: 3.5, fill: COLORES_GRAFICO.real, strokeWidth: 0 }} connectNulls={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>

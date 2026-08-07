@@ -73,7 +73,7 @@ export default function TrainerReportsScreen() {
   const compartir = useCallback(async () => {
     const rl = RANGOS.find((r) => r.id === range)?.label ?? range;
     const msg =
-      `📊 Reporte GYM PRO (${rl})\n` +
+      `GYM PRO — Reporte del entrenador (${rl})\n` +
       `Sesiones completadas: ${stats.sessions ?? 0}\n` +
       `Clientes activos: ${stats.clients ?? 0}\n` +
       `Calificación promedio: ${(stats.avgRating ?? 0).toFixed?.(1) ?? stats.avgRating ?? 0}\n` +
@@ -92,6 +92,9 @@ export default function TrainerReportsScreen() {
   const [secciones,  setSecciones]  = useState<string[]>(
     ['resumen', 'sesiones', 'clientes', 'tipos'],
   );
+  // Las graficas se incluyen por defecto: en el telefono una barra se lee mejor
+  // que una tabla de cifras.
+  const [graficas,   setGraficas]   = useState(true);
 
   const catalogo = toArray<SeccionReporte>(opciones?.secciones);
   const aniosPdf = toArray<number>(opciones?.anios);
@@ -108,7 +111,8 @@ export default function TrainerReportsScreen() {
     try {
       const consulta =
         `${ENDPOINTS.TRAINER_REP_PDF}?anio=${anioPdf}&mes=${mesPdf}` +
-        `&secciones=${secciones.join(',')}`;
+        `&secciones=${secciones.join(',')}` +
+        (graficas ? '&graficas=1' : '');
       const nombre = `Reporte_entrenador_${anioPdf}-${String(mesPdf).padStart(2, '0')}.pdf`;
       const r = await downloadAndShare(consulta, nombre);
       if (!r.ok) {
@@ -299,6 +303,27 @@ export default function TrainerReportsScreen() {
                   </TouchableOpacity>
                 ))}
               </View>
+
+              <Text style={styles.campoLabel}>Formato</Text>
+              <TouchableOpacity
+                style={[styles.seccionRow, graficas && styles.seccionRowActiva]}
+                onPress={() => setGraficas((v) => !v)}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: graficas }}
+                accessibilityLabel="Incluir graficas en el reporte"
+              >
+                <Ionicons
+                  name={graficas ? 'checkbox' : 'square-outline'}
+                  size={20}
+                  color={graficas ? colors.accent : colors.textSecondary}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.seccionLabel}>Incluir gráficas</Text>
+                  <Text style={styles.seccionDesc}>
+                    Barras de sesiones por mes, ranking de clientes y reparto por tipo.
+                  </Text>
+                </View>
+              </TouchableOpacity>
 
               <Text style={styles.campoLabel}>Qué incluir</Text>
               {catalogo.map((s) => {

@@ -11,6 +11,7 @@ import {
   Tooltip, Legend, ResponsiveContainer,
 } from "recharts";
 import { getOwnerDashboard, getOwnerIngresos, getOwnerActividad, getOwnerAlertas } from "../../api/owner_gym";
+import InfoGrafico, { COLORES_GRAFICO } from "../../components/compartido/InfoGrafico";
 
 // ─── helpers ───────────────────────────────────────────────────────────────
 const fmt = (n) =>
@@ -261,7 +262,26 @@ export default function OwnerDashboard() {
       <div style={{ ...S.grid2, "@media(maxWidth:768px)": { gridTemplateColumns: "1fr" } }} data-guide="ow-ingresos">
         {/* Ingresos históricos */}
         <div style={S.section}>
-          <div style={S.sectionTitle}>Ingresos últimos 6 meses</div>
+          <InfoGrafico
+            titulo="Ingresos últimos 6 meses"
+            subtitulo="De dónde vino el dinero, mes a mes."
+            series={[
+              {
+                color: COLORES_GRAFICO.ingresos,
+                nombre: "Membresías",
+                descripcion: "Cobros de planes: altas, renovaciones y cambios de plan.",
+              },
+              {
+                color: COLORES_GRAFICO.pos,
+                nombre: "POS",
+                descripcion: "Ventas del punto de venta: suplementos, bebidas y accesorios.",
+              },
+            ]}
+            notas={[
+              "Cada punto es el total cobrado en ese mes. Las dos líneas se suman para dar el ingreso total.",
+              "Un mes sin cobros aparece en cero, no como un hueco en la línea.",
+            ]}
+          />
           <ResponsiveContainer width="100%" height={220}>
             <LineChart data={ingresos} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
@@ -269,22 +289,35 @@ export default function OwnerDashboard() {
               <YAxis tick={{ fill: "var(--text-tertiary)", fontSize: 11 }} tickFormatter={(v) => `$${(v/1000).toFixed(0)}k`} />
               <Tooltip content={<CustomTooltip />} />
               <Legend wrapperStyle={{ fontSize: 12, color: "var(--text-secondary)" }} />
-              <Line type="monotone" dataKey="pagos"  name="Membresías" stroke="var(--accent)" strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="ventas" name="POS"         stroke="var(--warning)" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="pagos"  name="Membresías" stroke={COLORES_GRAFICO.ingresos} strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="ventas" name="POS"         stroke={COLORES_GRAFICO.pos} strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>
         </div>
 
         {/* Barras por mes */}
         <div style={S.section}>
-          <div style={S.sectionTitle}>Total por mes</div>
+          <InfoGrafico
+            titulo="Total por mes"
+            subtitulo="Membresías y punto de venta sumados en una sola barra."
+            series={[
+              {
+                color: COLORES_GRAFICO.ingresos,
+                nombre: "Total del mes",
+                descripcion: "La suma de las dos líneas del gráfico anterior. Sirve para ver el volumen sin distinguir el origen.",
+              },
+            ]}
+            notas={[
+              "La altura de la barra es dinero cobrado, no facturado: solo cuenta lo que ya entró.",
+            ]}
+          />
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={ingresos} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
               <XAxis dataKey="label" tick={{ fill: "var(--text-tertiary)", fontSize: 11 }} />
               <YAxis tick={{ fill: "var(--text-tertiary)", fontSize: 11 }} tickFormatter={(v) => `$${(v/1000).toFixed(0)}k`} />
               <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="total" name="Total" fill="var(--accent)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="total" name="Total" fill={COLORES_GRAFICO.ingresos} radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
