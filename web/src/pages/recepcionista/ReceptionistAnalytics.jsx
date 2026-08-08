@@ -4,13 +4,18 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
 import { FiDollarSign, FiUsers, FiTrendingUp, FiAlertCircle, FiRefreshCw, FiLock, FiWifiOff, FiCheckCircle } from "react-icons/fi";
+import {
+  COLORES_GRAFICO, SERIES_GRAFICO, COLOR_REJILLA, ejeX, ejeY,
+} from "../../components/compartido/InfoGrafico";
 import "../../css/CSSUnificado.css";
 
 const API = "";
 const token = () => localStorage.getItem("token");
 
 /* ─── Colores ──────────────────────────────────────────────────────────── */
-const COLORS = ["#fbe379", "#4cd964", "#38bdf8", "#ff6b9d", "#a78bfa", "#fb8c00"];
+// Secuencia compartida: la anterior empezaba con un amarillo pálido que sobre
+// fondo claro apenas se separaba del blanco de la tarjeta.
+const COLORS = SERIES_GRAFICO;
 const DIAS   = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
 /* ─── Tooltip personalizado ────────────────────────────────────────────── */
@@ -226,7 +231,7 @@ export default function ReceptionistAnalytics() {
     return nombre; // fallback
   }
 
-  const clusterColors = ["#4cd964", "#38bdf8", "#fbe379", "#ff6b9d", "#a78bfa"];
+  const clusterColors = SERIES_GRAFICO;
 
   /* ─── Datos derivados — Regresión ─────────────────────────────────────── */
   const metricas   = regData?.metricas || {};
@@ -308,13 +313,16 @@ export default function ReceptionistAnalytics() {
             <p style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
               Ingresos por mes
             </p>
-            <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={lineData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-dark)" />
-                <XAxis dataKey="mes" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} />
-                <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 11 }} />
+            <ResponsiveContainer width="100%" height={235}>
+              <LineChart data={lineData} margin={{ top: 5, right: 8, left: 6, bottom: 22 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />
+                <XAxis dataKey="mes" tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
+                  label={ejeX("Mes")} />
+                <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
+                  label={ejeY("Ingresos (MXN)")} />
                 <Tooltip content={<CTip prefix="$" />} />
-                <Line type="monotone" dataKey="total" name="Ingreso" stroke="var(--accent)" strokeWidth={2} dot={{ r: 3 }} />
+                <Line type="monotone" dataKey="total" name="Ingreso" stroke={COLORES_GRAFICO.ingresos} strokeWidth={2.5}
+                  dot={{ r: 3, fill: COLORES_GRAFICO.ingresos, strokeWidth: 0 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -324,13 +332,15 @@ export default function ReceptionistAnalytics() {
             <p style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
               ¿Qué días vienen más clientes?
             </p>
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={diasOrdenados}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-dark)" />
-                <XAxis dataKey="dia" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} />
-                <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 11 }} />
+            <ResponsiveContainer width="100%" height={235}>
+              <BarChart data={diasOrdenados} margin={{ top: 5, right: 8, left: 6, bottom: 22 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />
+                <XAxis dataKey="dia" tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
+                  label={ejeX("Día de la semana")} />
+                <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
+                  label={ejeY("Visitas")} />
                 <Tooltip content={<CTip suffix=" visitas" />} />
-                <Bar dataKey="total" name="Visitas" fill="#38bdf8" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="total" name="Visitas" fill={COLORES_GRAFICO.asistencia} radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

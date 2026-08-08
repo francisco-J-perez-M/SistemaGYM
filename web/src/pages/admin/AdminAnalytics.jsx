@@ -11,16 +11,21 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer,
 } from "recharts";
+import {
+  COLORES_GRAFICO, SERIES_GRAFICO, COLOR_REJILLA,
+} from "../../components/compartido/InfoGrafico";
 import "../../css/CSSUnificado.css";
 
 const API_BASE   = "";
-const ACCENT     = "#fbe379";
-const SUCCESS    = "#4cd964";
-const INFO       = "#38bdf8";
-const DANGER     = "#ff6b9d";
-const WARNING    = "#ffbd2e";
-const PURPLE     = "#a78bfa";
-const PALETTE    = [ACCENT, SUCCESS, INFO, DANGER, WARNING, PURPLE, "#fb923c", "#34d399"];
+// Paleta compartida: la anterior eran pasteles claros que sobre el tema claro
+// se confundían con el fondo.
+const ACCENT     = COLORES_GRAFICO.ingresos;
+const SUCCESS    = COLORES_GRAFICO.real;
+const INFO       = COLORES_GRAFICO.asistencia;
+const DANGER     = COLORES_GRAFICO.baja;
+const WARNING    = COLORES_GRAFICO.pos;
+const PURPLE     = COLORES_GRAFICO.membresias;
+const PALETTE    = SERIES_GRAFICO;
 
 // ─── Tooltip personalizado ────────────────────────────────────────────────────
 const CustomTooltip = ({ active, payload, label, prefix = "", suffix = "" }) => {
@@ -171,7 +176,7 @@ function TabMapReduce() {
       <SectionTitle>Ingresos mensuales (últimos 12 meses)</SectionTitle>
       <ResponsiveContainer width="100%" height={240}>
         <BarChart data={ingresosAgrupados} margin={{ left: 10, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-dark)" />
+          <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />
           <XAxis dataKey="periodo" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} />
           <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
                  tickFormatter={v => `$${(v/1000).toFixed(0)}k`} />
@@ -198,7 +203,7 @@ function TabMapReduce() {
           <SectionTitle>Asistencia por día de la semana</SectionTitle>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={asistenciaDia} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-dark)" />
+              <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />
               <XAxis type="number" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} />
               <YAxis type="category" dataKey="dia" width={80}
                      tick={{ fill: "var(--text-secondary)", fontSize: 11 }} />
@@ -295,7 +300,7 @@ function TabKMeans() {
       <SectionTitle>Distribución de miembros por cluster</SectionTitle>
       <ResponsiveContainer width="100%" height={240}>
         <BarChart data={clusterBarData}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-dark)" />
+          <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />
           <XAxis dataKey="name" tick={{ fill: "var(--text-secondary)", fontSize: 10 }} />
           <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 11 }} />
           <Tooltip content={<CustomTooltip />} />
@@ -307,7 +312,7 @@ function TabKMeans() {
       <SectionTitle>Métricas promedio por cluster</SectionTitle>
       <ResponsiveContainer width="100%" height={220}>
         <BarChart data={clusterBarData}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-dark)" />
+          <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />
           <XAxis dataKey="name" tick={{ fill: "var(--text-secondary)", fontSize: 10 }} />
           <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 11 }} />
           <Tooltip content={<CustomTooltip />} />
@@ -417,7 +422,7 @@ function TabRegresion() {
       {coeficientesArr.length > 0 ? (
         <ResponsiveContainer width="100%" height={180}>
           <BarChart data={coeficientesArr} layout="vertical">
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-dark)" />
+            <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />
             <XAxis type="number" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} />
             <YAxis type="category" dataKey="feature" width={140}
                    tick={{ fill: "var(--text-secondary)", fontSize: 11 }} />
@@ -541,7 +546,7 @@ function TabCancelaciones() {
             <SectionTitle>Importancia de features (Random Forest)</SectionTitle>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={importancia} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-dark)" />
+                <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />
                 <XAxis type="number" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} />
                 <YAxis type="category" dataKey="feature" width={130}
                        tick={{ fill: "var(--text-secondary)", fontSize: 11 }} />

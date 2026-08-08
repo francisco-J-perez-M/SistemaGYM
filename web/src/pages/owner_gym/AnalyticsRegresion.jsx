@@ -4,7 +4,9 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import "../../css/CSSUnificado.css";
-import InfoGrafico, { COLORES_GRAFICO } from "../../components/compartido/InfoGrafico";
+import InfoGrafico, {
+  COLORES_GRAFICO, COLOR_REJILLA, ejeX, ejeY,
+} from "../../components/compartido/InfoGrafico";
 
 const API_BASE = "";
 
@@ -204,11 +206,13 @@ function PredictionModal({ member, onClose }) {
                 Predicción IA
               </span>
             </div>
-            <ResponsiveContainer width="100%" height={260}>
-              <LineChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="label" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `${v.toFixed(0)} kg`} />
+            <ResponsiveContainer width="100%" height={295}>
+              <LineChart data={chartData} margin={{ top: 5, right: 20, left: 6, bottom: 24 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />
+                <XAxis dataKey="label" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false}
+                  label={ejeX("Fecha de la medición")} />
+                <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `${v.toFixed(0)} kg`}
+                  label={ejeY("Peso corporal (kg)")} />
                 <Tooltip content={<CustomTooltip />} />
                 <Line type="monotone" dataKey="real" name="Historial" stroke={COLORES_GRAFICO.real} strokeWidth={2.5} dot={{ r: 4, fill: COLORES_GRAFICO.real, strokeWidth: 0 }} connectNulls={false} />
                 <Line type="monotone" dataKey="prediccion" name="Predicción" stroke={COLORES_GRAFICO.prediccion} strokeWidth={2.5} strokeDasharray="6 4" dot={{ r: 4, fill: COLORES_GRAFICO.prediccion, strokeWidth: 0 }} connectNulls={false} />
@@ -443,11 +447,13 @@ export default function AnalyticsRegresion() {
                 "Los meses sin mediciones no aparecen en el eje.",
               ]}
             />
-            <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={globalChartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="mes" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `${v.toFixed(0)} kg`} />
+            <ResponsiveContainer width="100%" height={255}>
+              <LineChart data={globalChartData} margin={{ top: 5, right: 10, left: 6, bottom: 24 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />
+                <XAxis dataKey="mes" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false}
+                  label={ejeX("Mes")} />
+                <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `${v.toFixed(0)} kg`}
+                  label={ejeY("Peso promedio (kg)")} />
                 <Tooltip content={<CustomTooltip />} />
                 <Line type="monotone" dataKey="peso" name="Promedio global" stroke={COLORES_GRAFICO.real} strokeWidth={2.5} dot={{ r: 4, fill: COLORES_GRAFICO.real, strokeWidth: 0 }} connectNulls={false} />
               </LineChart>
