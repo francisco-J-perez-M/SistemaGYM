@@ -219,6 +219,10 @@ Si el tiempo no alcanza para todo, el orden que recomiendo es:
   así que se dibuja como texto sobre el lienzo.
 - Los gráficos ganaron altura para dar sitio a los rótulos sin comprimir el área de
   trazado.
+- Los ejes que cuentan cosas —visitas, sesiones, miembros— usan solo números
+  enteros. Recharts partía el máximo en cinco marcas y salían cortes como
+  0.75 / 1.5 / 2.25, que no ayudan a leer algo contable aunque el dato sea un
+  promedio. El valor exacto con decimales sigue apareciendo al pasar el cursor.
 
 > Bloque escrito sin poder ejecutar el código: el entorno de pruebas siguió caído.
 > Revisión manual únicamente.
