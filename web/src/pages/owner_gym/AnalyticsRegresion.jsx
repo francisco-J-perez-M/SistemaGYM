@@ -5,7 +5,7 @@ import {
 } from "recharts";
 import "../../css/CSSUnificado.css";
 import InfoGrafico, {
-  COLORES_GRAFICO, COLOR_REJILLA, ejeX, ejeY,
+  COLORES_GRAFICO, COLOR_REJILLA, ejeX, ejeY, rangoPeriodo, describirTendencia,
 } from "../../components/compartido/InfoGrafico";
 
 const API_BASE = "";
@@ -168,12 +168,22 @@ function PredictionModal({ member, onClose }) {
         ) : (
           <>
             <InfoGrafico
-              titulo="Evolución del peso"
+              titulo="Peso registrado y proyección"
+              periodo={
+                data?.historial_peso?.length
+                  ? `Medido: ${rangoPeriodo(data.historial_peso, "fecha")} · `
+                    + `Proyecta ${data.horizonte_dias ?? dias} días`
+                  : ""
+              }
               subtitulo={
                 data?.modelo === "personal"
                   ? "Proyección calculada con las mediciones de este miembro."
                   : "Proyección calculada con el modelo del gimnasio."
               }
+              comportamiento={describirTendencia(
+                (data?.historial_peso || []).map((r) => r.peso),
+                { unidad: " kg" },
+              )}
               series={[
                 {
                   color: COLORES_GRAFICO.real,
@@ -433,8 +443,12 @@ export default function AnalyticsRegresion() {
         <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16, marginBottom: 28 }}>
           <div className="chart-card">
             <InfoGrafico
-              titulo="Peso promedio del gimnasio"
+              titulo="Peso promedio del gimnasio, mes a mes"
+              periodo={rangoPeriodo(globalChartData, "mes")}
               subtitulo="Cómo evoluciona el peso medio de todos los miembros con mediciones."
+              comportamiento={describirTendencia(
+                (globalChartData || []).map((r) => r.peso), { unidad: " kg" },
+              )}
               series={[
                 {
                   color: COLORES_GRAFICO.real,

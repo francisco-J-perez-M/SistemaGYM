@@ -193,6 +193,21 @@ Si el tiempo no alcanza para todo, el orden que recomiendo es:
   `var(--success)` cambian con el tema elegido y en algunos quedaban tan parecidos
   que dos series se solapaban visualmente.
 
+**Títulos y comportamiento** · Completo
+
+- Los títulos dicen qué periodo se está viendo. "Ingresos últimos 6 meses" no
+  aclaraba cuáles seis: ahora una etiqueta junto al título muestra el rango real
+  —"Mar 2026 a Ago 2026"—, calculado del propio dato para que no quede desfasado
+  al cambiar el periodo consultado.
+- Títulos más precisos sobre qué se mide: "Total por mes" pasó a "Ingreso total
+  cobrado por mes"; "Asistencia por día de la semana" a "Afluencia promedio por día
+  de la semana", que aclara que es una media y no una semana concreta.
+- Cada serie temporal describe su comportamiento en una línea: si sube, baja o se
+  mantiene, entre qué valores y en qué porcentaje. Sin eso, la pendiente se estima
+  a ojo y se puede leer al revés cuando el eje no arranca en cero. Por debajo del
+  2 % se dice "estable": llamarlo subida sería darle un significado que no tiene.
+- Los títulos de las gráficas del PDF llevan el periodo del reporte.
+
 **Rótulos de los ejes** · Completo
 
 - Cada gráfico dice qué mide cada eje y en qué unidad. Un "8k" en el eje vertical

@@ -5,7 +5,8 @@ import {
 } from "recharts";
 import "../../css/CSSUnificado.css";
 import InfoGrafico, {
-  COLORES_GRAFICO, SERIES_GRAFICO, COLOR_REJILLA, COLOR_ATENUADO, ejeX, ejeY,
+  COLORES_GRAFICO, SERIES_GRAFICO, COLOR_REJILLA, COLOR_ATENUADO,
+  ejeX, ejeY, rangoPeriodo, describirTendencia,
 } from "../../components/compartido/InfoGrafico";
 
 const API_BASE = "";
@@ -314,8 +315,12 @@ export default function AnalyticsMapReduce() {
       <div className="charts-row" style={{ marginBottom: 20 }}>
         <div className="chart-card">
           <InfoGrafico
-            titulo="Evolución de ingresos"
+            titulo="Ingreso mensual cobrado"
+            periodo={rangoPeriodo(lineData, "mes")}
             subtitulo="Cuánto entró cada mes, sumando membresías y punto de venta."
+            comportamiento={describirTendencia(
+              lineData.map((d) => d.total || 0), { esDinero: true },
+            )}
             series={[
               {
                 color: COLORES_GRAFICO.ingresos,
@@ -343,7 +348,8 @@ export default function AnalyticsMapReduce() {
 
         <div className="chart-card">
           <InfoGrafico
-            titulo="Métodos de pago"
+            titulo="Reparto del cobro por método de pago"
+            periodo="Todo el histórico registrado"
             subtitulo="Con qué paga la gente, en porcentaje del total cobrado."
             series={metodosData.map((m, i) => ({
               color: COLORS_PIE[i % COLORS_PIE.length],
@@ -387,8 +393,9 @@ export default function AnalyticsMapReduce() {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
         <div className="chart-card">
           <InfoGrafico
-            titulo="Asistencia por día de la semana"
-            subtitulo="Qué días se llena el gimnasio."
+            titulo="Afluencia promedio por día de la semana"
+            periodo="Promedio de todo el histórico"
+            subtitulo="Qué días se llena el gimnasio. No es una semana concreta: es la media de todas las registradas."
             series={[
               {
                 color: COLORES_GRAFICO.asistencia,
@@ -425,8 +432,12 @@ export default function AnalyticsMapReduce() {
 
         <div className="chart-card">
           <InfoGrafico
-            titulo="Asistencia por mes"
-            subtitulo="Cuántas visitas se registraron cada mes."
+            titulo="Visitas registradas por mes"
+            periodo={rangoPeriodo(asistenciaMesNorm, "mes")}
+            subtitulo="Cuántas entradas se registraron cada mes. El mes en curso va incompleto."
+            comportamiento={describirTendencia(
+              asistenciaMesNorm.map((d) => d.total || 0), { unidad: " visitas" },
+            )}
             series={[
               {
                 color: COLORES_GRAFICO.asistencia,
