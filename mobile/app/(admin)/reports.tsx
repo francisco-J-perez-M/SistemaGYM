@@ -52,6 +52,34 @@ export default function ReportsScreen() {
   const serie = toArray<IngresoMes>(ingresos);
   const feed  = toArray<ActividadItem>(actividad);
 
+  /**
+   * Mes de mayor y de menor ingreso de la serie.
+   *
+   * Se rotulan solo esos dos puntos con el importe exacto: el eje de la
+   * gráfica va redondeado y la cifra del pico es justo la que se busca. Los
+   * meses en cero quedan fuera —son ausencia de cobros, no el mínimo— y si la
+   * serie es plana se rotula únicamente el máximo, para no superponer dos
+   * etiquetas idénticas.
+   */
+  const extremosIngreso = useMemo(() => {
+    const puntos = serie
+      .map((s, i) => ({ v: Number(s?.total) || 0, i }))
+      .filter((p) => p.v !== 0);
+
+    if (puntos.length === 0) return { max: -1, min: -1 };
+
+    let alto = puntos[0];
+    let bajo = puntos[0];
+    for (const p of puntos) {
+      if (p.v > alto.v) alto = p;
+      if (p.v < bajo.v) bajo = p;
+    }
+    return {
+      max: alto.i,
+      min: bajo.i === alto.i || bajo.v === alto.v ? -1 : bajo.i,
+    };
+  }, [serie]);
+
   // 'mes_actual' ya es el TOTAL (membresías + punto de venta). Antes se le
   // volvía a sumar 'ventas_pos', así que el total del mes salía con el importe
   // del POS contado dos veces.
@@ -204,6 +232,23 @@ export default function ReportsScreen() {
             bezier
             style={{ borderRadius: 12 }}
             withInnerLines={false}
+            renderDotContent={({ x, y, index }) => {
+              if (index !== extremosIngreso.max && index !== extremosIngreso.min) return null;
+              const esMaximo = index === extremosIngreso.max;
+              return (
+                <Text
+                  key={`importe-${index}`}
+                  style={[
+                    styles.importeExtremo,
+                    // El ancho de la etiqueta es fijo y va centrada en el punto.
+                    { left: x - 36, top: esMaximo ? y - 20 : y + 8 },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {money(serie[index]?.total ?? 0)}
+                </Text>
+              );
+            }}
           />
         </Card>
       ) : (
@@ -444,6 +489,14 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
 
     sectionTitle: { color: colors.text, fontSize: 15 * fs, fontWeight: '700', marginBottom: 12 },
     empty:     { alignItems: 'center', paddingVertical: 20, gap: 10 },
+    importeExtremo: {
+      position: 'absolute',
+      width: 72,
+      textAlign: 'center',
+      fontSize: 10 * fs,
+      fontWeight: '700',
+      color: colors.text,
+    },
     emptyText: { color: colors.textMuted, fontSize: 13 * fs, textAlign: 'center' },
 
     actRow:  { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10,

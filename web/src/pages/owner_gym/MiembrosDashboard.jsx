@@ -7,6 +7,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { FiCamera, FiSearch, FiUsers, FiCheck } from "react-icons/fi";
 import DetalleUsuarioModal, { fechaFicha } from "../../components/compartido/DetalleUsuarioModal";
+import HistorialAsistencias from "../../components/compartido/HistorialAsistencias";
 import {
   getMiembros, createMiembro, updateMiembro,
   deleteMiembro, reactivateMiembro,
@@ -749,6 +750,7 @@ export default function MiembrosDashboard() {
         usuario={detalle ? miembroADetalle(detalle) : null}
         onClose={() => setDetalle(null)}
         titulo="Detalle del miembro"
+        extra={detalle ? <HistorialAsistencias miembroId={detalle.id ?? detalle._id} /> : null}
       />
 
       <style>{`

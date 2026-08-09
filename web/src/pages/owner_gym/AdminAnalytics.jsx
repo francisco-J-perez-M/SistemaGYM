@@ -9,11 +9,11 @@ import { useState, useEffect, useCallback } from "react";
 import {
   BarChart, Bar, PieChart, Pie, Cell, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ResponsiveContainer,
+  ResponsiveContainer, LabelList,
 } from "recharts";
 import { FiDollarSign, FiUsers, FiTrendingUp, FiBell, FiClock, FiActivity } from "react-icons/fi";
 import {
-  COLORES_GRAFICO, SERIES_GRAFICO, COLOR_REJILLA, ejeX, ejeY,
+  COLORES_GRAFICO, SERIES_GRAFICO, COLOR_REJILLA, ejeX, ejeY, ImporteExtremos,
 } from "../../components/compartido/InfoGrafico";
 import "../../css/CSSUnificado.css";
 
@@ -208,7 +208,7 @@ function TabMapReduce() {
 
       <SectionTitle>Ingresos mensuales (últimos 12 meses)</SectionTitle>
       <ResponsiveContainer width="100%" height={275}>
-        <BarChart data={ingresosAgrupados} margin={{ top: 5, right: 8, left: 10, bottom: 22 }}>
+        <BarChart data={ingresosAgrupados} margin={{ top: 24, right: 8, left: 10, bottom: 22 }}>
           <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />
           <XAxis dataKey="periodo" tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
                  label={ejeX("Periodo")} />
@@ -216,7 +216,9 @@ function TabMapReduce() {
                  tickFormatter={v => `$${(v/1000).toFixed(0)}k`}
                  label={ejeY("Ingresos (miles de MXN)")} />
           <Tooltip content={<CustomTooltip prefix="$" />} />
-          <Bar dataKey="total" name="Ingresos" fill={ACCENT} radius={[4,4,0,0]} />
+          <Bar dataKey="total" name="Ingresos" fill={ACCENT} radius={[4,4,0,0]}>
+            <LabelList content={<ImporteExtremos valores={ingresosAgrupados.map((d) => d.total)} />} />
+          </Bar>
         </BarChart>
       </ResponsiveContainer>
 

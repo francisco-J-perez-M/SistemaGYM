@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList,
 } from "recharts";
 import "../../css/CSSUnificado.css";
 import InfoGrafico, {
   COLORES_GRAFICO, SERIES_GRAFICO, COLOR_REJILLA, COLOR_ATENUADO,
-  ejeX, ejeY, rangoPeriodo, describirTendencia,
+  ejeX, ejeY, rangoPeriodo, describirTendencia, ImporteExtremos,
 } from "../../components/compartido/InfoGrafico";
 
 const API_BASE = "";
@@ -334,14 +334,18 @@ export default function AnalyticsMapReduce() {
             ]}
           />
           <ResponsiveContainer width="100%" height={220}>
-            <LineChart data={lineData} margin={{ top: 5, right: 10, left: 6, bottom: 22 }}>
+            <LineChart data={lineData} margin={{ top: 26, right: 10, left: 6, bottom: 22 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA}/>
               <XAxis dataKey="mes" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false}
                 label={ejeX("Mes")}/>
               <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
                 label={ejeY("Ingresos (miles de MXN)")}/>
               <Tooltip content={<CustomTooltip prefix="$"/>}/>
-              <Line type="monotone" dataKey="total" name="Ingresos" stroke={COLORES_GRAFICO.ingresos} strokeWidth={2.5} dot={{ r: 4, fill: COLORES_GRAFICO.ingresos, strokeWidth: 0 }} activeDot={{ r: 6 }}/>
+              <Line type="monotone" dataKey="total" name="Ingresos" stroke={COLORES_GRAFICO.ingresos} strokeWidth={2.5} dot={{ r: 4, fill: COLORES_GRAFICO.ingresos, strokeWidth: 0 }} activeDot={{ r: 6 }}>
+                {/* Importe exacto del mes más alto y del más bajo: el eje va
+                    en miles y la cifra concreta es la que suele buscarse. */}
+                <LabelList content={<ImporteExtremos valores={lineData.map((d) => d.total)} />} />
+              </Line>
             </LineChart>
           </ResponsiveContainer>
         </div>

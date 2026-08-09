@@ -8,11 +8,12 @@ import {
 } from "react-icons/fi";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, Legend, ResponsiveContainer,
+  Tooltip, Legend, ResponsiveContainer, LabelList,
 } from "recharts";
 import { getOwnerDashboard, getOwnerIngresos, getOwnerActividad, getOwnerAlertas } from "../../api/owner_gym";
 import InfoGrafico, {
   COLORES_GRAFICO, COLOR_REJILLA, ejeX, ejeY, rangoPeriodo, describirTendencia,
+  ImporteExtremos,
 } from "../../components/compartido/InfoGrafico";
 
 // ─── helpers ───────────────────────────────────────────────────────────────
@@ -290,7 +291,9 @@ export default function OwnerDashboard() {
             ]}
           />
           <ResponsiveContainer width="100%" height={260}>
-            <LineChart data={ingresos} margin={{ top: 4, right: 8, left: 6, bottom: 22 }}>
+            {/* top: 26 reserva sitio para la etiqueta del importe máximo, que
+                se dibuja por encima del vértice más alto de la serie. */}
+            <LineChart data={ingresos} margin={{ top: 26, right: 8, left: 6, bottom: 22 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />
               <XAxis dataKey="label" tick={{ fill: "var(--text-tertiary)", fontSize: 11 }}
                 label={ejeX("Mes")} />
@@ -301,9 +304,15 @@ export default function OwnerDashboard() {
               {/* Punto visible en cada mes: con la línea sola no se distingue
                   dónde acaba un mes y empieza el siguiente. */}
               <Line type="monotone" dataKey="pagos"  name="Membresías" stroke={COLORES_GRAFICO.ingresos} strokeWidth={2.5}
-                dot={{ r: 3, fill: COLORES_GRAFICO.ingresos, strokeWidth: 0 }} />
+                dot={{ r: 3, fill: COLORES_GRAFICO.ingresos, strokeWidth: 0 }}>
+                {/* El eje va en miles; el importe del pico y del valle se
+                    escribe completo para no obligar a estimarlo. */}
+                <LabelList content={<ImporteExtremos valores={ingresos.map((d) => d.pagos)} />} />
+              </Line>
               <Line type="monotone" dataKey="ventas" name="POS"         stroke={COLORES_GRAFICO.pos} strokeWidth={2.5}
-                dot={{ r: 3, fill: COLORES_GRAFICO.pos, strokeWidth: 0 }} />
+                dot={{ r: 3, fill: COLORES_GRAFICO.pos, strokeWidth: 0 }}>
+                <LabelList content={<ImporteExtremos valores={ingresos.map((d) => d.ventas)} />} />
+              </Line>
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -330,14 +339,16 @@ export default function OwnerDashboard() {
             ]}
           />
           <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={ingresos} margin={{ top: 4, right: 8, left: 6, bottom: 22 }}>
+            <BarChart data={ingresos} margin={{ top: 24, right: 8, left: 6, bottom: 22 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />
               <XAxis dataKey="label" tick={{ fill: "var(--text-tertiary)", fontSize: 11 }}
                 label={ejeX("Mes")} />
               <YAxis tick={{ fill: "var(--text-tertiary)", fontSize: 11 }} tickFormatter={(v) => `$${(v/1000).toFixed(0)}k`}
                 label={ejeY("Ingresos (miles de MXN)")} />
               <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="total" name="Total" fill={COLORES_GRAFICO.ingresos} radius={[4, 4, 0, 0]} />
+              <Bar dataKey="total" name="Total" fill={COLORES_GRAFICO.ingresos} radius={[4, 4, 0, 0]}>
+                <LabelList content={<ImporteExtremos valores={ingresos.map((d) => d.total)} />} />
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
