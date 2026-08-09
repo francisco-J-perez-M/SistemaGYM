@@ -193,6 +193,10 @@ export default function UserWeightPrediction() {
   const tendencia = data?.tendencia || "";
   const tConfig = TENDENCIA_CONFIG[tendencia];
   const disclaimer = data?.disclaimer || data?.advertencia || null;
+  const rangoSaludable = data?.rango_saludable || null;
+  // El backend limita el ritmo de cambio a un máximo plausible; conviene
+  // decirlo, porque entonces la cifra es un tope y no una estimación fina.
+  const proyeccionAcotada = Boolean(data?.proyeccion_acotada);
 
   if (loading) return (
     <div className="loading-spinner" style={{ height: "60vh" }}>
@@ -336,7 +340,9 @@ export default function UserWeightPrediction() {
                 {pesoMeta != null ? `${pesoMeta.toFixed(1)} kg` : "—"}
               </div>
               <p style={{ fontSize: 11, color: "var(--text-secondary)", margin: "4px 0 0" }}>
-                peso estimado al final del período
+                {proyeccionAcotada
+                  ? "tope plausible al final del período"
+                  : "peso estimado al final del período"}
               </p>
             </div>
             <div className="stat-card" style={{ padding: 16 }}>
@@ -360,6 +366,40 @@ export default function UserWeightPrediction() {
               </p>
             </div>
           </div>
+
+          {/* Rango de peso saludable (criterio OMS).
+              Sirve de referencia para leer la proyección: sin ella, "bajarás
+              5 kg" no dice si eso acerca o aleja de un peso saludable. Se
+              muestra como RANGO y no como "peso ideal": el IMC es cribado
+              poblacional, no un diagnóstico, y no distingue músculo de grasa. */}
+          {rangoSaludable && (
+            <div className="stat-card" style={{ padding: 16 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+                <h3 style={{ margin: 0 }}>Peso saludable para tu estatura</h3>
+                <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+                  Criterio OMS · IMC {rangoSaludable.imc_min}–{rangoSaludable.imc_max} · {rangoSaludable.estatura_m} m
+                </span>
+              </div>
+
+              <div className="stat-value highlight" style={{ fontSize: 22, marginTop: 6 }}>
+                {rangoSaludable.peso_min_kg} – {rangoSaludable.peso_max_kg} kg
+              </div>
+
+              {rangoSaludable.imc_actual != null && (
+                <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "6px 0 0", lineHeight: 1.55 }}>
+                  Tu IMC es <strong style={{ color: "var(--text-primary)" }}>{rangoSaludable.imc_actual}</strong>
+                  {" "}({rangoSaludable.categoria}).{" "}
+                  {rangoSaludable.dentro_del_rango
+                    ? "Estás dentro del rango."
+                    : `Te separan ${rangoSaludable.diferencia_kg} kg del ${rangoSaludable.direccion === "bajar" ? "límite superior" : "límite inferior"}.`}
+                </p>
+              )}
+
+              <p style={{ fontSize: 11, color: "var(--text-secondary)", margin: "8px 0 0", lineHeight: 1.5, opacity: .9 }}>
+                {rangoSaludable.advertencia}
+              </p>
+            </div>
+          )}
 
           {/* Selector de días */}
           <div className="stat-card" style={{

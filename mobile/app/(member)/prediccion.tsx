@@ -41,6 +41,8 @@ export default function PrediccionScreen() {
   const [error, setError]     = useState<string | null>(null);
   const [hist, setHist]       = useState<number[]>([]);
   const [pred, setPred]       = useState<number[]>([]);
+  /** Rango de peso saludable (criterio OMS) que devuelve el backend. */
+  const [rango, setRango]     = useState<any>(null);
 
   const cargar = useCallback(async () => {
     if (!user?.id) { setLoading(false); setError('Sesión no disponible.'); return; }
@@ -54,6 +56,7 @@ export default function PrediccionScreen() {
         setError('Necesitas al menos 3 registros de peso en Progreso Físico para generar la predicción.');
       }
       setHist(h); setPred(p);
+      setRango(d.rango_saludable ?? null);
     } catch {
       setError('No se pudo calcular la predicción. Registra tu peso y vuelve a intentar.');
     } finally {
@@ -137,6 +140,31 @@ export default function PrediccionScreen() {
             </View>
           </View>
 
+          {/* Peso saludable segun la OMS.
+              Da una referencia con criterio clinico frente a la que leer la
+              proyeccion. Es un RANGO, no un "peso ideal": el IMC es cribado
+              poblacional y no distingue musculo de grasa. */}
+          {rango && (
+            <Card>
+              <Text style={styles.sectionTitle}>Peso saludable para tu estatura</Text>
+              <Text style={styles.rangoValor}>
+                {rango.peso_min_kg} – {rango.peso_max_kg} <Text style={styles.kpiUnit}>kg</Text>
+              </Text>
+              <Text style={styles.rangoMeta}>
+                Criterio OMS · IMC {rango.imc_min}–{rango.imc_max} · {rango.estatura_m} m
+              </Text>
+              {rango.imc_actual != null && (
+                <Text style={styles.rangoTexto}>
+                  Tu IMC es {rango.imc_actual} ({rango.categoria}).{' '}
+                  {rango.dentro_del_rango
+                    ? 'Estás dentro del rango.'
+                    : `Te separan ${rango.diferencia_kg} kg del límite ${rango.direccion === 'bajar' ? 'superior' : 'inferior'}.`}
+                </Text>
+              )}
+              <Text style={styles.rangoNota}>{rango.advertencia}</Text>
+            </Card>
+          )}
+
           {/* Gráfica */}
           {combinado.length >= 2 && (
             <Card>
@@ -205,6 +233,10 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
     kpiValue: { color: colors.text, fontSize: 18 * fs, fontWeight: '800' },
     kpiUnit:  { color: colors.textMuted, fontSize: 11 * fs, fontWeight: '600' },
     sectionTitle: { color: colors.text, fontSize: 15 * fs, fontWeight: '700', marginBottom: 10 },
+    rangoValor:   { color: colors.accent, fontSize: 24 * fs, fontWeight: '800' },
+    rangoMeta:    { color: colors.textSecondary, fontSize: 11 * fs, marginTop: 2 },
+    rangoTexto:   { color: colors.text, fontSize: 13 * fs, marginTop: 8, lineHeight: 19 * fs },
+    rangoNota:    { color: colors.textSecondary, fontSize: 11 * fs, marginTop: 8, lineHeight: 16 * fs },
     predRow: {
       flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
       paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border,
