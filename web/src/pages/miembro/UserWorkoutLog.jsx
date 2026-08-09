@@ -16,7 +16,9 @@ import {
   FiTrendingUp, FiCheckCircle, FiRefreshCw, FiBarChart2, FiList,
 } from "react-icons/fi";
 import { GiMuscleUp } from "react-icons/gi";
-import { getUserRoutines, completeWorkout, getWorkouts } from "../../api/workouts";
+import {
+  getUserRoutines, getAssignedRoutines, completeWorkout, getWorkouts,
+} from "../../api/workouts";
 import { useNavigate } from "react-router-dom";
 import "../../css/CSSUnificado.css";
 
@@ -43,13 +45,32 @@ const dayMatchesToday = (d) => normTxt(d?.dia).includes(todayName());
 const pickTodayOrFirst = (dias) => (dias || []).find(dayMatchesToday) || (dias || [])[0] || null;
 // Ejercicios editables de un día (nombres fijos de la rutina, series por defecto).
 // Cada ejercicio conserva su grupo muscular y su unidad de peso (kg / lb).
+// Si el ejercicio no trae grupo, hereda el del día: así los ejercicios de una
+// rutina asignada no caen todos en el cajón "General".
 const exercisesFromDay = (day) =>
   (day?.ejercicios || []).filter(e => e.nombre).map(e => ({
     nombre: e.nombre,
-    grupo: e.grupo || "",
+    grupo: e.grupo || day?.grupo || "",
     unidad: e.unidad || "kg",
     series: seriesFrom(e),
   }));
+
+// ── Origen de la rutina ─────────────────────────────────────────────────────
+// Las rutinas propias y las asignadas por el entrenador viven en colecciones
+// distintas y llegan por endpoints distintos. Se unifican aquí para que la
+// bitácora las trate igual, conservando de dónde viene cada una.
+const ORIGEN = { PROPIA: "propia", ENTRENADOR: "entrenador" };
+
+const normalizaRutina = (r, origen) => ({
+  ...r,
+  origen,
+  // El id del selector se prefija con el origen: los dos endpoints devuelven
+  // ObjectId de colecciones diferentes y nada garantiza que no coincidan.
+  id: `${origen}:${r.id}`,
+  // Rutina del catálogo que se guarda en la bitácora. En una asignación, `id`
+  // es el documento de asignación y la rutina real viene en `id_rutina`.
+  idRutinaOrigen: origen === ORIGEN.ENTRENADOR ? (r.id_rutina || null) : r.id,
+});
 
 // Interpreta valores multivalor ("7,7,7" / "10,20,30") y convierte lb a kg.
 const LB_A_KG = 0.453592;
@@ -94,11 +115,21 @@ export default function UserWorkoutLog() {
       .finally(() => setLoadingHist(false));
   }, []);
 
+  // Se piden las dos listas en paralelo y con allSettled: si el entrenador no
+  // ha asignado nada, o falla una de las dos, la otra debe seguir mostrándose.
   const loadRoutines = useCallback(() => {
     setLoadingRoutines(true);
-    getUserRoutines()
-      .then(r => setRoutines(r.data?.rutinas || []))
-      .catch(() => setRoutines([]))
+    Promise.allSettled([getUserRoutines(), getAssignedRoutines()])
+      .then(([propias, asignadas]) => {
+        const lista = (res, origen) =>
+          res.status === "fulfilled"
+            ? (res.value.data?.rutinas || []).map(r => normalizaRutina(r, origen))
+            : [];
+        setRoutines([
+          ...lista(propias, ORIGEN.PROPIA),
+          ...lista(asignadas, ORIGEN.ENTRENADOR),
+        ]);
+      })
       .finally(() => setLoadingRoutines(false));
   }, []);
 
@@ -116,11 +147,14 @@ export default function UserWorkoutLog() {
     setMsg(null);
   }, []);
 
-  // Auto-selección inicial: primera rutina activa + día de hoy (una sola vez).
+  // Auto-selección inicial: primera rutina activa CON días + día de hoy.
+  // Se exige que tenga días porque una rutina sin ellos deja la pantalla en
+  // blanco y parece que el registro no funciona.
   const [autoApplied, setAutoApplied] = useState(false);
   useEffect(() => {
     if (!autoApplied && !routineId && routines.length > 0) {
-      applyRoutine(routines.find(x => x.activa !== false) || routines[0]);
+      const utilizable = (x) => x.activa !== false && (x.dias?.length || 0) > 0;
+      applyRoutine(routines.find(utilizable) || routines[0]);
       setAutoApplied(true);
     }
   }, [routines, autoApplied, routineId, applyRoutine]);
@@ -163,7 +197,7 @@ export default function UserWorkoutLog() {
       const { data } = await completeWorkout({
         nombre_rutina: `${selectedRoutine.nombre}${selectedDay.grupo ? " - " + selectedDay.grupo : ""}`,
         grupo_muscular: selectedDay.grupo || undefined,
-        id_rutina: selectedRoutine.id,
+        id_rutina: selectedRoutine.idRutinaOrigen || undefined,
         duracion_min: duracion ? parseInt(duracion) : undefined,
         peso_corporal: pesoCorporal ? parseFloat(pesoCorporal) : undefined,
         notas: notas.trim() || undefined,
@@ -219,10 +253,33 @@ export default function UserWorkoutLog() {
               <label style={S.label}>Rutina</label>
               <select style={S.input} value={routineId} onChange={e => onRoutineChange(e.target.value)}>
                 <option value="">Selecciona una rutina…</option>
-                {routines.map(r => (
-                  <option key={r.id} value={r.id}>{r.nombre}{r.activa === false ? " (inactiva)" : ""}</option>
-                ))}
+                {[
+                  { origen: ORIGEN.PROPIA, etiqueta: "Mis rutinas" },
+                  { origen: ORIGEN.ENTRENADOR, etiqueta: "Asignadas por tu entrenador" },
+                ].map(({ origen, etiqueta }) => {
+                  const grupo = routines.filter(r => r.origen === origen);
+                  if (grupo.length === 0) return null;
+                  return (
+                    <optgroup key={origen} label={etiqueta}>
+                      {grupo.map(r => (
+                        <option key={r.id} value={r.id}>
+                          {r.nombre}
+                          {r.nombre_entrenador ? ` · ${r.nombre_entrenador}` : ""}
+                          {r.activa === false ? " (inactiva)" : ""}
+                          {(r.dias?.length || 0) === 0 ? " — sin días" : ""}
+                        </option>
+                      ))}
+                    </optgroup>
+                  );
+                })}
               </select>
+
+              {selectedRoutine?.origen === ORIGEN.ENTRENADOR && (
+                <p style={S.origenNota}>
+                  <FiCheckCircle size={12} /> Rutina asignada
+                  {selectedRoutine.nombre_entrenador ? ` por ${selectedRoutine.nombre_entrenador}` : ""}.
+                </p>
+              )}
 
               {days.length > 1 && (
                 <>
@@ -401,6 +458,7 @@ const S = {
   ghostBtn: { display: "inline-flex", alignItems: "center", gap: 6, background: "var(--bg-input)", border: "1px solid var(--border)", color: "var(--text-secondary)", borderRadius: 8, padding: "7px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer" },
   label: { display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: "var(--text-secondary)", margin: "12px 0 5px", fontWeight: 600 },
   todayTag: { display: "inline-flex", alignItems: "center", gap: 4, marginLeft: 8, padding: "2px 8px", borderRadius: 20, background: "var(--accent-dim, rgba(108,99,255,.15))", color: "var(--accent)", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".4px" },
+  origenNota: { display: "flex", alignItems: "center", gap: 6, margin: "6px 0 0", fontSize: 12, color: "var(--success, #059669)" },
   input: { width: "100%", boxSizing: "border-box", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 9, padding: "9px 12px", color: "var(--text-primary)", fontSize: 14 },
   exCard: { background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 12, padding: 14 },
   serieHead: { display: "flex", gap: 8, fontSize: 11, color: "var(--text-tertiary, var(--text-secondary))", fontWeight: 600, marginBottom: 4, padding: "0 2px" },
