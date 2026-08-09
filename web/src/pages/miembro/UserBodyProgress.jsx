@@ -7,6 +7,7 @@ import {
 } from "react-icons/fi";
 import { GiBodyHeight, GiMuscleUp, GiWeightScale, GiChest, GiLeg, GiFootTrip, GiMeal } from "react-icons/gi";
 import BodyViewer from "../../components/miembro/BodyViewer";
+import TrabajoPorGrupo from "../../components/miembro/TrabajoPorGrupo";
 import UserHealthUpdate from "./UserHealthUpdate";
 import "../../css/CSSUnificado.css";
 
@@ -457,6 +458,8 @@ export default function UserHealthProgress() {
   const [error, setError] = useState(null);
   const [hasDatos, setHasDatos] = useState(false);
   const [nutricion, setNutricion] = useState({ tienePlan: false, planes: 0, planActual: null });
+  // Cuándo se midió por última vez, para avisar sin obligar a medirse a diario.
+  const [medicion, setMedicion] = useState(null);
   const [activeTab, setActiveTab] = useState("progress");
 
   useEffect(() => {
@@ -497,6 +500,7 @@ export default function UserHealthProgress() {
       setSelectedGender(progressData.gender);
       setHasDatos(progressData.hasDatos);
       setNutricion(progressData.nutricion || { tienePlan: false, planes: 0, planActual: null });
+      setMedicion(progressData.medicion || null);
       setHealthData(healthDataResponse);
       setError(null);
     } catch (err) {
@@ -631,6 +635,39 @@ export default function UserHealthProgress() {
                 </div>
               )}
 
+              {/* Recordatorio de medidas.
+                  El peso se captura solo al registrar un entrenamiento; las
+                  circunferencias hay que tomarlas con cinta. Cambian despacio,
+                  así que se recuerda cada dos semanas en lugar de a diario. */}
+              {medicion && !medicion.medidas_al_dia && (
+                <div style={{
+                  padding: '14px 18px', background: 'rgba(234, 115, 23, .12)',
+                  border: '1px solid rgba(234, 115, 23, .35)', borderRadius: 10,
+                  marginBottom: 20, display: 'flex', alignItems: 'center',
+                  gap: 12, flexWrap: 'wrap', color: 'var(--text-primary)',
+                }}>
+                  <FiAlertCircle style={{ color: '#EA7317', flexShrink: 0 }} />
+                  <span style={{ flex: 1, minWidth: 240, fontSize: 13, lineHeight: 1.5 }}>
+                    {medicion.medidas_fecha
+                      ? `Tus medidas son del ${medicion.medidas_fecha} (hace ${medicion.medidas_dias} días).`
+                      : 'Aún no has registrado tus medidas corporales.'}
+                    {' '}El peso se guarda solo con cada entrenamiento, pero las
+                    circunferencias hay que tomarlas con cinta: se recomienda
+                    cada {medicion.cadencia_dias} días.
+                  </span>
+                  <button
+                    onClick={() => setShowUpdate(true)}
+                    style={{
+                      padding: '8px 16px', background: '#EA7317', color: '#fff',
+                      border: 'none', borderRadius: 8, cursor: 'pointer',
+                      fontWeight: 600, fontSize: 12, whiteSpace: 'nowrap',
+                    }}
+                  >
+                    Actualizar medidas
+                  </button>
+                </div>
+              )}
+
               {/* KPIs */}
               <div className="kpi-grid" style={{ marginBottom: '25px' }}>
                 {kpiMetrics.map((metric, idx) => <MetricCard key={idx} metric={metric} idx={idx} />)}
@@ -705,6 +742,14 @@ export default function UserHealthProgress() {
                     ))}
                   </div>
                 </motion.div>
+              </div>
+
+              {/* TRABAJO POR GRUPO MUSCULAR
+                  Se alimenta de los entrenamientos registrados, así que se
+                  actualiza sola. Las circunferencias de arriba siguen siendo
+                  manuales: no se deducen de lo que se entrena. */}
+              <div className="charts-row" style={{ marginTop: "20px", gap: "20px" }}>
+                <TrabajoPorGrupo />
               </div>
 
               {/* IMC Y OBJETIVOS */}

@@ -15,3 +15,7 @@ export const getUserRoutines   = () => API.get("/user/routines");
 export const getAssignedRoutines = () => API.get("/user/training/assigned-routines");
 export const completeWorkout   = (data) => API.post("/user/workout/complete", data);
 export const getWorkouts       = (params = {}) => API.get("/user/workouts", { params });
+// Trabajo acumulado por grupo muscular, derivado de la bitácora. Es lo que sí
+// se deduce de un entrenamiento registrado; las circunferencias corporales no.
+export const getMuscleGroupWork = (params = {}) =>
+  API.get("/user/workouts/muscle-groups", { params });
