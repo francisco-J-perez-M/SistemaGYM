@@ -9,20 +9,22 @@
 # con LF en el repositorio, sin importar cómo los tenga cada quien en disco.
 * text=auto
 
-# Los scripts de shell se ejecutan dentro de contenedores Linux: van con LF
-# tanto en el repositorio como al descargarlos, incluso en Windows.
+# Los scripts de shell y Python se ejecutan dentro de contenedores Linux: van
+# con LF tanto en el repositorio como al descargarlos, incluso en Windows.
 #
 # Si se descargan con CRLF, el kernel lee el shebang como `#!/bin/sh\r` y el
 # contenedor muere con "exec /app/entrypoint.sh: no such file or directory",
 # un mensaje que parece un archivo faltante y no lo es.
 *.sh          text eol=lf
+*.py          text eol=lf
 entrypoint.sh text eol=lf
 
 # Lo mismo para los archivos que consume Linux dentro de las imágenes.
-Dockerfile   text eol=lf
-*.conf       text eol=lf
-*.yml        text eol=lf
-*.yaml       text eol=lf
+Dockerfile           text eol=lf
+*.conf               text eol=lf
+*.yml                text eol=lf
+*.yaml               text eol=lf
+docker-compose*.yml  text eol=lf
 
 # Los .bat y .ps1 solo corren en Windows y necesitan CRLF.
 *.bat text eol=crlf
@@ -30,18 +32,18 @@ Dockerfile   text eol=lf
 
 # Binarios: Git no debe tocarlos nunca. Sin esta lista, la normalización de
 # arriba podría corromper imágenes y documentos al reescribir sus bytes.
-*.png  binary
-*.jpg  binary
-*.jpeg binary
-*.gif  binary
-*.ico  binary
-*.pdf  binary
-*.docx binary
-*.xlsx binary
-*.pptx binary
-*.zip  binary
-*.ttf  binary
-*.woff  binary
-*.woff2 binary
-*.jks   binary
+*.png      binary
+*.jpg      binary
+*.jpeg     binary
+*.gif      binary
+*.ico      binary
+*.pdf      binary
+*.docx     binary
+*.xlsx     binary
+*.pptx     binary
+*.zip      binary
+*.ttf      binary
+*.woff     binary
+*.woff2    binary
+*.jks      binary
 *.keystore binary
