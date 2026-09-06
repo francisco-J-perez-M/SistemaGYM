@@ -1,0 +1,36 @@
+# docker-compose.override.yml — SOLO desarrollo local.
+#
+# Docker Compose fusiona este archivo automáticamente con docker-compose.yml
+# cuando ambos están en la misma carpeta y corres `docker compose up` sin
+# flags. En producción, ignóralo explícitamente:
+#   docker compose -f docker-compose.yml up -d --build
+#
+# Qué hace: monta el código de ./api dentro del contenedor, para que los
+# cambios de código y las migraciones generadas con `flask db migrate` se
+# reflejen de inmediato sin necesitar rebuild — y no se pierdan al hacer
+# `docker compose up --build` en el futuro (lo que pasó en la sesión de
+# hoy: una migración generada dentro del contenedor se perdió porque no
+# había bind mount).
+#
+# IMPORTANTE — permisos de archivo:
+# El Dockerfile crea al usuario "gymuser" con UID 1000 y hace `chown` del
+# código en build time. Un bind mount desde el host conserva el UID/GID
+# DEL HOST, no el del contenedor — si tu usuario local no es UID 1000,
+# vas a tener errores de permisos al escribir (ej. una migración nueva).
+#
+# Antes de levantar esto la primera vez en una máquina nueva, exporta tu
+# UID/GID real (agrégalo a ~/.bashrc o ~/.zshrc para no repetirlo):
+#   export UID=$(id -u)
+#   export GID=$(id -g)
+# En Windows con Docker Desktop (WSL2) esto normalmente no hace falta:
+# WSL2 ya corre como UID 1000 por defecto en la mayoría de instalaciones.
+
+services:
+  api:
+    volumes:
+      - ./api:/app
+      - ./backups:/app/storage/backups
+      - ./uploads:/app/storage/uploads
+    environment:
+      FLASK_DEBUG: "1"
+    user: "${UID:-1000}:${GID:-1000}"
