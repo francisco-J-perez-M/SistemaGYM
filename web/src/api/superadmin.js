@@ -14,11 +14,11 @@ export const toggleGimnasio   = (id)          => API.patch(`/superadmin/gimnasio
 export const getMetricasGim   = (id)          => API.get(`/superadmin/gimnasios/${id}/metricas`);
 
 // ── Suscripciones ─────────────────────────────────────────────────
+// Plan y estado se actualizan automáticamente vía el webhook de Stripe
+// (ver api/app/routes/owner_gym/billing_stripe.py). No existe endpoint
+// de cambio manual: el superadmin solo puede consultar.
 export const getSuscripciones  = (params = {}) => API.get("/superadmin/suscripciones", { params });
 export const getSuscripcion    = (id)           => API.get(`/superadmin/suscripciones/${id}`);
-export const cambiarPlanSub    = (id, plan_id)  => API.patch(`/superadmin/suscripciones/${id}/plan`, { plan_id });
-export const cambiarEstadoSub  = (id, estado, razon) =>
-  API.patch(`/superadmin/suscripciones/${id}/estado`, { estado, razon });
 
 // ── Planes ────────────────────────────────────────────────────────
 export const getPlanes    = ()          => API.get("/superadmin/planes");

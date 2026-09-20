@@ -169,6 +169,19 @@ export default function Layout({ role = "owner_gym" }) {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // ── Impersonación activa: se lee de "user._impersonated", escrito por
+  // SuperadminUsuarios.jsx al impersonar. Vive en el Layout (compartido por
+  // todos los roles) para que el control de salida esté visible sin importar
+  // a qué panel navegue el superadmin mientras impersona. ──────────────────
+  const [impersonating, setImpersonating] = useState(false);
+
+  const readImpersonationState = () => {
+    try {
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      setImpersonating(!!user._impersonated);
+    } catch { setImpersonating(false); }
+  };
+
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) { navigate("/", { replace: true }); return; }
@@ -178,7 +191,27 @@ export default function Layout({ role = "owner_gym" }) {
       const allowed  = (ROLE_MAP[role] || []);
       if (!allowed.includes(userRole)) navigate("/", { replace: true });
     } catch { navigate("/", { replace: true }); }
+    readImpersonationState();
   }, [location.pathname, role, navigate]);
+
+  const handleExitImpersonation = () => {
+    const prevToken = sessionStorage.getItem("sa_prev_token");
+    const prevUser  = sessionStorage.getItem("sa_prev_user");
+    if (!prevToken || !prevUser) {
+      // No hay sesión de superadmin que restaurar: no dejar al usuario
+      // atrapado, forzar cierre de sesión y volver al login.
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      navigate("/", { replace: true });
+      return;
+    }
+    localStorage.setItem("token", prevToken);
+    localStorage.setItem("user",  prevUser);
+    sessionStorage.removeItem("sa_prev_token");
+    sessionStorage.removeItem("sa_prev_user");
+    setImpersonating(false);
+    navigate("/superadmin", { replace: true });
+  };
 
   const noSidebar = ["/complete-profile", "/user/complete-profile"];
   const showSidebar = !noSidebar.includes(location.pathname);
@@ -221,40 +254,76 @@ export default function Layout({ role = "owner_gym" }) {
     <div
       style={{
         display: "flex",
-        flexDirection: "row",
+        flexDirection: "column",
         width: "100vw",
         height: "100vh",
         overflow: "hidden",
         background: "var(--bg-main)",
       }}
     >
-      {showSidebar && (
-        <Sidebar
-          role={role}
-          activeTab={activeTab}
-          onTabChange={handleNav}
-          onLogout={handleLogout}
-          onOpenGuide={guideEnabled ? openGuide : undefined}
-        />
+      {impersonating && (
+        <div
+          style={{
+            flexShrink: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            padding: "8px 18px",
+            background: "#a855f7",
+            color: "#fff",
+            fontSize: 13,
+            fontWeight: 600,
+          }}
+        >
+          <span>Estás viendo el sistema como este usuario (sesión de impersonación).</span>
+          <button
+            onClick={handleExitImpersonation}
+            style={{
+              border: "1px solid rgba(255,255,255,.5)",
+              background: "rgba(255,255,255,.15)",
+              color: "#fff",
+              borderRadius: 6,
+              padding: "5px 12px",
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            Volver a Superadmin
+          </button>
+        </div>
       )}
 
-      <div
-        style={{
-          flex: 1,
-          minWidth: 0,
-          height: "100vh",
-          overflowY: "auto",
-          overflowX: "hidden",
-          display: "flex",
-          flexDirection: "column",
-        }}
-      >
-        <Outlet />
+      <div style={{ display: "flex", flexDirection: "row", flex: 1, minHeight: 0 }}>
+        {showSidebar && (
+          <Sidebar
+            role={role}
+            activeTab={activeTab}
+            onTabChange={handleNav}
+            onLogout={handleLogout}
+            onOpenGuide={guideEnabled ? openGuide : undefined}
+          />
+        )}
+
+        <div
+          style={{
+            flex: 1,
+            minWidth: 0,
+            height: "100%",
+            overflowY: "auto",
+            overflowX: "hidden",
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          <Outlet />
+        </div>
+
+        {guideEnabled && (
+          <SystemGuide open={guideOpen} path={guidePath} onClose={closeGuide} />
+        )}
       </div>
-
-      {guideEnabled && (
-        <SystemGuide open={guideOpen} path={guidePath} onClose={closeGuide} />
-      )}
     </div>
   );
 }

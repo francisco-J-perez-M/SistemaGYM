@@ -31,8 +31,8 @@ const btnStyle = (variant = "primary") => {
   return { border: "none", borderRadius: 8, padding: "7px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "opacity .15s", ...(v[variant] || v.primary) };
 };
 
-const PLAN_LABELS = { basico: "Básico", pro: "Pro", enterprise: "Enterprise" };
-const PLAN_COLORS = { basico: "info", pro: "warn", enterprise: "pos" };
+const PLAN_LABELS = { starter: "Starter", basico: "Básico", pro: "Pro", enterprise: "Enterprise" };
+const PLAN_COLORS = { starter: "warn", basico: "info", pro: "warn", enterprise: "pos" };
 
 function GymDetailModal({ gym, onClose }) {
   const [detail,   setDetail]   = useState(null);
@@ -248,7 +248,10 @@ export default function SuperadminGimnasios() {
     if (!isConfirmed) return;
     try {
       await toggleGimnasio(gym.id);
-      setGyms(prev => prev.map(g => g.id === gym.id ? { ...g, activo: !g.activo } : g));
+      // Recargar desde el servidor: si el filtro activo/inactivo está aplicado, la fila debe
+      // desaparecer de la lista cuando ya no cumple el filtro, y el total del encabezado
+      // y la paginación deben reflejar el conteo real tras el cambio.
+      load(page, filters);
       Swal.fire({ icon: "success", title: gym.activo ? "Gimnasio desactivado" : "Gimnasio activado", timer: 1500, showConfirmButton: false, background: "var(--bg-card)", color: "var(--text-primary)" });
     } catch (e) {
       Swal.fire({ icon: "error", title: "Error", text: e?.response?.data?.msg || "No se pudo cambiar el estado", background: "var(--bg-card)", color: "var(--text-primary)" });
@@ -295,6 +298,7 @@ export default function SuperadminGimnasios() {
           style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, padding: "8px 12px", color: "var(--text-primary)", fontSize: 13 }}
         >
           <option value="">Todos los planes</option>
+          <option value="starter">Starter</option>
           <option value="basico">Básico</option>
           <option value="pro">Pro</option>
           <option value="enterprise">Enterprise</option>
@@ -307,7 +311,7 @@ export default function SuperadminGimnasios() {
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
             <tr style={{ background: "var(--bg-input)" }}>
-              {["Gimnasio", "Email", "Plan", "Estado", "Teléfono", "Acciones"].map(h => (
+              {["Gimnasio", "Email", "Plan", "Estado", "Miembros", "Fecha Inicio", "Teléfono", "Acciones"].map(h => (
                 <th key={h} style={{ textAlign: "left", padding: "12px 16px", color: "var(--text-secondary)", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: ".06em", borderBottom: "1px solid var(--border)", whiteSpace: "nowrap" }}>
                   {h}
                 </th>
@@ -316,20 +320,24 @@ export default function SuperadminGimnasios() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={6} style={{ padding: 40, textAlign: "center", color: "var(--text-secondary)" }}>Cargando…</td></tr>
+              <tr><td colSpan={8} style={{ padding: 40, textAlign: "center", color: "var(--text-secondary)" }}>Cargando…</td></tr>
             ) : gyms.length === 0 ? (
-              <tr><td colSpan={6} style={{ padding: 40, textAlign: "center", color: "var(--text-secondary)" }}>Sin resultados</td></tr>
+              <tr><td colSpan={8} style={{ padding: 40, textAlign: "center", color: "var(--text-secondary)" }}>Sin resultados</td></tr>
             ) : gyms.map(gym => (
               <tr key={gym.id} style={{ borderBottom: "1px solid var(--border, rgba(255,255,255,.04))" }}>
                 <td style={{ padding: "12px 16px" }}>
                   <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{gym.nombre}</span>
                 </td>
-                <td style={{ padding: "12px 16px", color: "var(--text-secondary)" }}>{gym.email}</td>
+                <td style={{ padding: "12px 16px", color: "var(--text-secondary)" }}>{gym.email_contacto || "—"}</td>
                 <td style={{ padding: "12px 16px" }}>
                   <span style={badge(PLAN_COLORS[gym.plan] || "info")}>{PLAN_LABELS[gym.plan] || gym.plan}</span>
                 </td>
                 <td style={{ padding: "12px 16px" }}>
                   <span style={badge(gym.activo ? "pos" : "neg")}>{gym.activo ? "Activo" : "Inactivo"}</span>
+                </td>
+                <td style={{ padding: "12px 16px", color: "var(--text-secondary)" }}>{gym.total_miembros ?? "—"}</td>
+                <td style={{ padding: "12px 16px", color: "var(--text-secondary)" }}>
+                  {gym.suscripcion?.fecha_inicio ? new Date(gym.suscripcion.fecha_inicio).toLocaleDateString("es-MX") : "—"}
                 </td>
                 <td style={{ padding: "12px 16px", color: "var(--text-secondary)" }}>{gym.telefono || "—"}</td>
                 <td style={{ padding: "12px 16px" }}>

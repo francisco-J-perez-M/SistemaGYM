@@ -4,23 +4,26 @@
  */
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import axios from "axios";
+import Swal from "sweetalert2";
 import {
   FiPlus, FiCheck, FiTrash2, FiEdit2, FiX, FiRefreshCw,
-  FiClipboard, FiAlertCircle, FiClock, FiFlag, FiFilter,
+  FiClipboard, FiAlertCircle, FiClock, FiFilter, FiUser, FiUserX,
 } from "react-icons/fi";
+import { getTasks, createTask, updateTask, deleteTask } from "../../api/recepcionista";
 import "../../css/CSSUnificado.css";
 
-const API  = "/api/recepcionista/tasks";
-const hdrs = () => ({ Authorization: `Bearer ${localStorage.getItem("token")}` });
-
-/* ── Mapas de prioridad / categoria ─────────────────────────────────────────── */
+/* ── Mapas de prioridad / categoria / turno ─────────────────────────────────── */
 const PRIO = {
   alta:   { label:"Alta",   color:"#ef4444", bg:"rgba(239,68,68,0.12)" },
   media:  { label:"Media",  color:"#fbbf24", bg:"rgba(251,191,36,0.12)" },
   baja:   { label:"Baja",   color:"#22c55e", bg:"rgba(34,197,94,0.12)" },
 };
 const CATS = ["General","Limpieza","Pagos","Citas","Inventario","Seguimiento"];
+const TURNOS = {
+  matutino:   "Matutino",
+  vespertino: "Vespertino",
+  nocturno:   "Nocturno",
+};
 
 const badge = (prioridad) => {
   const p = PRIO[prioridad] || PRIO.baja;
@@ -32,13 +35,23 @@ const badge = (prioridad) => {
   );
 };
 
-/* ── Formulario inline ──────────────────────────────────────────────────────── */
+const usuarioActual = () => {
+  try {
+    const u = JSON.parse(localStorage.getItem("user") || "{}");
+    return { id: u.id != null ? String(u.id) : null, nombre: u.nombre || "" };
+  } catch {
+    return { id: null, nombre: "" };
+  }
+};
+
+/* ── Formulario inline ─────────────────────────────────────────────────────── */
 function TaskForm({ initial = {}, onSave, onCancel, loading }) {
   const [form, setForm] = useState({
     texto:    initial.texto    ?? "",
     prioridad:initial.prioridad?? "media",
     categoria:initial.categoria?? "General",
     fecha:    initial.fecha    ?? "",
+    turno:    initial.turno    ?? "",
   });
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
@@ -48,7 +61,7 @@ function TaskForm({ initial = {}, onSave, onCancel, loading }) {
         borderRadius:"var(--r-md)", padding:"16px 18px", marginBottom:12 }}>
       <textarea
         rows={2}
-        placeholder="Descripcion de la tarea..."
+        placeholder="Descripción de la tarea..."
         value={form.texto}
         onChange={e => set("texto", e.target.value)}
         style={{ width:"100%", resize:"vertical", background:"var(--bg-main)",
@@ -70,6 +83,13 @@ function TaskForm({ initial = {}, onSave, onCancel, loading }) {
             background:"var(--bg-main)", border:"1px solid var(--border-dark)",
             color:"var(--text-primary)" }}>
           {CATS.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+        <select value={form.turno} onChange={e => set("turno", e.target.value)}
+          style={{ padding:"6px 10px", borderRadius:"var(--r-sm)", fontSize:12,
+            background:"var(--bg-main)", border:"1px solid var(--border-dark)",
+            color:"var(--text-primary)" }}>
+          <option value="">Sin turno</option>
+          {Object.entries(TURNOS).map(([v, label]) => <option key={v} value={v}>{label}</option>)}
         </select>
         <input type="date" value={form.fecha} onChange={e => set("fecha", e.target.value)}
           style={{ padding:"6px 10px", borderRadius:"var(--r-sm)", fontSize:12,
@@ -95,7 +115,7 @@ function TaskForm({ initial = {}, onSave, onCancel, loading }) {
   );
 }
 
-/* ══ PÁGINA PRINCIPAL ════════════════════════════════════════════════════════ */
+/* ══ PÁGINA PRINCIPAL ═════════════════════════════════════════════════════════ */
 export default function ReceptionistTasks() {
   const [tasks,    setTasks]    = useState([]);
   const [loading,  setLoading]  = useState(true);
@@ -104,25 +124,29 @@ export default function ReceptionistTasks() {
   const [showForm, setShowForm] = useState(false);
   const [editId,   setEditId]   = useState(null);
   const [filter,   setFilter]   = useState("todas");
+  const yo = usuarioActual();
 
-  /* ── Fetch ───────────────────────────────────────────────────────────────── */
-  const fetch = useCallback(async () => {
+  /* ── Cargar tareas (respeta el filtro activo: el backend hace mine/sin_asignar) ── */
+  const cargarTareas = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const r = await axios.get(API, { headers: hdrs() });
+      const params = {};
+      if (filter === "mias")        params.mine = "true";
+      if (filter === "sin_asignar") params.sin_asignar = "true";
+      const r = await getTasks(params);
       setTasks(r.data.tasks || []);
     } catch {
       setError("No se pudieron cargar las tareas. Intenta de nuevo.");
     } finally { setLoading(false); }
-  }, []);
+  }, [filter]);
 
-  useEffect(() => { fetch(); }, [fetch]);
+  useEffect(() => { cargarTareas(); }, [cargarTareas]);
 
   /* ── Crear ───────────────────────────────────────────────────────────────── */
   const crear = async (form) => {
     setSaving(true);
     try {
-      const r = await axios.post(API, form, { headers: hdrs() });
+      const r = await createTask(form);
       setTasks(p => [r.data.task, ...p]);
       setShowForm(false);
     } catch { setError("Error al crear la tarea."); }
@@ -133,7 +157,7 @@ export default function ReceptionistTasks() {
   const actualizar = async (id, form) => {
     setSaving(true);
     try {
-      const r = await axios.patch(`${API}/${id}`, form, { headers: hdrs() });
+      const r = await updateTask(id, form);
       setTasks(p => p.map(t => t._id === id ? r.data.task : t));
       setEditId(null);
     } catch { setError("Error al actualizar la tarea."); }
@@ -143,21 +167,49 @@ export default function ReceptionistTasks() {
   /* ── Togglear completada ─────────────────────────────────────────────────── */
   const toggleComplete = async (task) => {
     try {
-      const r = await axios.patch(`${API}/${task._id}`,
-        { completada: !task.completada }, { headers: hdrs() });
+      const r = await updateTask(task._id, { completada: !task.completada });
       setTasks(p => p.map(t => t._id === task._id ? r.data.task : t));
-    } catch { /* silencioso */ }
+    } catch {
+      setError("No se pudo actualizar el estado de la tarea.");
+    }
   };
 
-  /* ── Eliminar ────────────────────────────────────────────────────────────── */
-  const eliminar = async (id) => {
+  /* ── Reclamar / liberar responsable ──────────────────────────────────────── */
+  const tomarTarea = async (task) => {
     try {
-      await axios.delete(`${API}/${id}`, { headers: hdrs() });
+      const r = await updateTask(task._id, { responsable_id: "self" });
+      setTasks(p => p.map(t => t._id === task._id ? r.data.task : t));
+    } catch { setError("No se pudo asignar la tarea."); }
+  };
+
+  const liberarTarea = async (task) => {
+    try {
+      const r = await updateTask(task._id, { responsable_id: null });
+      setTasks(p => p.map(t => t._id === task._id ? r.data.task : t));
+    } catch { setError("No se pudo liberar la tarea."); }
+  };
+
+  /* ── Eliminar (con confirmación) ──────────────────────────────────────────── */
+  const eliminar = async (id) => {
+    const { isConfirmed } = await Swal.fire({
+      title: "¿Eliminar tarea?",
+      text: "Esta acción no se puede deshacer.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Eliminar",
+      confirmButtonColor: "#ef4444",
+      cancelButtonText: "Cancelar",
+      background: "var(--bg-card)",
+      color: "var(--text-primary)",
+    });
+    if (!isConfirmed) return;
+    try {
+      await deleteTask(id);
       setTasks(p => p.filter(t => t._id !== id));
     } catch { setError("Error al eliminar la tarea."); }
   };
 
-  /* ── Filtrado ────────────────────────────────────────────────────────────── */
+  /* ── Filtrado local adicional (prioridad/estado, sobre lo que ya trajo el backend) ── */
   const visible = tasks.filter(t => {
     if (filter === "pendientes")  return !t.completada;
     if (filter === "completadas") return t.completada;
@@ -184,11 +236,11 @@ export default function ReceptionistTasks() {
             )}
           </h1>
           <p style={{ color:"var(--text-secondary)", fontSize:13, marginTop:4 }}>
-            Lista de tareas del area de recepcion
+            Lista de tareas del área de recepción
           </p>
         </div>
         <div style={{ display:"flex", gap:8 }}>
-          <motion.button onClick={fetch} disabled={loading}
+          <motion.button onClick={cargarTareas} disabled={loading}
             whileHover={{ scale:1.05 }} whileTap={{ scale:0.95 }}
             style={{ display:"flex", alignItems:"center", gap:6, padding:"9px 14px",
               background:"transparent", border:"1px solid var(--border-dark)",
@@ -231,6 +283,8 @@ export default function ReceptionistTasks() {
           { id:"pendientes",  label:"Pendientes" },
           { id:"completadas", label:"Completadas" },
           { id:"alta",        label:"Alta prioridad" },
+          { id:"mias",        label:"Mis tareas" },
+          { id:"sin_asignar", label:"Sin asignar" },
         ].map(f => (
           <button key={f.id} onClick={() => setFilter(f.id)}
             style={{ display:"flex", alignItems:"center", gap:5, padding:"6px 14px",
@@ -294,20 +348,54 @@ export default function ReceptionistTasks() {
                           border:"1px solid var(--border-dark)" }}>
                           {t.categoria || "General"}
                         </span>
+                        {t.turno && (
+                          <span style={{ fontSize:10, padding:"2px 8px", borderRadius:99,
+                            background:"var(--bg-input)", color:"var(--text-secondary)",
+                            border:"1px solid var(--border-dark)" }}>
+                            {TURNOS[t.turno] || t.turno}
+                          </span>
+                        )}
                       </div>
-                      {t.fecha && (
+                      <div style={{ display:"flex", alignItems:"center", gap:12, flexWrap:"wrap", marginTop:5 }}>
+                        {t.fecha && (
+                          <div style={{ display:"flex", alignItems:"center", gap:4,
+                            fontSize:11, color:"var(--text-secondary)" }}>
+                            <FiClock size={11}/>
+                            {new Date(t.fecha + "T12:00:00").toLocaleDateString("es-MX",
+                              { day:"numeric", month:"short", year:"numeric" })}
+                          </div>
+                        )}
                         <div style={{ display:"flex", alignItems:"center", gap:4,
-                          fontSize:11, color:"var(--text-secondary)", marginTop:5 }}>
-                          <FiClock size={11}/>
-                          {new Date(t.fecha + "T12:00:00").toLocaleDateString("es-MX",
-                            { day:"numeric", month:"short", year:"numeric" })}
+                          fontSize:11, color:"var(--text-secondary)" }}>
+                          <FiUser size={11}/>
+                          {t.responsable_nombre
+                            ? (t.responsable_id === yo.id ? "Tú" : t.responsable_nombre)
+                            : "Sin asignar"}
                         </div>
-                      )}
+                      </div>
                     </div>
 
                     {/* Acciones */}
-                    {!t.completada && (
-                      <div style={{ display:"flex", gap:4, flexShrink:0 }}>
+                    <div style={{ display:"flex", gap:4, flexShrink:0, flexWrap:"wrap", justifyContent:"flex-end", maxWidth:120 }}>
+                      {!t.completada && t.responsable_id !== yo.id && (
+                        <button onClick={() => tomarTarea(t)} title="Tomar esta tarea"
+                          style={{ width:30, height:30, borderRadius:"var(--r-sm)",
+                            background:"var(--bg-input)", border:"1px solid var(--border-dark)",
+                            color:"var(--text-secondary)", cursor:"pointer",
+                            display:"flex", alignItems:"center", justifyContent:"center" }}>
+                          <FiUser size={13}/>
+                        </button>
+                      )}
+                      {!t.completada && t.responsable_id === yo.id && (
+                        <button onClick={() => liberarTarea(t)} title="Dejar sin asignar"
+                          style={{ width:30, height:30, borderRadius:"var(--r-sm)",
+                            background:"var(--bg-input)", border:"1px solid var(--border-dark)",
+                            color:"var(--text-secondary)", cursor:"pointer",
+                            display:"flex", alignItems:"center", justifyContent:"center" }}>
+                          <FiUserX size={13}/>
+                        </button>
+                      )}
+                      {!t.completada && (
                         <button onClick={() => { setEditId(t._id); setShowForm(false); }}
                           style={{ width:30, height:30, borderRadius:"var(--r-sm)",
                             background:"var(--bg-input)", border:"1px solid var(--border-dark)",
@@ -315,24 +403,15 @@ export default function ReceptionistTasks() {
                             display:"flex", alignItems:"center", justifyContent:"center" }}>
                           <FiEdit2 size={13}/>
                         </button>
-                        <button onClick={() => eliminar(t._id)}
-                          style={{ width:30, height:30, borderRadius:"var(--r-sm)",
-                            background:"rgba(239,68,68,0.08)", border:"1px solid rgba(239,68,68,0.2)",
-                            color:"#ef4444", cursor:"pointer",
-                            display:"flex", alignItems:"center", justifyContent:"center" }}>
-                          <FiTrash2 size={13}/>
-                        </button>
-                      </div>
-                    )}
-                    {t.completada && (
+                      )}
                       <button onClick={() => eliminar(t._id)}
-                        style={{ width:30, height:30, borderRadius:"var(--r-sm)", flexShrink:0,
-                          background:"rgba(239,68,68,0.06)", border:"1px solid rgba(239,68,68,0.15)",
+                        style={{ width:30, height:30, borderRadius:"var(--r-sm)",
+                          background:"rgba(239,68,68,0.08)", border:"1px solid rgba(239,68,68,0.2)",
                           color:"#ef4444", cursor:"pointer",
                           display:"flex", alignItems:"center", justifyContent:"center" }}>
-                        <FiTrash2 size={12}/>
+                        <FiTrash2 size={13}/>
                       </button>
-                    )}
+                    </div>
                   </div>
                 )}
               </motion.div>
