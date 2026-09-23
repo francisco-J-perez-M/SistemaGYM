@@ -86,7 +86,6 @@ function MembresiaModal({ initial, onClose, onSave }) {
     tipo:           initial?.tipo           ?? "estandar",
     precio:         initial?.precio         ?? "",
     duracion_meses: initial?.duracion_meses ?? 1,
-    descripcion:    initial?.descripcion    ?? "",
     // Beneficios que el dueño define y que se muestran en la tarjeta del plan
     beneficios:     initial?.beneficios     ?? [],
     // Vigencia de la promoción: al pasar esta fecha se desactiva sola
@@ -114,7 +113,6 @@ function MembresiaModal({ initial, onClose, onSave }) {
         tipo:           form.tipo,
         precio:         parseFloat(form.precio),
         duracion_meses: parseInt(form.duracion_meses),
-        descripcion:    form.descripcion.trim(),
         beneficios:     (form.beneficios || []).map(b => String(b).trim()).filter(Boolean),
         es_combo:       !!form.es_combo,
         items_combo:    form.es_combo ? (form.items_combo || []).filter(i => i?.nombre?.trim()) : [],
@@ -205,12 +203,6 @@ function MembresiaModal({ initial, onClose, onSave }) {
               </p>
             </div>
           )}
-
-          {/* Descripción */}
-          <div style={S.fGroup}>
-            <label style={S.label}>Descripción <span style={{ fontWeight: 400, textTransform: "none" }}>(opcional)</span></label>
-            <textarea style={S.textarea} value={form.descripcion} onChange={set("descripcion")} placeholder="Acceso completo + clases grupales…" />
-          </div>
 
           {/* Beneficios incluidos */}
           <div style={S.fGroup}>
@@ -433,11 +425,6 @@ export default function OwnerMemberships() {
                     </span>
                   </div>
                 </div>
-
-                {/* Descripción como subtítulo comercial */}
-                <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "2px 0 0", minHeight: 32, lineHeight: 1.4 }}>
-                  {m.descripcion || "Sin descripción"}
-                </p>
 
                 {/* Precio protagonista */}
                 <div style={{ display: "flex", alignItems: "baseline", gap: 5, margin: "10px 0 4px" }}>

@@ -12,7 +12,7 @@ import {
   FiCheck, FiX, FiClock, FiAlertCircle, FiCheckCircle,
   FiMessageSquare, FiEdit2, FiZap, FiToggleLeft, FiToggleRight,
   FiChevronDown, FiChevronUp, FiRefreshCw, FiStar,
-  FiChevronLeft, FiChevronRight, FiImage, FiInfo,
+  FiChevronLeft, FiChevronRight, FiImage, FiInfo, FiCalendar,
 } from "react-icons/fi";
 import { GiMuscleUp } from "react-icons/gi";
 import { motion, AnimatePresence } from "framer-motion";
@@ -1568,6 +1568,77 @@ function TabAlertas() {
 }
 
 /* ══════════════════════════════════════════════════════════════
+   TAB 4 — MIS CITAS
+   Citas que recepción agendó para este miembro (SCRUM-97: antes no había
+   forma de verlas fuera del módulo de recepción).
+══════════════════════════════════════════════════════════════ */
+function TabCitas() {
+  const [citas,   setCitas]   = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error,   setError]   = useState(false);
+
+  const cargar = useCallback(async () => {
+    setLoading(true); setError(false);
+    try {
+      const d = await ROUTINES_API("GET", "/citas");
+      setCitas(d.citas || []);
+    } catch { setError(true); }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { cargar(); }, [cargar]);
+
+  const ESTADO_LABEL = { pendiente: "Pendiente", confirmada: "Confirmada", cancelada: "Cancelada", completada: "Completada" };
+  const ESTADO_COLOR = { pendiente: "#f59e0b", confirmada: "#22c55e", cancelada: "#ef4444", completada: "var(--text-secondary)" };
+
+  if (loading) return <div style={{ padding: 40, textAlign: "center", color: "var(--text-secondary)" }}>Cargando…</div>;
+  if (error) return (
+    <div style={{ padding: 40, textAlign: "center", color: "var(--text-secondary)" }}>
+      No se pudieron cargar tus citas. <button onClick={cargar} style={{ ...btn(), marginLeft: 8 }}>Reintentar</button>
+    </div>
+  );
+  if (citas.length === 0) return (
+    <div style={{ padding: 40, textAlign: "center", color: "var(--text-secondary)" }}>
+      <FiCalendar size={28} style={{ marginBottom: 10, opacity: .6 }} />
+      <p>No tienes citas agendadas todavía. Recepción te avisará aquí cuando te agenden una.</p>
+    </div>
+  );
+
+  return (
+    <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 10, maxWidth: 640 }}>
+      {citas.map((c) => (
+        <div key={c._id} style={card({ padding: "14px 16px", display: "flex", alignItems: "center", gap: 14 })}>
+          <div style={{
+            width: 46, height: 46, borderRadius: 10, background: "var(--bg-input)",
+            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flexShrink: 0,
+          }}>
+            <FiCalendar size={16} color="var(--accent)" />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <span style={{ fontWeight: 700, color: "var(--text-primary)", fontSize: 14 }}>{c.type}</span>
+              <span style={{
+                fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 99,
+                background: `${ESTADO_COLOR[c.status] || "var(--text-secondary)"}20`,
+                color: ESTADO_COLOR[c.status] || "var(--text-secondary)",
+              }}>
+                {ESTADO_LABEL[c.status] || c.status}
+              </span>
+            </div>
+            <p style={{ margin: "4px 0 0", fontSize: 12.5, color: "var(--text-secondary)" }}>
+              {fmtFecha(c.date)} · {c.time} {c.trainer ? `· con ${c.trainer}` : ""}
+            </p>
+            {c.notes && (
+              <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--text-secondary)" }}>{c.notes}</p>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
    COMPONENTE PRINCIPAL
 ══════════════════════════════════════════════════════════════ */
 export default function UserTraining() {
@@ -1576,6 +1647,7 @@ export default function UserTraining() {
   const TABS = [
     { key: "rutinas",    label: "Rutinas",         icon: <GiMuscleUp size={14} /> },
     { key: "entrenador", label: "Entrenador",       icon: <FiUser size={13} />    },
+    { key: "citas",      label: "Mis Citas",        icon: <FiCalendar size={13} />},
     { key: "alertas",    label: "Alertas",          icon: <FiBell size={13} />    },
   ];
 
@@ -1594,6 +1666,7 @@ export default function UserTraining() {
             <p style={{ margin: 0, fontSize: 11, color: "var(--text-secondary)" }}>
               {tab === "rutinas"    && "Tus rutinas propias y las asignadas por tu entrenador"}
               {tab === "entrenador" && "Entrenamiento personal y chat con tu entrenador"}
+              {tab === "citas"     && "Citas que recepción agendó para ti"}
               {tab === "alertas"   && "Recordatorios y alertas de entrenamiento"}
             </p>
           </div>
@@ -1632,6 +1705,7 @@ export default function UserTraining() {
           >
             {tab === "rutinas"    && <TabRutinas />}
             {tab === "entrenador" && <TabEntrenador />}
+            {tab === "citas"      && <TabCitas />}
             {tab === "alertas"   && <TabAlertas />}
           </motion.div>
         </AnimatePresence>

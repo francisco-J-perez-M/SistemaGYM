@@ -239,6 +239,13 @@ export const trainerService = {
     return data.members;
   },
 
+  // ─── CITAS (agendadas por recepción) ───────────────────────────────────────
+
+  getCitas: async () => {
+    const data = await apiFetch(`${API_BASE_URL}/trainer/citas`);
+    return data.citas || [];
+  },
+
   // ─── SESIONES ──────────────────────────────────────────────────────────────
 
   getSessions: async ({ status = 'all', range = 'week', page = 1, per_page = 20 } = {}) => {

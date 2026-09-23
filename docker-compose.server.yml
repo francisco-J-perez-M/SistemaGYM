@@ -1,0 +1,227 @@
+# docker-compose.server.yml — Stack de DEMOSTRACIÓN para el VPS (SCRUM-163 / despliegue)
+#
+# Por qué un archivo separado y no un override de docker-compose.yml:
+# Compose namespacea contenedores, redes y VOLÚMENES por "nombre de proyecto".
+# docker-compose.yml fija ese nombre en "sistemagym" (ver el `name:` de ese
+# archivo) — de ahí que sus volúmenes reales sean sistemagym_pg_data,
+# sistemagym_mongo_data, etc. Este archivo fija un nombre de proyecto
+# DISTINTO, "gympro-server", así que aunque reutilice los mismos nombres de
+# volumen lógicos (pg_data, mongo_data...) Docker los crea como
+# gympro-server_pg_data, gympro-server_mongo_data... — completamente
+# independientes de los del stack de desarrollo. Se puede levantar este
+# archivo en la misma máquina que ya tiene "sistemagym" corriendo (para
+# probarlo en local antes de subirlo al VPS) sin arriesgar un solo byte de
+# los datos de desarrollo.
+#
+# Qué trae de distinto respecto a docker-compose.yml + docker-compose.prod.yml:
+#   1. name: gympro-server                → aislamiento total de volúmenes/red.
+#   2. api.environment.RUN_SEED_ON_START  → entrypoint.sh corre
+#      `python -m app.seeds.seed_server` en el primer arranque (base vacía) y
+#      deja cargados los 3 gimnasios de demo (SCRUM-163). En reinicios
+#      posteriores, con datos ya presentes, el propio entrypoint se salta el
+#      seed — ver el comentario en api/entrypoint.sh.
+#   3. Puertos de host desplazados (8081, 5434, 27036, 11435) para poder
+#      correr este stack EN PARALELO al de desarrollo en la misma máquina al
+#      probarlo en local. En el VPS esto es irrelevante (no hay otro stack),
+#      pero no hace daño dejarlo así — y así "docker compose -f
+#      docker-compose.server.yml up --build -d" funciona igual en ambos
+#      lugares sin tocar nada.
+#   4. mem_limit por servicio, igual que docker-compose.prod.yml (pensado
+#      para caber en un VPS de 8 GB) — el VPS de 12 GB / 6 vCPU que se va a
+#      contratar tiene margen de sobra con estos límites; se pueden subir
+#      después si se nota presión de memoria real.
+#
+# Uso:
+#   Local (probar antes de subir al servidor), con el stack de dev corriendo o no:
+#     cp api/.env.example api/.env   # si aún no existe
+#     docker compose -f docker-compose.server.yml up --build -d
+#     docker compose -f docker-compose.server.yml logs -f api   # ver el seed corriendo
+#     Acceso: web http://localhost:8081  ·  api http://localhost:8081/api
+#
+#   VPS (tras `git clone` del repo):
+#     cp api/.env.example api/.env   # completar credenciales reales de producción
+#     docker compose -f docker-compose.server.yml up --build -d
+#
+#   Para reiniciar desde cero (borra los datos de demo y los regenera):
+#     docker compose -f docker-compose.server.yml down -v
+#     docker compose -f docker-compose.server.yml up --build -d
+name: gympro-server
+
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    mem_limit: 512m
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_buffers=128MB"
+      - "-c"
+      - "max_connections=50"
+    environment:
+      POSTGRES_DB:       ${POSTGRES_DB:-gymprodb}
+      POSTGRES_USER:     ${POSTGRES_USER:-gymuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gympassword}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gymuser} -d ${POSTGRES_DB:-gymprodb}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - gympro
+    # Cerrado al exterior en el VPS; en local se expone en 5434 (dev ya usa 5433).
+    ports:
+      - "${POSTGRES_HOST_PORT:-5434}:5432"
+
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    mem_limit: 1500m
+    command: ["--wiredTigerCacheSizeGB", "1"]
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping').ok", "--quiet"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    networks:
+      - gympro
+    ports:
+      - "${MONGO_HOST_PORT:-27036}:27017"
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    mem_limit: 128m
+    command: ["redis-server", "--maxmemory", "96mb", "--maxmemory-policy", "allkeys-lru"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - gympro
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+      provenance: false
+    restart: unless-stopped
+    mem_limit: 1536m
+    env_file:
+      - ./api/.env.example
+      - path: ./api/.env
+        required: false
+    environment:
+      MONGO_URI:          mongodb://mongo:27017/gymdb
+      REDIS_URL:          redis://redis:6379/0
+      POSTGRES_URI:       postgresql+psycopg2://${POSTGRES_USER:-gymuser}:${POSTGRES_PASSWORD:-gympassword}@postgres:5432/${POSTGRES_DB:-gymprodb}
+      POSTGRES_HOST:      postgres
+      POSTGRES_PORT:      "5432"
+      POSTGRES_USER:      ${POSTGRES_USER:-gymuser}
+      POSTGRES_PASSWORD:  ${POSTGRES_PASSWORD:-gympassword}
+      POSTGRES_DB:        ${POSTGRES_DB:-gymprodb}
+      SPARK_ENABLED:      "false"
+      WEB_CONCURRENCY:    "2"
+      GUNICORN_THREADS:   "4"
+      PYTHONUNBUFFERED:   "1"
+      OLLAMA_BASE_URL:    http://ollama:11434
+      OLLAMA_MODEL:       ${OLLAMA_MODEL:-phi3:mini}
+      TZ:                 ${APP_TIMEZONE:-America/Mexico_City}
+      APP_TIMEZONE:       ${APP_TIMEZONE:-America/Mexico_City}
+      # Único servicio con esta variable en "true" en todo el proyecto:
+      # dispara el seed de 3 gimnasios de demo en entrypoint.sh, y solo en el
+      # primer arranque (base vacía) — ver el comentario ahí.
+      RUN_SEED_ON_START:  "true"
+    volumes:
+      - ./backups:/app/storage/backups
+      - ./uploads:/app/storage/uploads
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-s", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      # start_period generoso: el primer arranque corre migraciones + seed
+      # (3 gimnasios, ~28 miembros c/u con historial completo) antes de que
+      # gunicorn levante — puede tardar más que un arranque normal.
+      start_period: 120s
+    networks:
+      - gympro
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      args:
+        REACT_APP_API_URL: /api
+      provenance: false
+    restart: unless-stopped
+    mem_limit: 128m
+    ports:
+      - "${WEB_HOST_PORT:-8081}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - gympro
+
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    mem_limit: 5g
+    volumes:
+      - ollama_models:/root/.ollama
+    environment:
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-phi3:mini}
+      OLLAMA_KEEP_ALIVE: "60s"
+      OLLAMA_MAX_LOADED_MODELS: "1"
+      OLLAMA_NUM_PARALLEL: "1"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        ollama serve &
+        pid=$$!
+        echo "==> Esperando a que el servidor Ollama responda..."
+        until ollama list >/dev/null 2>&1; do sleep 2; done
+        echo "==> Descargando modelo $${OLLAMA_MODEL:-phi3:mini} (solo la primera vez)..."
+        ollama pull "$${OLLAMA_MODEL:-phi3:mini}" || echo "AVISO: no se pudo descargar el modelo; se reintentará en el próximo arranque."
+        echo "==> Ollama listo."
+        wait $$pid
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 8
+      start_period: 90s
+    networks:
+      - gympro
+    ports:
+      - "${OLLAMA_HOST_PORT:-11435}:11434"
+
+volumes:
+  pg_data:
+    driver: local
+  mongo_data:
+    driver: local
+  ollama_models:
+    driver: local
+
+networks:
+  gympro:
+    driver: bridge

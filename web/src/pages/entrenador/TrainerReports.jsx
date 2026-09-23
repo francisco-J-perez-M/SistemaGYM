@@ -3,7 +3,7 @@
  *
  * Layout:
  *   ┌──────────────────────────────────────────────────────────┐
- *   │  Header + filtro de período + botones Exportar CSV / PDF │
+ *   │  Header + filtro de período + botón "Reporte a la medida"│
  *   ├────────────┬────────────┬────────────┬───────────────────┤
  *   │ Sesiones   │ Asistencia │ Clientes   │ Calificación      │  ← KPIs
  *   ├────────────────────────────┬─────────────────────────────┤
@@ -12,7 +12,12 @@
  *   │ Tipos de sesión (barras)   │ Métricas detalladas         │
  *   └──────────────────────────────────────────────────────────┘
  *
- * Dependencias: recharts (ya instalado), jspdf (ya instalado)
+ * El PDF se genera en el backend (ReportLab) con la misma plantilla que el
+ * reporte del propietario — ver app/utils/estilo_pdf.py. El CSV y el "PDF
+ * rápido" maquetado con jsPDF en el navegador se retiraron (SCRUM-95, 96):
+ * eran generadores duplicados con una identidad visual distinta a la oficial.
+ *
+ * Dependencias: recharts (ya instalado)
  */
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -23,7 +28,7 @@ import {
 import {
   FiBarChart2, FiTrendingUp, FiUsers, FiCalendar,
   FiAward, FiDownload, FiRefreshCw, FiAlertCircle, FiX,
-  FiCheckCircle, FiXCircle, FiTarget, FiStar, FiFileText,
+  FiCheckCircle, FiXCircle, FiTarget, FiStar,
   FiLoader, FiClock, FiCheckSquare, FiSquare,
 } from "react-icons/fi";
 import axios from "axios";
@@ -93,165 +98,6 @@ function pct(n, total) {
 
 function initials(name = "") {
   return name.split(" ").filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join("");
-}
-
-// ─── PDF generator (jsPDF) ───────────────────────────────────────────────────
-async function generatePDF(data, trainerName, range) {
-  const { jsPDF } = await import("jspdf");
-  const doc = new jsPDF({ unit: "pt", format: "a4" });
-
-  const W      = doc.internal.pageSize.getWidth();
-  const margin = 48;
-  let   y      = 48;
-
-  const line = (text, size = 11, bold = false, color = [220,220,220]) => {
-    doc.setFontSize(size);
-    doc.setFont("helvetica", bold ? "bold" : "normal");
-    doc.setTextColor(...color);
-    doc.text(text, margin, y);
-    y += size * 1.5;
-  };
-
-  const divider = (marginY = 8) => {
-    y += marginY;
-    doc.setDrawColor(50, 50, 80);
-    doc.line(margin, y, W - margin, y);
-    y += marginY;
-  };
-
-  const kpiRow = (items) => {
-    const colW = (W - margin * 2) / items.length;
-    items.forEach((item, i) => {
-      const x = margin + i * colW;
-      doc.setFontSize(9);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(140, 140, 170);
-      doc.text(item.label.toUpperCase(), x, y);
-      doc.setFontSize(18);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(180, 180, 255);
-      doc.text(String(item.value), x, y + 20);
-    });
-    y += 38;
-  };
-
-  // ── Fondo oscuro
-  doc.setFillColor(10, 10, 28);
-  doc.rect(0, 0, W, doc.internal.pageSize.getHeight(), "F");
-
-  // ── Header
-  doc.setFillColor(30, 30, 60);
-  doc.roundedRect(margin - 12, 24, W - (margin - 12) * 2, 56, 8, 8, "F");
-  doc.setFontSize(18);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(200, 200, 255);
-  doc.text("Reporte de Entrenador", margin, 54);
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(140, 140, 180);
-  doc.text(`${trainerName}  ·  Período: ${RANGE_LABELS[range] || range}  ·  Generado: ${new Date().toLocaleDateString("es-MX")}`, margin, 70);
-  y = 108;
-
-  // ── KPIs
-  line("RESUMEN GENERAL", 10, true, [100, 100, 160]);
-  divider(4);
-  kpiRow([
-    { label: "Sesiones completadas", value: data.stats?.sessions ?? 0 },
-    { label: "Clientes activos",     value: data.stats?.clients  ?? 0 },
-    { label: "Asistencia",           value: `${data.metrics?.attendanceRate ?? 0}%` },
-    { label: "Calificación",         value: data.stats?.avgRating > 0 ? `${data.stats.avgRating}/5` : "N/A" },
-  ]);
-  divider(6);
-
-  // ── Sesiones por tipo
-  if (data.sessionTypes?.length) {
-    line("TIPOS DE SESIÓN", 10, true, [100, 100, 160]);
-    y += 4;
-    data.sessionTypes.forEach(t => {
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(180, 180, 220);
-      doc.text(`• ${t.tipo}`, margin + 8, y);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(160, 180, 255);
-      doc.text(String(t.count), margin + 160, y);
-      y += 16;
-    });
-    divider(6);
-  }
-
-  // ── Top clientes
-  if (data.clientProgress?.length) {
-    line("MIS MEJORES CLIENTES", 10, true, [100, 100, 160]);
-    y += 4;
-    data.clientProgress.forEach((c, i) => {
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(180, 180, 220);
-      doc.text(`${i + 1}. ${c.name}`, margin + 8, y);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(160, 200, 160);
-      doc.text(`${c.sessions} sesiones`, margin + 260, y);
-      y += 16;
-    });
-    divider(6);
-  }
-
-  // ── Evolución mensual
-  if (data.monthlyData?.length) {
-    line("EVOLUCIÓN MENSUAL (últimos 6 meses)", 10, true, [100, 100, 160]);
-    y += 4;
-
-    // Cabecera tabla
-    ["Mes", "Completadas", "Canceladas", "Total"].forEach((h, i) => {
-      doc.setFontSize(9);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(120, 120, 160);
-      doc.text(h, margin + 8 + i * 120, y);
-    });
-    y += 14;
-
-    data.monthlyData.forEach(m => {
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(190, 190, 220);
-      [m.month, m.sessions, m.cancelled, m.total].forEach((v, i) => {
-        doc.text(String(v), margin + 8 + i * 120, y);
-      });
-      y += 15;
-      if (y > 750) { doc.addPage(); doc.setFillColor(10,10,28); doc.rect(0,0,W,800,"F"); y = 48; }
-    });
-    divider(6);
-  }
-
-  // ── Métricas adicionales
-  line("MÉTRICAS ADICIONALES", 10, true, [100, 100, 160]);
-  y += 4;
-  const met = data.metrics || {};
-  [
-    [`Tasa de asistencia:`,     `${met.attendanceRate ?? 0}%`],
-    [`Cancelaciones:`,          `${met.cancellationRate ?? 0}%`],
-    [`Sesiones por cliente:`,   `${met.sessionsPerClient ?? 0}`],
-    [`Sesiones programadas:`,   `${met.totalScheduled ?? 0}`],
-  ].forEach(([label, value]) => {
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(170, 170, 210);
-    doc.text(label, margin + 8, y);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(150, 200, 255);
-    doc.text(value, margin + 200, y);
-    y += 15;
-  });
-
-  // ── Pie de página
-  y = doc.internal.pageSize.getHeight() - 30;
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(80, 80, 110);
-  doc.text("Generado por GYM PRO  ·  Este reporte es de uso interno del entrenador", margin, y);
-
-  doc.save(`reporte_${range}_${new Date().toISOString().slice(0, 10)}.pdf`);
 }
 
 // ─── Sub-componentes ──────────────────────────────────────────────────────────
@@ -333,13 +179,6 @@ export default function TrainerReports() {
   const [data, setData]           = useState(null);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState(null);
-  const [exporting, setExporting] = useState(false);
-  const [trainerName, setTrainerName] = useState("Entrenador");
-
-  // Cargar nombre del trainer para el PDF
-  useEffect(() => {
-    trainerService.getProfile().then(p => { if (p?.name) setTrainerName(p.name); }).catch(() => {});
-  }, []);
 
   const loadReports = useCallback(async () => {
     try {
@@ -356,39 +195,13 @@ export default function TrainerReports() {
 
   useEffect(() => { loadReports(); }, [loadReports]);
 
-  // ── Exportar CSV ─────────────────────────────────────────────────────────
-  const handleCSV = () => {
-    if (!data) return;
-    const rows = [
-      ["Mes", "Sesiones Completadas", "Canceladas", "Total"],
-      ...(data.monthlyData || []).map(d => [d.month, d.sessions, d.cancelled, d.total]),
-    ];
-    const csv  = rows.map(r => r.join(",")).join("\n");
-    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
-    const url  = URL.createObjectURL(blob);
-    Object.assign(document.createElement("a"), {
-      href: url,
-      download: `reporte_${timeRange}_${new Date().toISOString().slice(0, 10)}.csv`,
-    }).click();
-    URL.revokeObjectURL(url);
-  };
-
-  // ── Exportar PDF rápido ───────────────────────────────────────────────────
-  // Toma lo que ya está en pantalla y lo maqueta en el navegador. Es inmediato
-  // porque no vuelve a consultar nada.
-  const handlePDF = async () => {
-    if (!data) return;
-    setExporting(true);
-    try {
-      await generatePDF(data, trainerName, timeRange);
-    } catch (e) {
-      alert("Error al generar el PDF: " + e.message);
-    } finally {
-      setExporting(false);
-    }
-  };
-
   // ── Reporte a la medida ───────────────────────────────────────────────────
+  // Único generador de PDF: lo arma el backend con ReportLab y la misma
+  // plantilla que usa el reporte del propietario (app/utils/estilo_pdf.py).
+  // El CSV y el "PDF rápido" maquetado en el navegador se retiraron: eran un
+  // segundo y tercer generador con una identidad visual distinta a la del
+  // reporte oficial, y el CSV expone datos crudos sin la identidad del
+  // gimnasio (ver SCRUM-95, SCRUM-96).
   // Lo arma el backend con el periodo y las secciones que se elijan. Es el
   // mismo documento que descarga la app móvil: al generarlo en el servidor, un
   // reporte del navegador y otro del teléfono salen idénticos, cosa que no
@@ -429,15 +242,23 @@ export default function TrainerReports() {
     try {
       // Va por axios y no por un enlace directo porque el endpoint exige el JWT,
       // que el navegador no adjuntaría al seguir un href.
-      const { data: blob } = await axios.get("/api/trainer/reportes/pdf", {
+      const resp = await axios.get("/api/trainer/reportes/pdf", {
         params: { anio, mes, secciones: secciones.join(","), ...(graficas ? { graficas: 1 } : {}) },
         headers: authHeaders(),
         responseType: "blob",
       });
-      const url = URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
+      // El backend ya arma el nombre (entrenador + periodo, sin acentos ni
+      // espacios) en el header Content-Disposition — mismo criterio que el
+      // reporte del propietario (SCRUM-94). Se respeta ese nombre en vez de
+      // inventar uno genérico aquí.
+      const disposicion = resp.headers?.["content-disposition"] || resp.headers?.["Content-Disposition"];
+      const match = /filename="?([^";]+)"?/i.exec(disposicion || "");
+      const nombreArchivo = match?.[1] || `Reporte_entrenador_${anio}-${String(mes).padStart(2, "0")}.pdf`;
+
+      const url = URL.createObjectURL(new Blob([resp.data], { type: "application/pdf" }));
       const a = document.createElement("a");
       a.href = url;
-      a.download = `Reporte_entrenador_${anio}-${String(mes).padStart(2, "0")}.pdf`;
+      a.download = nombreArchivo;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -503,26 +324,6 @@ export default function TrainerReports() {
 
           <button className="icon-btn" onClick={loadReports} title="Actualizar">
             <FiRefreshCw size={15} style={{ animation: loading ? "spin 1s linear infinite":"none" }} />
-          </button>
-
-          <button
-            className="btn-outline-small"
-            onClick={handleCSV}
-            disabled={loading || !data}
-            style={{ display:"flex", alignItems:"center", gap:6 }}
-          >
-            <FiDownload size={14} /> CSV
-          </button>
-
-          <button
-            className="btn-outline-small"
-            onClick={handlePDF}
-            disabled={loading || !data || exporting}
-            style={{ display:"flex", alignItems:"center", gap:6 }}
-            title="PDF de lo que ves en pantalla"
-          >
-            <FiFileText size={14} />
-            {exporting ? "Generando…" : "PDF rápido"}
           </button>
 
           <button
