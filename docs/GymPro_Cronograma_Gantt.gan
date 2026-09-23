@@ -1,0 +1,280 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="GymPro — Cronograma de Desarrollo" company="UTVT · Incubadora TIC · IDGS-93" webLink="https://github.com/francisco-J-perez-M/SistemaGYM" view-date="2026-01-12" view-index="0" gantt-divider-location="420" resource-divider-location="300" version="3.3.3316" locale="es_MX">
+    <description>
+        Cronograma reconstruido a partir del historial de commits del repositorio SistemaGYM (ramas main y saas).
+        Periodo: 16 de enero de 2026 - 1 de agosto de 2026. Equipo: Maximiliano Arriaga Mora, Miguel Angel Hernandez Cervantes, Jesus Francisco Perez Medina, Juan Carlos Perez Nava.
+    </description>
+    <view zooming-state="default:5" id="gantt-chart">
+        <field id="tpd3" name="Nombre" width="290" order="0"/>
+        <field id="tpd4" name="Fecha de inicio" width="85" order="1"/>
+        <field id="tpd5" name="Fecha de fin" width="85" order="2"/>
+        <option id="taskLabelUp" value=""/>
+        <option id="taskLabelDown" value=""/>
+        <option id="taskLabelLeft" value=""/>
+        <option id="taskLabelRight" value="name"/>
+        <option id="filter.completedTasks" value="false"/>
+    </view>
+    <view id="resource-table">
+        <field id="0" name="Nombre" width="210" order="0"/>
+        <field id="1" name="Funcion" width="180" order="1"/>
+    </view>
+    <calendars>
+        <day-types>
+            <day-type id="0"/>
+            <day-type id="1"/>
+            <default-week id="1" name="default" sun="0" mon="0" tue="0" wed="0" thu="0" fri="0" sat="0"/>
+            <only-show-weekends value="false"/>
+            <overriden-day-types/>
+            <days/>
+        </day-types>
+    </calendars>
+    <tasks empty-milestones="true">
+        <taskproperties>
+            <taskproperty id="tpd0" name="type" type="default" valuetype="icon"/>
+            <taskproperty id="tpd1" name="priority" type="default" valuetype="icon"/>
+            <taskproperty id="tpd2" name="info" type="default" valuetype="icon"/>
+            <taskproperty id="tpd3" name="name" type="default" valuetype="text"/>
+            <taskproperty id="tpd4" name="begindate" type="default" valuetype="date"/>
+            <taskproperty id="tpd5" name="enddate" type="default" valuetype="date"/>
+            <taskproperty id="tpd6" name="duration" type="default" valuetype="int"/>
+            <taskproperty id="tpd7" name="completion" type="default" valuetype="int"/>
+            <taskproperty id="tpd8" name="coordinator" type="default" valuetype="text"/>
+            <taskproperty id="tpd9" name="predecessorsr" type="default" valuetype="text"/>
+        </taskproperties>
+
+        <task id="0" name="FASE 1. Nucleo del sistema web y base de datos" color="#2e75b6" meeting="false" start="2026-01-16" duration="34" complete="100" expand="true">
+            <notes>Construccion inicial del sistema: API Flask, frontend React, base de datos relacional, respaldos y primeros modulos operativos.</notes>
+            <task id="1" name="1.1 Estructura de la API y autenticacion" color="#2e75b6" meeting="false" start="2026-01-16" duration="4" complete="100" expand="true">
+                <notes>Estructura del API y login funcional desde el backend (commit inicial del proyecto).</notes>
+            </task>
+            <task id="2" name="1.2 Frontend, login por roles y diagramas de BD" color="#2e75b6" meeting="false" start="2026-01-17" duration="4" complete="100" expand="true">
+                <notes>Frontend con login funcional, dashboard principal, barra lateral y diagramas entidad-relacion y relacional.</notes>
+            </task>
+            <task id="3" name="1.3 Modulo de respaldos y restauracion" color="#2e75b6" meeting="false" start="2026-01-21" duration="9" complete="100" expand="true">
+                <notes>Respaldos completos y diferenciales, envio por correo, exportacion a PDF y Excel, y restauracion funcional de la base de datos.</notes>
+            </task>
+            <task id="4" name="1.4 Gestion de miembros y pagos" color="#2e75b6" meeting="false" start="2026-01-23" duration="6" complete="100" expand="true">
+                <notes>Alta, edicion, paginacion y gestion de miembros inactivos; modulo de pagos completo.</notes>
+            </task>
+            <task id="5" name="1.5 Portal del miembro y modelos 3D" color="#2e75b6" meeting="false" start="2026-02-01" duration="9" complete="100" expand="true">
+                <notes>Vistas del usuario, fotografia de miembros, dashboard personal y modelos 3D adaptados a estatura y peso.</notes>
+            </task>
+            <task id="6" name="1.6 Punto de venta y plan alimenticio" color="#2e75b6" meeting="false" start="2026-02-04" duration="6" complete="100" expand="true">
+                <notes>Punto de venta, plan alimenticio, progreso corporal y funciones exclusivas de membresia premium.</notes>
+            </task>
+            <task id="7" name="1.7 Creacion de la aplicacion movil" color="#2e75b6" meeting="false" start="2026-02-11" duration="1" complete="100" expand="true">
+                <notes>Primera version de la aplicacion movil con inicio de sesion funcional.</notes>
+            </task>
+            <task id="8" name="1.8 Portal del entrenador: agenda y sesiones" color="#2e75b6" meeting="false" start="2026-02-12" duration="7" complete="100" expand="true">
+                <notes>Modelos faltantes, dashboard del entrenador, agenda y sesiones funcionales con datos reales.</notes>
+            </task>
+        </task>
+
+        <task id="9" name="FASE 2. Migracion a MongoDB e inteligencia artificial" color="#2e8b57" meeting="false" start="2026-02-25" duration="50" complete="100" expand="true">
+            <notes>Migracion de la persistencia relacional a MongoDB, incorporacion de Apache Spark y primeros algoritmos de aprendizaje automatico.</notes>
+            <task id="10" name="2.1 Pruebas con Spark y migracion SQL a MongoDB" color="#2e8b57" meeting="false" start="2026-02-25" duration="8" complete="100" expand="true">
+                <notes>Primera etapa de la migracion de SQL a MongoDB y pruebas con Apache Spark.</notes>
+            </task>
+            <task id="11" name="2.2 Migracion de rutas y respaldos a MongoDB" color="#2e8b57" meeting="false" start="2026-03-05" duration="6" complete="100" expand="true">
+                <notes>Migracion de las rutas principales y del subsistema de respaldo y restauracion a MongoDB.</notes>
+            </task>
+            <task id="12" name="2.3 Algoritmos de aprendizaje automatico" color="#2e8b57" meeting="false" start="2026-03-12" duration="8" complete="100" expand="true">
+                <notes>Implementacion y correccion de los endpoints de los algoritmos de inteligencia artificial.</notes>
+            </task>
+            <task id="13" name="2.4 Correccion de vulnerabilidad de credenciales" color="#c0392b" meeting="false" start="2026-03-12" duration="1" complete="100" expand="true">
+                <notes>Eliminacion de contrasenas expuestas en el codigo fuente.</notes>
+            </task>
+            <task id="14" name="2.5 Rediseno de interfaz y dashboards" color="#2e8b57" meeting="false" start="2026-03-26" duration="5" complete="100" expand="true">
+                <notes>Mejoras de diseno del sistema, barra de navegacion y dashboards del entrenador.</notes>
+            </task>
+            <task id="15" name="2.6 Cache de modelos de aprendizaje automatico" color="#2e8b57" meeting="false" start="2026-04-06" duration="1" complete="100" expand="true">
+                <notes>Manejo de cache para los algoritmos de machine learning.</notes>
+            </task>
+            <task id="16" name="2.7 Documentacion del codigo y del proyecto" color="#2e8b57" meeting="false" start="2026-04-10" duration="6" complete="100" expand="true">
+                <notes>Documentacion del codigo fuente y actualizacion de README y dependencias.</notes>
+            </task>
+        </task>
+
+        <task id="17" name="FASE 3. Migracion a arquitectura SaaS multi-tenant" color="#c0392b" meeting="false" start="2026-05-09" duration="13" complete="100" expand="true">
+            <notes>Reestructuracion del proyecto hacia una plataforma SaaS: contenedores Docker, PostgreSQL, aislamiento por inquilino y rol de superadministrador.</notes>
+            <task id="18" name="3.1 Auditoria tecnica y reestructura del repositorio" color="#c0392b" meeting="false" start="2026-05-09" duration="2" complete="100" expand="true">
+                <notes>Auditoria de errores y reorganizacion en los modulos api/, web/ y mobile/ con documentacion asociada.</notes>
+            </task>
+            <task id="19" name="3.2 Sprint 1: contenedorizacion Docker y seguridad" color="#c0392b" meeting="false" start="2026-05-11" duration="3" complete="100" expand="true">
+                <notes>Dockerfile de API y web con nginx, MongoDB en contenedor, JWT y control por rol en respaldos, limitacion de tasa con Redis.</notes>
+            </task>
+            <task id="20" name="3.3 Sprint 3: finanzas y catalogos en PostgreSQL" color="#c0392b" meeting="false" start="2026-05-15" duration="1" complete="100" expand="true">
+                <notes>Planes de suscripcion, suscripciones y facturas en PostgreSQL; catalogos de membresias, ejercicios y clases; integracion inicial de Stripe.</notes>
+            </task>
+            <task id="21" name="3.4 Sprint 4: analitica, reportes y ML avanzado" color="#c0392b" meeting="false" start="2026-05-15" duration="2" complete="100" expand="true">
+                <notes>Dashboard de analitica unificado, reportes en CSV y PDF, prediccion de cancelaciones, recomendacion de rutinas y notificaciones programadas.</notes>
+            </task>
+            <task id="22" name="3.5 Arquitectura multi-tenant y superadministrador" color="#c0392b" meeting="false" start="2026-05-17" duration="2" complete="100" expand="true">
+                <notes>Aislamiento por gimnasio, siembra de cinco gimnasios de prueba y modulo completo de plataforma para el superadministrador.</notes>
+            </task>
+            <task id="23" name="3.6 Portal del propietario y punto de venta" color="#c0392b" meeting="false" start="2026-05-19" duration="3" complete="100" expand="true">
+                <notes>Renombrado de administrador a owner_gym, panel del propietario, personal, membresias, perfil y punto de venta con inventario.</notes>
+            </task>
+        </task>
+
+        <task id="24" name="FASE 4. Portales por rol y experiencia de usuario" color="#e67e22" meeting="false" start="2026-05-21" duration="18" complete="100" expand="true">
+            <notes>Desarrollo de los portales especificos de cada perfil y reconstruccion de la aplicacion movil con accesibilidad.</notes>
+            <task id="25" name="4.1 Biblioteca de ejercicios con multimedia" color="#e67e22" meeting="false" start="2026-05-21" duration="2" complete="100" expand="true">
+                <notes>Catalogo de ejercicios con imagenes y video, control de existencias en el punto de venta y aislamiento por inquilino.</notes>
+            </task>
+            <task id="26" name="4.2 Migracion de Spark a scikit-learn" color="#e67e22" meeting="false" start="2026-05-23" duration="1" complete="100" expand="true">
+                <notes>Sustitucion de PySpark por scikit-learn (Ridge, K-Means, Random Forest y vecinos mas cercanos) eliminando la dependencia de JVM.</notes>
+            </task>
+            <task id="27" name="4.3 Portal de recepcion y notificaciones" color="#e67e22" meeting="false" start="2026-05-25" duration="1" complete="100" expand="true">
+                <notes>Panel completo de recepcion: registro de acceso, citas, cobros, bitacora y notificaciones por correo y en la aplicacion.</notes>
+            </task>
+            <task id="28" name="4.4 Sistema de temas y portal del miembro" color="#e67e22" meeting="false" start="2026-05-26" duration="2" complete="100" expand="true">
+                <notes>Sistema de temas cromaticos y rediseno integral de la experiencia del miembro con nutricion y recetas.</notes>
+            </task>
+            <task id="29" name="4.5 Reconstruccion de la aplicacion movil (Expo)" color="#e67e22" meeting="false" start="2026-05-27" duration="6" complete="100" expand="true">
+                <notes>Nueva aplicacion movil con modulos de miembro, entrenador y administracion; correccion de fallos en compilacion de produccion.</notes>
+            </task>
+            <task id="30" name="4.6 Accesibilidad y navegacion por roles en movil" color="#e67e22" meeting="false" start="2026-05-29" duration="3" complete="100" expand="true">
+                <notes>Tema claro y oscuro, escala tipografica, alto contraste, reduccion de movimiento y menu lateral por perfil.</notes>
+            </task>
+            <task id="31" name="4.7 Portales de entrenador, recepcion y miembro (web)" color="#e67e22" meeting="false" start="2026-06-03" duration="5" complete="100" expand="true">
+                <notes>Rediseno del portal de recepcion, correcciones del portal del entrenador y portal completo del miembro.</notes>
+            </task>
+        </task>
+
+        <task id="32" name="FASE 5. Inteligencia artificial documental y nutricion" color="#8e44ad" meeting="false" start="2026-06-08" duration="13" complete="100" expand="true">
+            <notes>Incorporacion de un modelo de lenguaje local para extraer planes desde documentos, y despliegue en servidor privado virtual.</notes>
+            <task id="33" name="5.1 Modulo de nutricion: dietas y recetas" color="#8e44ad" meeting="false" start="2026-06-08" duration="1" complete="100" expand="true">
+                <notes>Planes alimenticios multisemana con comidas, macronutrientes y biblioteca de recetas.</notes>
+            </task>
+            <task id="34" name="5.2 ETL con IA local (Ollama) para PDF y Excel" color="#8e44ad" meeting="false" start="2026-06-08" duration="3" complete="100" expand="true">
+                <notes>Importacion inteligente de dietas y rutinas mediante analizador determinista y modelo de lenguaje local, sin servicios externos.</notes>
+            </task>
+            <task id="35" name="5.3 Portal de alimentacion del miembro" color="#8e44ad" meeting="false" start="2026-06-13" duration="1" complete="100" expand="true">
+                <notes>Plan asignado, dietas propias y recetario personal con registro de consumo diario.</notes>
+            </task>
+            <task id="36" name="5.4 Paridad de roles en movil y rol recepcionista" color="#8e44ad" meeting="false" start="2026-06-14" duration="1" complete="100" expand="true">
+                <notes>Equiparacion funcional entre la aplicacion movil y la web, e incorporacion del perfil de recepcion.</notes>
+            </task>
+            <task id="37" name="5.5 Deduplicacion inteligente de ejercicios y rutinas" color="#8e44ad" meeting="false" start="2026-06-16" duration="2" complete="100" expand="true">
+                <notes>Deteccion de duplicados en la importacion, reactivacion de registros eliminados y sugerencia de pesos por nivel.</notes>
+            </task>
+            <task id="38" name="5.6 Optimizacion y despliegue en VPS" color="#8e44ad" meeting="false" start="2026-06-16" duration="5" complete="100" expand="true">
+                <notes>Optimizacion del stack para servidor de 8 GB, limites de memoria por contenedor y estudio comparativo de hosting.</notes>
+            </task>
+        </task>
+
+        <task id="39" name="FASE 6. Respaldos avanzados, guia y analitica" color="#16a085" meeting="false" start="2026-06-24" duration="22" complete="100" expand="true">
+            <notes>Respaldo portable con restauracion como clon, guia interactiva del sistema, bitacora de entrenamientos y laboratorio de modelos.</notes>
+            <task id="40" name="6.1 Respaldo en paquete unico y restauracion como clon" color="#16a085" meeting="false" start="2026-06-24" duration="3" complete="100" expand="true">
+                <notes>Un solo archivo portable con MongoDB, PostgreSQL y multimedia; restauracion multi-motor con deteccion por manifiesto.</notes>
+            </task>
+            <task id="41" name="6.2 Rediseno de salud y perfil en movil" color="#16a085" meeting="false" start="2026-06-27" duration="1" complete="100" expand="true">
+                <notes>Indicadores clave, medidas corporales completas e informacion medica editable.</notes>
+            </task>
+            <task id="42" name="6.3 Guia interactiva del sistema (spotlight)" color="#16a085" meeting="false" start="2026-06-29" duration="1" complete="100" expand="true">
+                <notes>Recorrido guiado que resalta cada componente por rol, con apertura automatica en el primer acceso.</notes>
+            </task>
+            <task id="43" name="6.4 Bitacora de entrenamientos y calorias" color="#16a085" meeting="false" start="2026-06-30" duration="1" complete="100" expand="true">
+                <notes>Registro real de entrenamientos con series, repeticiones y volumen; estimacion automatica de calorias quemadas.</notes>
+            </task>
+            <task id="44" name="6.5 Laboratorio de modelos de aprendizaje automatico" color="#16a085" meeting="false" start="2026-07-01" duration="1" complete="100" expand="true">
+                <notes>Regresion, clasificacion, maquinas de vector soporte, arboles de decision y matriz de confusion en lenguaje accesible.</notes>
+            </task>
+            <task id="45" name="6.6 Calificacion de entrenador y suscripcion del propietario" color="#16a085" meeting="false" start="2026-07-03" duration="1" complete="100" expand="true">
+                <notes>Valoracion del entrenador, cambio con historial y vista de suscripcion con cargo recurrente.</notes>
+            </task>
+            <task id="46" name="6.7 Recuperacion de contrasena por correo" color="#16a085" meeting="false" start="2026-07-05" duration="1" complete="100" expand="true">
+                <notes>Codigo de seis digitos con vigencia limitada, intentos maximos y respuesta generica contra enumeracion de cuentas.</notes>
+            </task>
+            <task id="47" name="6.8 Modulos moviles: rutina, prediccion y reportes" color="#16a085" meeting="false" start="2026-07-05" duration="5" complete="100" expand="true">
+                <notes>Rutinas propias, prediccion de peso con grafica, reportes del entrenador y recordatorios locales.</notes>
+            </task>
+            <task id="48" name="6.9 Analitica avanzada: codo, silueta y entrenamiento" color="#16a085" meeting="false" start="2026-07-14" duration="2" complete="100" expand="true">
+                <notes>Traslado de los modulos de aprendizaje automatico al superadministrador con metodo del codo, silueta y proceso de entrenamiento en cinco pasos.</notes>
+            </task>
+        </task>
+
+        <task id="49" name="FASE 7. Pasarelas de pago y cierre del sistema" color="#d4ac0d" meeting="false" start="2026-07-27" duration="6" complete="100" expand="true">
+            <notes>Integracion de cobros en linea, planes comerciales, unificacion visual y correcciones finales previas a la entrega.</notes>
+            <task id="50" name="7.1 Integracion de PayPal y Mercado Pago" color="#d4ac0d" meeting="false" start="2026-07-27" duration="2" complete="100" expand="true">
+                <notes>Credenciales por gimnasio para membresias, productos y suscripciones, con notificaciones asincronas y conciliacion.</notes>
+            </task>
+            <task id="51" name="7.2 Planes SaaS, combos y promociones" color="#d4ac0d" meeting="false" start="2026-07-28" duration="2" complete="100" expand="true">
+                <notes>Beneficios y limites por plan, combos con descuento de inventario y promociones con vigencia.</notes>
+            </task>
+            <task id="52" name="7.3 Sistema de color unificado en movil" color="#d4ac0d" meeting="false" start="2026-07-29" duration="1" complete="100" expand="true">
+                <notes>Cuarenta y cinco componentes de color semanticos, cuatro paletas y migracion de aproximadamente ciento veinte colores fijos.</notes>
+            </task>
+            <task id="53" name="7.4 Zona horaria y reportes de negocio" color="#d4ac0d" meeting="false" start="2026-08-01" duration="1" complete="100" expand="true">
+                <notes>Correccion de la fecha local del gimnasio y generacion de reportes de negocio en PDF con secciones configurables.</notes>
+            </task>
+            <task id="54" name="7.5 Sesion persistente y certificados en PDF" color="#d4ac0d" meeting="false" start="2026-08-01" duration="1" complete="100" expand="true">
+                <notes>Token de refresco de noventa dias, certificaciones adjuntas del entrenador y perfiles editables en los cuatro roles.</notes>
+            </task>
+        </task>
+
+        <task id="55" name="FASE 8. Documentacion y entregables academicos" color="#7f8c8d" meeting="false" start="2026-06-03" duration="60" complete="100" expand="true">
+            <notes>Documentacion normativa, marco ITIL del ciclo de vida del servicio y manuales tecnicos y de usuario.</notes>
+            <task id="56" name="8.1 Normativa, estandares y generalidades" color="#7f8c8d" meeting="false" start="2026-06-03" duration="1" complete="100" expand="true">
+                <notes>Documento de normatividad, estandares aplicables y generalidades del proyecto.</notes>
+            </task>
+            <task id="57" name="8.2 Documentacion ITIL del ciclo de vida" color="#7f8c8d" meeting="false" start="2026-06-13" duration="14" complete="100" expand="true">
+                <notes>Estrategia, diseno, transicion, operacion y mejora continua del servicio aplicados a GymPro.</notes>
+            </task>
+            <task id="58" name="8.3 Actualizacion de READMEs por modulo" color="#7f8c8d" meeting="false" start="2026-07-11" duration="1" complete="100" expand="true">
+                <notes>Actualizacion de la documentacion tecnica de api, web, movil y raiz al estado real de la rama saas.</notes>
+            </task>
+            <task id="59" name="8.4 Manuales tecnicos y de usuario" color="#7f8c8d" meeting="false" start="2026-08-01" duration="1" complete="100" expand="true">
+                <notes>Tres manuales tecnicos (API, web y movil) y dos manuales de usuario (web y movil).</notes>
+            </task>
+        </task>
+
+        <task id="60" name="HITO. Inicio del proyecto" color="#000000" meeting="true" start="2026-01-16" duration="0" complete="100" expand="true">
+            <notes>Primer commit del repositorio: estructura del API y login funcional.</notes>
+        </task>
+        <task id="61" name="HITO. Migracion a MongoDB completada" color="#000000" meeting="true" start="2026-03-10" duration="0" complete="100" expand="true">
+            <notes>Rutas principales, respaldos y restauracion operando sobre MongoDB.</notes>
+        </task>
+        <task id="62" name="HITO. Inicio de la migracion a SaaS" color="#000000" meeting="true" start="2026-05-10" duration="0" complete="100" expand="true">
+            <notes>Creacion de la rama saas y reestructuracion del proyecto en api, web y mobile.</notes>
+        </task>
+        <task id="63" name="HITO. Plataforma multi-tenant operativa" color="#000000" meeting="true" start="2026-05-18" duration="0" complete="100" expand="true">
+            <notes>Aislamiento por gimnasio, rol de superadministrador y modulo de plataforma en funcionamiento.</notes>
+        </task>
+        <task id="64" name="HITO. Inteligencia artificial local integrada" color="#000000" meeting="true" start="2026-06-08" duration="0" complete="100" expand="true">
+            <notes>Modelo de lenguaje Ollama en contenedor propio para la extraccion documental, sin servicios externos.</notes>
+        </task>
+        <task id="65" name="HITO. Despliegue en servidor privado virtual" color="#000000" meeting="true" start="2026-06-20" duration="0" complete="100" expand="true">
+            <notes>Stack optimizado y desplegado en VPS con limites de recursos por contenedor.</notes>
+        </task>
+        <task id="66" name="HITO. Pagos en linea operativos" color="#000000" meeting="true" start="2026-07-28" duration="0" complete="100" expand="true">
+            <notes>PayPal y Mercado Pago activos para membresias, productos y suscripciones.</notes>
+        </task>
+        <task id="67" name="HITO. Cierre y entrega de manuales" color="#000000" meeting="true" start="2026-08-01" duration="0" complete="100" expand="true">
+            <notes>Entrega de los manuales tecnicos y de usuario del sistema.</notes>
+        </task>
+    </tasks>
+    <resources>
+        <resource id="0" name="Jesus Francisco Perez Medina" function="Default:1" contacts="franperez159264@gmail.com" phone=""/>
+        <resource id="1" name="Miguel Angel Hernandez Cervantes" function="Default:1" contacts="miguelhercerv@gmail.com" phone=""/>
+        <resource id="2" name="Maximiliano Arriaga Mora" function="Default:0" contacts="" phone=""/>
+        <resource id="3" name="Juan Carlos Perez Nava" function="Default:0" contacts="" phone=""/>
+    </resources>
+    <allocations>
+        <allocation task-id="0" resource-id="0" function="Default:1" responsible="true" load="100.0"/>
+        <allocation task-id="9" resource-id="0" function="Default:1" responsible="true" load="100.0"/>
+        <allocation task-id="17" resource-id="1" function="Default:1" responsible="true" load="100.0"/>
+        <allocation task-id="24" resource-id="1" function="Default:1" responsible="true" load="100.0"/>
+        <allocation task-id="32" resource-id="1" function="Default:1" responsible="true" load="100.0"/>
+        <allocation task-id="39" resource-id="1" function="Default:1" responsible="true" load="100.0"/>
+        <allocation task-id="49" resource-id="1" function="Default:1" responsible="true" load="100.0"/>
+        <allocation task-id="55" resource-id="2" function="Default:0" responsible="true" load="50.0"/>
+        <allocation task-id="55" resource-id="3" function="Default:0" responsible="false" load="50.0"/>
+        <allocation task-id="57" resource-id="2" function="Default:0" responsible="true" load="50.0"/>
+        <allocation task-id="57" resource-id="3" function="Default:0" responsible="false" load="50.0"/>
+    </allocations>
+    <vacations/>
+    <previous/>
+    <roles roleset-name="Default"/>
+</project>
