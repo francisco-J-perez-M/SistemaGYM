@@ -158,7 +158,7 @@ services:
       timeout: 10s
       retries: 3
       # start_period generoso: el primer arranque corre migraciones + seed
-      # (3 gimnasios, ~28 miembros c/u con historial completo) antes de que
+      # (3 gimnasios, 64 miembros c/u con historial completo) antes de que
       # gunicorn levante — puede tardar más que un arranque normal.
       start_period: 120s
     networks:
