@@ -446,9 +446,11 @@ export default function Sidebar({
 
       {/* Header */}
       <div style={S.header}>
-        <div style={{ width: 32, height: 32, borderRadius: 8, background: P.accent, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <span style={{ color: "#fff", fontWeight: 800, fontSize: 14 }}>G</span>
-        </div>
+        <img
+          src="/logo64.png"
+          alt="GymPro"
+          style={{ width: 32, height: 32, borderRadius: 8, flexShrink: 0, objectFit: "cover" }}
+        />
         {!collapsed && (
           <>
             <span style={S.brandText}>GYM PRO</span>
