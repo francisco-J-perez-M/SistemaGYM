@@ -116,9 +116,12 @@ export default function AdminDashboardScreen() {
 
       {/* Hero banner (sin LinearGradient — falla en Fabric antes de registrarse) */}
       <View style={styles.heroBanner}>
-        <View style={styles.heroIcon}>
-          <Ionicons name="business-outline" size={28} color={colors.accent} />
-        </View>
+        <Image
+          source={require('../../assets/icon.png')}
+          style={styles.heroIcon}
+          resizeMode="cover"
+          accessibilityLabel="Logo de GymPro"
+        />
         <View style={{ flex: 1 }}>
           <Text style={styles.heroTitle}>GymPro</Text>
           <Text style={styles.heroSub}>Gestión del gimnasio</Text>
