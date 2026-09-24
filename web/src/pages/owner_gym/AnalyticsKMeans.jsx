@@ -57,6 +57,7 @@ export default function AnalyticsKMeans() {
   const [loading, setLoading]         = useState(true);
   const [trainLoading, setTrainLoading] = useState(false);
   const [error, setError]             = useState(null);
+  const [insufficient, setInsufficient] = useState(null); // { nActual, nMinimo, mensaje }
   const [trainMsg, setTrainMsg]       = useState(null);
   const [page, setPage]               = useState(1);
 
@@ -64,14 +65,25 @@ export default function AnalyticsKMeans() {
   const fetchData = useCallback(async (k) => {
     setLoading(true);
     setError(null);
+    setInsufficient(null);
     setTrainMsg(null);
     try {
       const token = localStorage.getItem("token");
       const res = await fetch(`${API_BASE}/api/analytics/kmeans?k=${k}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error(`Error ${res.status}: ${res.statusText}`);
-      const json = await res.json();
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (json.datos_insuficientes) {
+          setInsufficient({
+            nActual:  json.n_actual ?? 0,
+            nMinimo:  json.n_minimo ?? k,
+            mensaje:  json.error,
+          });
+          return;
+        }
+        throw new Error(json.error || `Error ${res.status}: ${res.statusText}`);
+      }
       setData(json);
       setPage(1);
     } catch (e) {
@@ -86,6 +98,7 @@ export default function AnalyticsKMeans() {
     setTrainLoading(true);
     setTrainMsg(null);
     setError(null);
+    setInsufficient(null);
     try {
       const token = localStorage.getItem("token");
       const res = await fetch(
@@ -99,8 +112,18 @@ export default function AnalyticsKMeans() {
           body: JSON.stringify({ k: kValue, max_iter: 20 }),
         }
       );
-      if (!res.ok) throw new Error(`Error ${res.status}: ${res.statusText}`);
-      const json = await res.json();
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (json.datos_insuficientes) {
+          setInsufficient({
+            nActual:  json.n_actual ?? 0,
+            nMinimo:  json.n_minimo ?? kValue,
+            mensaje:  json.error,
+          });
+          return;
+        }
+        throw new Error(json.error || `Error ${res.status}: ${res.statusText}`);
+      }
       setData(json);
       setPage(1);
       setTrainMsg(json.mensaje || "Grupos actualizados correctamente.");
@@ -129,6 +152,39 @@ export default function AnalyticsKMeans() {
       </p>
     </div>
   );
+
+  if (insufficient) {
+    const { nActual, nMinimo } = insufficient;
+    const pct    = nMinimo > 0 ? Math.min(100, Math.round((nActual / nMinimo) * 100)) : 0;
+    const faltan = Math.max(0, nMinimo - nActual);
+    return (
+      <div className="empty-state">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-tertiary)", marginBottom: 12 }}>
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+        <h3 style={{ color: "var(--text-secondary)", margin: "0 0 8px" }}>Aún no hay suficientes datos</h3>
+        <p style={{ color: "var(--text-tertiary)", margin: "0 0 4px", fontSize: 13, maxWidth: 420 }}>
+          La segmentación necesita al menos <strong>{nMinimo}</strong> miembros con peso y estatura
+          registrados. Por ahora tienes <strong>{nActual}</strong>
+          {faltan > 0 ? ` — faltan ${faltan} más.` : "."}
+        </p>
+        <div style={{ width: "100%", maxWidth: 320, margin: "18px auto 4px" }}>
+          <div className="client-progress-bar-bg" style={{ height: 10, borderRadius: 6 }}>
+            <div
+              className="client-progress-bar-fill"
+              style={{ width: `${pct}%`, background: "var(--accent)" }}
+            />
+          </div>
+          <p style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 6 }}>
+            {nActual} de {nMinimo} miembros con datos ({pct}%)
+          </p>
+        </div>
+        <button className="btn-primary" style={{ marginTop: 12 }} onClick={() => fetchData(kValue)}>
+          Reintentar
+        </button>
+      </div>
+    );
+  }
 
   if (error) {
     const isNoData = error.includes("401") || error.includes("403") || error.includes("404");
