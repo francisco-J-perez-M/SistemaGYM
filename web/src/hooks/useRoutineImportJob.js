@@ -96,6 +96,33 @@ export function dismissRoutineImportJob() {
   notify();
 }
 
+/**
+ * Cancela el job actual desde la UI (botón "Cancelar"). Detiene el polling y
+ * limpia el estado local DE INMEDIATO, sin esperar al backend -- el caso que
+ * esto resuelve es justamente un job que se quedó pegado en "procesando"
+ * (ej. tras reiniciar los contenedores a mitad del proceso), donde no hay
+ * garantía de que el servidor vaya a responder nunca. El aviso al backend es
+ * best-effort: si llega, marca el job como "cancelado" en Mongo para que
+ * _set_job() no lo revierta a "listo"/"error" si el hilo original termina
+ * tarde: ver ia_jobs.py.
+ */
+export function cancelRoutineImportJob() {
+  const jobId = job?.job_id;
+  if (pollTimer) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
+  job = null;
+  saveToStorage();
+  notify();
+  if (jobId) {
+    trainerService.cancelRoutineImportJob(jobId).catch(() => {
+      // Best-effort: si el backend no responde, no importa -- el estado
+      // local ya se limpió y es lo que realmente desatoraba al entrenador.
+    });
+  }
+}
+
 /** Hook de lectura: se re-renderiza cada vez que el job cambia de estado. */
 export function useRoutineImportJob() {
   const [state, setState] = useState(job);

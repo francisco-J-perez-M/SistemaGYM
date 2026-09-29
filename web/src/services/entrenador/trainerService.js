@@ -473,6 +473,19 @@ export const trainerService = {
   getRoutineImportJobStatus: async (jobId) => {
     return await apiFetch(`${API_BASE_URL}/trainer/routines/import-ai/jobs/${jobId}`);
   },
+
+  /**
+   * Cancela (desde la UI) un job de importación de rutinas que se quedó
+   * "procesando" -- por ejemplo, tras reiniciar los contenedores mientras
+   * corría. No mata el proceso en el servidor, pero evita que el resultado
+   * sobreescriba el cancel si llega tarde, y libera al frontend de seguir
+   * esperándolo.
+   */
+  cancelRoutineImportJob: async (jobId) => {
+    return await apiFetch(`${API_BASE_URL}/trainer/routines/import-ai/jobs/${jobId}/cancel`, {
+      method: "POST",
+    });
+  },
 };
 
 export default trainerService;
