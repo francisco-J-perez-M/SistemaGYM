@@ -6,11 +6,12 @@ Usado por:
   - routes/entrenador/trainer_routes.py  (rutinas y ejercicios)
 
 Funciones públicas:
-  extract_text(contenido, ext)              → str
-  parse_routines_from_text(text)            → dict | None   (parser rápido sin LLM)
-  check_ollama_ready()                      → (bool, str)
-  call_ollama(system_prompt, document_text) → str           (JSON crudo vía Ollama)
-  get_ollama_status()                       → dict
+  extract_text(contenido, ext)                    → str
+  parse_routines_from_text(text)                  → dict | None  (parser rápido, texto plano)
+  parse_routines_from_app_export(contenido)       → dict | None  (parser rápido, PDF de 2 columnas)
+  check_ollama_ready()                            → (bool, str)
+  call_ollama(system_prompt, document_text)       → str          (JSON crudo vía Ollama)
+  get_ollama_status()                             → dict
 """
 from __future__ import annotations
 
@@ -22,15 +23,134 @@ import requests as _requests
 OLLAMA_BASE  = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL",    "phi3:mini")
 
+# ── Tuning del ETL de IA ───────────────────────────────────────────────────────
+# Antes: chunks de 3500 caracteres y timeout de 270s atado al limite de 300s de
+# gunicorn (el ETL corria sincrono dentro del request). Ahora el ETL corre en un
+# hilo de background (ver utils/ia_jobs.py) y ya no compite con el timeout HTTP,
+# pero se mantienen limites sanos por bloque para no dejar un chunk colgado
+# para siempre y para que cada llamada a Ollama sea mas rapida:
+#   - Chunks mas chicos (2000 vs 3500) = menos tokens de entrada por llamada =
+#     inferencia mas rapida y menos ruido para el modelo.
+#   - Timeout por chunk configurable via env (OLLAMA_TIMEOUT), default 240s.
+LLM_CHUNK_MAX_CHARS = int(os.getenv("OLLAMA_CHUNK_MAX_CHARS", "2000"))
+LLM_CALL_TIMEOUT     = int(os.getenv("OLLAMA_TIMEOUT", "240"))
+
+
+# ── Límite de llamadas concurrentes a Ollama ────────────────────────────────
+# Sin esto, cada import/dieta que llega a call_ollama() dispara una inferencia
+# CPU-bound independiente. Antes del ETL en background (utils/ia_jobs.py) el
+# request síncrono ya limitaba esto de facto; ahora que importar rutinas ya
+# no bloquea al entrenador, nada impide que varios imports (de uno o varios
+# entrenadores) arranquen inferencias simultáneas -- en la máquina de
+# desarrollo esto llegó a saturar CPU/RAM del host al punto de reiniciarse
+# justo después de un `docker compose up -d --build` (build + inferencia sin
+# tiempo de recuperación entre medio). Se limita con un lock distribuido en
+# Redis (ya es dependencia de Flask-Limiter, ver config.py) en vez de un
+# semáforo en memoria: gunicorn corre con WEB_CONCURRENCY workers -- procesos
+# separados -- así que un semáforo in-process solo limitaría la concurrencia
+# POR WORKER, no la real contra el servicio `ollama` compartido por todos.
+OLLAMA_MAX_CONCURRENT = max(1, int(os.getenv("OLLAMA_MAX_CONCURRENT", "1")))
+_OLLAMA_LOCK_TTL      = 300  # seguro ante crash del holder: nunca deja un cupo tomado más que esto
+OLLAMA_WAIT_TIMEOUT   = int(os.getenv("OLLAMA_WAIT_TIMEOUT", "600"))  # cuanto esperar un cupo libre
+
+_redis_client = None
+
+
+def _get_redis():
+    global _redis_client
+    if _redis_client is None:
+        import redis as _redis_lib  # noqa: PLC0415 (ya es dependencia de Flask-Limiter)
+        _redis_client = _redis_lib.from_url(os.getenv("REDIS_URL", "redis://redis:6379/0"))
+    return _redis_client
+
+
+def _acquire_ollama_slot():
+    """
+    Bloquea hasta obtener uno de los OLLAMA_MAX_CONCURRENT cupos globales
+    para llamar a Ollama (across todos los workers/hilos), o levanta
+    TimeoutError si ninguno se libera en OLLAMA_WAIT_TIMEOUT segundos.
+    Devuelve el Lock ya adquirido -- liberarlo con _release_ollama_slot().
+    """
+    import time  # noqa: PLC0415
+
+    r = _get_redis()
+    deadline = time.monotonic() + OLLAMA_WAIT_TIMEOUT
+    while True:
+        for i in range(OLLAMA_MAX_CONCURRENT):
+            lock = r.lock(f"ollama:slot:{i}", timeout=_OLLAMA_LOCK_TTL)
+            if lock.acquire(blocking=False):
+                return lock
+        if time.monotonic() >= deadline:
+            raise TimeoutError(
+                f"El servidor de IA está saturado: no se liberó ningún cupo "
+                f"(máx {OLLAMA_MAX_CONCURRENT} llamada(s) concurrente(s) a Ollama) "
+                f"en {OLLAMA_WAIT_TIMEOUT}s."
+            )
+        time.sleep(1)
+
+
+def _release_ollama_slot(lock) -> None:
+    try:
+        lock.release()
+    except Exception:
+        pass  # ya expiró solo por _OLLAMA_LOCK_TTL, no pasa nada
+
 
 # ─── Extracción de texto ──────────────────────────────────────────────────────
 
-def extract_text(contenido: bytes, ext: str) -> str:
-    """Extrae texto plano de un PDF o Excel."""
+def _table_to_compact_rows(tabla: list) -> str:
+    """Convierte una tabla de pdfplumber en filas "col | col | col" con
+    espacios internos colapsados. Mucho mas compacto en tokens que el texto
+    alineado con espacios que produce extract_text() sobre una tabla."""
+    filas = []
+    for row in tabla:
+        celdas = [" ".join(str(c).split()) if c else "" for c in row]
+        if any(celdas):
+            filas.append(" | ".join(celdas))
+    return "\n".join(filas)
+
+
+def extract_text(contenido: bytes, ext: str, *, structured: bool = False) -> str:
+    """
+    Extrae texto plano de un PDF o Excel.
+
+    structured=False (default): comportamiento original -- pdfplumber
+    extract_text() tal cual. Lo usa el parser deterministico basado en regex
+    (parse_routines_from_text), que espera columnas separadas por espacios,
+    no debe tocarse o se rompe ese parser rapido.
+
+    structured=True: SOLO para el fallback LLM (cuando el parser
+    deterministico ya no reconocio el documento). Aqui conviene compactar
+    las tablas detectadas a "celda | celda" y no repetir encabezados de
+    columna que pdfplumber ve en cada pagina -- menos tokens de entrada para
+    Ollama, inferencia mas rapida y menos ruido para el modelo.
+    """
     if ext == "pdf":
         import pdfplumber  # noqa: PLC0415
         with pdfplumber.open(io.BytesIO(contenido)) as pdf:
-            return "\n\n".join(p.extract_text() or "" for p in pdf.pages)
+            if not structured:
+                return "\n\n".join(p.extract_text() or "" for p in pdf.pages)
+
+            partes: list[str] = []
+            encabezados_vistos: set[tuple] = set()
+            for page in pdf.pages:
+                tablas = page.extract_tables()
+                if tablas:
+                    for tabla in tablas:
+                        if not tabla:
+                            continue
+                        header = tuple(tabla[0]) if tabla[0] else None
+                        filas = tabla[1:] if header in encabezados_vistos else tabla
+                        if header:
+                            encabezados_vistos.add(header)
+                        compacto = _table_to_compact_rows(filas)
+                        if compacto:
+                            partes.append(compacto)
+                else:
+                    txt = page.extract_text() or ""
+                    if txt.strip():
+                        partes.append(txt)
+            return "\n\n".join(partes)
 
     if ext in {"xlsx", "xls"}:
         import openpyxl  # noqa: PLC0415
@@ -49,6 +169,29 @@ def extract_text(contenido: bytes, ext: str) -> str:
 
 # ─── Parser determinístico para rutinas estructuradas ────────────────────────
 
+# Nombres de día y clasificador de grupo muscular compartidos por AMBOS
+# parsers deterministicos (parse_routines_from_text y, más abajo,
+# parse_routines_from_app_export) -- antes vivían anidados dentro del
+# primero y se hubieran tenido que duplicar para el segundo.
+DIAS_SEMANA = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+
+
+def _clasificar_grupo_muscular(titulo: str) -> str:
+    t = titulo.lower()
+    for keywords, muscle in [
+        (["pierna", "glút", "femoral", "cuádric", "gemelo", "prensa", "rodilla", "talón"], "Piernas"),
+        (["pecho", "empuje", "banca", "press"],                                             "Pecho"),
+        (["espalda", "tracción", "remo", "jalón", "dorsal"],                               "Espalda"),
+        (["hombro", "deltoid", "lateral"],                                                  "Hombros"),
+        (["bícep"],                                                                          "Bíceps"),
+        (["trícep"],                                                                         "Tríceps"),
+        (["abdomen", "abdomin", "crunch", "core"],                                          "Abdomen"),
+    ]:
+        if any(k in t for k in keywords):
+            return muscle
+    return "Full Body"
+
+
 def parse_routines_from_text(text: str) -> dict | None:
     """
     Parser rápido (sin LLM) para PDFs de planes de entrenamiento con formato tabular.
@@ -59,26 +202,13 @@ def parse_routines_from_text(text: str) -> dict | None:
       - Líneas partidas:       nombre en línea 1, 'sets reps' en línea 2 (tablas con wrap)
 
     Retorna {rutinas, ejercicios} si encuentra ≥1 sesión con ejercicios,
-    o None para que el caller haga fallback a Ollama.
+    o None para que el caller haga fallback a Ollama (o pruebe
+    parse_routines_from_app_export, ver más abajo).
     """
     import re  # noqa: PLC0415
 
-    _DAYS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
-
-    def _muscle(title: str) -> str:
-        t = title.lower()
-        for keywords, muscle in [
-            (["pierna", "glút", "femoral", "cuádric", "gemelo", "prensa", "rodilla", "talón"], "Piernas"),
-            (["pecho", "empuje", "banca", "press"],                                             "Pecho"),
-            (["espalda", "tracción", "remo", "jalón", "dorsal"],                               "Espalda"),
-            (["hombro", "deltoid", "lateral"],                                                  "Hombros"),
-            (["bícep"],                                                                          "Bíceps"),
-            (["trícep"],                                                                         "Tríceps"),
-            (["abdomen", "abdomin", "crunch", "core"],                                          "Abdomen"),
-        ]:
-            if any(k in t for k in keywords):
-                return muscle
-        return "Full Body"
+    _DAYS = DIAS_SEMANA
+    _muscle = _clasificar_grupo_muscular
 
     # "Sesión 1: Pierna & Abdomen (Enfoque Cuádriceps/Glúteo) ⏱ 72 min"
     # The \S{0,3} covers ⏱ (1 char) + optional whitespace before the number
@@ -171,6 +301,216 @@ def parse_routines_from_text(text: str) -> dict | None:
     }
 
 
+def parse_routines_from_app_export(contenido: bytes) -> dict | None:
+    """
+    Parser rápido (sin LLM) para PDFs exportados por apps de seguimiento de
+    entrenamiento (ej. Hevy, Strong y similares) con el formato:
+
+        Rutina de Entrenamiento Semanal
+        Registro Detallado de Ejercicios, Series, Pesos y Repeticiones
+        Lunes — Pecho y Espalda 1h 5min | 16 Series | 5,090 kg
+        Press De Banca Plano (Barra Recta)   Remo En Barra T (Máquina)
+        • S1 40 kg × 10 reps                 • S1 20 kg × 12 reps
+        • S2 60 kg × 8 reps                   • S2 30 kg × 10 reps
+        ...
+
+    El layout es de DOS COLUMNAS (dos ejercicios en paralelo por fila), así
+    que a diferencia de parse_routines_from_text() -- que opera sobre texto
+    plano -- este parser necesita las posiciones (x0/top) de cada palabra
+    vía pdfplumber.extract_words(): el texto plano de pdfplumber intercala
+    ambas columnas en la misma línea ("• S1 40 kg × 10 reps • S1 20 kg × 12
+    reps" son en realidad DOS series de DOS ejercicios distintos) y no hay
+    forma de separarlas de forma confiable sin la posición horizontal.
+
+    Antes de este parser, cualquier PDF con este formato caía siempre al
+    fallback de Ollama (el parser de texto plano nunca lo reconocía), lo que
+    lo volvía innecesariamente lento para un documento perfectamente
+    estructurado -- exactamente el caso reportado por el usuario.
+
+    Retorna {rutinas, ejercicios} si reconoce ≥1 día con ejercicios, o None
+    para que el caller siga con parse_routines_from_text() / Ollama.
+    """
+    import re  # noqa: PLC0415
+
+    import pdfplumber  # noqa: PLC0415
+
+    DAY_HDR = re.compile(
+        r'^(' + "|".join(DIAS_SEMANA) + r')\s*—\s*(.+?)\s+((?:\d+h\s*)?\d+\s*min)\s*'
+        r'\|\s*\d+\s*Series\s*\|\s*[\d.,]+\s*kg\s*$',
+        re.IGNORECASE,
+    )
+    SET_RE = re.compile(r'S\d+\s+([\d.,]+)\s*kg\s*×\s*(\d+)\s*reps', re.IGNORECASE)
+    DUR_RE = re.compile(r'(?:(\d+)h\s*)?(\d+)\s*min')
+
+    def _duracion_a_min(s: str) -> int:
+        m = DUR_RE.match(s.strip())
+        if not m:
+            return 0
+        horas = int(m.group(1)) if m.group(1) else 0
+        minutos = int(m.group(2))
+        return horas * 60 + minutos
+
+    def _agrupar_filas(words: list, tolerancia: float = 4.0) -> list[list]:
+        """Agrupa palabras en 'filas' visuales por posición vertical (top),
+        con tolerancia -- pdfplumber a veces reporta 1-3px de diferencia
+        entre palabras que están, a simple vista, en la misma línea."""
+        words = sorted(words, key=lambda w: w["top"])
+        filas: list[list] = []
+        actual: list = []
+        top_actual = None
+        for w in words:
+            if top_actual is None or abs(w["top"] - top_actual) <= tolerancia:
+                actual.append(w)
+                if top_actual is None:
+                    top_actual = w["top"]
+            else:
+                filas.append(actual)
+                actual = [w]
+                top_actual = w["top"]
+        if actual:
+            filas.append(actual)
+        return [sorted(f, key=lambda w: w["x0"]) for f in filas]
+
+    try:
+        with pdfplumber.open(io.BytesIO(contenido)) as pdf:
+            # Chequeo barato antes de pagar el costo de extract_words() en
+            # cada página: si ni el texto plano de la primera página trae el
+            # encabezado esperado, esto no es este formato.
+            primera = pdf.pages[0].extract_text() or ""
+            if "Registro Detallado de Ejercicios" not in primera:
+                return None
+
+            filas_todas: list[list] = []
+            for page in pdf.pages:
+                palabras = page.extract_words(use_text_flow=False, keep_blank_chars=False)
+                filas_todas.extend(_agrupar_filas(palabras))
+
+            # Título real del documento (si lo hay) en vez del genérico.
+            rutina_name = "Plan de Entrenamiento Importado"
+            m_titulo = re.search(r'^Rutina de Entrenamiento.*$', primera, re.MULTILINE)
+            if m_titulo:
+                rutina_name = m_titulo.group(0).strip()
+
+            # Punto de corte entre columna izquierda/derecha: la brecha
+            # horizontal más grande entre palabras consecutivas en filas de
+            # cuerpo (no título ni encabezado de día) -- así se adapta al
+            # ancho real de este PDF en vez de asumir un valor fijo.
+            brechas: list[tuple[float, float]] = []
+            for fila in filas_todas:
+                texto_fila = " ".join(w["text"] for w in fila)
+                if DAY_HDR.match(texto_fila) or "Rutina de Entrenamiento" in texto_fila \
+                        or "Registro Detallado" in texto_fila:
+                    continue
+                xs = sorted(w["x0"] for w in fila)
+                for i in range(1, len(xs)):
+                    brecha = xs[i] - xs[i - 1]
+                    if brecha > 50:
+                        brechas.append((brecha, (xs[i - 1] + xs[i]) / 2))
+            brechas.sort(reverse=True)
+            split_x = brechas[0][1] if brechas else None
+
+            dias: list[dict] = []
+            ejercicios_uniq: dict[str, dict] = {}
+            dia_actual: dict | None = None
+            grupo_actual = "Full Body"
+            ex_izq: str | None = None
+            ex_der: str | None = None
+            sets_izq: list[tuple] = []
+            sets_der: list[tuple] = []
+            duracion_total = 0
+
+            def _cerrar_ejercicio(nombre, sets_lista):
+                if not nombre or not sets_lista or dia_actual is None:
+                    return
+                pesos = [s[0] for s in sets_lista]
+                reps_lista = [s[1] for s in sets_lista]
+                peso_prom = round(sum(pesos) / len(pesos))
+                reps_frecuente = max(set(reps_lista), key=reps_lista.count)
+                notas = " · ".join(f"{p:g}kg×{r}" for p, r in sets_lista)
+                dia_actual["exercises"].append({
+                    "name": nombre, "sets": str(len(sets_lista)),
+                    "reps": str(reps_frecuente), "peso": str(peso_prom), "notes": notas,
+                })
+                if nombre not in ejercicios_uniq:
+                    ejercicios_uniq[nombre] = {
+                        "nombre": nombre, "grupo_muscular": grupo_actual, "tipo": "Fuerza",
+                        "series": len(sets_lista), "repeticiones": str(reps_frecuente),
+                        "descripcion": "",
+                    }
+
+            for fila in filas_todas:
+                texto_fila = " ".join(w["text"] for w in fila)
+                if "Rutina de Entrenamiento" in texto_fila or "Registro Detallado" in texto_fila:
+                    continue
+
+                hdr = DAY_HDR.match(texto_fila)
+                if hdr:
+                    if dia_actual is not None:
+                        _cerrar_ejercicio(ex_izq, sets_izq)
+                        _cerrar_ejercicio(ex_der, sets_der)
+                        dias.append(dia_actual)
+                    dia_nombre = hdr.group(1)
+                    titulo = hdr.group(2).strip()
+                    dur_m = re.search(r'((?:\d+h\s*)?\d+\s*min)', texto_fila)
+                    duracion_total += _duracion_a_min(dur_m.group(1)) if dur_m else 0
+                    grupo_actual = _clasificar_grupo_muscular(titulo)
+                    dia_actual = {"day": dia_nombre, "muscleGroup": titulo, "exercises": []}
+                    ex_izq = ex_der = None
+                    sets_izq, sets_der = [], []
+                    continue
+
+                if dia_actual is None:
+                    continue
+
+                if split_x is not None:
+                    izq_palabras = [w for w in fila if w["x0"] < split_x]
+                    der_palabras = [w for w in fila if w["x0"] >= split_x]
+                else:
+                    izq_palabras, der_palabras = fila, []
+                texto_izq = " ".join(w["text"] for w in izq_palabras).strip()
+                texto_der = " ".join(w["text"] for w in der_palabras).strip()
+
+                if "•" in texto_fila:
+                    m_izq = SET_RE.search(texto_izq)
+                    if m_izq:
+                        sets_izq.append((float(m_izq.group(1).replace(",", "")), int(m_izq.group(2))))
+                    m_der = SET_RE.search(texto_der)
+                    if m_der:
+                        sets_der.append((float(m_der.group(1).replace(",", "")), int(m_der.group(2))))
+                else:
+                    if texto_izq:
+                        _cerrar_ejercicio(ex_izq, sets_izq)
+                        ex_izq, sets_izq = texto_izq, []
+                    if texto_der:
+                        _cerrar_ejercicio(ex_der, sets_der)
+                        ex_der, sets_der = texto_der, []
+
+            if dia_actual is not None:
+                _cerrar_ejercicio(ex_izq, sets_izq)
+                _cerrar_ejercicio(ex_der, sets_der)
+                dias.append(dia_actual)
+
+            if not dias:
+                return None
+
+            return {
+                "rutinas": [{
+                    "name":             rutina_name,
+                    "category":         "General",
+                    "difficulty":       "Intermedio",
+                    "duration_minutes": duracion_total or 60,
+                    "description":      "Plan importado desde archivo PDF (formato de app de seguimiento)",
+                    "days":             dias,
+                }],
+                "ejercicios": list(ejercicios_uniq.values()),
+            }
+    except Exception:
+        # Cualquier PDF que no calce con este formato exacto (o que
+        # pdfplumber no pueda leer de esta forma) sigue con el siguiente
+        # intento -- nunca debe tronar el job por esto.
+        return None
+
+
 # ─── Verificación de disponibilidad ──────────────────────────────────────────
 
 def check_ollama_ready() -> tuple[bool, str]:
@@ -229,15 +569,19 @@ def call_ollama(
     system_prompt: str,
     document_text: str,
     max_tokens: int = 4096,
-    timeout: int = 270,  # segundos — bajo el límite de gunicorn (300s)
+    timeout: int | None = None,
 ) -> str:
     """
     Envía el documento al LLM local vía Ollama y devuelve el JSON crudo.
     `format='json'` fuerza salida JSON válido — característica nativa de Ollama.
 
-    `timeout` debe ser menor que el gunicorn --timeout (300s) para que el worker
-    no sea SIGKILLed antes de que requests pueda devolver el TimeoutError controlado.
+    El ETL corre en un hilo de background (utils/ia_jobs.py), no dentro del
+    request sincrono, así que este timeout ya no está atado al de gunicorn —
+    solo evita que un chunk colgado bloquee el job para siempre. Default:
+    LLM_CALL_TIMEOUT (env OLLAMA_TIMEOUT, 240s).
     """
+    if timeout is None:
+        timeout = LLM_CALL_TIMEOUT
     payload = {
         "model":  OLLAMA_MODEL,
         "prompt": f"{system_prompt}\n\nDOCUMENTO A PROCESAR:\n{document_text}",
@@ -249,27 +593,36 @@ def call_ollama(
             "top_p":       0.9,
         },
     }
-    resp = _requests.post(
-        f"{OLLAMA_BASE}/api/generate",
-        json=payload,
-        timeout=timeout,
-    )
-    resp.raise_for_status()
-    return resp.json().get("response", "") or ""
+    lock = _acquire_ollama_slot()
+    try:
+        resp = _requests.post(
+            f"{OLLAMA_BASE}/api/generate",
+            json=payload,
+            timeout=timeout,
+        )
+        resp.raise_for_status()
+        return resp.json().get("response", "") or ""
+    finally:
+        _release_ollama_slot(lock)
 
 
 # ─── Troceado y parseo robusto para documentos largos ────────────────────────
 
-def chunk_text(text: str, max_chars: int = 3500, max_chunks: int = 8) -> tuple[list[str], bool]:
+def chunk_text(text: str, max_chars: int | None = None, max_chunks: int = 8) -> tuple[list[str], bool]:
     """
     Divide el texto en bloques de ~max_chars respetando saltos de línea, para
     no perder ejercicios al enviar documentos largos al LLM (antes se cortaba
     duro en 4.000 caracteres).
 
+    Default de max_chars: LLM_CHUNK_MAX_CHARS (env OLLAMA_CHUNK_MAX_CHARS,
+    2000) — bloques chicos = llamadas a Ollama mas rapidas y mas precisas.
+
     Returns:
         (chunks, truncado) — `truncado` es True si el documento superó
         max_chunks bloques y quedó contenido sin procesar.
     """
+    if max_chars is None:
+        max_chars = LLM_CHUNK_MAX_CHARS
     lines = text.splitlines()
     chunks: list[str] = []
     cur: list[str] = []

@@ -41,6 +41,29 @@ const apiFetch = async (url, options = {}) => {
   return data;
 };
 
+// Los ETL de IA (importDietAI / importRoutinesAI) suben archivos con
+// FormData y no pueden pasar por apiFetch (que fuerza Content-Type:
+// application/json, lo que rompe el boundary del multipart). Comparten en
+// cambio esta validación de Content-Type antes de invocar res.json(): si
+// Nginx devuelve su pagina de error (413 por limite de tamano, 502/504 por
+// timeout) o el SPA fallback (index.html), la respuesta es HTML y
+// res.json() explota con "Unexpected token '<' ... is not valid JSON"
+// (SCRUM-203). Aqui se detecta ese caso y se da un mensaje entendible.
+const parseAiResponse = async (res) => {
+  const contentType = res.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    const text = await res.text();
+    throw new Error(
+      res.status === 413
+        ? 'El archivo es demasiado grande para subirlo.'
+        : `El servidor no devolvió JSON (HTTP ${res.status}). ` +
+          `Verifica la configuración de nginx proxy. ` +
+          `Respuesta: ${text.slice(0, 100)}`
+    );
+  }
+  return res.json();
+};
+
 export const trainerService = {
 
   // ─── CLIENTES ──────────────────────────────────────────────────────────────
@@ -188,7 +211,7 @@ export const trainerService = {
       headers: { Authorization: `Bearer ${token}` },
       body: form,
     });
-    const data = await res.json();
+    const data = await parseAiResponse(res);
     if (!res.ok) {
       if (res.status === 401) {
         localStorage.removeItem('token');
@@ -329,6 +352,18 @@ export const trainerService = {
     });
   },
 
+  // Asignación "visible para el miembro" (rutinas_asignadas, leída por
+  // /api/miembro/training/rutinas-asignadas) -- distinta de assignRoutine()
+  // de arriba, que solo alimenta miembro_rutina (contador "Clientes" +
+  // pesos sugeridos por nivel). Un cliente queda correctamente asignado
+  // solo cuando se llaman AMBAS.
+  assignRoutineToMember: async (id_rutina, id_miembro_pg, notas_entrenador = '') => {
+    return await apiFetch(`${API_BASE_URL}/trainer/assign-routine`, {
+      method: 'POST',
+      body: JSON.stringify({ id_rutina, id_miembro_pg, notas_entrenador }),
+    });
+  },
+
   updateRoutine: async (routineId, routineData) => {
     return await apiFetch(`${API_BASE_URL}/trainer/routines/${routineId}`, {
       method: 'PUT',
@@ -419,6 +454,9 @@ export const trainerService = {
    * Devuelve { success, rutinas[], ejercicios[], resumen }
    */
   importRoutinesAI: async (file) => {
+    // Encola el ETL en background y devuelve { job_id, estado } de inmediato
+    // (202) -- el resultado real se consulta con getRoutineImportJobStatus.
+    // Ver SCRUM-203 / seguimiento de rendimiento del ETL de IA.
     const token = localStorage.getItem('token');
     const form  = new FormData();
     form.append('archivo', file);
@@ -427,7 +465,7 @@ export const trainerService = {
       headers: { Authorization: `Bearer ${token}` },
       body:    form,
     });
-    const data = await res.json();
+    const data = await parseAiResponse(res);
     if (!res.ok) {
       if (res.status === 401) {
         localStorage.removeItem('token');
@@ -437,7 +475,28 @@ export const trainerService = {
       }
       throw new Error(data.error || data.message || data.msg || 'Error en la importación');
     }
-    return data;
+    return data; // { success, job_id, estado: "procesando" }
+  },
+
+  /**
+   * Consulta el estado de un job de importación de rutinas (polling).
+   * Devuelve { job_id, estado: "procesando"|"listo"|"error", resultado?, error?, error_tipo?, detalle? }
+   */
+  getRoutineImportJobStatus: async (jobId) => {
+    return await apiFetch(`${API_BASE_URL}/trainer/routines/import-ai/jobs/${jobId}`);
+  },
+
+  /**
+   * Cancela (desde la UI) un job de importación de rutinas que se quedó
+   * "procesando" -- por ejemplo, tras reiniciar los contenedores mientras
+   * corría. No mata el proceso en el servidor, pero evita que el resultado
+   * sobreescriba el cancel si llega tarde, y libera al frontend de seguir
+   * esperándolo.
+   */
+  cancelRoutineImportJob: async (jobId) => {
+    return await apiFetch(`${API_BASE_URL}/trainer/routines/import-ai/jobs/${jobId}/cancel`, {
+      method: "POST",
+    });
   },
 };
 
