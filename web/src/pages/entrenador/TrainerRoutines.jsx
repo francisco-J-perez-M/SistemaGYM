@@ -835,7 +835,7 @@ function ExerciseDetailModal({ exercise, onClose, onEdit }) {
 // ═══════════════════════════════════════════════════════════════
 //  ImportarIARoutinesTab — ETL con Ollama para rutinas y ejercicios
 // ═══════════════════════════════════════════════════════════════
-function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExercise, onAssignRoutine }) {
+function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExercise, onAssignRoutine, onAssignRoutineToMember }) {
   const [mode, setMode]           = useState("trainer"); // "trainer" | "client"
   const [file, setFile]           = useState(null);
   const [clientId, setClientId]   = useState("");
@@ -930,10 +930,24 @@ function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExe
       const res = await onSaveRoutine(payload);
       if (res) {
         rutinasOk++;
-        // Si se asigna a un cliente con nivel, calcular y guardar pesos sugeridos
+        // Asignar al cliente en cuanto se eligió uno -- el nivel es opcional
+        // (solo calcula pesos sugeridos de arranque; ver assign_routine_to_member
+        // en trainer_routes.py). Antes esto exigía "nivel" también, así que si
+        // el entrenador dejaba el nivel sin elegir la rutina se creaba pero NUNCA
+        // quedaba vinculada al cliente (el contador "Clientes" sale de
+        // miembro_rutina, no del campo id_miembro de la rutina).
         const idRutina = res.id_rutina || res.id;
-        if (mode === "client" && clientId && nivel && idRutina) {
+        if (mode === "client" && clientId && idRutina) {
+          // miembro_rutina: alimenta el contador "Clientes" de la tarjeta y,
+          // si hay nivel, los pesos sugeridos.
           try { await onAssignRoutine?.(idRutina, clientId, nivel); } catch { /* no bloquea el guardado */ }
+          // rutinas_asignadas: es lo que el miembro ve en su propia sección de
+          // Entrenamiento. Sin esta llamada la rutina quedaba "asignada" solo
+          // para el contador del entrenador, pero invisible para el cliente.
+          const pgId = clients.find(c => c.id === clientId)?.pgId;
+          if (pgId) {
+            try { await onAssignRoutineToMember?.(idRutina, pgId); } catch { /* no bloquea el guardado */ }
+          }
         }
       }
     }
@@ -1395,7 +1409,10 @@ export default function TrainerRoutines() {
     trainerService.getClients()
       .then(data => {
         const list = data.clients || data || [];
-        setClients(list.map(c => ({ id: c.id || c.id_usuario_pg, name: c.name || c.nombre })));
+        // pg_id (id_usuario_pg en Postgres) es requerido por assignRoutineToMember
+        // para que la rutina quede visible en el portal del miembro -- antes se
+        // descartaba aquí y la importación con IA nunca podía usarlo.
+        setClients(list.map(c => ({ id: c.id || c.id_usuario_pg, pgId: c.pg_id ?? c.id_usuario_pg ?? null, name: c.name || c.nombre })));
       })
       .catch(() => setClients([]));
   }, []);
@@ -2445,6 +2462,10 @@ export default function TrainerRoutines() {
           }}
           onAssignRoutine={async (routineId, id_miembro, nivel) => {
             try { return await trainerService.assignRoutine(routineId, { id_miembro, nivel }); }
+            catch { return null; }
+          }}
+          onAssignRoutineToMember={async (routineId, id_miembro_pg) => {
+            try { return await trainerService.assignRoutineToMember(routineId, id_miembro_pg); }
             catch { return null; }
           }}
         />

@@ -352,6 +352,18 @@ export const trainerService = {
     });
   },
 
+  // Asignación "visible para el miembro" (rutinas_asignadas, leída por
+  // /api/miembro/training/rutinas-asignadas) -- distinta de assignRoutine()
+  // de arriba, que solo alimenta miembro_rutina (contador "Clientes" +
+  // pesos sugeridos por nivel). Un cliente queda correctamente asignado
+  // solo cuando se llaman AMBAS.
+  assignRoutineToMember: async (id_rutina, id_miembro_pg, notas_entrenador = '') => {
+    return await apiFetch(`${API_BASE_URL}/trainer/assign-routine`, {
+      method: 'POST',
+      body: JSON.stringify({ id_rutina, id_miembro_pg, notas_entrenador }),
+    });
+  },
+
   updateRoutine: async (routineId, routineData) => {
     return await apiFetch(`${API_BASE_URL}/trainer/routines/${routineId}`, {
       method: 'PUT',
