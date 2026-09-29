@@ -41,6 +41,29 @@ const apiFetch = async (url, options = {}) => {
   return data;
 };
 
+// Los ETL de IA (importDietAI / importRoutinesAI) suben archivos con
+// FormData y no pueden pasar por apiFetch (que fuerza Content-Type:
+// application/json, lo que rompe el boundary del multipart). Comparten en
+// cambio esta validación de Content-Type antes de invocar res.json(): si
+// Nginx devuelve su pagina de error (413 por limite de tamano, 502/504 por
+// timeout) o el SPA fallback (index.html), la respuesta es HTML y
+// res.json() explota con "Unexpected token '<' ... is not valid JSON"
+// (SCRUM-203). Aqui se detecta ese caso y se da un mensaje entendible.
+const parseAiResponse = async (res) => {
+  const contentType = res.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    const text = await res.text();
+    throw new Error(
+      res.status === 413
+        ? 'El archivo es demasiado grande para subirlo.'
+        : `El servidor no devolvió JSON (HTTP ${res.status}). ` +
+          `Verifica la configuración de nginx proxy. ` +
+          `Respuesta: ${text.slice(0, 100)}`
+    );
+  }
+  return res.json();
+};
+
 export const trainerService = {
 
   // ─── CLIENTES ──────────────────────────────────────────────────────────────
@@ -188,7 +211,7 @@ export const trainerService = {
       headers: { Authorization: `Bearer ${token}` },
       body: form,
     });
-    const data = await res.json();
+    const data = await parseAiResponse(res);
     if (!res.ok) {
       if (res.status === 401) {
         localStorage.removeItem('token');
@@ -427,7 +450,7 @@ export const trainerService = {
       headers: { Authorization: `Bearer ${token}` },
       body:    form,
     });
-    const data = await res.json();
+    const data = await parseAiResponse(res);
     if (!res.ok) {
       if (res.status === 401) {
         localStorage.removeItem('token');
