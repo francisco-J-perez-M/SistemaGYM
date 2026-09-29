@@ -852,6 +852,11 @@ function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExe
   const [expandedR, setExpandedR] = useState({});
   const fileRef = useRef(null);
 
+  // Diálogo de confirmación propio (mismo look que el resto del sistema, ver
+  // hooks/useToast.jsx) en vez de window.confirm() -- instancia independiente
+  // de la del componente padre, no necesita pasarse por props.
+  const { confirm: confirmCancel, ToastPortal: CancelToastPortal } = useToast();
+
   // Job de importación en background (ver hooks/useRoutineImportJob.js). Vive
   // fuera de este componente para que sobreviva si el entrenador cambia de
   // pestaña o navega a otra pantalla mientras Ollama procesa el documento.
@@ -901,14 +906,16 @@ function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExe
     finally { setSubmitting(false); }
   };
 
-  const handleCancelImport = () => {
+  const handleCancelImport = async () => {
     // El caso típico: el job se quedó "procesando" para siempre (ej. se
     // reiniciaron los contenedores a mitad del proceso) y el entrenador
     // necesita poder desatorarse sin esperar a que expire solo (ver
     // JOB_STALE_AFTER_SECONDS en ia_jobs.py, 30 min por defecto).
-    const ok = window.confirm(
-      "¿Cancelar la importación en curso? Se perderá el progreso de este intento."
-    );
+    const ok = await confirmCancel({
+      title: "¿Cancelar la importación en curso?",
+      message: "Se perderá el progreso de este intento. Puedes volver a subir el archivo después.",
+      type: "warning", confirmText: "Sí, cancelar", cancelText: "Seguir esperando",
+    });
     if (!ok) return;
     cancelRoutineImportJob();
   };
@@ -986,18 +993,42 @@ function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExe
       )}
 
       {/* ── Aviso de job en background ───────────────────────────────────── */}
-      {jobPending && (
+      {jobPending && (() => {
+        const pct = job?.progreso_total
+          ? Math.round((job.progreso_actual / job.progreso_total) * 100)
+          : null;
+        return (
         <div style={{
           background: "rgba(99,102,241,.08)", border: "1px solid rgba(99,102,241,.25)",
           borderRadius: 10, padding: "14px 16px", marginBottom: 18,
           display: "flex", alignItems: "center", gap: 12,
         }}>
           <FiLoader size={18} style={{ color: "var(--accent)", animation: "spin 1s linear infinite", flexShrink: 0 }} />
-          <div style={{ fontSize: 12.5, lineHeight: 1.6 }}>
+          <div style={{ fontSize: 12.5, lineHeight: 1.6, flex: 1, minWidth: 0 }}>
             <div style={{ fontWeight: 700, marginBottom: 2 }}>
               Procesando {job?.archivo ? <code style={{ background: "rgba(0,0,0,.1)", padding: "1px 5px", borderRadius: 4 }}>{job.archivo}</code> : "el archivo"} con IA…
+              {pct !== null && <span style={{ color: "var(--accent)" }}> {pct}%</span>}
+            </div>
+            {/* Barra de progreso: determinada (bloque X de N) en cuanto se sabe
+                cuántos bloques hay que mandarle a Ollama; indeterminada (deslizante)
+                mientras todavía se está leyendo/parseando el archivo -- así se ve que
+                de verdad avanza y no solo un ícono girando sin más información. */}
+            <div style={{
+              height: 6, borderRadius: 4, background: "rgba(99,102,241,.15)",
+              overflow: "hidden", margin: "6px 0", position: "relative",
+            }}>
+              <div style={{
+                position: pct === null ? "absolute" : "static",
+                height: "100%", borderRadius: 4, background: "var(--accent)",
+                width: pct !== null ? `${pct}%` : "35%",
+                transition: pct !== null ? "width .4s ease" : "none",
+                animation: pct === null ? "ia-progress-indeterminate 1.3s ease-in-out infinite" : "none",
+              }} />
             </div>
             <div style={{ color: "var(--text-secondary)" }}>
+              {pct !== null
+                ? `Bloque ${job.progreso_actual} de ${job.progreso_total} — `
+                : "Leyendo el archivo — "}
               Le avisaremos cuando el proceso de extracción termine — puedes volver a este módulo
               más tarde y seguir con tu tarea de asignación de ejercicios mientras tanto.
             </div>
@@ -1015,7 +1046,9 @@ function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExe
             Cancelar
           </button>
         </div>
-      )}
+        );
+      })()}
+      <CancelToastPortal />
 
       {/* ── Selector de modo ─────────────────────────────────────────────── */}
       {!preview && !jobPending && (
@@ -1234,7 +1267,13 @@ function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExe
           </div>
         </>
       )}
-      <style>{`@keyframes spin{to{transform:rotate(360deg);}}`}</style>
+      <style>{`
+        @keyframes spin{to{transform:rotate(360deg);}}
+        @keyframes ia-progress-indeterminate{
+          0%   { left: -35%; }
+          100% { left: 100%; }
+        }
+      `}</style>
     </div>
   );
 }
