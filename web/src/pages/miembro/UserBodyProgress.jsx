@@ -8,6 +8,7 @@ import {
 import { GiBodyHeight, GiMuscleUp, GiWeightScale, GiChest, GiLeg, GiFootTrip, GiMeal } from "react-icons/gi";
 import BodyViewer from "../../components/miembro/BodyViewer";
 import TrabajoPorGrupo from "../../components/miembro/TrabajoPorGrupo";
+import { SERIES_GRAFICO } from "../../components/compartido/InfoGrafico";
 import UserHealthUpdate from "./UserHealthUpdate";
 import "../../css/CSSUnificado.css";
 
@@ -19,23 +20,35 @@ const ICONS = {
 };
 
 const ESTADO_CONFIG = {
-  normal: { color: 'var(--success-color)', texto: 'Normal' },
-  bajo: { color: 'var(--warning-color)', texto: 'Bajo' },
-  alto: { color: 'var(--warning-color)', texto: 'Alto' },
-  muy_alto: { color: 'var(--error-color)', texto: 'Muy Alto' },
+  normal: { color: 'var(--success)', texto: 'Normal' },
+  bajo: { color: 'var(--warning)', texto: 'Bajo' },
+  alto: { color: 'var(--warning)', texto: 'Alto' },
+  muy_alto: { color: 'var(--danger)', texto: 'Muy Alto' },
   sin_datos: { color: 'var(--text-secondary)', texto: 'Sin datos' }
 };
 
+// Colores categóricos de las tarjetas de salud (Perfil Médico / Historial
+// Médico). No son series de una gráfica, pero se fijan una sola vez para que
+// ambas tarjetas usen el mismo color por categoría, y se toman de
+// SERIES_GRAFICO (paleta categórica validada del portal, ver
+// compartido/InfoGrafico.jsx) en vez de hex sueltos por componente.
+const COLOR_CONDICIONES = SERIES_GRAFICO[7];
+const COLOR_ALERGIAS = SERIES_GRAFICO[1];
+const COLOR_MEDICAMENTOS = SERIES_GRAFICO[2];
+const COLOR_LESIONES = SERIES_GRAFICO[6];
+
+// Cada par izq/der comparte color (se leen como una sola "familia" de
+// medida); los colores vienen de SERIES_GRAFICO en vez de hex por tarjeta.
 const MEDIDAS_CORPORALES = [
-  { label: "Circunferencia de Pecho", key: "pecho", icon: <GiChest />, color: "#45B7D1" },
-  { label: "Circunferencia de Cintura", key: "cintura", icon: <FiCircle />, color: "#4ECDC4" },
-  { label: "Circunferencia de Cadera", key: "cadera", icon: <GiLeg />, color: "#FF6B6B" },
-  { label: "Brazo Derecho", key: "brazoDerecho", icon: <GiMuscleUp />, color: "#96CEB4", compare: "brazoIzquierdo", compareLabel: "Brazo Izquierdo" },
-  { label: "Brazo Izquierdo", key: "brazoIzquierdo", icon: <GiMuscleUp />, color: "#96CEB4", compare: "brazoDerecho", compareLabel: "Brazo Derecho" },
-  { label: "Muslo Derecho", key: "musloDerecho", icon: <GiLeg />, color: "#FECA57", compare: "musloIzquierdo", compareLabel: "Muslo Izquierdo" },
-  { label: "Muslo Izquierdo", key: "musloIzquierdo", icon: <GiLeg />, color: "#FECA57", compare: "musloDerecho", compareLabel: "Muslo Derecho" },
-  { label: "Pantorrilla Derecha", key: "pantorrillaDerecha", icon: <GiFootTrip />, color: "#FF9FF3", compare: "pantorrillaIzquierda", compareLabel: "Pantorrilla Izquierda" },
-  { label: "Pantorrilla Izquierda", key: "pantorrillaIzquierda", icon: <GiFootTrip />, color: "#FF9FF3", compare: "pantorrillaDerecha", compareLabel: "Pantorrilla Derecha" },
+  { label: "Circunferencia de Pecho", key: "pecho", icon: <GiChest />, color: SERIES_GRAFICO[0] },
+  { label: "Circunferencia de Cintura", key: "cintura", icon: <FiCircle />, color: SERIES_GRAFICO[1] },
+  { label: "Circunferencia de Cadera", key: "cadera", icon: <GiLeg />, color: SERIES_GRAFICO[2] },
+  { label: "Brazo Derecho", key: "brazoDerecho", icon: <GiMuscleUp />, color: SERIES_GRAFICO[3], compare: "brazoIzquierdo", compareLabel: "Brazo Izquierdo" },
+  { label: "Brazo Izquierdo", key: "brazoIzquierdo", icon: <GiMuscleUp />, color: SERIES_GRAFICO[3], compare: "brazoDerecho", compareLabel: "Brazo Derecho" },
+  { label: "Muslo Derecho", key: "musloDerecho", icon: <GiLeg />, color: SERIES_GRAFICO[4], compare: "musloIzquierdo", compareLabel: "Muslo Izquierdo" },
+  { label: "Muslo Izquierdo", key: "musloIzquierdo", icon: <GiLeg />, color: SERIES_GRAFICO[4], compare: "musloDerecho", compareLabel: "Muslo Derecho" },
+  { label: "Pantorrilla Derecha", key: "pantorrillaDerecha", icon: <GiFootTrip />, color: SERIES_GRAFICO[5], compare: "pantorrillaIzquierda", compareLabel: "Pantorrilla Izquierda" },
+  { label: "Pantorrilla Izquierda", key: "pantorrillaIzquierda", icon: <GiFootTrip />, color: SERIES_GRAFICO[5], compare: "pantorrillaDerecha", compareLabel: "Pantorrilla Derecha" },
 ];
 
 const MEDIDAS_EXCLUIDAS = [
@@ -49,25 +62,25 @@ const MEDIDAS_EXCLUIDAS = [
 const RECOMENDACIONES_GENERALES = [
   {
     icon: <FiDroplet />,
-    color: "#45B7D1",
+    color: SERIES_GRAFICO[0],
     titulo: "Hidratación",
     descripcion: "Bebe al menos 2 litros de agua al día para mantener tu cuerpo hidratado y optimizar tu metabolismo."
   },
   {
     icon: <FiClock />,
-    color: "#9B59B6",
+    color: SERIES_GRAFICO[6],
     titulo: "Descanso",
     descripcion: "Duerme entre 7-8 horas diarias. El sueño de calidad es esencial para la recuperación muscular y mental."
   },
   {
     icon: <FiHeart />,
-    color: "#FF6B6B",
+    color: SERIES_GRAFICO[7],
     titulo: "Cuida tu Corazón",
     descripcion: "Evita el tabaquismo y reduce el consumo de sal para mantener una presión arterial saludable."
   },
   {
     icon: <FiSun />,
-    color: "#FFE66D",
+    color: SERIES_GRAFICO[1],
     titulo: "Vitamina D",
     descripcion: "Exponte al sol de 10-15 minutos diarios para sintetizar vitamina D, esencial para tus huesos y sistema inmune."
   }
@@ -92,9 +105,9 @@ const getMedidaValor = (condiciones, nombreMedida) => {
 
 const getIMCColor = (imc) => {
   if (imc === 0) return 'var(--text-secondary)';
-  if (imc >= 18.5 && imc <= 24.9) return 'var(--success-color)';
-  if (imc < 18.5) return 'var(--warning-color)';
-  return 'var(--error-color)';
+  if (imc >= 18.5 && imc <= 24.9) return 'var(--success)';
+  if (imc < 18.5) return 'var(--warning)';
+  return 'var(--danger)';
 };
 
 const getIMCTexto = (imc) => {
@@ -137,24 +150,31 @@ const getRecomendacionesIMC = (imc) => {
 };
 
 // ============ COMPONENTES ============
+// Homogeneizado con las tarjetas KPI de UserDashboard.jsx (mismo chip de
+// ícono con tinte color-mix, mismo orden ícono+etiqueta -> valor grande ->
+// texto secundario). Antes esta tarjeta solo coloreaba el texto del título
+// y no tenía chip/borde, así que las dos pantallas del dashboard del
+// miembro usaban jerarquías distintas para el mismo tipo de dato.
 const MetricCard = ({ metric, idx }) => (
   <motion.div
-    className="stat-card"
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ delay: idx * 0.1 }}
+    style={{
+      background: "var(--bg-card)", border: "1px solid var(--border)",
+      borderRadius: 12, padding: "18px 16px",
+      borderTop: `3px solid ${metric.color}`,
+    }}
   >
-    <div className="stat-header">
-      <h3 style={{ display: "flex", gap: "8px", alignItems: "center", color: metric.color }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+      <div style={{ width: 32, height: 32, borderRadius: 8, background: `color-mix(in srgb, ${metric.color} 18%, transparent)`, display: "flex", alignItems: "center", justifyContent: "center", color: metric.color }}>
         {metric.icon}
-        {metric.label}
-      </h3>
-    </div>
-    <div className="stat-value" style={{ fontSize: '32px' }}>{metric.value}</div>
-    {metric.meta && (
-      <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '5px' }}>
-        {metric.meta}
       </div>
+      <span style={{ fontSize: 12, color: "var(--text-secondary)", fontWeight: 600 }}>{metric.label}</span>
+    </div>
+    <div style={{ fontSize: 28, fontWeight: 800, color: metric.color, lineHeight: 1 }}>{metric.value}</div>
+    {metric.meta && (
+      <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 4 }}>{metric.meta}</div>
     )}
   </motion.div>
 );
@@ -207,7 +227,7 @@ const MedidaItem = ({ medida, valor, valores, idx }) => {
           <span>Diferencia con {medida.compareLabel}:</span>
           <span style={{ 
             fontWeight: '600',
-            color: Math.abs(valor - valorCompare) > 2 ? 'var(--warning-color)' : 'var(--success-color)'
+            color: Math.abs(valor - valorCompare) > 2 ? 'var(--warning)' : 'var(--success)'
           }}>
             {Math.abs(valor - valorCompare).toFixed(1)} cm
           </span>
@@ -284,7 +304,7 @@ const CondicionSalud = ({ cond, idx }) => (
     transition={{ delay: idx * 0.1 }}
     style={{ 
       padding: '15px', 
-      background: `${ESTADO_CONFIG[cond.estado]?.color || 'var(--text-secondary)'}10`, 
+      background: `color-mix(in srgb, ${ESTADO_CONFIG[cond.estado]?.color || 'var(--text-secondary)'} 10%, transparent)`, 
       borderRadius: '8px',
       borderLeft: `4px solid ${ESTADO_CONFIG[cond.estado]?.color || 'var(--text-secondary)'}`
     }}
@@ -292,7 +312,7 @@ const CondicionSalud = ({ cond, idx }) => (
     <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
       <div style={{ 
         color: ESTADO_CONFIG[cond.estado]?.color,
-        background: `${ESTADO_CONFIG[cond.estado]?.color}20`,
+        background: `color-mix(in srgb, ${ESTADO_CONFIG[cond.estado]?.color} 20%, transparent)`,
         padding: '8px',
         borderRadius: '8px',
         display: 'flex',
@@ -312,7 +332,7 @@ const CondicionSalud = ({ cond, idx }) => (
             fontSize: '12px',
             color: ESTADO_CONFIG[cond.estado]?.color,
             fontWeight: '600',
-            background: `${ESTADO_CONFIG[cond.estado]?.color}20`,
+            background: `color-mix(in srgb, ${ESTADO_CONFIG[cond.estado]?.color} 20%, transparent)`,
             padding: '4px 8px',
             borderRadius: '4px'
           }}>
@@ -379,13 +399,13 @@ const SeccionHistorial = ({ titulo, items, color, icon: Icon, emptyText }) => (
     ) : (
       <div style={{ 
         padding: '15px', 
-        background: 'rgba(76, 217, 100, 0.1)', 
+        background: 'color-mix(in srgb, var(--success) 10%, transparent)', 
         borderRadius: '8px', 
-        color: 'var(--success-color)',
+        color: 'var(--success)',
         display: 'flex',
         alignItems: 'center',
         gap: '10px',
-        borderLeft: '4px solid var(--success-color)'
+        borderLeft: '4px solid var(--success)'
       }}>
         <FiCheckCircle />
         {emptyText}
@@ -548,16 +568,16 @@ export default function UserHealthProgress() {
 
   const kpiMetrics = [
     { label: "Estatura", value: bodyMetrics.estatura > 0 ? `${bodyMetrics.estatura} m` : '--', icon: <GiBodyHeight />, color: "var(--accent)" },
-    { label: "Peso Actual", value: bodyMetrics.peso.actual > 0 ? `${bodyMetrics.peso.actual} kg` : '--', icon: <GiWeightScale />, color: "var(--success-color)", meta: bodyMetrics.peso.meta > 0 ? `Meta: ${bodyMetrics.peso.meta}kg` : null },
-    { label: "Masa Muscular", value: bodyMetrics.musculo.actual > 0 ? `${bodyMetrics.musculo.actual}%` : '--', icon: <GiMuscleUp />, color: "var(--warning-color)", meta: bodyMetrics.musculo.meta > 0 ? `Meta: ${bodyMetrics.musculo.meta}%` : null },
-    { label: "Grasa Corporal", value: bodyMetrics.grasaCorporal.actual > 0 ? `${bodyMetrics.grasaCorporal.actual}%` : '--', icon: <FiActivity />, color: "var(--error-color)", meta: bodyMetrics.grasaCorporal.meta > 0 ? `Meta: ${bodyMetrics.grasaCorporal.meta}%` : null },
-    { label: "Plan Nutricional", value: nutricion.tienePlan ? "Activo" : "Sin plan", icon: <GiMeal />, color: nutricion.tienePlan ? "var(--success-color)" : "var(--text-secondary)", meta: nutricion.tienePlan ? (nutricion.planActual || `${nutricion.planes} plan(es)`) : "Sin dieta asignada" },
+    { label: "Peso Actual", value: bodyMetrics.peso.actual > 0 ? `${bodyMetrics.peso.actual} kg` : '--', icon: <GiWeightScale />, color: "var(--success)", meta: bodyMetrics.peso.meta > 0 ? `Meta: ${bodyMetrics.peso.meta}kg` : null },
+    { label: "Masa Muscular", value: bodyMetrics.musculo.actual > 0 ? `${bodyMetrics.musculo.actual}%` : '--', icon: <GiMuscleUp />, color: "var(--warning)", meta: bodyMetrics.musculo.meta > 0 ? `Meta: ${bodyMetrics.musculo.meta}%` : null },
+    { label: "Grasa Corporal", value: bodyMetrics.grasaCorporal.actual > 0 ? `${bodyMetrics.grasaCorporal.actual}%` : '--', icon: <FiActivity />, color: "var(--danger)", meta: bodyMetrics.grasaCorporal.meta > 0 ? `Meta: ${bodyMetrics.grasaCorporal.meta}%` : null },
+    { label: "Plan Nutricional", value: nutricion.tienePlan ? "Activo" : "Sin plan", icon: <GiMeal />, color: nutricion.tienePlan ? "var(--success)" : "var(--text-secondary)", meta: nutricion.tienePlan ? (nutricion.planActual || `${nutricion.planes} plan(es)`) : "Sin dieta asignada" },
   ];
 
   const objetivos = [
-    { area: "Pérdida de Peso", actual: bodyMetrics.peso.actual, inicial: bodyMetrics.peso.inicial, meta: bodyMetrics.peso.meta, color: "var(--success-color)", icon: <FiTrendingDown /> },
-    { area: "Reducción de Grasa", actual: bodyMetrics.grasaCorporal.actual, inicial: bodyMetrics.grasaCorporal.inicial, meta: bodyMetrics.grasaCorporal.meta, color: "var(--error-color)", icon: <FiTrendingDown /> },
-    { area: "Ganancia Muscular", actual: bodyMetrics.musculo.actual, inicial: bodyMetrics.musculo.inicial, meta: bodyMetrics.musculo.meta, color: "var(--warning-color)", icon: <FiTrendingUp /> },
+    { area: "Pérdida de Peso", actual: bodyMetrics.peso.actual, inicial: bodyMetrics.peso.inicial, meta: bodyMetrics.peso.meta, color: "var(--success)", icon: <FiTrendingDown /> },
+    { area: "Reducción de Grasa", actual: bodyMetrics.grasaCorporal.actual, inicial: bodyMetrics.grasaCorporal.inicial, meta: bodyMetrics.grasaCorporal.meta, color: "var(--danger)", icon: <FiTrendingDown /> },
+    { area: "Ganancia Muscular", actual: bodyMetrics.musculo.actual, inicial: bodyMetrics.musculo.inicial, meta: bodyMetrics.musculo.meta, color: "var(--warning)", icon: <FiTrendingUp /> },
   ];
 
   const recomendacionesPersonalizadas = getRecomendacionesIMC(bodyMetrics.imc);
@@ -571,9 +591,9 @@ export default function UserHealthProgress() {
             className="btn-primary"
             onClick={() => setShowUpdate(true)}
             style={{ 
-              display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px',
+              display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', minHeight: '44px',
               background: 'var(--accent)', border: 'none', borderRadius: '8px',
-              cursor: 'pointer', color: 'var(--bg-input)', fontWeight: '600'
+              cursor: 'pointer', color: 'var(--text-on-accent)', fontWeight: '600'
             }}
           >
             <FiEdit2 />
@@ -584,9 +604,9 @@ export default function UserHealthProgress() {
         <main className="dashboard-content">
           {error && (
             <div style={{ 
-              padding: '15px', background: 'rgba(255, 59, 48, 0.1)', borderRadius: '8px', 
+              padding: '15px', background: 'color-mix(in srgb, var(--danger) 10%, transparent)', borderRadius: '8px', 
               marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px',
-              color: 'var(--error-color)'
+              color: 'var(--danger)'
             }}>
               <FiAlertCircle />
               <span>{error}</span>
@@ -606,7 +626,7 @@ export default function UserHealthProgress() {
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
                 style={{
-                  padding: '12px 24px',
+                  padding: '12px 24px', minHeight: '44px',
                   background: activeTab === tab.key ? 'var(--accent)' : 'transparent',
                   color: activeTab === tab.key ? 'var(--text-on-accent)' : 'var(--text-secondary)',
                   border: 'none',
@@ -626,7 +646,7 @@ export default function UserHealthProgress() {
             <>
               {!hasDatos && !error && (
                 <div style={{ 
-                  padding: '20px', background: 'rgba(74, 144, 226, 0.1)', borderRadius: '8px', 
+                  padding: '20px', background: 'color-mix(in srgb, var(--accent) 10%, transparent)', borderRadius: '8px', 
                   marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px',
                   color: 'var(--accent)'
                 }}>
@@ -641,12 +661,12 @@ export default function UserHealthProgress() {
                   así que se recuerda cada dos semanas en lugar de a diario. */}
               {medicion && !medicion.medidas_al_dia && (
                 <div style={{
-                  padding: '14px 18px', background: 'rgba(234, 115, 23, .12)',
-                  border: '1px solid rgba(234, 115, 23, .35)', borderRadius: 10,
+                  padding: '14px 18px', background: 'color-mix(in srgb, var(--warning) 12%, transparent)',
+                  border: '1px solid color-mix(in srgb, var(--warning) 35%, transparent)', borderRadius: 10,
                   marginBottom: 20, display: 'flex', alignItems: 'center',
                   gap: 12, flexWrap: 'wrap', color: 'var(--text-primary)',
                 }}>
-                  <FiAlertCircle style={{ color: '#EA7317', flexShrink: 0 }} />
+                  <FiAlertCircle style={{ color: 'var(--warning)', flexShrink: 0 }} />
                   <span style={{ flex: 1, minWidth: 240, fontSize: 13, lineHeight: 1.5 }}>
                     {medicion.medidas_fecha
                       ? `Tus medidas son del ${medicion.medidas_fecha} (hace ${medicion.medidas_dias} días).`
@@ -655,11 +675,15 @@ export default function UserHealthProgress() {
                     circunferencias hay que tomarlas con cinta: se recomienda
                     cada {medicion.cadencia_dias} días.
                   </span>
+                  {/* Botón secundario (no de relleno sólido): texto blanco fijo
+                      sobre --warning no es legible en todos los temas (en
+                      oscuro --warning es un ámbar claro), así que se usa el
+                      mismo tratamiento "suave" que el resto de los avisos. */}
                   <button
                     onClick={() => setShowUpdate(true)}
                     style={{
-                      padding: '8px 16px', background: '#EA7317', color: '#fff',
-                      border: 'none', borderRadius: 8, cursor: 'pointer',
+                      padding: '8px 16px', minHeight: 44, background: 'transparent', color: 'var(--warning)',
+                      border: '1px solid var(--warning)', borderRadius: 8, cursor: 'pointer',
                       fontWeight: 600, fontSize: 12, whiteSpace: 'nowrap',
                     }}
                   >
@@ -669,7 +693,7 @@ export default function UserHealthProgress() {
               )}
 
               {/* KPIs */}
-              <div className="kpi-grid" style={{ marginBottom: '25px' }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(180px,1fr))", gap: 14, marginBottom: 25 }}>
                 {kpiMetrics.map((metric, idx) => <MetricCard key={idx} metric={metric} idx={idx} />)}
               </div>
 
@@ -683,7 +707,7 @@ export default function UserHealthProgress() {
                       <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
                         {selectedGender === "female" ? "Femenino" : "Masculino"}
                       </span>
-                      <div style={{ padding: "4px 8px", background: "var(--bg-input-dark)", borderRadius: "4px", fontSize: "12px" }}>
+                      <div style={{ padding: "4px 8px", background: "var(--bg-input)", borderRadius: "4px", fontSize: "12px" }}>
                         IMC: {bodyMetrics.imc > 0 ? bodyMetrics.imc.toFixed(1) : '--'}
                       </div>
                     </div>
@@ -702,7 +726,7 @@ export default function UserHealthProgress() {
                   </div>
 
                   {/* Relación Cintura/Cadera */}
-                  <div style={{ padding: "15px", borderTop: "1px solid var(--border-dark)", background: "var(--bg-input-dark)" }}>
+                  <div style={{ padding: "15px", borderTop: "1px solid var(--border-dark)", background: "var(--bg-input)" }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <FiTarget size={16} />
@@ -711,8 +735,8 @@ export default function UserHealthProgress() {
                       <span style={{ 
                         fontWeight: '600',
                         color: valores.cintura > 0 && valores.cadera > 0 ? 
-                          (valores.cintura / valores.cadera > 0.85 ? 'var(--error-color)' : 
-                           valores.cintura / valores.cadera > 0.8 ? 'var(--warning-color)' : 'var(--success-color)') : 
+                          (valores.cintura / valores.cadera > 0.85 ? 'var(--danger)' : 
+                           valores.cintura / valores.cadera > 0.8 ? 'var(--warning)' : 'var(--success)') : 
                           'var(--text-secondary)'
                       }}>
                         {valores.cintura > 0 && valores.cadera > 0 ? (valores.cintura / valores.cadera).toFixed(2) : 'Sin datos'}
@@ -775,7 +799,14 @@ export default function UserHealthProgress() {
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '5px', color: 'var(--text-secondary)' }}>
                           <span>Bajo</span><span>Normal</span><span>Sobrepeso</span><span>Obesidad</span>
                         </div>
-                        <div style={{ height: "8px", background: "linear-gradient(to right, #FFE66D, #4ECDC4, #FF9F43, #FF6B6B)", borderRadius: "4px", position: 'relative' }}>
+                        {/* Antes el degradado traía 4 hex sueltos (uno por banda
+                            de IMC) que no correspondían a los 3 colores que de
+                            verdad usa getIMCColor() (bajo=warning, normal=success,
+                            sobrepeso y obesidad comparten danger): la barra y el
+                            número podían "decir" cosas distintas. Ahora son los
+                            mismos 3 tokens, con cortes duros en los mismos puntos
+                            (18.5 y 25 sobre la escala 0-40 del marcador). */}
+                        <div style={{ height: "8px", background: "linear-gradient(to right, var(--warning) 0%, var(--warning) 46%, var(--success) 46%, var(--success) 62%, var(--danger) 62%, var(--danger) 100%)", borderRadius: "4px", position: 'relative' }}>
                           <div style={{
                             position: 'absolute', left: `${Math.min(100, (bodyMetrics.imc / 40) * 100)}%`,
                             top: '-5px', width: '3px', height: '18px', background: '#fff',
@@ -810,7 +841,7 @@ export default function UserHealthProgress() {
                 <motion.div 
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  style={{ padding: '30px', background: 'var(--bg-input-dark)', borderRadius: '12px', marginBottom: '20px', textAlign: 'center' }}
+                  style={{ padding: '30px', background: 'var(--bg-input)', borderRadius: '12px', marginBottom: '20px', textAlign: 'center' }}
                 >
                   <FiAlertCircle size={48} style={{ color: 'var(--text-secondary)', marginBottom: '15px' }} />
                   <h3 style={{ marginBottom: '10px' }}>No hay datos de salud registrados</h3>
@@ -820,7 +851,7 @@ export default function UserHealthProgress() {
                   <button 
                     onClick={() => setShowUpdate(true)}
                     style={{
-                      padding: '12px 24px', background: 'var(--accent)', color: 'var(--bg-input)',
+                      padding: '12px 24px', minHeight: '44px', background: 'var(--accent)', color: 'var(--text-on-accent)',
                       border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600'
                     }}
                   >
@@ -851,16 +882,16 @@ export default function UserHealthProgress() {
                     <motion.div className="chart-card" initial={{ opacity:0 }} animate={{ opacity:1 }} style={{ marginBottom:20 }}>
                       <div className="chart-header">
                         <h3 style={{ display:'flex', alignItems:'center', gap:8 }}>
-                          <FiHeart style={{ color:'#ef4444' }} /> Perfil Médico
+                          <FiHeart style={{ color: COLOR_CONDICIONES }} /> Perfil Médico
                         </h3>
                         <span style={{ fontSize:12, color:'var(--text-secondary)' }}>Datos del cuestionario inicial</span>
                       </div>
                       <div style={{ padding:'20px', display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(240px,1fr))', gap:16 }}>
                         {[
-                          { label:"Condiciones médicas", items:healthData.condicionesMedicas, color:"#ef4444", icon:<FiActivity /> },
-                          { label:"Alergias",             items:healthData.alergias,           color:"#f59e0b", icon:<FiAlertCircle /> },
-                          { label:"Medicamentos",         items:healthData.medicamentos,       color:"#6366f1", icon:<FiDroplet /> },
-                          { label:"Lesiones / Limitaciones", items:healthData.lesiones,         color:"#8b5cf6", icon:<GiLeg /> },
+                          { label:"Condiciones médicas", items:healthData.condicionesMedicas, color:COLOR_CONDICIONES, icon:<FiActivity /> },
+                          { label:"Alergias",             items:healthData.alergias,           color:COLOR_ALERGIAS, icon:<FiAlertCircle /> },
+                          { label:"Medicamentos",         items:healthData.medicamentos,       color:COLOR_MEDICAMENTOS, icon:<FiDroplet /> },
+                          { label:"Lesiones / Limitaciones", items:healthData.lesiones,         color:COLOR_LESIONES, icon:<GiLeg /> },
                         ].filter(s => s.items?.length > 0).map((sec, si) => (
                           <div key={si} style={{ background:'var(--bg-input)', borderRadius:10, padding:14, borderLeft:`3px solid ${sec.color}` }}>
                             <div style={{ fontWeight:700, fontSize:13, marginBottom:10, display:'flex', alignItems:'center', gap:6 }}>
@@ -905,7 +936,7 @@ export default function UserHealthProgress() {
                           <span style={{ 
                             fontSize: '12px', 
                             padding: '4px 8px', 
-                            background: `${getIMCColor(bodyMetrics.imc)}20`,
+                            background: `color-mix(in srgb, ${getIMCColor(bodyMetrics.imc)} 20%, transparent)`,
                             color: getIMCColor(bodyMetrics.imc),
                             borderRadius: '4px',
                             fontWeight: '600'
@@ -916,7 +947,7 @@ export default function UserHealthProgress() {
                         <div style={{ padding: '20px' }}>
                           <div style={{ 
                             padding: '15px', 
-                            background: `${getIMCColor(bodyMetrics.imc)}10`,
+                            background: `color-mix(in srgb, ${getIMCColor(bodyMetrics.imc)} 10%, transparent)`,
                             borderRadius: '8px',
                             borderLeft: `4px solid ${getIMCColor(bodyMetrics.imc)}`,
                             marginBottom: '20px'
@@ -960,7 +991,7 @@ export default function UserHealthProgress() {
 
                           <div style={{
                             padding: '15px',
-                            background: 'rgba(74, 144, 226, 0.1)',
+                            background: 'color-mix(in srgb, var(--accent) 10%, transparent)',
                             borderRadius: '8px',
                             borderLeft: '4px solid var(--accent)',
                             display: 'flex',
@@ -991,14 +1022,14 @@ export default function UserHealthProgress() {
                         <SeccionHistorial 
                           titulo="Alergias" 
                           items={healthData.alergias} 
-                          color="#FF6B6B" 
+                          color={COLOR_ALERGIAS} 
                           icon={FiAlertCircle}
                           emptyText="Sin alergias registradas"
                         />
                         <SeccionHistorial 
                           titulo="Medicamentos" 
                           items={healthData.medicamentos} 
-                          color="#FF9F43" 
+                          color={COLOR_MEDICAMENTOS} 
                           icon={FiActivity}
                           emptyText="Sin medicamentos actualmente"
                         />
@@ -1006,7 +1037,7 @@ export default function UserHealthProgress() {
                           <SeccionHistorial 
                             titulo="Lesiones o Limitaciones" 
                             items={healthData.lesiones} 
-                            color="var(--accent)" 
+                            color={COLOR_LESIONES} 
                             icon={FiAlertCircle}
                           />
                         )}
@@ -1026,7 +1057,7 @@ export default function UserHealthProgress() {
                           <div style={{ marginBottom: '20px' }}>
                             <div style={{ 
                               padding: '20px', 
-                              background: 'var(--bg-input-dark)', 
+                              background: 'var(--bg-input)', 
                               borderRadius: '8px',
                               borderLeft: '4px solid var(--accent)'
                             }}>
@@ -1054,7 +1085,7 @@ export default function UserHealthProgress() {
                         ) : (
                           <div style={{
                             padding: '20px',
-                            background: 'var(--bg-input-dark)',
+                            background: 'var(--bg-input)',
                             borderRadius: '8px',
                             textAlign: 'center',
                             marginBottom: '20px'
@@ -1069,9 +1100,9 @@ export default function UserHealthProgress() {
                         {healthData.ultimaActualizacion && (
                           <div style={{
                             padding: '15px',
-                            background: 'rgba(76, 217, 100, 0.1)',
+                            background: 'color-mix(in srgb, var(--success) 10%, transparent)',
                             borderRadius: '8px',
-                            borderLeft: '4px solid var(--success-color)',
+                            borderLeft: '4px solid var(--success)',
                             marginBottom: '15px'
                           }}>
                             <div style={{ 
@@ -1080,7 +1111,7 @@ export default function UserHealthProgress() {
                               justifyContent: 'space-between',
                               fontSize: '13px'
                             }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--success-color)' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--success)' }}>
                                 <FiClock size={16} />
                                 <span style={{ fontWeight: '600' }}>Última actualización</span>
                               </div>
@@ -1095,7 +1126,7 @@ export default function UserHealthProgress() {
 
                         <div style={{
                           padding: '15px',
-                          background: 'rgba(74, 144, 226, 0.1)',
+                          background: 'color-mix(in srgb, var(--accent) 10%, transparent)',
                           borderRadius: '8px',
                           borderLeft: '4px solid var(--accent)'
                         }}>
