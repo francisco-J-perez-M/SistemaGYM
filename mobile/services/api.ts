@@ -58,13 +58,21 @@ async function obtenerTokenNuevo(): Promise<string | null> {
     try {
       // axios directo, no `api`: si usara el cliente con interceptor, un 401 en
       // el propio refresco entraría en un bucle infinito.
-      const { data } = await axios.post<{ access_token: string }>(
+      //
+      // Actividad 09, PR-02 (J. C. Pérez Nava): el servidor rota el token de
+      // refresco en cada renovación y revoca el presentado. Si no se guarda
+      // el nuevo aquí también, este cliente seguiría usando el token viejo
+      // ya revocado y el siguiente refresco fallaría con "sesión revocada".
+      const { data } = await axios.post<{ access_token: string; refresh_token?: string }>(
         `${API_BASE_URL}${ENDPOINTS.REFRESH}`,
         {},
         { headers: { Authorization: `Bearer ${refresh}` }, timeout: 15_000 },
       );
       if (!data?.access_token) return null;
       await SecureStore.setItemAsync('access_token', data.access_token);
+      if (data.refresh_token) {
+        await SecureStore.setItemAsync('refresh_token', data.refresh_token);
+      }
       return data.access_token;
     } catch {
       return null;

@@ -1,4 +1,4 @@
-import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import { Outlet, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { FiLoader, FiCheckCircle, FiAlertCircle, FiX } from "react-icons/fi";
 import Sidebar from "./Sidebar";
@@ -7,6 +7,7 @@ import {
   useRoutineImportJob, dismissRoutineImportJob, cancelRoutineImportJob,
 } from "../../hooks/useRoutineImportJob";
 import { useToast } from "../../hooks/useToast";
+import { peticion } from "../../api/cliente";
 
 const ROLE_MAP = {
   owner_gym:    ["owner_gym", "admin", "administrador"],
@@ -233,17 +234,28 @@ export default function Layout({ role = "owner_gym" }) {
     } catch { setImpersonating(false); }
   };
 
+  // Actividad 09, PR-02 (M. Arriaga Mora): antes el rol salía de
+  // localStorage.getItem("user").role -- un valor que el propio usuario
+  // puede editar desde la consola del navegador -- y se comprobaba dentro
+  // de un useEffect, cuando el panel (y sus peticiones) ya se habían
+  // montado. Ahora el rol viene de /api/auth/me, verificado por el
+  // servidor contra el JWT firmado, y la comprobación es una GUARDA DE
+  // RENDERIZADO: mientras no se conoce el rol se muestra un cargador, y
+  // el panel (el <Outlet/> de abajo) solo se monta si el rol autoriza.
+  // Así ningún componente hijo llega a lanzar peticiones antes de tiempo.
+  const [sesion, setSesion] = useState({ estado: "cargando", rol: null });
+
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) { navigate("/", { replace: true }); return; }
-    try {
-      const user     = JSON.parse(localStorage.getItem("user") || "{}");
-      const userRole = (user.role || "").toLowerCase();
-      const allowed  = (ROLE_MAP[role] || []);
-      if (!allowed.includes(userRole)) navigate("/", { replace: true });
-    } catch { navigate("/", { replace: true }); }
-    readImpersonationState();
-  }, [location.pathname, role, navigate]);
+    let vigente = true;
+    peticion("/api/auth/me")
+      .then((d) => {
+        if (!vigente) return;
+        setSesion({ estado: "listo", rol: (d?.role || "").toLowerCase() });
+        readImpersonationState();
+      })
+      .catch(() => { if (vigente) setSesion({ estado: "anonimo", rol: null }); });
+    return () => { vigente = false; };
+  }, [location.pathname, role]);
 
   const handleExitImpersonation = () => {
     const prevToken = sessionStorage.getItem("sa_prev_token");
@@ -300,6 +312,29 @@ export default function Layout({ role = "owner_gym" }) {
     localStorage.removeItem("user");
     navigate("/", { replace: true });
   };
+
+  // Guarda de renderizado (PR-02): mientras no se conoce el rol verificado
+  // por el servidor, no se monta ni la barra lateral ni el <Outlet/> -- así
+  // ningún panel ni sus peticiones llegan a ejecutarse de más.
+  if (sesion.estado === "cargando") {
+    return (
+      <div
+        style={{
+          width: "100vw", height: "100vh", display: "flex",
+          alignItems: "center", justifyContent: "center",
+          background: "var(--bg-main)", color: "var(--text-secondary)", gap: 10,
+        }}
+      >
+        <FiLoader size={20} />
+        <span style={{ fontSize: 14 }}>Verificando sesión…</span>
+      </div>
+    );
+  }
+
+  const permitidos = ROLE_MAP[role] || [];
+  if (sesion.estado === "anonimo" || !permitidos.includes(sesion.rol)) {
+    return <Navigate to="/" replace />;
+  }
 
   return (
     <div
