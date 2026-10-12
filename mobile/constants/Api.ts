@@ -95,6 +95,7 @@ export const ENDPOINTS = {
   BODY_PROGRESS:      '/user/body-progress',     // GET/POST /api/user/body-progress
   WORKOUT_COMPLETE:   '/user/workout/complete',  // POST /api/user/workout/complete (bitácora)
   USER_WORKOUTS:      '/user/workouts',           // GET  /api/user/workouts (historial bitácora)
+  MUSCLE_GROUP_WORK:  '/user/workouts/muscle-groups', // GET /api/user/workouts/muscle-groups (SCRUM-101: mapa muscular 2D)
   USER_ROUTINES:      '/user/routines',          // GET  /api/user/routines (user_routines_bp prefix=/api/user)
   USER_PAYMENTS:      '/user/payments',          // GET  /api/user/payments  (stats + historial)
   USER_HEALTH:        '/user/health',            // GET/POST /api/user/health (condiciones + medidas)

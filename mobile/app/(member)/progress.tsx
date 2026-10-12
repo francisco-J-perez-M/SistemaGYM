@@ -17,6 +17,7 @@ import { useFetch } from '../../hooks/useFetch';
 import { toDateStr, toArray } from '../../utils/format';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Card from '../../components/ui/Card';
+import MuscleMap2D from '../../components/progress/MuscleMap2D';
 import Button from '../../components/ui/Button';
 import api from '../../services/api';
 import type { BodyProgress } from '../../types';
@@ -151,6 +152,11 @@ export default function ProgressScreen() {
           </View>
         </Card>
       )}
+
+      {/* Mapa muscular 2D (SCRUM-101) — volumen de trabajo por grupo muscular,
+          tomado de la bitácora. No existía nada equivalente en móvil antes
+          de esta tarjeta (el modelo 3D solo vivía en el portal web). */}
+      <MuscleMap2D />
 
       {/* History list */}
       <Card>
