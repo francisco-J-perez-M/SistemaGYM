@@ -57,7 +57,7 @@ const authHeaders = () => {
 // ── Estados de carga / error / vacio reutilizables ────────────────────────────
 
 function Estado({ loading, error, empty }) {
-  if (loading) return <p style={{ fontSize: 13, color: "var(--text-secondary)", padding: 20 }}>Cargando analisis…</p>;
+  if (loading) return <p style={{ fontSize: 13, color: "var(--text-secondary)", padding: 20 }}>Cargando análisis…</p>;
   if (error)   return <p style={{ fontSize: 13, color: "var(--danger)", padding: 20 }}>{error}</p>;
   if (empty)   return <p style={{ fontSize: 13, color: "var(--text-secondary)", padding: 20 }}>Sin datos suficientes para este gimnasio.</p>;
   return null;
@@ -100,7 +100,7 @@ function TabCodoSilueta({ gymId }) {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
         <div style={card()}>
           <h3 style={hStyle}>Metodo del Codo (inercia por k)</h3>
-          <p style={pStyle}>El "codo" marca el punto donde agregar mas grupos deja de reducir significativamente la inercia.</p>
+          <p style={pStyle}>El "codo" marca el punto donde agregar más grupos deja de reducir significativamente la inercia.</p>
           <ResponsiveContainer width="100%" height={275}>
             <LineChart data={resultados} margin={{ top: 8, right: 12, bottom: 26, left: 6 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />
@@ -116,7 +116,7 @@ function TabCodoSilueta({ gymId }) {
 
         <div style={card()}>
           <h3 style={hStyle}>Coeficiente de Silueta por k</h3>
-          <p style={pStyle}>Mide que tan bien separados quedan los grupos (rango -1 a 1). El k con mayor silueta es el mas nitido.</p>
+          <p style={pStyle}>Mide qué tan bien separados quedan los grupos (rango -1 a 1). El k con mayor silueta es el más nítido.</p>
           <ResponsiveContainer width="100%" height={275}>
             <BarChart data={resultados} margin={{ top: 8, right: 12, bottom: 26, left: 6 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />
@@ -251,7 +251,7 @@ function TabEntrenamiento({ gymId }) {
 
       {/* Paso 3 */}
       <div style={card()}>
-        <h3 style={hStyle}><FiAlertTriangle style={{ color: DANGER, verticalAlign: "-2px", marginRight: 6 }} />3. Analisis del Error</h3>
+        <h3 style={hStyle}><FiAlertTriangle style={{ color: DANGER, verticalAlign: "-2px", marginRight: 6 }} />3. Análisis del Error</h3>
         <p style={pStyle}>{err.descripcion}</p>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
           <Metric label="Error entrenamiento" value={err.error_entrenamiento} color={ACCENT} />

@@ -420,11 +420,11 @@ export default function ReceptionistAppointments() {
                   ):(
                     <input type="text" value={form.trainer} placeholder="Ej: Coach Lopez" onChange={e=>setForm(p=>({...p,trainer:e.target.value,trainer_id:null}))} style={inputSt}/>
                   )}
-                  {form.trainer&&<span style={{fontSize:11,color:"var(--text-secondary)"}}>El entrenador recibira una notificacion al guardar.</span>}
+                  {form.trainer&&<span style={{fontSize:11,color:"var(--text-secondary)"}}>El entrenador recibirá una notificación al guardar.</span>}
                 </label>
                 <label style={{display:"flex",flexDirection:"column",gap:6}}>
                   <span style={labelSt}>Notas</span>
-                  <textarea value={form.notes} rows={3} placeholder="Informacion adicional..." onChange={e=>setForm(p=>({...p,notes:e.target.value}))} style={{...inputSt,resize:"vertical"}}/>
+                  <textarea value={form.notes} rows={3} placeholder="Información adicional..." onChange={e=>setForm(p=>({...p,notes:e.target.value}))} style={{...inputSt,resize:"vertical"}}/>
                 </label>
               </div>
               <div style={{display:"flex",gap:10,justifyContent:"flex-end",marginTop:24}}>
