@@ -8,14 +8,10 @@ import {
 } from "../../hooks/useRoutineImportJob";
 import { useToast } from "../../hooks/useToast";
 import { peticion } from "../../api/cliente";
-
-const ROLE_MAP = {
-  owner_gym:    ["owner_gym", "admin", "administrador"],
-  trainer:      ["trainer", "entrenador"],
-  receptionist: ["receptionist", "recepcionista"],
-  user:         ["user", "miembro"],
-  superadmin:   ["superadmin"],
-};
+// Catálogo único de roles (SCRUM-107): antes este archivo mantenía su
+// propia copia de este mapa, que podía divergir de la de otras vistas
+// (ver web/src/constants/roles.js).
+import { ROLES_PERMITIDOS_POR_PANEL as ROLE_MAP } from "../../constants/roles";
 
 const ROUTE_MAP = {
   owner_gym: {
