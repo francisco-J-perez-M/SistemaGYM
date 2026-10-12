@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import { useColors, useFontScale } from '../../hooks/useColors';
 import { useFetch } from '../../hooks/useFetch';
 import { useAuth } from '../../hooks/useAuth';
@@ -40,40 +41,15 @@ export default function MemberDashboard() {
     });
   }, [data]);
 
-  const [exercises, setExercises] = useState<Exercise[]>([]);
   const [checkinDone, setCheckinDone] = useState(false);
   const [checkinLoading, setCheckinLoading] = useState(false);
-  const [workoutDone, setWorkoutDone] = useState(false);
-  const [workoutSaving, setWorkoutSaving] = useState(false);
 
-  const workoutExercises: Exercise[] = exercises.length
-    ? exercises
-    : (data?.todayWorkout?.exercises ?? []);
-
-  const toggleExercise = (idx: number) => {
-    setExercises((prev) => {
-      const list = prev.length ? prev : [...workoutExercises];
-      return list.map((e, i) => (i === idx ? { ...e, completed: !e.completed } : e));
-    });
-  };
-
-  const completeWorkout = async () => {
-    setWorkoutSaving(true);
-    try {
-      await api.post(ENDPOINTS.WORKOUT_COMPLETE, {
-        type:      data?.todayWorkout?.type,
-        exercises: workoutExercises.map((e) => ({ name: e.name, completed: e.completed })),
-        fecha:     new Date().toISOString(),
-      });
-      setWorkoutDone(true);
-      refetch();
-    } catch {
-      // Endpoint stub: marcamos completado localmente aunque falle la red.
-      setWorkoutDone(true);
-    } finally {
-      setWorkoutSaving(false);
-    }
-  };
+  // SCRUM-167: esta tarjeta ya solo PREVISUALIZA la rutina de hoy — el
+  // registro real (series, repeticiones, carga) ocurre en la sesión guiada
+  // de start-workout.tsx, que resuelve "hoy" con el mismo criterio y
+  // alimenta el progreso con datos reales en vez del payload simulado que
+  // mandaba este botón antes.
+  const workoutExercises: Exercise[] = data?.todayWorkout?.exercises ?? [];
 
   const handleCheckin = async () => {
     setCheckinLoading(true);
@@ -226,27 +202,16 @@ export default function MemberDashboard() {
           </View>
         ) : (
           <>
+            {/* Previsualización: la sesión guiada (start-workout.tsx) es la
+                que resuelve de nuevo "hoy" y registra series reales; esta
+                lista es solo un vistazo de lo que toca, sin interacción. */}
             {workoutExercises.map((ex, i) => (
-              <WorkoutRow
-                key={`${ex.name}-${i}`}
-                exercise={ex}
-                index={i}
-                onToggle={toggleExercise}
-              />
+              <WorkoutRow key={`${ex.name}-${i}`} exercise={ex} index={i} />
             ))}
             <Button
-              label={workoutDone ? 'Entrenamiento completado' : 'Marcar entrenamiento completado'}
-              variant={workoutDone ? 'secondary' : 'primary'}
-              onPress={completeWorkout}
-              loading={workoutSaving}
-              disabled={workoutDone}
-              icon={
-                <Ionicons
-                  name={workoutDone ? 'checkmark-done' : 'checkmark-circle-outline'}
-                  size={18}
-                  color={workoutDone ? colors.dataProgreso : colors.onAccent}
-                />
-              }
+              label="Empezar entrenamiento"
+              onPress={() => router.push('/(member)/start-workout')}
+              icon={<Ionicons name="play-circle-outline" size={18} color={colors.onAccent} />}
               style={{ marginTop: 12 }}
             />
           </>

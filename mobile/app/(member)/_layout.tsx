@@ -59,7 +59,7 @@ export default function MemberLayout() {
           }}
         />
       ))}
-      {['progress', 'routines', 'chat'].map((name) => (
+      {['progress', 'routines', 'chat', 'start-workout'].map((name) => (
         <Drawer.Screen
           key={name}
           name={name}
