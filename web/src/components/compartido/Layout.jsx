@@ -2,6 +2,7 @@ import { Outlet, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { FiLoader, FiCheckCircle, FiAlertCircle, FiX } from "react-icons/fi";
 import Sidebar from "./Sidebar";
+import PerfilCompletoBadge from "./PerfilCompletoBadge";
 import SystemGuide from "../guide/SystemGuide";
 import {
   useRoutineImportJob, dismissRoutineImportJob, cancelRoutineImportJob,
@@ -406,6 +407,11 @@ export default function Layout({ role = "owner_gym" }) {
           <SystemGuide open={guideOpen} path={guidePath} onClose={closeGuide} />
         )}
       </div>
+
+      {/* SCRUM-102: indicador circular de pendientes, flotante, visible en
+          cualquier pantalla del rol Miembro (muchas de sus páginas dibujan
+          su propio header por separado, sin un componente compartido). */}
+      {role === "user" && <PerfilCompletoBadge />}
 
       {showImportBanner && (() => {
         const estado = routineImportJob.estado;
