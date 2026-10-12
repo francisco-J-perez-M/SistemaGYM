@@ -61,15 +61,23 @@ export default function MembershipScreen() {
   const [indiceActivo, setIndiceActivo] = useState(0);   // posición en el carrusel
   // Efectivo + las pasarelas activas del gimnasio (PayPal / Mercado Pago)
   const [pasarelas, setPasarelas] = useState<MetodoPagoDisponible[]>([]);
+  // HU-30: si falla por falta de red (no hubo respuesta del servidor), los
+  // métodos digitales se muestran deshabilitados con un mensaje — nunca
+  // simplemente ocultos, para no confundir "sin internet" con "el gimnasio
+  // no tiene pasarelas configuradas".
+  const [pagosSinConexion, setPagosSinConexion] = useState(false);
 
   useEffect(() => {
     let vivo = true;
     (async () => {
       try {
         const lista = await getMetodosPago();
-        if (vivo) setPasarelas(lista);
-      } catch {
-        if (vivo) setPasarelas([]);
+        if (vivo) { setPasarelas(lista); setPagosSinConexion(false); }
+      } catch (err: any) {
+        if (!vivo) return;
+        setPasarelas([]);
+        // Sin "response" → la petición no llegó al servidor (sin conexión).
+        setPagosSinConexion(!err?.response);
       }
     })();
     return () => { vivo = false; };
@@ -389,6 +397,15 @@ export default function MembershipScreen() {
                   );
                 })}
               </View>
+              {pagosSinConexion && (
+                <View style={styles.warnRow}>
+                  <Ionicons name="cloud-offline-outline" size={16} color={colors.warning} />
+                  <Text style={styles.warnText}>
+                    Pago con PayPal o Mercado Pago no disponible sin conexión. Solo puedes
+                    renovar en efectivo hasta recuperar internet.
+                  </Text>
+                </View>
+              )}
 
               <View style={styles.totalRow}>
                 <Text style={styles.totalLabel}>Total a pagar</Text>
