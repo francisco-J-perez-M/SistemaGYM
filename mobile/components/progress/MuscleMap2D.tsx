@@ -2,17 +2,23 @@
  * MuscleMap2D.tsx — Mapa muscular 2D (SCRUM-101 + retro de Miguel 13/oct),
  * versión móvil.
  *
- * Mismo criterio que su equivalente web (web/src/components/miembro/MuscleMap2D.jsx):
- * colorea una silueta plana (SVG, react-native-svg) por grupo muscular según
- * el volumen de trabajo registrado en la bitácora (GET /user/workouts/muscle-groups).
+ * Silueta: v3 (13/oct) — reemplaza el SVG hecho a mano (óvalos/paths
+ * genéricos por grupo) por `BodySilhouette`, una silueta anatómica real de
+ * 317 fragmentos / 23 músculos, incorporada al código fuente del proyecto en
+ * `./body-anatomy` (adaptación de la librería de código abierto
+ * react-native-body-parts-anatomy — ver NOTICE.md en esa carpeta). No es una
+ * dependencia externa: el código vive dentro de GymPro y no depende de
+ * ninguna librería de terceros fuera de las que ya usa el proyecto
+ * (react-native-svg, react-native-gesture-handler, react-native-reanimated).
  *
- * Silueta: v2 (13/oct) — una región real por grupo anatómico (trapecio,
- * dorsales, pectorales, abdomen + oblicuos, deltoides, brazo superior +
- * antebrazo, glúteos, cuádriceps/isquiotibiales, pantorrillas), cada una
- * con un degradado radial propio (claro al centro -> color de intensidad
- * al borde) en vez de los óvalos/rectángulos planos de la v1.
+ * `BodySilhouette` se usa en modo `selectByGroup`, que agrupa sus 23 slugs
+ * anatómicos; GROUP_SLUG_MAP los reduce a los 6 grupos canónicos del
+ * backend (Piernas, Pecho, Espalda, Hombros, Brazos, Core) y `colorForSlug`
+ * les asigna el color de intensidad de su grupo. La silueta no tiene campo
+ * de género en el perfil del socio todavía, así que se usa "male" por
+ * defecto (la librería soporta "female" si en el futuro se agrega ese dato).
  *
- * Dos escalas distintas, a propósito:
+ * Dos escalas distintas, a propósito (igual que en v1/v2):
  * - Color de la región = intensidad RELATIVA (0..1 contra el grupo más
  *   trabajado del periodo) — "qué tan iluminado se ve ahora mismo".
  * - Rango/medalla (chip debajo de la silueta) = volumen ABSOLUTO
@@ -20,10 +26,11 @@
  *   total". Umbrales de arranque (ver RANGOS), sin calibrar aún con datos
  *   reales de uso del gimnasio piloto.
  */
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import Svg, { Defs, RadialGradient, Stop, Circle, Ellipse, Rect, Path, G, Line } from 'react-native-svg';
+import Svg, { Rect } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
+import { BodySilhouette, type BodySlugInput } from './body-anatomy';
 import { useColors, useFontScale } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
@@ -54,15 +61,25 @@ export function colorPorIntensidad(t: number): string {
   return `rgb(${r}, ${g}, ${b})`;
 }
 
-/** Aclara un "rgb(r, g, b)" mezclándolo hacia blanco (centro del degradado). */
-function aclarar(rgbStr: string, factor: number): string {
-  const m = /rgb\((\d+),\s*(\d+),\s*(\d+)\)/.exec(rgbStr);
-  if (!m) return rgbStr;
-  const [r, g, b] = [+m[1], +m[2], +m[3]].map((v) => Math.round(v + (255 - v) * factor));
-  return `rgb(${r}, ${g}, ${b})`;
-}
-
 const GRUPOS_CON_REGION = ['Piernas', 'Pecho', 'Espalda', 'Hombros', 'Brazos', 'Core'] as const;
+
+// Mapa de los 6 grupos canónicos del backend a los slugs anatómicos de
+// `body-anatomy` (23 grupos musculares). Slugs no listados aquí (cabeza,
+// cabello, cuello, manos, pies, tobillos, rodillas) quedan sin color propio
+// —decorativos, color base de la silueta—.
+const GROUP_SLUG_MAP: Record<string, BodySlugInput[]> = {
+  Piernas: ['quadriceps', 'hamstring', 'calves', 'gluteal', 'adductors', 'tibialis'],
+  Pecho: ['chest'],
+  Espalda: ['trapezius', 'upper-back', 'lower-back'],
+  Hombros: ['deltoids'],
+  Brazos: ['biceps', 'triceps', 'forearm'],
+  Core: ['abs', 'obliques'],
+};
+
+// Lookup inverso (slug anatómico -> grupo canónico), construido una sola vez.
+const SLUG_A_GRUPO: Record<string, string> = Object.fromEntries(
+  Object.entries(GROUP_SLUG_MAP).flatMap(([grupo, slugs]) => slugs.map((slug) => [slug, grupo])),
+);
 
 function calcularIntensidades(grupos: GrupoTrabajo[]): Record<string, number> {
   const porGrupo: Record<string, number> = {};
@@ -92,128 +109,6 @@ function rangoDe(volumen: number): Rango | null {
   return RANGOS.find((r) => (volumen || 0) >= r.min) ?? null;
 }
 
-// ───────────────────────── Silueta anatómica (viewBox 220x460) ────────────
-function Silueta({
-  vista, intensidades, idBase,
-}: { vista: 'frontal' | 'posterior'; intensidades: Record<string, number>; idBase: string }) {
-  const esFrontal = vista === 'frontal';
-  const colorDe = (grupo: string) => colorPorIntensidad(intensidades[grupo] || 0);
-
-  const grad = (grupo: string) => {
-    const base = colorDe(grupo);
-    const gid = `${idBase}-${grupo}`;
-    return { id: gid, url: `url(#${gid})`, centro: aclarar(base, 0.55), borde: base };
-  };
-  const gHombros = grad('Hombros');
-  const gPecho   = grad('Pecho');
-  const gCore    = grad('Core');
-  const gEspalda = grad('Espalda');
-  const gBrazos  = grad('Brazos');
-  const gPiernas = grad('Piernas');
-
-  const grises = '#475569';
-  const trazo  = 'rgba(0,0,0,0.28)';
-
-  return (
-    <Svg viewBox="0 0 220 460" width={150} height={314}>
-      <Defs>
-        {[gHombros, gPecho, gCore, gEspalda, gBrazos, gPiernas].map((g) => (
-          <RadialGradient key={g.id} id={g.id} cx="35%" cy="30%" r="75%">
-            <Stop offset="0%" stopColor={g.centro} />
-            <Stop offset="100%" stopColor={g.borde} />
-          </RadialGradient>
-        ))}
-      </Defs>
-
-      {/* Cabeza y cuello — decorativos */}
-      <Ellipse cx={110} cy={30} rx={18} ry={20} fill={grises} />
-      <Rect x={100} y={48} width={20} height={14} fill={grises} />
-
-      {/* Hombros / deltoides */}
-      <Ellipse cx={62}  cy={78} rx={18} ry={15} fill={gHombros.url} stroke={trazo} strokeWidth={1} />
-      <Ellipse cx={158} cy={78} rx={18} ry={15} fill={gHombros.url} stroke={trazo} strokeWidth={1} />
-
-      {esFrontal ? (
-        <>
-          {/* Pectorales */}
-          <Path d="M76,66 Q110,56 144,66 L148,118 Q110,128 72,118 Z"
-                fill={gPecho.url} stroke={trazo} strokeWidth={1} />
-
-          {/* Oblicuos */}
-          <Path d="M78,124 Q72,160 80,198 L88,198 L88,124 Z"
-                fill={gCore.url} stroke={trazo} strokeWidth={1} />
-          <Path d="M142,124 Q148,160 140,198 L132,198 L132,124 Z"
-                fill={gCore.url} stroke={trazo} strokeWidth={1} />
-
-          {/* Abdomen */}
-          <Path d="M88,118 L132,118 L128,208 Q110,216 92,208 Z"
-                fill={gCore.url} stroke={trazo} strokeWidth={1} />
-          <G stroke="rgba(0,0,0,0.18)" strokeWidth={1}>
-            <Line x1={110} y1={120} x2={110} y2={206} />
-            <Line x1={93}  y1={142} x2={127} y2={142} />
-            <Line x1={92}  y1={168} x2={128} y2={168} />
-            <Line x1={92}  y1={192} x2={126} y2={192} />
-          </G>
-        </>
-      ) : (
-        <>
-          {/* Trapecio */}
-          <Path d="M92,64 L110,56 L128,64 L138,110 Q110,130 82,110 Z"
-                fill={gEspalda.url} stroke={trazo} strokeWidth={1} />
-
-          {/* Dorsales */}
-          <Path d="M78,112 Q68,150 78,195 L96,195 L92,120 Z"
-                fill={gEspalda.url} stroke={trazo} strokeWidth={1} />
-          <Path d="M142,112 Q152,150 142,195 L124,195 L128,120 Z"
-                fill={gEspalda.url} stroke={trazo} strokeWidth={1} />
-
-          {/* Lumbar */}
-          <Path d="M98,195 L122,195 L120,215 L100,215 Z"
-                fill={gEspalda.url} stroke={trazo} strokeWidth={1} />
-
-          {/* Glúteos */}
-          <Path d="M84,215 Q78,245 92,252 L108,250 L106,215 Z"
-                fill={gPiernas.url} stroke={trazo} strokeWidth={1} />
-          <Path d="M136,215 Q142,245 128,252 L112,250 L114,215 Z"
-                fill={gPiernas.url} stroke={trazo} strokeWidth={1} />
-        </>
-      )}
-
-      {/* Brazo superior */}
-      <Path d="M54,82 Q44,110 48,145 L66,145 Q70,110 64,82 Z"
-            fill={gBrazos.url} stroke={trazo} strokeWidth={1} />
-      <Path d="M166,82 Q176,110 172,145 L154,145 Q150,110 156,82 Z"
-            fill={gBrazos.url} stroke={trazo} strokeWidth={1} />
-
-      {/* Antebrazo */}
-      <Path d="M48,145 Q42,175 46,205 L62,205 Q66,175 64,145 Z"
-            fill={gBrazos.url} stroke={trazo} strokeWidth={1} />
-      <Path d="M172,145 Q178,175 174,205 L158,205 Q154,175 156,145 Z"
-            fill={gBrazos.url} stroke={trazo} strokeWidth={1} />
-
-      {/* Manos — decorativas */}
-      <Ellipse cx={52}  cy={215} rx={9} ry={12} fill={grises} />
-      <Ellipse cx={168} cy={215} rx={9} ry={12} fill={grises} />
-
-      {/* Muslos */}
-      <Path d="M86,210 L108,212 L104,330 L82,328 Z"
-            fill={gPiernas.url} stroke={trazo} strokeWidth={1} />
-      <Path d="M134,210 L112,212 L116,330 L138,328 Z"
-            fill={gPiernas.url} stroke={trazo} strokeWidth={1} />
-
-      {/* Pantorrillas */}
-      <Path d="M84,330 L104,330 L100,418 L86,418 Z"
-            fill={gPiernas.url} stroke={trazo} strokeWidth={1} />
-      <Path d="M136,330 L116,330 L120,418 L134,418 Z"
-            fill={gPiernas.url} stroke={trazo} strokeWidth={1} />
-
-      {/* Pies — decorativos */}
-      <Ellipse cx={93}  cy={428} rx={14} ry={8} fill={grises} />
-      <Ellipse cx={127} cy={428} rx={14} ry={8} fill={grises} />
-    </Svg>
-  );
-}
-
 export default function MuscleMap2D() {
   const colors = useColors();
   const fs = useFontScale();
@@ -228,6 +123,17 @@ export default function MuscleMap2D() {
   const intensidades = calcularIntensidades(grupos);
   const volumenPorGrupo: Record<string, number> = Object.fromEntries(grupos.map((g) => [g.grupo, g.volumen || 0]));
   const otros = grupos.filter((g) => !GRUPOS_CON_REGION.includes(g.grupo as any) && (g.volumen || 0) > 0);
+
+  // Estable mientras no cambien las intensidades: `BodySilhouette` lo llama
+  // una vez por fragmento (hasta 317) en cada render, así que no conviene
+  // recrearlo en cada pasada de render.
+  const colorForSlug = useCallback(
+    (slug: string) => {
+      const grupo = SLUG_A_GRUPO[slug];
+      return grupo ? colorPorIntensidad(intensidades[grupo] || 0) : undefined;
+    },
+    [intensidades],
+  );
 
   return (
     <View style={styles.card}>
@@ -259,11 +165,35 @@ export default function MuscleMap2D() {
           <View style={styles.siluetaRow}>
             <View style={styles.siluetaCol}>
               <Text style={styles.vistaLabel}>FRONTAL</Text>
-              <Silueta vista="frontal" intensidades={intensidades} idBase="mm2d-mv-f" />
+              <View style={{ width: 130 }}>
+                <BodySilhouette
+                  gender="male"
+                  view="front"
+                  selectByGroup
+                  selectedSlugs={[]}
+                  colorForSlug={colorForSlug}
+                  zoomable={false}
+                  outlineColor="rgba(0,0,0,0.28)"
+                  unselectedFragmentColor="#475569"
+                  accessibilityLabel="Mapa muscular, vista frontal"
+                />
+              </View>
             </View>
             <View style={styles.siluetaCol}>
               <Text style={styles.vistaLabel}>POSTERIOR</Text>
-              <Silueta vista="posterior" intensidades={intensidades} idBase="mm2d-mv-b" />
+              <View style={{ width: 130 }}>
+                <BodySilhouette
+                  gender="male"
+                  view="back"
+                  selectByGroup
+                  selectedSlugs={[]}
+                  colorForSlug={colorForSlug}
+                  zoomable={false}
+                  outlineColor="rgba(0,0,0,0.28)"
+                  unselectedFragmentColor="#475569"
+                  accessibilityLabel="Mapa muscular, vista posterior"
+                />
+              </View>
             </View>
           </View>
 
