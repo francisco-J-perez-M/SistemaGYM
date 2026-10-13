@@ -10,7 +10,7 @@
  */
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, SectionList, TouchableOpacity,
+  View, Text, StyleSheet, FlatList, SectionList, ScrollView, TouchableOpacity,
   RefreshControl, TextInput, KeyboardAvoidingView, Platform, Alert, Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -366,6 +366,15 @@ export default function TrainingScreen() {
       )}
 
       {/* ── ENTRENADOR + CHAT ─────────────────────────────────── */}
+      {/* Rediseño (feedback de Miguel): antes el chat se dibujaba SIEMPRE
+          debajo, aunque todavía no hubiera ningún entrenador asignado --
+          quedaba un bloque de chat vacío "colgando" con un hueco grande
+          entre el título "Chat" y el mensaje "Selecciona un entrenador",
+          pegado hasta abajo por el `justifyContent: 'flex-end'` de la
+          lista, lo que se veía encimado/desordenado. Ahora el chat NO se
+          monta en absoluto hasta que hay un entrenador asignado (`active`
+          con `trainers.length > 0`); mientras tanto, la gestión de la
+          solicitud de PT ocupa toda la pantalla en su propio scroll. */}
       {tab === 'entrenador' && (
         <View style={{ flex: 1 }}>
           {/* Selector si hay varios */}
@@ -392,162 +401,163 @@ export default function TrainingScreen() {
             />
           )}
 
-          {/* Card entrenador */}
           {trainers.length === 0 ? (
-            pendingRequest ? (
-              <Card style={styles.trainerCard}>
-                <View style={styles.empty}>
-                  <Ionicons name="time-outline" size={40} color={colors.textMuted} />
-                  <Text style={styles.emptyText}>
-                    Esperando respuesta de {pendingRequest.nombre_entrenador ?? 'tu entrenador'}
-                  </Text>
-                  <Text style={styles.emptyHint}>Te avisaremos cuando la acepte o la rechace.</Text>
-                  <TouchableOpacity
-                    onPress={handleCancelPT}
-                    disabled={cancelling}
-                    accessibilityRole="button"
-                    accessibilityLabel="Cancelar solicitud"
-                  >
-                    <Text style={styles.cancelRequestText}>
-                      {cancelling ? 'Cancelando…' : 'Cancelar solicitud'}
+            <ScrollView contentContainerStyle={styles.sinEntrenadorScroll} showsVerticalScrollIndicator={false}>
+              {pendingRequest ? (
+                <Card style={styles.trainerCard}>
+                  <View style={styles.empty}>
+                    <Ionicons name="time-outline" size={40} color={colors.textMuted} />
+                    <Text style={styles.emptyText}>
+                      Esperando respuesta de {pendingRequest.nombre_entrenador ?? 'tu entrenador'}
                     </Text>
+                    <Text style={styles.emptyHint}>Te avisaremos cuando la acepte o la rechace.</Text>
+                    <TouchableOpacity
+                      onPress={handleCancelPT}
+                      disabled={cancelling}
+                      accessibilityRole="button"
+                      accessibilityLabel="Cancelar solicitud"
+                    >
+                      <Text style={styles.cancelRequestText}>
+                        {cancelling ? 'Cancelando…' : 'Cancelar solicitud'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </Card>
+              ) : availableTrainers.length === 0 ? (
+                <Card style={styles.trainerCard}>
+                  <View style={styles.empty}>
+                    <Ionicons name="person-outline" size={40} color={colors.textMuted} />
+                    <Text style={styles.emptyText}>Tu gimnasio aún no tiene entrenadores disponibles.</Text>
+                  </View>
+                </Card>
+              ) : (
+                <View>
+                  <Text style={styles.seccionTitle}>Elige un entrenador para solicitar PT</Text>
+                  {availableTrainers.map((t) => {
+                    const tId = Number(t.id ?? t._id ?? 0);
+                    return (
+                      <Card key={tId} style={styles.trainerCard}>
+                        <View style={styles.trainerRow}>
+                          {t.foto && t.foto.startsWith('data:image') ? (
+                            <Image source={{ uri: t.foto }} style={styles.trainerAvatarImg} resizeMode="cover" />
+                          ) : (
+                            <View style={styles.trainerAvatar}>
+                              <Text style={styles.trainerInitials}>{trainerName(t).charAt(0).toUpperCase()}</Text>
+                            </View>
+                          )}
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.trainerName}>{trainerName(t)}</Text>
+                            {t.especialidad ? <Text style={styles.trainerSpec}>{t.especialidad}</Text> : null}
+                          </View>
+                          <TouchableOpacity
+                            style={styles.requestBtn}
+                            onPress={() => handleRequestPT(t)}
+                            disabled={requestingId === tId}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Solicitar a ${trainerName(t)}`}
+                          >
+                            <Text style={styles.requestBtnText}>
+                              {requestingId === tId ? 'Enviando…' : 'Solicitar'}
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                      </Card>
+                    );
+                  })}
+                </View>
+              )}
+            </ScrollView>
+          ) : active ? (
+            <>
+              {/* La tarjeta abre la ficha completa: datos, certificaciones y
+                  calificación. Al sacarlas de aquí, el chat recupera la pantalla. */}
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() => setPerfilId(Number(active.id ?? 0) || null)}
+                accessibilityRole="button"
+                accessibilityLabel={`Ver el perfil de ${trainerName(active)}`}
+                accessibilityHint="Muestra su información, certificaciones y la calificación"
+              >
+                <Card style={styles.trainerCard}>
+                  <View style={styles.trainerRow}>
+                    {active.foto && active.foto.startsWith('data:image') ? (
+                      <Image source={{ uri: active.foto }} style={styles.trainerAvatarImg} resizeMode="cover" />
+                    ) : (
+                      <View style={styles.trainerAvatar}>
+                        <Text style={styles.trainerInitials}>
+                          {trainerName(active).charAt(0).toUpperCase()}
+                        </Text>
+                      </View>
+                    )}
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.trainerName}>{trainerName(active)}</Text>
+                      {active.especialidad ? <Text style={styles.trainerSpec}>{active.especialidad}</Text> : null}
+                      <Text style={styles.trainerVerMas}>Ver perfil y calificar</Text>
+                    </View>
+                    <Badge label="PT" color="accent" />
+                    <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                  </View>
+                </Card>
+              </TouchableOpacity>
+
+              {/* Chat — ya solo se monta cuando hay entrenador asignado, así
+                  aprovecha todo el espacio sobrante en vez de quedar vacío
+                  debajo de la lista de solicitud. */}
+              <View style={styles.chatContainer}>
+                <Text style={styles.chatTitle}>Chat con {trainerName(active)}</Text>
+                <FlatList
+                  ref={flatRef}
+                  data={mensajes}
+                  keyExtractor={(m, i) => m._id ?? String(i)}
+                  contentContainerStyle={styles.chatList}
+                  showsVerticalScrollIndicator={false}
+                  refreshControl={<RefreshControl refreshing={loadingC} onRefresh={refetchC} tintColor={colors.accent} />}
+                  onContentSizeChange={() => flatRef.current?.scrollToEnd({ animated: false })}
+                  ListEmptyComponent={
+                    <View style={styles.chatEmpty}>
+                      <Ionicons name="chatbubbles-outline" size={36} color={colors.textMuted} />
+                      <Text style={styles.chatEmptyText}>Inicia la conversación.</Text>
+                    </View>
+                  }
+                  renderItem={({ item: m }) => {
+                    const isMe  = (m.remitente ?? m.rol) === 'miembro';
+                    const texto = toStr(m.mensaje ?? m.texto);
+                    const hora  = toStr(m.fecha ?? m.created_at);
+                    return (
+                      <View style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleThem]}>
+                        <Text style={[styles.bubbleText, isMe && styles.bubbleTextMe]}>{texto}</Text>
+                        {hora ? (
+                          <Text style={[styles.bubbleTime, isMe && { color: colors.onAccent, opacity: 0.7 }]}>
+                            {toDateStr(hora, 16).slice(11, 16)}
+                          </Text>
+                        ) : null}
+                      </View>
+                    );
+                  }}
+                />
+                <View style={[styles.inputBar, { paddingBottom: insets.bottom + 8 }]}>
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="Escribe un mensaje…"
+                    placeholderTextColor={colors.textMuted}
+                    value={msg} onChangeText={setMsg}
+                    multiline maxLength={500}
+                    accessibilityLabel="Mensaje al entrenador"
+                  />
+                  <TouchableOpacity
+                    style={[styles.sendBtn, (!msg.trim() || sending) && styles.sendBtnDisabled]}
+                    onPress={handleSend}
+                    disabled={!msg.trim() || sending}
+                  >
+                    <Ionicons name="send" size={18} color={colors.onAccent} />
                   </TouchableOpacity>
                 </View>
-              </Card>
-            ) : availableTrainers.length === 0 ? (
-              <Card style={styles.trainerCard}>
-                <View style={styles.empty}>
-                  <Ionicons name="person-outline" size={40} color={colors.textMuted} />
-                  <Text style={styles.emptyText}>Tu gimnasio aún no tiene entrenadores disponibles.</Text>
-                </View>
-              </Card>
-            ) : (
-              <View>
-                <Text style={styles.chatTitle}>Elige un entrenador para solicitar PT</Text>
-                {availableTrainers.map((t) => {
-                  const tId = Number(t.id ?? t._id ?? 0);
-                  return (
-                    <Card key={tId} style={styles.trainerCard}>
-                      <View style={styles.trainerRow}>
-                        {t.foto && t.foto.startsWith('data:image') ? (
-                          <Image source={{ uri: t.foto }} style={styles.trainerAvatarImg} resizeMode="cover" />
-                        ) : (
-                          <View style={styles.trainerAvatar}>
-                            <Text style={styles.trainerInitials}>{trainerName(t).charAt(0).toUpperCase()}</Text>
-                          </View>
-                        )}
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.trainerName}>{trainerName(t)}</Text>
-                          {t.especialidad ? <Text style={styles.trainerSpec}>{t.especialidad}</Text> : null}
-                        </View>
-                        <TouchableOpacity
-                          style={styles.requestBtn}
-                          onPress={() => handleRequestPT(t)}
-                          disabled={requestingId === tId}
-                          accessibilityRole="button"
-                          accessibilityLabel={`Solicitar a ${trainerName(t)}`}
-                        >
-                          <Text style={styles.requestBtnText}>
-                            {requestingId === tId ? 'Enviando…' : 'Solicitar'}
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
-                    </Card>
-                  );
-                })}
               </View>
-            )
-          ) : active ? (
-            // La tarjeta abre la ficha completa: datos, certificaciones y
-            // calificación. Al sacarlas de aquí, el chat recupera la pantalla.
-            <TouchableOpacity
-              activeOpacity={0.85}
-              onPress={() => setPerfilId(Number(active.id ?? 0) || null)}
-              accessibilityRole="button"
-              accessibilityLabel={`Ver el perfil de ${trainerName(active)}`}
-              accessibilityHint="Muestra su información, certificaciones y la calificación"
-            >
-              <Card style={styles.trainerCard}>
-                <View style={styles.trainerRow}>
-                  {active.foto && active.foto.startsWith('data:image') ? (
-                    <Image source={{ uri: active.foto }} style={styles.trainerAvatarImg} resizeMode="cover" />
-                  ) : (
-                    <View style={styles.trainerAvatar}>
-                      <Text style={styles.trainerInitials}>
-                        {trainerName(active).charAt(0).toUpperCase()}
-                      </Text>
-                    </View>
-                  )}
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.trainerName}>{trainerName(active)}</Text>
-                    {active.especialidad ? <Text style={styles.trainerSpec}>{active.especialidad}</Text> : null}
-                    <Text style={styles.trainerVerMas}>Ver perfil y calificar</Text>
-                  </View>
-                  <Badge label="PT" color="accent" />
-                  <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-                </View>
-              </Card>
-            </TouchableOpacity>
+            </>
           ) : null}
-
-          {/* Chat */}
-          <View style={styles.chatContainer}>
-            <Text style={styles.chatTitle}>
-              {active ? `Chat con ${trainerName(active)}` : 'Chat'}
-            </Text>
-            <FlatList
-              ref={flatRef}
-              data={mensajes}
-              keyExtractor={(m, i) => m._id ?? String(i)}
-              contentContainerStyle={styles.chatList}
-              showsVerticalScrollIndicator={false}
-              refreshControl={<RefreshControl refreshing={loadingC} onRefresh={refetchC} tintColor={colors.accent} />}
-              onContentSizeChange={() => flatRef.current?.scrollToEnd({ animated: false })}
-              ListEmptyComponent={
-                <View style={styles.chatEmpty}>
-                  <Ionicons name="chatbubbles-outline" size={36} color={colors.textMuted} />
-                  <Text style={styles.chatEmptyText}>
-                    {trainerId ? 'Inicia la conversación.' : 'Selecciona un entrenador.'}
-                  </Text>
-                </View>
-              }
-              renderItem={({ item: m }) => {
-                const isMe  = (m.remitente ?? m.rol) === 'miembro';
-                const texto = toStr(m.mensaje ?? m.texto);
-                const hora  = toStr(m.fecha ?? m.created_at);
-                return (
-                  <View style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleThem]}>
-                    <Text style={[styles.bubbleText, isMe && styles.bubbleTextMe]}>{texto}</Text>
-                    {hora ? (
-                      <Text style={[styles.bubbleTime, isMe && { color: colors.onAccent, opacity: 0.7 }]}>
-                        {toDateStr(hora, 16).slice(11, 16)}
-                      </Text>
-                    ) : null}
-                  </View>
-                );
-              }}
-            />
-            <View style={[styles.inputBar, { paddingBottom: insets.bottom + 8 }]}>
-              <TextInput
-                style={styles.textInput}
-                placeholder={trainerId ? 'Escribe un mensaje…' : 'Selecciona un entrenador'}
-                placeholderTextColor={colors.textMuted}
-                value={msg} onChangeText={setMsg}
-                multiline maxLength={500}
-                editable={!!trainerId}
-                accessibilityLabel="Mensaje al entrenador"
-              />
-              <TouchableOpacity
-                style={[styles.sendBtn, (!msg.trim() || sending || !trainerId) && styles.sendBtnDisabled]}
-                onPress={handleSend}
-                disabled={!msg.trim() || sending || !trainerId}
-              >
-                <Ionicons name="send" size={18} color={colors.onAccent} />
-              </TouchableOpacity>
-            </View>
-          </View>
         </View>
       )}
+
       <PerfilEntrenador
         trainerId={perfilId}
         onClose={() => setPerfilId(null)}
@@ -609,6 +619,15 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   ejNombre:     { color: colors.text, fontSize: 14 * fs, fontWeight: '600' },
   ejDetalle:    { color: colors.accent, fontSize: 12 * fs },
   ejNotas:      { color: colors.textSecondary, fontSize: 12 * fs, fontStyle: 'italic' },
+  // Scroll propio de la pantalla "sin entrenador asignado todavía"
+  // (pendiente de respuesta / sin entrenadores / elige uno para pedir PT):
+  // centra el contenido si es corto, se desplaza si la lista es larga, y ya
+  // no deja un bloque de chat vacío colgando debajo (ver comentario arriba).
+  sinEntrenadorScroll: { flexGrow: 1, justifyContent: 'center', paddingVertical: 20 },
+  // Título de esa pantalla: mismo estilo que chatTitle, pero con su propio
+  // margen horizontal porque aquí NO vive dentro de un contenedor con
+  // padding (a diferencia de chatTitle, que sí lo hereda de chatContainer).
+  seccionTitle: { color: colors.textSecondary, fontSize: 12 * fs, fontWeight: '700', marginBottom: 10, marginHorizontal: 20 },
   trainerSelector: { flexGrow: 0, maxHeight: 48 },
   trainerChip:  { alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
   trainerChipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
