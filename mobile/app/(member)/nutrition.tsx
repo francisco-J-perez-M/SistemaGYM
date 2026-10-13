@@ -82,8 +82,13 @@ export default function NutritionScreen() {
   const [dietaAbierta,  setDietaAbierta]  = useState<string | null>(null);
   const [recetaAbierta, setRecetaAbierta] = useState<Receta | null>(null);
 
-  const { data: dietasRes, loading: loadingD, refetch: refetchD } = useFetch<{ dietas: Dieta[] }>(ENDPOINTS.DIETAS);
-  const { data: recetasRes, loading: loadingR, refetch: refetchR } = useFetch<{ recetas: Receta[] }>(ENDPOINTS.RECETAS);
+  // SCRUM-168 / HU-30: el plan de nutrición es de los pocos datos que el
+  // socio consulta estando ya en el gimnasio (a veces sin señal) — cachear
+  // la última respuesta evita una pantalla vacía justo cuando la necesita.
+  const { data: dietasRes, loading: loadingD, refetch: refetchD } =
+    useFetch<{ dietas: Dieta[] }>(ENDPOINTS.DIETAS, undefined, { cache: true });
+  const { data: recetasRes, loading: loadingR, refetch: refetchR } =
+    useFetch<{ recetas: Receta[] }>(ENDPOINTS.RECETAS, undefined, { cache: true });
 
   const dietas  = dietasRes?.dietas  ?? [];
   const recetas = recetasRes?.recetas ?? [];

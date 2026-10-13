@@ -69,6 +69,8 @@ import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import api from '../../services/api';
+import { estaConectado } from '../../services/offline/connectivity';
+import { encolarAccion } from '../../services/offline/queue';
 
 // ── Tipos (mismo contrato que workout-log.tsx) ──────────────────────────────
 interface RoutineEx {
@@ -140,12 +142,15 @@ export default function StartWorkoutScreen() {
   const styles = useMemo(() => make_styles(colors, fs), [colors, fs]);
   const insets = useSafeAreaInsets();
 
+  // SCRUM-168 / HU-30: la rutina de hoy es la lectura más crítica para
+  // entrenar sin conexión — cachear las tres sin las cuales no hay sesión
+  // que armar (rutinas propias, asignadas y la unidad de peso del perfil).
   const { data: routinesData, loading: loadingPropias } =
-    useFetch<{ rutinas: Routine[] }>(ENDPOINTS.USER_ROUTINES);
+    useFetch<{ rutinas: Routine[] }>(ENDPOINTS.USER_ROUTINES, undefined, { cache: true });
   const { data: assignedData, loading: loadingAsignadas } =
-    useFetch<{ rutinas: Routine[] }>(ENDPOINTS.USER_ASSIGNED_ROUTINES);
+    useFetch<{ rutinas: Routine[] }>(ENDPOINTS.USER_ASSIGNED_ROUTINES, undefined, { cache: true });
   const { data: profileData, loading: loadingProfile } =
-    useFetch<{ unidadMedida?: string }>(ENDPOINTS.USER_PROFILE);
+    useFetch<{ unidadMedida?: string }>(ENDPOINTS.USER_PROFILE, undefined, { cache: true });
 
   const cargando = loadingPropias || loadingAsignadas || loadingProfile;
 
@@ -201,6 +206,10 @@ export default function StartWorkoutScreen() {
   const [sesionIniciada, setSesionIniciada] = useState(() => Date.now());
   const [guardando, setGuardando] = useState(false);
   const [resultado, setResultado] = useState<{ total_ejercicios: number; total_series: number; calorias_estimadas: number } | null>(null);
+  // SCRUM-168 / HU-30: la sesión se guardó en la cola offline (sin
+  // confirmación del servidor todavía) — cambia el texto del resumen para
+  // no mostrar calorías/volumen como si ya estuvieran confirmados.
+  const [pendienteSync, setPendienteSync] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current); }, []);
@@ -264,8 +273,13 @@ export default function StartWorkoutScreen() {
     setRestante(0);
     setSesionIniciada(Date.now());
     setResultado(null);
+    setPendienteSync(false);
   };
 
+  // SCRUM-168 / HU-30: la sesión completada nunca se pierde por falta de
+  // señal — se encola y se confirma en el servidor al reconectar. Es una
+  // escritura "segura" (no mueve dinero), a diferencia de renovar membresía
+  // o pagar, que SÍ se bloquean sin conexión (ver membership.tsx, pos.tsx).
   const guardarSesion = async () => {
     if (!seleccion || !ejercicios) return;
     const porGuardar = ejercicios
@@ -280,19 +294,44 @@ export default function StartWorkoutScreen() {
       return;
     }
 
+    const duracionMin = Math.max(1, Math.round((Date.now() - sesionIniciada) / 60000));
+    const payload = {
+      nombre_rutina: `${seleccion.routine.nombre}${seleccion.day.grupo ? ' - ' + seleccion.day.grupo : ''}`,
+      grupo_muscular: seleccion.day.grupo || undefined,
+      id_rutina: seleccion.routine.idRutinaOrigen ?? undefined,
+      duracion_min: duracionMin,
+      ejercicios: porGuardar,
+    };
+    const totalSeriesGuardadas = porGuardar.reduce((acc, e) => acc + e.series.length, 0);
+
+    const encolarYMostrar = async () => {
+      await encolarAccion('WORKOUT_COMPLETE', ENDPOINTS.WORKOUT_COMPLETE, payload);
+      setResultado({
+        total_ejercicios: porGuardar.length,
+        total_series: totalSeriesGuardadas,
+        calorias_estimadas: 0, // se calcula en el servidor al sincronizar
+      });
+      setPendienteSync(true);
+      setEstado('guardada');
+    };
+
     setGuardando(true);
     try {
-      const duracionMin = Math.max(1, Math.round((Date.now() - sesionIniciada) / 60000));
-      const { data: res } = await api.post(ENDPOINTS.WORKOUT_COMPLETE, {
-        nombre_rutina: `${seleccion.routine.nombre}${seleccion.day.grupo ? ' - ' + seleccion.day.grupo : ''}`,
-        grupo_muscular: seleccion.day.grupo || undefined,
-        id_rutina: seleccion.routine.idRutinaOrigen ?? undefined,
-        duracion_min: duracionMin,
-        ejercicios: porGuardar,
-      });
+      if (!estaConectado()) {
+        await encolarYMostrar();
+        return;
+      }
+      const { data: res } = await api.post(ENDPOINTS.WORKOUT_COMPLETE, payload);
       setResultado(res);
+      setPendienteSync(false);
       setEstado('guardada');
     } catch (e: any) {
+      if (!e?.response) {
+        // Se perdió la conexión justo al enviar: se encola en vez de
+        // descartar la sesión completa que el socio acaba de registrar.
+        await encolarYMostrar();
+        return;
+      }
       Alert.alert('Error', e?.response?.data?.error ?? 'No se pudo guardar la sesión.');
     } finally {
       setGuardando(false);
@@ -374,9 +413,19 @@ export default function StartWorkoutScreen() {
         <Text style={styles.emptyTitle}>{guardada ? '¡Sesión guardada!' : 'Rutina finalizada'}</Text>
         <Text style={styles.emptyText}>
           {guardada && resultado
-            ? `${resultado.total_ejercicios} ejercicios · ${resultado.total_series} series · ~${resultado.calorias_estimadas} kcal`
+            ? (pendienteSync
+                ? `${resultado.total_ejercicios} ejercicios · ${resultado.total_series} series — se sincronizará al reconectar`
+                : `${resultado.total_ejercicios} ejercicios · ${resultado.total_series} series · ~${resultado.calorias_estimadas} kcal`)
             : `${hechas} de ${totalSeries} series marcadas como completadas.`}
         </Text>
+        {guardada && pendienteSync && (
+          <View style={styles.syncPendienteBanner}>
+            <Ionicons name="cloud-offline-outline" size={16} color={colors.warning} />
+            <Text style={styles.syncPendienteTexto}>
+              Guardado en tu dispositivo. Se enviará al servidor en cuanto recuperes conexión.
+            </Text>
+          </View>
+        )}
 
         {!guardada && (
           <>
@@ -569,6 +618,12 @@ function make_styles(colors: any, fs: number) {
     center:  { alignItems: 'center', justifyContent: 'center', padding: 24, gap: 6 },
     emptyTitle: { fontSize: 18 * fs, fontWeight: '700', color: colors.text, marginTop: 14, textAlign: 'center' },
     emptyText:  { fontSize: 14 * fs, color: colors.textMuted, textAlign: 'center', marginTop: 6, lineHeight: 20 },
+    syncPendienteBanner: {
+      flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16, width: '100%',
+      backgroundColor: colors.inputBg, borderRadius: 10, borderWidth: 1, borderColor: colors.border,
+      paddingVertical: 10, paddingHorizontal: 12,
+    },
+    syncPendienteTexto: { flex: 1, fontSize: 12.5 * fs, color: colors.textSecondary, lineHeight: 17 },
     selectorRutina: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
     rutinaChip: {
       flexDirection: 'row', alignItems: 'center', gap: 6, maxWidth: '100%',

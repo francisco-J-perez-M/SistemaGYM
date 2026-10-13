@@ -35,6 +35,7 @@ import BotonesPago from '../../components/BotonesPago';
 import TicketVenta, { TicketVentaData } from '../../components/admin/TicketVenta';
 import { useAuth } from '../../hooks/useAuth';
 import * as Haptics from 'expo-haptics';
+import { estaConectado, useConnectivityStore } from '../../services/offline/connectivity';
 
 type Tab = 'productos' | 'historial';
 
@@ -87,6 +88,7 @@ export default function MemberPOSScreen() {
   const insets = useSafeAreaInsets();
 
   const { user } = useAuth();
+  const conectado = useConnectivityStore((s) => s.conectado);
   const [tab,     setTab]     = useState<Tab>('productos');
   // Compra cuyo comprobante se está mostrando
   const [ticket,  setTicket]  = useState<TicketVentaData | null>(null);
@@ -131,9 +133,20 @@ export default function MemberPOSScreen() {
       return { ...prev, [id]: { ...ex, cantidad: ex.cantidad - 1 } };
     });
 
-  /** Compra en efectivo: se registra al momento y se cobra en recepción. */
+  /**
+   * Compra en efectivo: se registra al momento y se cobra en recepción.
+   *
+   * SCRUM-168 / HU-30: aunque el cobro sea físico, registrar la venta baja
+   * el stock del servidor de inmediato — es un movimiento de dinero/
+   * inventario, y el ticket exige que ninguno quede en cola. Se bloquea
+   * sin conexión, igual que la compra con pasarela (ver BotonesPago abajo).
+   */
   const handleCheckout = async () => {
     if (cartItems.length === 0) return;
+    if (!estaConectado()) {
+      Alert.alert('Sin conexión', 'No puedes registrar una compra sin conexión a internet. Intenta de nuevo cuando la recuperes.');
+      return;
+    }
     setBuying(true);
     try {
       const payload: Record<string, any> = {
@@ -410,12 +423,22 @@ export default function MemberPOSScreen() {
                 </View>
               </View>
 
+              {!conectado && (
+                <View style={styles.offlineWarnRow}>
+                  <Ionicons name="cloud-offline-outline" size={16} color={colors.warning} />
+                  <Text style={styles.offlineWarnText}>
+                    Sin conexión: no se pueden registrar compras en este momento, ni en
+                    efectivo ni en línea. Intenta de nuevo cuando recuperes internet.
+                  </Text>
+                </View>
+              )}
+
               {/* ── Pago en efectivo ────────────────────────────────────── */}
               <Text style={styles.payLabel}>Pagar en recepción</Text>
               <TouchableOpacity
-                style={[styles.confirmBtn, buying && { opacity: 0.6 }]}
+                style={[styles.confirmBtn, (buying || !conectado) && { opacity: 0.6 }]}
                 onPress={handleCheckout}
-                disabled={buying}
+                disabled={buying || !conectado}
                 accessibilityLabel="Registrar compra para pagar en efectivo"
                 accessibilityRole="button">
                 <Ionicons name={buying ? 'hourglass-outline' : 'cash-outline'} size={20} color={colors.onAccent} />
@@ -434,7 +457,7 @@ export default function MemberPOSScreen() {
                 descripcion={`Compra de ${cartCount} artículo${cartCount === 1 ? '' : 's'}`}
                 referenciaLocal={user?.id ?? null}
                 emailPagador={user?.email ?? null}
-                deshabilitado={buying || cartItems.length === 0}
+                deshabilitado={buying || cartItems.length === 0 || !conectado}
                 metadatos={{
                   items: cartItems.map(({ producto, cantidad }) => ({
                     id:        producto.id ?? producto._id,
@@ -539,6 +562,9 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   summaryTotal:  { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 8, marginTop: 4 },
   summaryTotalLabel: { color: colors.text, fontSize: 16 * fs, fontWeight: '700' },
   summaryTotalValue: { color: colors.accent, fontSize: 20 * fs, fontWeight: '800' },
+  offlineWarnRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14,
+                    backgroundColor: colors.warningBg, padding: 10, borderRadius: 10 },
+  offlineWarnText: { flex: 1, color: colors.warning, fontSize: 12 * fs, lineHeight: 17 },
   payLabel:      { color: colors.text, fontSize: 14 * fs, fontWeight: '700', marginBottom: 10 },
   confirmBtn:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
                    backgroundColor: colors.accent, borderRadius: 14, paddingVertical: 16, marginTop: 8 },
