@@ -17,6 +17,12 @@ const SCREENS: Screen[] = [
   { name: 'nutrition',  title: 'Nutrición y Dietas', icon: 'nutrition-outline', iconActive: 'nutrition'  },
   { name: 'membership', title: 'Mi Membresía',       icon: 'card-outline',      iconActive: 'card'      },
   { name: 'payments',   title: 'Pagos',              icon: 'receipt-outline',   iconActive: 'receipt'   },
+  // SCRUM: antes solo vivía como pantalla oculta (se llegaba desde el badge
+  // de perfil); ahora tiene título/ícono propios porque entra al grupo
+  // desplegable "Progreso y Salud" del cajón (ver CustomDrawer.tsx) junto
+  // con Salud y Predicción — ya no hace falta ocultarla, CustomDrawer la
+  // anida y nunca la dibuja como ítem plano.
+  { name: 'progress',   title: 'Progreso Físico',    icon: 'body-outline',      iconActive: 'body'       },
   { name: 'health',     title: 'Salud',              icon: 'pulse-outline',     iconActive: 'pulse'     },
   { name: 'prediccion', title: 'Predicción de Peso', icon: 'trending-up-outline', iconActive: 'trending-up' },
   { name: 'profile',    title: 'Mi Perfil',          icon: 'person-outline',    iconActive: 'person'    },
@@ -59,7 +65,7 @@ export default function MemberLayout() {
           }}
         />
       ))}
-      {['progress', 'routines', 'chat', 'start-workout'].map((name) => (
+      {['routines', 'chat', 'start-workout'].map((name) => (
         <Drawer.Screen
           key={name}
           name={name}
