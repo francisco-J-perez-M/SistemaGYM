@@ -372,30 +372,30 @@ export default function StartWorkoutScreen() {
   );
 }
 
-function make_styles(colors: any, fs: (n: number) => number) {
+function make_styles(colors: any, fs: number) {
   return StyleSheet.create({
     screen:  { flex: 1, backgroundColor: colors.background },
     content: { padding: 20, paddingBottom: 40 },
     center:  { alignItems: 'center', justifyContent: 'center', padding: 24, gap: 6 },
-    emptyTitle: { fontSize: fs(18), fontWeight: '700', color: colors.text, marginTop: 14, textAlign: 'center' },
-    emptyText:  { fontSize: fs(14), color: colors.textMuted, textAlign: 'center', marginTop: 6, lineHeight: 20 },
+    emptyTitle: { fontSize: 18 * fs, fontWeight: '700', color: colors.text, marginTop: 14, textAlign: 'center' },
+    emptyText:  { fontSize: 14 * fs, color: colors.textMuted, textAlign: 'center', marginTop: 6, lineHeight: 20 },
     progresoBar:  { height: 6, borderRadius: 3, backgroundColor: colors.border, overflow: 'hidden' },
     progresoFill: { height: 6, borderRadius: 3 },
-    progresoTexto: { fontSize: fs(12), color: colors.textSecondary, marginTop: 8, fontWeight: '600' },
-    nombreEjercicio: { fontSize: fs(20), fontWeight: '800', color: colors.text },
-    grupoEjercicio:  { fontSize: fs(13), color: colors.textSecondary, marginTop: 2 },
+    progresoTexto: { fontSize: 12 * fs, color: colors.textSecondary, marginTop: 8, fontWeight: '600' },
+    nombreEjercicio: { fontSize: 20 * fs, fontWeight: '800', color: colors.text },
+    grupoEjercicio:  { fontSize: 13 * fs, color: colors.textSecondary, marginTop: 2 },
     imagen: { width: '100%', height: 160, borderRadius: 12, marginTop: 12 },
     videoLink: { flexDirection: 'row', alignItems: 'center', marginTop: 10 },
-    notas: { fontSize: fs(13), color: colors.textMuted, marginTop: 10, lineHeight: 19 },
+    notas: { fontSize: 13 * fs, color: colors.textMuted, marginTop: 10, lineHeight: 19 },
     camposRow: { flexDirection: 'row', gap: 12, marginTop: 18 },
     campoCol: { flex: 1 },
-    campoLabel: { fontSize: fs(12), color: colors.textSecondary, marginBottom: 6, fontWeight: '600' },
+    campoLabel: { fontSize: 12 * fs, color: colors.textSecondary, marginBottom: 6, fontWeight: '600' },
     campoInput: {
       backgroundColor: colors.inputBg, borderRadius: 12, borderWidth: 1, borderColor: colors.border,
-      color: colors.text, padding: 12, fontSize: fs(16), fontWeight: '700', textAlign: 'center',
+      color: colors.text, padding: 12, fontSize: 16 * fs, fontWeight: '700', textAlign: 'center',
     },
-    descansoHint: { fontSize: fs(11.5), color: colors.textMuted, marginTop: 10 },
-    descansoLabel: { fontSize: fs(14), fontWeight: '700', color: colors.textSecondary, letterSpacing: 1 },
-    descansoTimer: { fontSize: fs(56), fontWeight: '800', color: colors.accent, marginTop: 4 },
+    descansoHint: { fontSize: 11.5 * fs, color: colors.textMuted, marginTop: 10 },
+    descansoLabel: { fontSize: 14 * fs, fontWeight: '700', color: colors.textSecondary, letterSpacing: 1 },
+    descansoTimer: { fontSize: 56 * fs, fontWeight: '800', color: colors.accent, marginTop: 4 },
   });
 }

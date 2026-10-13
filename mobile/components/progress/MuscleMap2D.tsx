@@ -167,19 +167,19 @@ export default function MuscleMap2D() {
   );
 }
 
-function make_styles(colors: any, fs: (n: number) => number) {
+function make_styles(colors: any, fs: number) {
   return StyleSheet.create({
     card: { backgroundColor: colors.surface, borderRadius: 16, padding: 16 },
     header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
     headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    title: { fontSize: fs(14), fontWeight: '700', color: colors.text },
+    title: { fontSize: 14 * fs, fontWeight: '700', color: colors.text },
     vacioBox: { alignItems: 'center', paddingVertical: 20, gap: 8 },
-    vacioText: { fontSize: fs(13), color: colors.textMuted, textAlign: 'center', lineHeight: 19, paddingHorizontal: 8 },
+    vacioText: { fontSize: 13 * fs, color: colors.textMuted, textAlign: 'center', lineHeight: 19, paddingHorizontal: 8 },
     siluetaRow: { flexDirection: 'row', justifyContent: 'center', gap: 20, flexWrap: 'wrap', marginTop: 4 },
     siluetaCol: { alignItems: 'center', gap: 4 },
-    vistaLabel: { fontSize: fs(10), fontWeight: '700', color: colors.textMuted, letterSpacing: 0.5 },
+    vistaLabel: { fontSize: 10 * fs, fontWeight: '700', color: colors.textMuted, letterSpacing: 0.5 },
     leyendaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14, flexWrap: 'wrap' },
-    leyendaText: { fontSize: fs(11), color: colors.textMuted },
-    otrosText: { fontSize: fs(11), color: colors.textMuted, marginTop: 8 },
+    leyendaText: { fontSize: 11 * fs, color: colors.textMuted },
+    otrosText: { fontSize: 11 * fs, color: colors.textMuted, marginTop: 8 },
   });
 }
