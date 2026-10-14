@@ -34,7 +34,8 @@ function rutaInicio() {
     rol = "";
   }
   const destinos = {
-    owner_gym:     "/owner",
+    propietario:   "/owner",
+    owner_gym:     "/owner",   // compatibilidad: tokens emitidos antes de la migración 019
     admin:         "/owner",
     administrador: "/owner",
     superadmin:    "/superadmin",

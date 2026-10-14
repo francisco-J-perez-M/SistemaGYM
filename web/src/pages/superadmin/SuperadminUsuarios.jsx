@@ -151,7 +151,7 @@ export default function SuperadminUsuarios() {
         >
           <option value="">Todos los roles</option>
           <option value="superadmin">Superadmin</option>
-          <option value="owner_gym">Owner Gym</option>
+          <option value="Propietario">Propietario</option>
           <option value="Entrenador">Entrenador</option>
           <option value="Recepcionista">Recepcionista</option>
           <option value="Miembro">Miembro</option>
