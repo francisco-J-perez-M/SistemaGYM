@@ -13,15 +13,23 @@ convivientes sin un catálogo central:
      seed_pg.py puebla la tabla `roles` de PostgreSQL, y por lo tanto el
      valor EXACTO que termina en el claim "role" del JWT y en la columna
      Rol.nombre contra la que compara `Rol.nombre == rol_param` en
-     superadmin/usuarios.py. Normalizar estos tres a minúsculas en la base
-     de datos exigiría una migración y tocar cada comparación exacta del
-     backend; se documenta aquí como la convención real en vez de
-     reescribirla a ciegas en un solo sprint.
+     superadmin/usuarios.py.
   3. "administrador"/"admin" como sinónimo informal de "owner_gym" en
-     comentarios y vistas antiguas — no existe un rol "administrador"
-     independiente en la tabla `roles` (ver seed_pg.py: solo
-     superadmin/owner_gym/Entrenador/Recepcionista/Miembro). Se trata aquí
-     como alias, no como rol distinto.
+     comentarios y vistas antiguas de antes de la migración 020 -- desde
+     HU-45/SCRUM-216 SÍ existe un rol "Administrador" independiente en la
+     tabla `roles` (alcance de sucursal, no de organización; lo asigna el
+     Propietario), y estos alias ya apuntan a ese rol nuevo, no a
+     Propietario.
+
+Migración 019 (2026-10-14): "owner_gym" se renombró a "Propietario" en
+la tabla `roles` -- HU-45/HU-50 introducen un rol NUEVO y distinto,
+"Administrador" de sucursal (alcance limitado, lo asigna el propietario),
+y mantener al dueño real con el nombre "owner_gym" (ni rol nuevo ni
+etiqueta en español) iba a confundir justo donde más importa claridad.
+"owner_gym" queda como ALIAS permanente de ROL_PROPIETARIO en vez de
+retirarse: hay refresh tokens de hasta 90 días en circulación (Actividad
+09 PR-02) que pueden traer el claim viejo, y el alias los sigue
+resolviendo sin forzar un logout masivo en el despliegue.
 
 Qué resuelve este módulo
 ------------------------
@@ -37,19 +45,23 @@ de rol debería usar en vez de comparar cadenas crudas.
 # que firma auth/routes.py en el claim "role" del JWT. No es una elección de
 # estilo: es el dato real contra el que compara `Rol.nombre == rol_param`.
 ROL_SUPERADMIN    = "superadmin"
-ROL_OWNER_GYM     = "owner_gym"
+ROL_PROPIETARIO   = "Propietario"   # antes "owner_gym" (ver migración 019)
+ROL_ADMINISTRADOR = "Administrador" # NUEVO (migración 020, HU-45) -- alcance de
+                                     # sucursal, no de organización; ver utils/alcance.py
 ROL_ENTRENADOR    = "Entrenador"
 ROL_RECEPCIONISTA = "Recepcionista"
 ROL_MIEMBRO       = "Miembro"
 
 ROLES_CANONICOS = (
-    ROL_SUPERADMIN, ROL_OWNER_GYM, ROL_ENTRENADOR, ROL_RECEPCIONISTA, ROL_MIEMBRO,
+    ROL_SUPERADMIN, ROL_PROPIETARIO, ROL_ADMINISTRADOR,
+    ROL_ENTRENADOR, ROL_RECEPCIONISTA, ROL_MIEMBRO,
 )
 
 # Rótulo de presentación por rol canónico.
 ROL_LABEL = {
     ROL_SUPERADMIN:    "Superadmin",
-    ROL_OWNER_GYM:     "Owner Gym",
+    ROL_PROPIETARIO:   "Propietario",
+    ROL_ADMINISTRADOR: "Administrador",
     ROL_ENTRENADOR:    "Entrenador",
     ROL_RECEPCIONISTA: "Recepcionista",
     ROL_MIEMBRO:       "Miembro",
@@ -59,14 +71,21 @@ ROL_LABEL = {
 # Variantes legadas/informales → identificador canónico. Todas las claves
 # van en minúsculas porque normalizar_rol() minuscula antes de buscar.
 #
-# "administrador"/"admin"/"owner" son sinónimos de owner_gym, no un rol
-# aparte: responde la pregunta abierta del ticket.
+# Migración 020 (HU-45): "Administrador" ya es un rol real y distinto de
+# Propietario, así que "administrador"/"admin" dejan de ser sinónimos de
+# Propietario -- apuntan al rol nuevo. "owner" sigue siendo Propietario sin
+# ambigüedad (nadie dice "owner" para referirse al admin de una sucursal).
+#
+# "owner_gym" se queda como alias PERMANENTE (no legado a limpiar):
+# cualquier JWT emitido antes de la migración 019 todavía trae ese
+# valor en el claim "role" hasta que expire (refresh token, 90 días).
 _ALIASES = {
     "superadmin":    ROL_SUPERADMIN,
-    "owner_gym":     ROL_OWNER_GYM,
-    "administrador": ROL_OWNER_GYM,
-    "admin":         ROL_OWNER_GYM,
-    "owner":         ROL_OWNER_GYM,
+    "owner_gym":     ROL_PROPIETARIO,
+    "propietario":   ROL_PROPIETARIO,
+    "owner":         ROL_PROPIETARIO,
+    "administrador": ROL_ADMINISTRADOR,
+    "admin":         ROL_ADMINISTRADOR,
     "entrenador":    ROL_ENTRENADOR,
     "trainer":       ROL_ENTRENADOR,
     "recepcionista": ROL_RECEPCIONISTA,

@@ -458,12 +458,13 @@ def seed_pg_base():
     print("Roles + Planes SaaS ===")
     roles = {}
     # Roles de la plataforma:
-    #   superadmin  → operador de la plataforma (sin gimnasio asignado)
-    #   owner_gym   → dueño/admin del gimnasio (tenant admin)
-    #   Entrenador  → trainer asignado al gimnasio
+    #   superadmin    → operador de la plataforma (sin gimnasio asignado)
+    #   Propietario   → dueño/admin del gimnasio (tenant admin) -- antes "owner_gym"
+    #   Administrador → admin de UNA sucursal, alcance limitado (HU-45/SCRUM-216)
+    #   Entrenador    → trainer asignado al gimnasio
     #   Recepcionista → staff de front-desk
-    #   Miembro     → cliente final
-    for nombre in ["superadmin", "owner_gym", "Entrenador", "Recepcionista", "Miembro"]:
+    #   Miembro       → cliente final
+    for nombre in ["superadmin", "Propietario", "Administrador", "Entrenador", "Recepcionista", "Miembro"]:
         r = Rol(nombre=nombre)
         db.session.add(r)
         db.session.flush()
@@ -515,11 +516,25 @@ def seed_pg_base():
                         "reportes_pdf": True, "app_movil": True, "backups_automaticos": True, "max_staff": 10},
         },
         {
-            "nombre": "enterprise", "precio_mensual_mxn": 199900, "max_miembros": None,
-            "descripcion": "Sin limites, con soporte dedicado y acuerdos de nivel de servicio.",
+            # SCRUM-222 (AC6): "Miembros y staff ilimitados" se corrige --
+            # esa promesa no la respalda un VPS compartido (Postgres +
+            # Mongo + Redis + Ollama en la misma maquina). El tope real
+            # pasa a ser alto pero finito, y aplica POR SUCURSAL (igual
+            # que el resto de los planes, ver utils/capacidad.py): un
+            # cliente con varias sucursales multiplica su capacidad, no
+            # la reparte.
+            #
+            # 500 miembros / 20 staff por sucursal son valores
+            # PROVISIONALES -- no se derivan de una prueba de carga real
+            # sobre el VPS, son una extrapolacion directa del salto
+            # basico(50)->pro(200) de la misma tabla. Antes de anunciar
+            # este numero a un cliente real, hay que confirmarlo con
+            # pruebas de carga del VPS de produccion.
+            "nombre": "enterprise", "precio_mensual_mxn": 199900, "max_miembros": 500,
+            "descripcion": "Alta capacidad por sucursal, con soporte dedicado y acuerdos de nivel de servicio.",
             "titulo_comercial": "Para cadenas y multiples sucursales", "orden": 3, "destacado": False,
             "caracteristicas": [
-                "Miembros y staff ilimitados",
+                "Hasta 500 miembros y 20 usuarios de staff por sucursal",
                 "Todo lo del plan Pro",
                 "Laboratorio de Machine Learning completo",
                 "Soporte prioritario con SLA",
@@ -527,7 +542,7 @@ def seed_pg_base():
             ],
             "limites": {"pos": True, "pasarelas_pago": True, "analiticas_ia": True,
                         "reportes_pdf": True, "app_movil": True, "backups_automaticos": True,
-                        "ml_lab": True, "soporte_sla": True, "max_staff": None},
+                        "ml_lab": True, "soporte_sla": True, "max_staff": 20},
         },
     ]
     planes_map = {}
@@ -584,7 +599,7 @@ def seed_gimnasio(cfg, roles, planes_map, idx_start):
         estado="pagada", fecha_emision=ahora, fecha_vencimiento=ahora+timedelta(days=30)))
 
     admin = Usuario(nombre=cfg["admin_nombre"], email=cfg["admin_email"],
-                    id_rol=roles["owner_gym"].id, id_gimnasio=gym.id, activo=True)
+                    id_rol=roles["Propietario"].id, id_gimnasio=gym.id, activo=True)
     admin.set_password("Admin1234!")
     db.session.add(admin)
     db.session.flush()

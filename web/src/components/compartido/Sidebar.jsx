@@ -9,9 +9,14 @@ import {
   FiFileText, FiLogOut, FiActivity, FiLock, FiCreditCard,
   FiShoppingCart, FiBookOpen, FiCpu, FiPieChart, FiChevronDown,
   FiChevronLeft, FiChevronRight, FiGlobe, FiPackage, FiServer,
-  FiSliders, FiHelpCircle,
+  FiSliders, FiHelpCircle, FiMapPin,
 } from "react-icons/fi";
 import { GiMuscleUp, GiMeal } from "react-icons/gi";
+// HU-45: para ocultar "Sucursales" a Administrador -- comparte el panel
+// owner_gym con Propietario pero el backend restringe ese módulo solo a
+// Propietario (ver routes/owner_gym/sucursales.py), así que aquí se evita
+// mostrar un enlace que de cualquier forma le devolvería 403.
+import { normalizarRol, ROL_ADMINISTRADOR } from "../../constants/roles";
 
 // ── Palette (sin CSS externo) ─────────────────────────────────
 // La barra lateral tiene fondo oscuro en todos los temas, por eso su texto,
@@ -39,6 +44,7 @@ const MENUS = {
     { id: "ow-pos",        label: "Punto de Venta",   icon: <FiShoppingCart /> },
     { type: "divider" },
     { id: "ow-staff",      label: "Staff",            icon: <FiUserCheck />    },
+    { id: "ow-sucursales", label: "Sucursales",       icon: <FiMapPin />       },
     { id: "ow-membresias", label: "Membresías",        icon: <FiCreditCard />   },
     { type: "divider" },
     {
@@ -221,7 +227,27 @@ export default function Sidebar({
   // para la demo. Restaurar con ["training", "health", "nutrition"] cuando
   // se ajuste la lógica de niveles de membresía.
   const BLOCKED = [];
-  const menu = MENUS[role] || MENUS.user;
+  // HU-45: Administrador comparte el panel owner_gym con Propietario,
+  // pero varias secciones son exclusivas del dueño real de la organización
+  // -- se filtran aquí para no mostrarle enlaces que terminarían en 403
+  // (o, para "Mi Suscripción"/billing SaaS, que no debería tocar aunque el
+  // backend hoy solo bloquee sus endpoints de escritura, no la lectura; ver
+  // SCRUM-221/HU-50, Lote 2, para el control formal de esa cuenta):
+  //   - "ow-sucursales"    -- alta de sucursales/administradores (sucursales.py, Propietario-only)
+  //   - "ow-subscription"  -- suscripción SaaS con GymPro (billing.py, afecta a TODA la organización)
+  //   - "ow-backups"       -- respaldos y restauración (tenant_backups_bp, Propietario-only)
+  // "ow-pagos-online" (Cobros en línea) SÍ se deja visible: pasarelas.py ya
+  // permite a un Administrador configurar el cobro de SU propia sucursal
+  // (ver _ROLES_ADMIN en ese archivo), a propósito.
+  const esAdministrador = normalizarRol(user.role) === ROL_ADMINISTRADOR;
+  const OCULTOS_PARA_ADMINISTRADOR = ["ow-sucursales", "ow-subscription", "ow-backups"];
+  // "ow-subscription" y "ow-backups" viven dentro de children (submenú
+  // "Configuración"), no al nivel raíz -- hay que filtrar ahí también, no
+  // solo el arreglo de primer nivel.
+  const filtrarOcultos = (items) => items
+    .filter((item) => !(esAdministrador && OCULTOS_PARA_ADMINISTRADOR.includes(item.id)))
+    .map((item) => item.children ? { ...item, children: filtrarOcultos(item.children) } : item);
+  const menu = filtrarOcultos(MENUS[role] || MENUS.user);
 
   const handleRestricted = (label) => {
     Swal.fire({
