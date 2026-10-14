@@ -12,7 +12,7 @@ import { peticion } from "../../api/cliente";
 // Catálogo único de roles (SCRUM-107): antes este archivo mantenía su
 // propia copia de este mapa, que podía divergir de la de otras vistas
 // (ver web/src/constants/roles.js).
-import { ROLES_PERMITIDOS_POR_PANEL as ROLE_MAP } from "../../constants/roles";
+import { ROLES_PERMITIDOS_POR_PANEL as ROLE_MAP, normalizarRol } from "../../constants/roles";
 
 const ROUTE_MAP = {
   owner_gym: {
@@ -247,7 +247,11 @@ export default function Layout({ role = "owner_gym" }) {
     peticion("/api/auth/me")
       .then((d) => {
         if (!vigente) return;
-        setSesion({ estado: "listo", rol: (d?.role || "").toLowerCase() });
+        // Antes se usaba (d?.role || "").toLowerCase() directo -- duplicaba
+        // a mano lo que normalizarRol() ya resuelve (alias + mayúsculas),
+        // y cualquier rol nuevo (p. ej. "Administrador", HU-45) quedaba a
+        // merced de que su alias ya estuviera en minúsculas en roles.js.
+        setSesion({ estado: "listo", rol: normalizarRol(d?.role).toLowerCase() });
         readImpersonationState();
       })
       .catch(() => { if (vigente) setSesion({ estado: "anonimo", rol: null }); });
