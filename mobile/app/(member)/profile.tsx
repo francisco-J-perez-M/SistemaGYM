@@ -62,6 +62,10 @@ const GENERO_OPTS    = ['Masculino', 'Femenino', 'Otro'];
 const OBJETIVO_OPTS  = ['Pérdida de peso', 'Tonificación muscular', 'Ganancia muscular', 'Resistencia', 'Mantenimiento'];
 const EXP_OPTS       = ['Principiante', 'Intermedio', 'Avanzado'];
 const ACTIVIDAD_OPTS = ['Sedentario', 'Ligero', 'Moderado', 'Activo', 'Muy activo'];
+// SCRUM-102: preferencias de entrenamiento que antes solo se podian fijar
+// una vez, durante el wizard de onboarding.
+const DISPONIBILIDAD_OPTS = ['Mañanas', 'Tardes', 'Noches', 'Fines de semana', 'Flexible'];
+const UNIDAD_OPTS         = ['Métrico (kg, cm)', 'Imperial (lb, in)'];
 
 export default function ProfileScreen() {
   const colors = useColors();
@@ -86,6 +90,8 @@ export default function ProfileScreen() {
   const [experiencia, setExperiencia] = useState('');
   const [actividad, setActividad] = useState('');
   const [estatura, setEstatura] = useState('');
+  const [disponibilidad, setDisponibilidad] = useState('');
+  const [unidadMedida, setUnidadMedida] = useState('');
 
   // Resuelve la foto: data URI tal cual, URL absoluta tal cual, o nombre de
   // archivo → lo sirve el backend en /api/uploads/<archivo>.
@@ -106,6 +112,8 @@ export default function ProfileScreen() {
     setExperiencia(data?.nivelExperiencia ?? '');
     setActividad(data?.nivelActividad ?? '');
     setEstatura(num(data?.altura));
+    setDisponibilidad((data as any)?.diasDisponibles ?? '');
+    setUnidadMedida((data as any)?.unidadMedida ?? '');
     setEditing(true);
   };
 
@@ -123,6 +131,8 @@ export default function ProfileScreen() {
         nivelExperiencia: experiencia,
         nivelActividad:   actividad,
         altura:           estatura.trim(),   // el backend quita la 'm'
+        diasDisponibles:  disponibilidad,
+        unidadMedida:     unidadMedida,
       });
       await refetch();
       setEditing(false);
@@ -311,6 +321,8 @@ export default function ProfileScreen() {
               <Selector label="Objetivo" options={OBJETIVO_OPTS}  value={objetivo}    onChange={setObjetivo}    styles={styles} colors={colors} />
               <Selector label="Nivel de experiencia" options={EXP_OPTS} value={experiencia} onChange={setExperiencia} styles={styles} colors={colors} />
               <Selector label="Nivel de actividad"   options={ACTIVIDAD_OPTS} value={actividad} onChange={setActividad} styles={styles} colors={colors} />
+              <Selector label="Disponibilidad" options={DISPONIBILIDAD_OPTS} value={disponibilidad} onChange={setDisponibilidad} styles={styles} colors={colors} />
+              <Selector label="Unidad de medida" options={UNIDAD_OPTS} value={unidadMedida} onChange={setUnidadMedida} styles={styles} colors={colors} />
             </ScrollView>
             <View style={styles.editActions}>
               <Button label="Cancelar" variant="secondary" onPress={() => setEditing(false)} style={{ flex: 1 }} />

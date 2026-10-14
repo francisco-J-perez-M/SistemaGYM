@@ -203,7 +203,7 @@ export default function ReceptionistDashboard() {
             <motion.div className="chart-card"
               initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.3 }}>
-              <div className="chart-header"><h3>Acciones Rapidas</h3></div>
+              <div className="chart-header"><h3>Acciones Rápidas</h3></div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, padding: "12px 0" }}>
                 {[
                   { icon: FiCalendar,    label: "Citas",    path: "/receptionist/appointments", color: "var(--accent)" },

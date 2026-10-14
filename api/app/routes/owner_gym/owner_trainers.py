@@ -17,6 +17,8 @@ from app.models.pg.rol        import Rol
 from app.models.pg.gimnasio   import Gimnasio
 from app.utils.tenant import require_tenant
 from app.utils.security import require_role
+from app.utils.alcance import crear_asignacion
+from app.utils.busqueda import normalizar_columna
 
 owner_trainers_bp = Blueprint("owner_trainers", __name__)
 
@@ -68,9 +70,13 @@ def listar_staff():
         if rol_obj:
             q = q.filter_by(id_rol=rol_obj.id)
     if search:
+        # SCRUM-105: el nombre se compara ignorando mayúsculas/acentos
+        # (normalizar_columna, única fuente de esa lógica -- ver
+        # utils/busqueda.py); el email queda fuera de alcance a propósito
+        # (identificador técnico) y se sigue comparando tal cual.
         q = q.filter(
             db.or_(
-                Usuario.nombre.ilike(f"%{search}%"),
+                normalizar_columna(Usuario.nombre).ilike(normalizar_columna(f"%{search}%")),
                 Usuario.email.ilike(f"%{search}%"),
             )
         )
@@ -143,6 +149,12 @@ def crear_staff():
     )
     nuevo.set_password(password)
     db.session.add(nuevo)
+    db.session.flush()
+
+    # Asignación de alcance del nuevo staff (HU-41 / SCRUM-212) -- no
+    # cambia nada del comportamiento actual de este endpoint.
+    crear_asignacion(nuevo)
+
     db.session.commit()
 
     return jsonify({"msg": "Usuario creado", **nuevo.to_dict()}), 201

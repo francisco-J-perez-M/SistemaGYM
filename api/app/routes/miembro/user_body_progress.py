@@ -3,6 +3,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime, timedelta
 from app.mongo import get_db
 from app.utils.tenant import require_tenant
+from app.utils.sync import resolver_capturado_en
 
 user_body_progress_bp = Blueprint('user_body_progress', __name__)
 
@@ -218,12 +219,15 @@ def add_body_progress():
             return jsonify({"error": "El peso es requerido"}), 400
             
         # Crear nuevo registro
+        # SCRUM-168 / HU-30: igual que en /api/user/progress — si viene
+        # `_capturado_en` (medición encolada sin conexión y sincronizada
+        # después) se usa esa fecha en vez de la del servidor.
         nuevo_progreso = {
             "id_miembro": miembro["_id"],
             "peso": float(data.get('peso')),
             "cintura": float(data.get('cintura')) if data.get('cintura') else None,
             "cadera": float(data.get('cadera')) if data.get('cadera') else None,
-            "fecha_registro": datetime.now()
+            "fecha_registro": resolver_capturado_en(data)
         }
         
         # 🆕 AGREGAR CAMPOS ADICIONALES
@@ -236,12 +240,18 @@ def add_body_progress():
             if campo in data and data[campo]:
                 nuevo_progreso[campo] = float(data[campo])
                 
-        # Calcular BMI automáticamente
+        # Calcular IMC automáticamente. Se guarda bajo el campo canónico "imc"
+        # (no "bmi"): es el que leen los modelos de IA y los reportes de
+        # entrenador/dueño (spark_kmeans, spark_modelos, spark_regresion,
+        # trainer_routes). Guardarlo como "bmi" los deja sin este dato y el
+        # cálculo cae a un IMC recalculado con el peso inicial en vez del actual.
         estatura = float(miembro.get("estatura") or 0)
+        if estatura > 3:  # algunos registros antiguos guardan la talla en cm
+            estatura = estatura / 100
         bmi = None
         if estatura > 0 and nuevo_progreso["peso"]:
             bmi = round(_calcular_imc(nuevo_progreso["peso"], estatura), 2)
-            nuevo_progreso["bmi"] = bmi
+            nuevo_progreso["imc"] = bmi
             
         db.progreso_fisico.insert_one(nuevo_progreso)
 
@@ -337,7 +347,7 @@ def _append_historial_metricas(db, miembro, progreso):
             "timestamp":       progreso.get("fecha_registro") or datetime.now(),
             "genero":          sexo,
             "peso":            progreso.get("peso"),
-            "bmi":             progreso.get("bmi"),
+            "bmi":             progreso.get("imc"),
             "cintura":         progreso.get("cintura"),
             "cadera":          progreso.get("cadera"),
             "pecho":           progreso.get("pecho"),

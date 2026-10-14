@@ -382,7 +382,7 @@ export default function TrainerProfile() {
             {[
               { icon: FiUsers,       value: stats.totalClients,             label: "Clientes",        color: "var(--accent)" },
               { icon: FiCheckCircle, value: stats.totalSessions,            label: "Sesiones",        color: "var(--success)" },
-              { icon: FiClock,       value: stats.yearsActive + " anos",    label: "Experiencia",     color: "var(--warning)" },
+              { icon: FiClock,       value: stats.yearsActive + " años",    label: "Experiencia",     color: "var(--warning)" },
               { icon: FiAward,       value: formData.certifications.length, label: "Certificaciones", color: "#a855f7" },
             ].map(function(item) {
               const Icon = item.icon;
@@ -416,14 +416,14 @@ export default function TrainerProfile() {
             marginBottom: 20, paddingBottom: 14, borderBottom: "1px solid var(--border)",
           }}>
             <h3 style={{ fontSize: 15, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
-              <FiUser size={15} style={{ color: "var(--accent)" }} /> Informacion Personal
+              <FiUser size={15} style={{ color: "var(--accent)" }} /> Información Personal
             </h3>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
             <ProfileField icon={FiUser}   label="Nombre completo"    name="name"    value={formData.name}    editing={isEditing} onChange={handleChange} />
-            <ProfileField icon={FiMail}   label="Correo electronico" name="email"   value={formData.email}   editing={isEditing} onChange={handleChange} type="email" />
-            <ProfileField icon={FiPhone}  label="Telefono"           name="phone"   value={formData.phone}   editing={isEditing} onChange={handleChange} type="tel" />
-            <ProfileField icon={FiMapPin} label="Direccion"          name="address" value={formData.address} editing={isEditing} onChange={handleChange} />
+            <ProfileField icon={FiMail}   label="Correo electrónico" name="email"   value={formData.email}   editing={isEditing} onChange={handleChange} type="email" />
+            <ProfileField icon={FiPhone}  label="Teléfono"           name="phone"   value={formData.phone}   editing={isEditing} onChange={handleChange} type="tel" />
+            <ProfileField icon={FiMapPin} label="Dirección"          name="address" value={formData.address} editing={isEditing} onChange={handleChange} />
           </div>
         </motion.div>
 
@@ -435,12 +435,12 @@ export default function TrainerProfile() {
             marginBottom: 20, paddingBottom: 14, borderBottom: "1px solid var(--border)",
           }}>
             <h3 style={{ fontSize: 15, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
-              <FiAward size={15} style={{ color: "var(--accent)" }} /> Informacion Profesional
+              <FiAward size={15} style={{ color: "var(--accent)" }} /> Información Profesional
             </h3>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
             <ProfileField
-              icon={FiBookOpen} label="Especializacion" name="specialization"
+              icon={FiBookOpen} label="Especialización" name="specialization"
               value={formData.specialization} editing={isEditing} onChange={handleChange}
             />
             <ProfileField
@@ -448,7 +448,7 @@ export default function TrainerProfile() {
               value={formData.experience} editing={isEditing} onChange={handleChange}
             />
             <ProfileField
-              icon={FiMessageSquare} label="Biografia / Descripcion" name="bio"
+              icon={FiMessageSquare} label="Biografía / Descripción" name="bio"
               value={formData.bio} editing={isEditing} onChange={handleChange}
               multiline
             />

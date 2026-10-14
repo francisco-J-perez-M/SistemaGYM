@@ -80,6 +80,7 @@ export const ENDPOINTS = {
   LOGIN:              '/auth/login',
   REGISTER:           '/auth/register',
   REFRESH:            '/auth/refresh',           // POST con el token de refresco
+  LOGOUT:             '/auth/logout',            // POST con el token de refresco -- lo revoca en el servidor
   FORGOT_PASSWORD:    '/auth/forgot-password',   // POST { email }
   RESET_PASSWORD:     '/auth/reset-password',    // POST { email, code, new_password }
 
@@ -94,11 +95,13 @@ export const ENDPOINTS = {
   BODY_PROGRESS:      '/user/body-progress',     // GET/POST /api/user/body-progress
   WORKOUT_COMPLETE:   '/user/workout/complete',  // POST /api/user/workout/complete (bitácora)
   USER_WORKOUTS:      '/user/workouts',           // GET  /api/user/workouts (historial bitácora)
+  MUSCLE_GROUP_WORK:  '/user/workouts/muscle-groups', // GET /api/user/workouts/muscle-groups (SCRUM-101: mapa muscular 2D)
   USER_ROUTINES:      '/user/routines',          // GET  /api/user/routines (user_routines_bp prefix=/api/user)
   USER_PAYMENTS:      '/user/payments',          // GET  /api/user/payments  (stats + historial)
   USER_HEALTH:        '/user/health',            // GET/POST /api/user/health (condiciones + medidas)
   USER_HEALTH_MEDICAL:'/user/health/medical',    // PUT /api/user/health/medical (info médica)
   MEMBERSHIP_PAYMENT_METHODS: '/user/membership/payment-methods', // GET métodos recientes
+  PROFILE_COMPLETION: '/user/profile-completion', // GET SCRUM-102: % de perfil + pendientes por bloque
 
   // Nutrición
   DIETAS:             '/user/nutrition/dietas',  // GET /api/user/nutrition/dietas

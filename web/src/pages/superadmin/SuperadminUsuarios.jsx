@@ -3,6 +3,9 @@ import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import { getUsuarios, toggleUsuario, impersonar } from "../../api/superadmin";
 import { FiUserCheck, FiInfo } from "react-icons/fi";
+// Catálogo único de roles (SCRUM-107): antes este archivo definía su propia
+// copia de ROL_BADGE/ROUTE_FOR_ROLE, que podía divergir de otras vistas.
+import { ROL_BADGE, ROUTE_FOR_ROLE } from "../../constants/roles";
 
 const card = (extra = {}) => ({
   background: "var(--bg-card)",
@@ -33,22 +36,6 @@ const btnStyle = (variant = "primary") => {
     purple:  { background: "rgba(168,85,247,.1)",    color: "#a855f7" },
   };
   return { border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "opacity .15s", ...(v[variant] || v.primary) };
-};
-
-const ROL_BADGE = {
-  superadmin:   "info",
-  owner_gym:    "warn",
-  entrenador:   "pos",
-  recepcionista:"purple",
-  miembro:      "ghost",
-};
-
-const ROUTE_FOR_ROLE = {
-  superadmin:   "/superadmin",
-  owner_gym:    "/owner",
-  entrenador:   "/trainer-dashboard",
-  recepcionista:"/receptionist-dashboard",
-  miembro:      "/user/dashboard",
 };
 
 export default function SuperadminUsuarios() {

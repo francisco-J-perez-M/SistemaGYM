@@ -14,6 +14,8 @@ import {
   registerForPushNotificationsAsync,
   setupNotificationListeners,
 } from '../services/push';
+import { iniciarMonitorConectividad } from '../services/offline/connectivity';
+import { iniciarSincronizacionAutomatica } from '../services/offline/queue';
 
 // ── Error boundary para mostrar crash en pantalla en builds de release ────────
 interface EBState { error: Error | null }
@@ -92,6 +94,15 @@ function AppContent() {
 export default function RootLayout() {
   const hydrate    = useAuthStore((s) => s.hydrate);
   const hydrateA11y = useAccessibilityStore((s) => s.hydrate);
+
+  // SCRUM-168 / HU-30: arrancan una sola vez por app, no por sesión de
+  // usuario — el monitor de conectividad y el drenado de la cola offline
+  // deben correr incluso antes de hidratar auth (una sincronización
+  // pendiente de la sesión anterior no debe esperar al login).
+  useEffect(() => {
+    iniciarMonitorConectividad();
+    iniciarSincronizacionAutomatica();
+  }, []);
 
   useEffect(() => {
     // Cargar prefs de accesibilidad y auth en paralelo

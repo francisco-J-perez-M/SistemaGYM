@@ -31,6 +31,7 @@ import {
 import type {
   MembershipResponse, PlansResponse, MembershipPlan, MetodoPago,
 } from '../../types';
+import { estaConectado, useConnectivityStore } from '../../services/offline/connectivity';
 
 // Carrusel de planes: la tarjeta no ocupa todo el ancho para que asome la
 // siguiente y se entienda que el listado se desliza en horizontal.
@@ -50,8 +51,13 @@ export default function MembershipScreen() {
   const styles = useMemo(() => make_styles(colors, fs), [colors, fs]);
   const insets = useSafeAreaInsets();
 
-  const { data, loading, refetch } = useFetch<MembershipResponse>(ENDPOINTS.USER_MEMBERSHIP);
+  // SCRUM-168 / HU-30: el estado de membresía es una de las 4 lecturas que
+  // el ticket pide cachear — el socio debe poder ver si está "al día" sin
+  // señal, aunque no pueda renovar sin conexión (ver doRenew/pagarEnLinea).
+  const { data, loading, refetch } =
+    useFetch<MembershipResponse>(ENDPOINTS.USER_MEMBERSHIP, undefined, { cache: true });
   const { data: plansData, loading: loadingPlans } = useFetch<PlansResponse>(ENDPOINTS.MEMBERSHIP_PLANS);
+  const conectado = useConnectivityStore((s) => s.conectado);
 
   const [selectedPlan, setSelectedPlan] = useState<MembershipPlan | null>(null);
   const [metodo, setMetodo]   = useState<MetodoPago>('Efectivo');
@@ -61,15 +67,23 @@ export default function MembershipScreen() {
   const [indiceActivo, setIndiceActivo] = useState(0);   // posición en el carrusel
   // Efectivo + las pasarelas activas del gimnasio (PayPal / Mercado Pago)
   const [pasarelas, setPasarelas] = useState<MetodoPagoDisponible[]>([]);
+  // HU-30: si falla por falta de red (no hubo respuesta del servidor), los
+  // métodos digitales se muestran deshabilitados con un mensaje — nunca
+  // simplemente ocultos, para no confundir "sin internet" con "el gimnasio
+  // no tiene pasarelas configuradas".
+  const [pagosSinConexion, setPagosSinConexion] = useState(false);
 
   useEffect(() => {
     let vivo = true;
     (async () => {
       try {
         const lista = await getMetodosPago();
-        if (vivo) setPasarelas(lista);
-      } catch {
-        if (vivo) setPasarelas([]);
+        if (vivo) { setPasarelas(lista); setPagosSinConexion(false); }
+      } catch (err: any) {
+        if (!vivo) return;
+        setPasarelas([]);
+        // Sin "response" → la petición no llegó al servidor (sin conexión).
+        setPagosSinConexion(!err?.response);
       }
     })();
     return () => { vivo = false; };
@@ -87,8 +101,19 @@ export default function MembershipScreen() {
 
   const planes = plansData?.planes ?? [];
 
+  // SCRUM-168 / HU-30: renovar es un movimiento de dinero (incluso en
+  // "Efectivo" — activa la membresía de inmediato) y el ticket exige que
+  // NINGÚN movimiento de dinero quede en cola. Se bloquea por completo sin
+  // conexión, nunca se encola para reintentar después.
   const doRenew = async () => {
     if (!selectedPlan) return;
+    if (!estaConectado()) {
+      Alert.alert(
+        'Sin conexión',
+        'No puedes renovar tu membresía sin conexión a internet. Ningún pago o renovación se procesa sin conexión — intenta de nuevo cuando la recuperes.',
+      );
+      return;
+    }
     setRenewing(true);
     try {
       await api.post(ENDPOINTS.MEMBERSHIP_RENEW, {
@@ -109,6 +134,13 @@ export default function MembershipScreen() {
   /** Cobro en línea: abre la pasarela y confirma el resultado al volver. */
   const pagarEnLinea = async (proveedor: ProveedorPago) => {
     if (!selectedPlan) return;
+    if (!estaConectado()) {
+      Alert.alert(
+        'Sin conexión',
+        'No puedes pagar en línea sin conexión a internet. Intenta de nuevo cuando la recuperes.',
+      );
+      return;
+    }
     setPagando(true);
     try {
       const res = await pagarEnApp({
@@ -389,6 +421,25 @@ export default function MembershipScreen() {
                   );
                 })}
               </View>
+              {!conectado ? (
+                // SCRUM-168 / HU-30: sin conexión se bloquea TODO el flujo de
+                // renovación, no solo las pasarelas — ver doRenew más arriba.
+                <View style={styles.warnRow}>
+                  <Ionicons name="cloud-offline-outline" size={16} color={colors.warning} />
+                  <Text style={styles.warnText}>
+                    Sin conexión: no se puede renovar ni pagar en este momento, ni en
+                    efectivo ni con pasarela. Intenta de nuevo cuando recuperes internet.
+                  </Text>
+                </View>
+              ) : pagosSinConexion && (
+                <View style={styles.warnRow}>
+                  <Ionicons name="cloud-offline-outline" size={16} color={colors.warning} />
+                  <Text style={styles.warnText}>
+                    Pago con PayPal o Mercado Pago no disponible sin conexión. Solo puedes
+                    renovar en efectivo hasta recuperar internet.
+                  </Text>
+                </View>
+              )}
 
               <View style={styles.totalRow}>
                 <Text style={styles.totalLabel}>Total a pagar</Text>
@@ -403,6 +454,7 @@ export default function MembershipScreen() {
                 }
                 onPress={confirmRenew}
                 loading={renewing || pagando}
+                disabled={!conectado}
                 style={{ marginTop: 12 }}
               />
             </>

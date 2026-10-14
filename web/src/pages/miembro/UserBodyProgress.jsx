@@ -6,7 +6,7 @@ import {
   FiEdit2, FiTarget, FiCircle, FiTrendingDown, FiInfo, FiClock, FiDroplet, FiSun,
 } from "react-icons/fi";
 import { GiBodyHeight, GiMuscleUp, GiWeightScale, GiChest, GiLeg, GiFootTrip, GiMeal } from "react-icons/gi";
-import BodyViewer from "../../components/miembro/BodyViewer";
+import MuscleMap2D from "../../components/miembro/MuscleMap2D";
 import TrabajoPorGrupo from "../../components/miembro/TrabajoPorGrupo";
 import { SERIES_GRAFICO } from "../../components/compartido/InfoGrafico";
 import UserHealthUpdate from "./UserHealthUpdate";
@@ -697,33 +697,15 @@ export default function UserHealthProgress() {
                 {kpiMetrics.map((metric, idx) => <MetricCard key={idx} metric={metric} idx={idx} />)}
               </div>
 
-              {/* MODELO 3D Y MEDIDAS */}
+              {/* MAPA MUSCULAR 2D Y MEDIDAS
+                  SCRUM-101: sustituye al modelo corporal 3D (BodyViewer, three.js).
+                  Este mapa no depende de las métricas de composición corporal
+                  (peso/grasa/músculo) sino del volumen de trabajo por grupo
+                  muscular registrado en la bitácora (se autoalimenta). */}
               <div className="charts-row" style={{ marginTop: "0", gap: "20px" }}>
-                {/* Modelo 3D */}
+                {/* Mapa muscular 2D */}
                 <motion.div className="chart-card" initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ flex: 1 }}>
-                  <div className="chart-header">
-                    <h3>Modelo Corporal 3D</h3>
-                    <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-                      <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
-                        {selectedGender === "female" ? "Femenino" : "Masculino"}
-                      </span>
-                      <div style={{ padding: "4px 8px", background: "var(--bg-input)", borderRadius: "4px", fontSize: "12px" }}>
-                        IMC: {bodyMetrics.imc > 0 ? bodyMetrics.imc.toFixed(1) : '--'}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div style={{ width: "100%", height: "450px", display: "flex", justifyContent: "center", alignItems: "center", overflow: "hidden", position: "relative" }}>
-                    <BodyViewer gender={selectedGender} metrics={{
-                      ...bodyMetrics,
-                      // Priorizar las circunferencias medidas (condiciones) para el modelo
-                      pecho:   valores.pecho   || bodyMetrics.pecho,
-                      cintura: valores.cintura || bodyMetrics.cintura,
-                      cadera:  valores.cadera  || bodyMetrics.cadera,
-                      pantorrillaDerecha:   valores.pantorrillaDerecha,
-                      pantorrillaIzquierda: valores.pantorrillaIzquierda,
-                    }} />
-                  </div>
+                  <MuscleMap2D />
 
                   {/* Relación Cintura/Cadera */}
                   <div style={{ padding: "15px", borderTop: "1px solid var(--border-dark)", background: "var(--bg-input)" }}>

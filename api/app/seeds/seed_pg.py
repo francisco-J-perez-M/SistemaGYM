@@ -32,6 +32,9 @@ from app.models.pg.factura_suscripcion import FacturaSuscripcion
 from app.models.pg.tipo_membresia      import TipoMembresia
 from app.models.pg.ejercicio           import Ejercicio
 from app.models.pg.tipo_clase          import TipoClase
+from app.models.pg.pasarela_pago       import ConfiguracionPasarela
+from app.utils.alcance                 import crear_organizacion_para_gimnasio
+from app.utils.crypto                  import cifrar_dict, CryptoNoConfigurado
 from app.mongo import get_db
 
 RNG = random.Random(42)
@@ -115,7 +118,14 @@ GIMNASIOS_CFG = [
     },
     {
         "nombre": "Zen Body Studio",
-        "plan": "pro",
+        # "starter" (SCRUM-106): el catalogo de planes (seed_pg_base) lo
+        # define desde SCRUM-163 y SuperadminGimnasios.jsx ya sabe
+        # mostrarlo (SCRUM-83), pero ninguno de los 5 gimnasios del seed lo
+        # usaba -- esa vista nunca lo mostraba en una demostracion con base
+        # limpia. Con basico en "Cardio and Dance Studio" y pro/enterprise
+        # en los otros tres, este es el que queda libre para representarlo
+        # sin dejar ningun plan comercial sin cubrir.
+        "plan": "starter",
         "email_contacto": "hola@zenbody.mx",
         "telefono": "+52-664-200-0002",
         "admin_email": "admin@zenbody.mx",
@@ -556,6 +566,13 @@ def seed_gimnasio(cfg, roles, planes_map, idx_start):
     db.session.add(gym)
     db.session.flush()
 
+    # HU-41 (SCRUM-212): gimnasios.id_organizacion es NOT NULL -- toda
+    # creación de Gimnasio necesita su Organizacion 1:1, incluida en seeds.
+    # No se wire-ea crear_asignacion() en los usuarios de este seed (ver
+    # bitácora técnica): nada lee asignacion_usuario para permisos todavía
+    # y los seeds son solo datos de desarrollo/demo.
+    crear_organizacion_para_gimnasio(gym)
+
     ahora = datetime.now(timezone.utc)
     plan  = planes_map[cfg["plan"]]
     sub   = Suscripcion(id_gimnasio=gym.id, id_plan=plan.id, estado="active",
@@ -645,7 +662,44 @@ def seed_gimnasio(cfg, roles, planes_map, idx_start):
 
     print(f"  Miembros: {cfg['n_miembros']}  Entrenadores: {cfg['n_trainers']}  Staff: {cfg['n_staff']}")
     print(f"  TipoMem: {len(tm_map)}  Ejercicios: {len(cfg['ejercicios'])} x {len(trainers)} entrenadores  Clases: {len(cfg['clases'])}")
+
+    seed_pasarelas_gimnasio(gym)
+
     return gym, miembros_pg, tm_map, idx
+
+
+def seed_pasarelas_gimnasio(gym):
+    """SCRUM-205: sin esto, ningun gimnasio recien sembrado tiene pasarelas
+    activas y tanto la app como el portal web solo muestran "Efectivo" como
+    metodo de pago (el catalogo que exponen es correcto, pero esta vacio).
+    Se activan PayPal y Mercado Pago en modo sandbox con credenciales de
+    prueba para que el flujo de cobro en linea sea demostrable de inicio a
+    fin. Si PAYMENTS_ENCRYPTION_KEY no esta configurada en el entorno, se
+    omite con un aviso claro en vez de tumbar el resto del seed.
+    """
+    try:
+        credenciales_paypal = cifrar_dict({
+            "client_id":     "sb-sandbox-paypal-client-id",
+            "client_secret": "sb-sandbox-paypal-client-secret",
+        })
+        credenciales_mp = cifrar_dict({
+            "access_token": "TEST-sandbox-mercadopago-access-token",
+            "public_key":   "TEST-sandbox-mercadopago-public-key",
+        })
+    except CryptoNoConfigurado as e:
+        print(f"  [pasarelas] omitido: {e}")
+        return
+
+    db.session.add(ConfiguracionPasarela(
+        id_gimnasio=gym.id, proveedor="paypal", modo="sandbox", activo=True,
+        credenciales=credenciales_paypal, moneda="MXN", titular_cuenta=gym.nombre,
+    ))
+    db.session.add(ConfiguracionPasarela(
+        id_gimnasio=gym.id, proveedor="mercadopago", modo="sandbox", activo=True,
+        credenciales=credenciales_mp, moneda="MXN", titular_cuenta=gym.nombre,
+    ))
+    db.session.commit()
+    print("  Pasarelas: PayPal + Mercado Pago (sandbox, activas)")
 
 
 def seed_mongo_gym(gym, miembros_pg, tm_map, cfg):
@@ -733,15 +787,26 @@ def seed_mongo_gym(gym, miembros_pg, tm_map, cfg):
         total["pagos"] += len(pagos_bulk)
 
         # Asistencias
+        #
+        # "fecha" se guarda como datetime real, no como string. El resto del
+        # sistema (_get_workout_stats, _get_weekly_progress en
+        # user_dashboard.py; calcular_racha_dias en trainer_routes.py;
+        # los reportes de superadmin/owner_gym; todos los módulos de IA que
+        # leen esta colección) compara "fecha" con $gte/$lt contra un
+        # datetime, o la trata como tal. Guardarla como string ("2026-06-01")
+        # hacía que Mongo nunca la encontrara en esas comparaciones: las
+        # asistencias quedaban invisibles para analítica, dashboards y rachas
+        # pese a existir en la base (SCRUM-106 — detectado también y evitado
+        # para datos nuevos en seed_vitazone_demo.py, pero no corregido aquí
+        # en el origen).
         dias_asist = RNG.sample(range(5, 550), RNG.randint(20, 45))
         asist_bulk = []
         for d in dias_asist:
             f = fecha_reg + timedelta(days=d)
-            f_date = f.date() if hasattr(f,"date") else f
             hora = f"{RNG.randint(6,21):02d}:{RNG.choice(['00','15','30','45'])}"
             asist_bulk.append({
                 "id_miembro":   uid, "id_gimnasio": gym_id,
-                "fecha":        str(f_date),
+                "fecha":        f,
                 "hora_entrada": hora,
                 "hora_salida":  f"{min(23,int(hora[:2])+RNG.randint(1,2)):02d}:{hora[3:]}",
             })

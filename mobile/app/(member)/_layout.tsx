@@ -3,6 +3,8 @@ import { Drawer } from 'expo-router/drawer';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '../../hooks/useColors';
 import CustomDrawer from '../../components/navigation/CustomDrawer';
+import PerfilCompletoBadge from '../../components/navigation/PerfilCompletoBadge';
+import SyncStatusBadge from '../../components/shared/SyncStatusBadge';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 interface Screen { name: string; title: string; icon: IconName; iconActive: IconName }
@@ -16,6 +18,12 @@ const SCREENS: Screen[] = [
   { name: 'nutrition',  title: 'Nutrición y Dietas', icon: 'nutrition-outline', iconActive: 'nutrition'  },
   { name: 'membership', title: 'Mi Membresía',       icon: 'card-outline',      iconActive: 'card'      },
   { name: 'payments',   title: 'Pagos',              icon: 'receipt-outline',   iconActive: 'receipt'   },
+  // SCRUM: antes solo vivía como pantalla oculta (se llegaba desde el badge
+  // de perfil); ahora tiene título/ícono propios porque entra al grupo
+  // desplegable "Progreso y Salud" del cajón (ver CustomDrawer.tsx) junto
+  // con Salud y Predicción — ya no hace falta ocultarla, CustomDrawer la
+  // anida y nunca la dibuja como ítem plano.
+  { name: 'progress',   title: 'Progreso Físico',    icon: 'body-outline',      iconActive: 'body'       },
   { name: 'health',     title: 'Salud',              icon: 'pulse-outline',     iconActive: 'pulse'     },
   { name: 'prediccion', title: 'Predicción de Peso', icon: 'trending-up-outline', iconActive: 'trending-up' },
   { name: 'profile',    title: 'Mi Perfil',          icon: 'person-outline',    iconActive: 'person'    },
@@ -32,6 +40,19 @@ export default function MemberLayout() {
         headerTintColor:         colors.text,
         headerTitleStyle:        { fontWeight: '700', fontSize: 18, color: colors.text },
         headerShadowVisible:     false,
+        // SCRUM-102: indicador circular de pendientes, visible desde
+        // cualquier pantalla del rol Miembro (headerRight aplica a todas
+        // las Drawer.Screen de este layout).
+        // SCRUM-168 / HU-30: SyncStatusBadge se agrega aquí mismo, no en cada
+        // pantalla, para que el estado de conexión/sincronización aparezca en
+        // todas sin tocarlas una por una — mismo criterio que el badge de
+        // perfil.
+        headerRight:             () => (
+          <>
+            <SyncStatusBadge />
+            <PerfilCompletoBadge />
+          </>
+        ),
         drawerStyle:             { backgroundColor: colors.background, width: 280 },
         drawerActiveTintColor:   colors.accent,
         drawerInactiveTintColor: colors.textSecondary,
@@ -54,7 +75,7 @@ export default function MemberLayout() {
           }}
         />
       ))}
-      {['progress', 'routines', 'chat'].map((name) => (
+      {['routines', 'chat', 'start-workout'].map((name) => (
         <Drawer.Screen
           key={name}
           name={name}
