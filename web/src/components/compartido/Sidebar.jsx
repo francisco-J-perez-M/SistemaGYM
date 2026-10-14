@@ -572,7 +572,7 @@ export default function Sidebar({
         )}
 
         <a
-          href="/Terminos y Condiciones.pdf"
+          href="/privacidad"
           target="_blank"
           rel="noopener noreferrer"
           style={S.footerBtn}

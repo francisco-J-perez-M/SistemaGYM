@@ -6,6 +6,7 @@ import Layout from "./components/compartido/Layout";
 import AuthPage    from "./components/auth/AuthPage";
 import RegisterGym from "./pages/publico/RegisterGym";
 import ForgotPassword from "./pages/publico/ForgotPassword";
+import PrivacyPolicy  from "./pages/publico/PrivacyPolicy";
 
 // --- PÁGINAS DE OWNER GYM ---
 import OwnerOnboarding    from "./pages/owner_gym/OwnerOnboarding";
@@ -85,6 +86,7 @@ function App() {
           <Route path="/" element={<AuthPage />} />
           <Route path="/register" element={<AuthPage />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/privacidad" element={<PrivacyPolicy />} />
           <Route path="/register-gym"     element={<RegisterGym />} />
           <Route path="/owner/bienvenida" element={<OwnerOnboarding />} />
           {/* Retorno de las pasarelas de pago (PayPal / Mercado Pago) */}

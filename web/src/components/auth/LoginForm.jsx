@@ -220,6 +220,10 @@ export default function LoginForm() {
             <motion.p className="register-link" variants={itemVariants}>
               ¿No tienes una cuenta? <Link to="/register">Regístrate aquí</Link>
             </motion.p>
+
+            <motion.p className="privacy-link" variants={itemVariants}>
+              <a href="/privacidad" target="_blank" rel="noopener noreferrer">Política de Privacidad</a>
+            </motion.p>
           </form>
         </motion.div>
       </motion.div>

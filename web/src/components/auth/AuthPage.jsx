@@ -233,6 +233,12 @@ export default function AuthPage() {
                   <motion.button type="submit" className="login-button" disabled={loading} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                     {loading ? <span className="spinner" /> : "Ingresar al sistema"}
                   </motion.button>
+
+                  <p style={{ textAlign: "center", marginTop: 14, fontSize: 13 }}>
+                    <a href="/privacidad" target="_blank" rel="noopener noreferrer" style={{ color: "var(--text-secondary, #94a3b8)", textDecoration: "none" }}>
+                      Política de Privacidad
+                    </a>
+                  </p>
                 </form>
               </motion.div>
             )}
