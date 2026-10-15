@@ -18,6 +18,8 @@ import InfoGrafico, {
   COLORES_GRAFICO, COLOR_REJILLA, ejeX, ejeY, rangoPeriodo, describirTendencia,
 } from "../../components/compartido/InfoGrafico";
 import "../../css/CSSUnificado.css";
+import { useFuncionesPlan } from "../../hooks/useFuncionesPlan";
+import BloqueoFuncionPlan from "../../components/compartido/BloqueoFuncionPlan";
 
 const API_BASE       = "";
 const MEMBERS_PER_PAGE = 12;
@@ -344,6 +346,13 @@ export default function TrainerRegresion() {
   const [showInfo, setShowInfo]           = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
 
+// SCRUM-224: el backend solo bloquea los 2 endpoints "globales" (ver
+// spark_regresion.py) -- la prediccion individual queda sin bloquear
+// porque la comparte UserWeightPrediction.jsx (el propio miembro viendo
+// SU proyeccion). Aqui se usa solo para ocultar la pantalla completa.
+  const funcionesPlan = useFuncionesPlan();
+  const analiticasIaPermitido = funcionesPlan.analiticas_ia !== false;
+
   const initialFetched = useRef(false);
 
   /* ── Fetch modelo global ── */
@@ -402,11 +411,12 @@ export default function TrainerRegresion() {
   }, []);
 
   useEffect(() => {
+    if (!analiticasIaPermitido) return;
     if (initialFetched.current) return;
     initialFetched.current = true;
     fetchGlobal();
     fetchMembers();
-  }, []); // eslint-disable-line
+  }, [analiticasIaPermitido]); // eslint-disable-line
 
   /* ── Datos derivados ── */
   const metricas     = globalData?.metricas || {};
@@ -435,6 +445,11 @@ export default function TrainerRegresion() {
   const handleSearch = (v) => { setSearchQuery(v); setPage(1); };
 
   return (
+    <BloqueoFuncionPlan
+      permitido={analiticasIaPermitido}
+      nombreFuncion="Tendencias y predicción de peso con IA"
+      planSugerido="Pro"
+    >
     <div className="dashboard-content">
 
       {/* ── Header ── */}
@@ -794,5 +809,6 @@ export default function TrainerRegresion() {
       )}
 
     </div>
+    </BloqueoFuncionPlan>
   );
 }

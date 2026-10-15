@@ -35,8 +35,11 @@ export const probarPasarela = (proveedor) =>
 export const togglePasarela = (proveedor) =>
   API.patch(`/owner/pasarelas/${proveedor}/toggle`);
 
-export const eliminarPasarela = (proveedor) =>
-  API.delete(`/owner/pasarelas/${proveedor}`);
+// SCRUM-221 / HU-50, criterio 3: eliminar también es un cambio de cuenta de
+// cobro -- el backend exige `password_actual` en el cuerpo. axios no manda
+// body en DELETE salvo que se pase explícitamente en `data`.
+export const eliminarPasarela = (proveedor, passwordActual) =>
+  API.delete(`/owner/pasarelas/${proveedor}`, { data: { password_actual: passwordActual } });
 
 // ── Checkout ──────────────────────────────────────────────────────────────────
 

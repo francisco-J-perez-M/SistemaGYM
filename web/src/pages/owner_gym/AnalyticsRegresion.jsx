@@ -7,6 +7,9 @@ import "../../css/CSSUnificado.css";
 import InfoGrafico, {
   COLORES_GRAFICO, COLOR_REJILLA, ejeX, ejeY, rangoPeriodo, describirTendencia,
 } from "../../components/compartido/InfoGrafico";
+import { useFuncionesPlan } from "../../hooks/useFuncionesPlan";
+import BloqueoFuncionPlan from "../../components/compartido/BloqueoFuncionPlan";
+import { normalizarRol, ROL_PROPIETARIO, ROL_ADMINISTRADOR } from "../../constants/roles";
 
 const API_BASE = "";
 
@@ -289,6 +292,24 @@ export default function AnalyticsRegresion() {
   // Modal de predicción
   const [modalMember, setModalMember]     = useState(null);
 
+  // SCRUM-224: esta pantalla la monta tanto /owner/regresion como
+  // /receptionist/regresion (mismo componente -- ver App.jsx), y solo el
+  // Propietario/Administrador administra la suscripcion. El boton "Ver
+  // planes y mejorar" del overlay solo se ofrece a ellos; Recepcionista ve
+  // el mismo aviso sin boton, igual que TrainerRoutines.jsx para el
+  // Entrenador. El backend solo bloquea los 2 endpoints "globales"
+  // (/api/analytics/regresion y su /train, ver spark_regresion.py) -- la
+  // prediccion individual (/predecir/<id>) queda sin bloquear porque la
+  // comparte UserWeightPrediction.jsx, donde el propio miembro ve SU
+  // proyeccion y no deberia perderla por el plan del gimnasio.
+  const funcionesPlan = useFuncionesPlan();
+  const analiticasIaPermitido = funcionesPlan.analiticas_ia !== false;
+  let rolActual = null;
+  try {
+    rolActual = normalizarRol(JSON.parse(localStorage.getItem("user") || "{}").role);
+  } catch { /* ignore */ }
+  const puedeMejorarPlan = rolActual === ROL_PROPIETARIO || rolActual === ROL_ADMINISTRADOR;
+
   // ── Cargar datos globales ─────────────────────────────────────────────────
   const fetchGlobal = useCallback(async () => {
     setGlobalLoading(true); setGlobalError(null); setTrainMsg(null);
@@ -348,7 +369,9 @@ export default function AnalyticsRegresion() {
     }
   }, []);
 
-  useEffect(() => { fetchGlobal(); fetchMembers(); }, []);
+  useEffect(() => {
+    if (analiticasIaPermitido) { fetchGlobal(); fetchMembers(); }
+  }, [analiticasIaPermitido, fetchGlobal, fetchMembers]);
 
   // Debounce búsqueda — resetea a página 1
   const debounceRef = useRef(null);
@@ -370,6 +393,30 @@ export default function AnalyticsRegresion() {
     mes:  item.mes || item.periodo || "",
     peso: item.peso_promedio ?? item.peso ?? null,
   }));
+
+  if (!analiticasIaPermitido) {
+    return (
+      <BloqueoFuncionPlan
+        permitido={false}
+        nombreFuncion="Tendencias y predicción de peso con IA"
+        planSugerido="Pro"
+        puedeMejorarPlan={puedeMejorarPlan}
+      >
+        <div className="dashboard-content">
+          <div style={{ marginBottom: 24 }}>
+            <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>Tendencias y Predicción</h2>
+            <p style={{ color: "var(--text-secondary)", fontSize: 14 }}>
+              Tendencia de peso del gimnasio y proyección individual por miembro
+            </p>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16, marginBottom: 28 }}>
+            <div className="chart-card" style={{ minHeight: 300 }} />
+            <div className="stat-card" style={{ minHeight: 300 }} />
+          </div>
+        </div>
+      </BloqueoFuncionPlan>
+    );
+  }
 
   return (
     <div className="dashboard-content">

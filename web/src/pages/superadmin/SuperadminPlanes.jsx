@@ -55,8 +55,15 @@ function PlanForm({ plan, planesExistentes = [], onSave, onCancel }) {
     nombre:           plan?.nombre           || "",
     titulo_comercial: plan?.titulo_comercial || "",
     precio_pesos:     plan ? centavosAPesos(plan.precio_mensual_mxn) : 0,
+    // SCRUM-224: vacío = null = se cobra 12x el mensual (ver billing._monto_para_ciclo).
+    precio_anual_pesos: plan?.precio_anual_mxn != null ? centavosAPesos(plan.precio_anual_mxn) : "",
     descripcion:      plan?.descripcion      || "",
     max_miembros:     plan?.max_miembros     || null,
+    // SCRUM-223: estos dos viven en el JSON `limites`, no como columna
+    // propia (igual que max_miembros hace con su columna) -- ver
+    // routes/superadmin/planes.py::_limites_desde_payload.
+    max_staff:        plan?.limites?.max_staff      ?? null,
+    max_sucursales:   plan?.limites?.max_sucursales ?? null,
     caracteristicas:  (plan?.caracteristicas || []).join("\n"),
   });
   const [saving, setSaving] = useState(false);
@@ -82,8 +89,11 @@ function PlanForm({ plan, planesExistentes = [], onSave, onCancel }) {
       nombre,
       titulo_comercial:   form.titulo_comercial.trim() || null,
       precio_mensual_mxn: pesosACentavos(form.precio_pesos),
+      precio_anual_mxn:   form.precio_anual_pesos === "" ? null : pesosACentavos(form.precio_anual_pesos),
       descripcion:        form.descripcion,
       max_miembros:       form.max_miembros,
+      max_staff:          form.max_staff,
+      max_sucursales:     form.max_sucursales,
       caracteristicas:    form.caracteristicas.split("\n").map(s => s.trim()).filter(Boolean),
     };
 
@@ -118,6 +128,13 @@ function PlanForm({ plan, planesExistentes = [], onSave, onCancel }) {
         </p>
       </div>
       <div>
+        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>Precio anual (MXN, opcional)</label>
+        <input style={INPUT} type="number" min={0} step="0.01" value={form.precio_anual_pesos} onChange={e => setForm(f => ({ ...f, precio_anual_pesos: e.target.value }))} placeholder={`Ej: ${(Number(form.precio_pesos || 0) * 10).toFixed(2)} (2 meses gratis)`} />
+        <p style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 4 }}>
+          Vacío = se cobra 12x el precio mensual sin descuento. La convención del equipo es fijarlo en 10x el mensual ("2 meses gratis").
+        </p>
+      </div>
+      <div>
         <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>Descripción</label>
         <textarea
           style={{ ...INPUT, minHeight: 60, resize: "vertical", fontFamily: "inherit" }}
@@ -136,8 +153,22 @@ function PlanForm({ plan, planesExistentes = [], onSave, onCancel }) {
         />
       </div>
       <div>
-        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>Máximo de miembros (vacío = ilimitado)</label>
-        <input style={INPUT} type="number" min={1} value={form.max_miembros || ""} onChange={e => setForm(f => ({ ...f, max_miembros: e.target.value ? parseInt(e.target.value) : null }))} placeholder="Ej: 500" />
+        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>Máximo de miembros por sucursal (vacío = ilimitado)</label>
+        <input style={INPUT} type="number" min={1} value={form.max_miembros || ""} onChange={e => setForm(f => ({ ...f, max_miembros: e.target.value ? parseInt(e.target.value) : null }))} placeholder="Ej: 200" />
+        <p style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 4 }}>
+          Se aplica a CADA sucursal por separado -- una organización con varias sucursales multiplica su capacidad, no la reparte (ver utils/capacidad.py).
+        </p>
+      </div>
+      <div>
+        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>Máximo de staff por sucursal (vacío = ilimitado)</label>
+        <input style={INPUT} type="number" min={1} value={form.max_staff || ""} onChange={e => setForm(f => ({ ...f, max_staff: e.target.value ? parseInt(e.target.value) : null }))} placeholder="Ej: 10" />
+      </div>
+      <div>
+        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>Máximo de sucursales por organización (vacío = ilimitado)</label>
+        <input style={INPUT} type="number" min={1} value={form.max_sucursales || ""} onChange={e => setForm(f => ({ ...f, max_sucursales: e.target.value ? parseInt(e.target.value) : null }))} placeholder="Ej: 5" />
+        <p style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 4 }}>
+          Una organización contrata UN plan para todas sus sucursales (SCRUM-223) -- este es el tope de sucursales que ese plan cubre.
+        </p>
       </div>
       <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
         <button type="button" style={btnStyle("ghost")} onClick={onCancel} disabled={saving}>Cancelar</button>
@@ -168,6 +199,14 @@ function PlanCard({ plan, onEdit, onToggle }) {
       <div>
         <span style={{ fontSize: 28, fontWeight: 800, color: "var(--text-primary)" }}>${precio}</span>
         <span style={{ fontSize: 13, color: "var(--text-secondary)", marginLeft: 4 }}>MXN/mes</span>
+        {plan.precio_anual_display != null && (
+          <p style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 2 }}>
+            o {plan.precio_anual_display}
+            {plan.ahorro_anual_pct > 0 && (
+              <span style={{ ...badge("pos"), marginLeft: 6, fontSize: 10 }}>Ahorra {plan.ahorro_anual_pct}%</span>
+            )}
+          </p>
+        )}
       </div>
 
       {plan.descripcion && (
@@ -176,7 +215,12 @@ function PlanCard({ plan, onEdit, onToggle }) {
 
       {plan.max_miembros && (
         <p style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-          Máx: {plan.max_miembros.toLocaleString()} miembros
+          Máx: {plan.max_miembros.toLocaleString()} miembros{plan.limites?.max_staff ? ` y ${plan.limites.max_staff} staff` : ""} por sucursal
+        </p>
+      )}
+      {plan.limites?.max_sucursales && (
+        <p style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+          Máx: {plan.limites.max_sucursales.toLocaleString()} sucursal{plan.limites.max_sucursales !== 1 ? "es" : ""} por organización
         </p>
       )}
 
