@@ -9,7 +9,7 @@
  * La paginación es del servidor (page / per_page); aquí sólo se navega.
  */
 import { useEffect, useState } from "react";
-import { FiCalendar, FiChevronLeft, FiChevronRight, FiLogIn, FiLogOut } from "react-icons/fi";
+import { FiCalendar, FiChevronLeft, FiChevronRight, FiLogIn, FiLogOut, FiMapPin } from "react-icons/fi";
 import { getAsistenciasMiembro } from "../../api/miembros";
 
 const C = {
@@ -114,25 +114,39 @@ export default function HistorialAsistencias({ miembroId }) {
             <div
               key={a.id}
               style={{
-                display: "flex", alignItems: "center", gap: 10, padding: "11px 0",
+                display: "flex", flexDirection: "column", gap: 4, padding: "11px 0",
                 borderBottom: i === items.length - 1 ? "none" : `1px solid ${C.border}`,
               }}
             >
-              <span style={{ flex: 1, fontSize: 13, color: C.t1, fontWeight: 600 }}>
-                {fechaLarga(a.fecha)}
-              </span>
-              <span style={{ display: "flex", gap: 12, fontSize: 12.5, color: C.t2 }}>
-                {hhmm(a.hora_entrada) && (
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                    <FiLogIn size={13} /> {hhmm(a.hora_entrada)}
-                  </span>
-                )}
-                {hhmm(a.hora_salida) && (
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                    <FiLogOut size={13} /> {hhmm(a.hora_salida)}
-                  </span>
-                )}
-              </span>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ flex: 1, fontSize: 13, color: C.t1, fontWeight: 600 }}>
+                  {fechaLarga(a.fecha)}
+                </span>
+                <span style={{ display: "flex", gap: 12, fontSize: 12.5, color: C.t2 }}>
+                  {hhmm(a.hora_entrada) && (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                      <FiLogIn size={13} /> {hhmm(a.hora_entrada)}
+                    </span>
+                  )}
+                  {hhmm(a.hora_salida) && (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                      <FiLogOut size={13} /> {hhmm(a.hora_salida)}
+                    </span>
+                  )}
+                </span>
+              </div>
+              {/* HU-47/SCRUM-218: si la visita fue a OTRA sucursal de la
+                  organización (id_gimnasio_visita != sucursal del miembro),
+                  el backend manda su nombre aquí -- ver listar_asistencias_miembro()
+                  en routes/owner_gym/miembros.py. */}
+              {a.sucursal_visita && (
+                <span style={{
+                  display: "inline-flex", alignItems: "center", gap: 4,
+                  fontSize: 11, color: C.accent, fontWeight: 600,
+                }}>
+                  <FiMapPin size={11} /> Visitó: {a.sucursal_visita}
+                </span>
+              )}
             </div>
           ))
         )}
