@@ -21,6 +21,8 @@ import {
   useRoutineImportJob, startRoutineImportJob, dismissRoutineImportJob,
   cancelRoutineImportJob,
 } from "../../hooks/useRoutineImportJob";
+import { useFuncionesPlan } from "../../hooks/useFuncionesPlan";
+import BloqueoFuncionPlan from "../../components/compartido/BloqueoFuncionPlan";
 import "../../css/CSSUnificado.css";
 
 /* ── Constantes ── */
@@ -836,6 +838,12 @@ function ExerciseDetailModal({ exercise, onClose, onEdit }) {
 //  ImportarIARoutinesTab — ETL con Ollama para rutinas y ejercicios
 // ═══════════════════════════════════════════════════════════════
 function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExercise, onAssignRoutine, onAssignRoutineToMember }) {
+  // SCRUM-224: el Entrenador no administra la suscripción del gimnasio,
+  // así que aquí no se ofrece el botón de "mejorar plan" -- solo el aviso
+  // (ver BloqueoFuncionPlan). "false !== false" sería lo bloqueado; ver
+  // useFuncionesPlan.js para por qué "no se sabe todavía" no bloquea.
+  const funcionesPlan = useFuncionesPlan();
+  const rutinasIaPermitido = funcionesPlan.rutinas_ia !== false;
   const [mode, setMode]           = useState("trainer"); // "trainer" | "client"
   const [file, setFile]           = useState(null);
   const [clientId, setClientId]   = useState("");
@@ -1008,6 +1016,11 @@ function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExe
   );
 
   return (
+    <BloqueoFuncionPlan
+      permitido={rutinasIaPermitido}
+      nombreFuncion="Importación de rutinas con IA"
+      planSugerido="Pro"
+    >
     <div style={{ maxWidth: 780 }}>
 
       {/* ── Estado Ollama ─────────────────────────────────────────────────── */}
@@ -1336,6 +1349,7 @@ function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExe
         }
       `}</style>
     </div>
+    </BloqueoFuncionPlan>
   );
 }
 

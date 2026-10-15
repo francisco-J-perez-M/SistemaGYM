@@ -7,9 +7,9 @@ import {
   FiSettings, FiUpload, FiClipboard, FiTrendingUp,
   FiRefreshCw, FiUser, FiUserCheck, FiCalendar,
   FiFileText, FiLogOut, FiActivity, FiLock, FiCreditCard,
-  FiShoppingCart, FiBookOpen, FiCpu, FiPieChart, FiChevronDown,
+  FiShoppingCart, FiCpu, FiPieChart, FiChevronDown,
   FiChevronLeft, FiChevronRight, FiGlobe, FiPackage, FiServer,
-  FiSliders, FiHelpCircle, FiMapPin,
+  FiMoreHorizontal, FiHelpCircle, FiMapPin, FiSearch, FiBriefcase,
 } from "react-icons/fi";
 import { GiMuscleUp, GiMeal } from "react-icons/gi";
 // HU-45: para ocultar "Sucursales" a Administrador -- comparte el panel
@@ -42,11 +42,22 @@ const MENUS = {
     { id: "ow-miembros",   label: "Miembros",         icon: <FiUsers />        },
     { id: "ow-pagos",      label: "Pagos",            icon: <FiDollarSign />   },
     { id: "ow-pos",        label: "Punto de Venta",   icon: <FiShoppingCart /> },
+    // HU-47/SCRUM-218: solo visible si la organización tiene 2+ sucursales
+    // (multiSucursal, prop venida de /api/auth/me) -- ver filtrarOcultos abajo.
+    { id: "ow-verificar-sucursal", label: "Verificar Visitante", icon: <FiSearch /> },
     { type: "divider" },
-    { id: "ow-staff",      label: "Staff",            icon: <FiUserCheck />    },
-    { id: "ow-sucursales", label: "Sucursales",       icon: <FiMapPin />       },
-    { id: "ow-membresias", label: "Membresías",        icon: <FiCreditCard />   },
-    { type: "divider" },
+    // Agrupados bajo un mismo desplegable (antes 3 filas sueltas + Reportes
+    // suelto): reduce el amontonamiento del panel sin esconder nada más de
+    // un clic de profundidad.
+    {
+      id: "ow-negocio", label: "Gestión del Negocio", icon: <FiBriefcase />,
+      children: [
+        { id: "ow-staff",      label: "Staff",       icon: <FiUserCheck />  },
+        { id: "ow-sucursales", label: "Sucursales",  icon: <FiMapPin />     },
+        { id: "ow-membresias", label: "Membresías",   icon: <FiCreditCard /> },
+        { id: "ow-reportes",   label: "Reportes",    icon: <FiFileText />   },
+      ],
+    },
     {
       id: "ow-ia", label: "IA & Analíticas", icon: <FiCpu />,
       children: [
@@ -55,9 +66,6 @@ const MENUS = {
         { id: "ow-regresion",      label: "Tendencias",        icon: <FiTrendingUp /> },
         { id: "ow-cancelaciones",  label: "Cancelaciones IA",  icon: <FiActivity />   },
       ],
-    },
-    {
-      id: "ow-reportes", label: "Reportes", icon: <FiFileText />,
     },
     {
       id: "ow-config", label: "Configuración", icon: <FiSettings />,
@@ -98,15 +106,26 @@ const MENUS = {
   ],
   trainer: [
     { id: "tr-dashboard", label: "Dashboard",    icon: <FiBarChart2 />    },
-    { id: "clients",   label: "Mis Clientes",    icon: <FiUsers />        },
-    // Mensajes y solicitudes son cosas distintas: una es conversación con
-    // clientes actuales y la otra, peticiones de quienes aún no lo son.
-    { id: "messages",  label: "Mensajes",        icon: <FiActivity />     },
-    { id: "requests",  label: "Solicitudes PT",  icon: <GiMuscleUp />     },
-    { id: "schedule",  label: "Agenda",          icon: <FiCalendar />     },
-    { id: "routines",  label: "Rutinas",         icon: <FiFileText />     },
-    { id: "diets",     label: "Dietas",          icon: <GiMeal />         },
+    { id: "verificar-sucursal", label: "Verificar Visitante", icon: <FiSearch /> },
     { type: "divider" },
+    {
+      id: "tr-clientes", label: "Mis Clientes", icon: <FiUsers />,
+      children: [
+        { id: "clients",  label: "Mis Clientes",   icon: <FiUsers />    },
+        // Mensajes y solicitudes son cosas distintas: una es conversación
+        // con clientes actuales y la otra, peticiones de quienes aún no lo son.
+        { id: "messages", label: "Mensajes",        icon: <FiActivity /> },
+        { id: "requests", label: "Solicitudes PT",  icon: <GiMuscleUp /> },
+      ],
+    },
+    {
+      id: "tr-plan", label: "Planificación", icon: <FiCalendar />,
+      children: [
+        { id: "schedule", label: "Agenda",   icon: <FiCalendar />  },
+        { id: "routines", label: "Rutinas",  icon: <FiFileText /> },
+        { id: "diets",    label: "Dietas",   icon: <GiMeal />      },
+      ],
+    },
     {
       id: "ia-coach", label: "IA Coach", icon: <FiCpu />,
       children: [
@@ -120,15 +139,24 @@ const MENUS = {
   receptionist: [
     { id: "rec-dashboard", label: "Dashboard",      icon: <FiBarChart2 />    },
     { id: "pos",           label: "Punto de Venta", icon: <FiShoppingCart /> },
+    { id: "verificar-sucursal", label: "Verificar Visitante", icon: <FiSearch /> },
     { type: "divider" },
-    { id: "checkins",     label: "Check-ins", icon: <FiUserCheck /> },
-    { id: "appointments", label: "Citas",     icon: <FiCalendar />  },
-    { id: "payments",     label: "Pagos",     icon: <FiDollarSign />},
-    { id: "members",      label: "Miembros",  icon: <FiUsers />     },
-    { type: "divider" },
-    { id: "messages", label: "Bitácora", icon: <FiActivity />  },
-    { id: "tasks",    label: "Tareas",   icon: <FiClipboard /> },
-    { type: "divider" },
+    {
+      id: "rec-atencion", label: "Atención a Miembros", icon: <FiUserCheck />,
+      children: [
+        { id: "checkins",     label: "Check-ins", icon: <FiUserCheck /> },
+        { id: "appointments", label: "Citas",     icon: <FiCalendar />  },
+        { id: "members",      label: "Miembros",  icon: <FiUsers />     },
+      ],
+    },
+    {
+      id: "rec-admin", label: "Pagos y Tareas", icon: <FiClipboard />,
+      children: [
+        { id: "payments", label: "Pagos",    icon: <FiDollarSign /> },
+        { id: "messages", label: "Bitácora", icon: <FiActivity />   },
+        { id: "tasks",    label: "Tareas",   icon: <FiClipboard />  },
+      ],
+    },
     {
       id: "rec-ai", label: "AI Analytics", icon: <FiCpu />,
       children: [
@@ -176,13 +204,14 @@ export default function Sidebar({
   onTabChange = () => {},
   onLogout = () => {},
   onOpenGuide,
+  multiSucursal = false,
 }) {
   const { theme, changeTheme } = useTheme();
   const [collapsed,      setCollapsed]      = useState(false);
   const [openSubmenu,    setOpenSubmenu]    = useState(null);
-  const [showThemeMenu,  setShowThemeMenu]  = useState(false);
+  const [showOptionsMenu, setShowOptionsMenu] = useState(false);
   const [accessLevel,    setAccessLevel]    = useState("premium");
-  const themeRef = useRef(null);
+  const optionsRef = useRef(null);
 
   // Obtener access level del miembro
   useEffect(() => {
@@ -202,7 +231,7 @@ export default function Sidebar({
   // Cerrar theme menu al hacer click fuera
   useEffect(() => {
     const fn = (e) => {
-      if (themeRef.current && !themeRef.current.contains(e.target)) setShowThemeMenu(false);
+      if (optionsRef.current && !optionsRef.current.contains(e.target)) setShowOptionsMenu(false);
     };
     document.addEventListener("mousedown", fn);
     return () => document.removeEventListener("mousedown", fn);
@@ -240,12 +269,24 @@ export default function Sidebar({
   // permite a un Administrador configurar el cobro de SU propia sucursal
   // (ver _ROLES_ADMIN en ese archivo), a propósito.
   const esAdministrador = normalizarRol(user.role) === ROL_ADMINISTRADOR;
+  // HU-45: "role" (prop del panel) es compartido ("owner_gym") entre
+  // Propietario y Administrador -- el rol real para el badge viene de
+  // esAdministrador (que sí lee user.role), no de ROLE_LABELS.
+  const roleLabel = role === "owner_gym"
+    ? (esAdministrador ? "ADMINISTRADOR" : "PROPIETARIO")
+    : (ROLE_LABELS[role] || "USER");
   const OCULTOS_PARA_ADMINISTRADOR = ["ow-sucursales", "ow-subscription", "ow-backups"];
   // "ow-subscription" y "ow-backups" viven dentro de children (submenú
   // "Configuración"), no al nivel raíz -- hay que filtrar ahí también, no
   // solo el arreglo de primer nivel.
+  // HU-47/SCRUM-218: "Verificar Visitante" solo tiene sentido con 2+
+  // sucursales en la organización -- independiente de si es Administrador
+  // o Propietario, así que es una segunda condición de ocultado, no una
+  // regla exclusiva de Administrador como la de arriba.
+  const ID_SOLO_MULTISUCURSAL = ["ow-verificar-sucursal", "verificar-sucursal"];
   const filtrarOcultos = (items) => items
     .filter((item) => !(esAdministrador && OCULTOS_PARA_ADMINISTRADOR.includes(item.id)))
+    .filter((item) => !(!multiSucursal && ID_SOLO_MULTISUCURSAL.includes(item.id)))
     .map((item) => item.children ? { ...item, children: filtrarOcultos(item.children) } : item);
   const menu = filtrarOcultos(MENUS[role] || MENUS.user);
 
@@ -457,8 +498,6 @@ export default function Sidebar({
     },
   };
 
-  const currentThemeIcon = <FiSliders size={15} />;
-
   return (
     <aside style={S.aside}>
       {/* Collapse button */}
@@ -480,7 +519,7 @@ export default function Sidebar({
         {!collapsed && (
           <>
             <span style={S.brandText}>GYM PRO</span>
-            <span style={S.badge}>{ROLE_LABELS[role] || "USER"}</span>
+            <span style={S.badge}>{roleLabel}</span>
           </>
         )}
       </div>
@@ -547,79 +586,74 @@ export default function Sidebar({
         })}
       </nav>
 
-      {/* Footer */}
+      {/* Footer -- Temas/Guía/Términos/Manual viven en un solo desplegable
+          ("Más opciones") para no apilar 4 filas sueltas; Salir se queda
+          fuera, siempre visible, por ser la acción más usada y la que
+          conviene que nunca quede escondida. */}
       <div style={S.footer}>
-        {/* Theme selector */}
-        <div ref={themeRef} style={{ position: "relative" }}>
-          {showThemeMenu && (
+        <div ref={optionsRef} style={{ position: "relative" }}>
+          {showOptionsMenu && (
             <div style={S.themeDropdown}>
-              {THEMES.map(t => (
+              {/* Selector de tema: fila compacta de iconos -- evita anidar
+                  un segundo desplegable dentro de este. */}
+              <div style={{
+                display: "flex", justifyContent: "space-around",
+                padding: "10px 8px", borderBottom: `1px solid ${P.border}`,
+              }}>
+                {THEMES.map(t => (
+                  <button
+                    key={t.id}
+                    title={t.label}
+                    onClick={() => changeTheme(t.id)}
+                    style={{
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      width: 32, height: 32, borderRadius: 8, border: "none", cursor: "pointer",
+                      background: theme === t.id ? P.bgActive : "transparent",
+                      color: theme === t.id ? P.accentSoft : P.muted,
+                    }}
+                  >
+                    {t.icon}
+                  </button>
+                ))}
+              </div>
+
+              {onOpenGuide && (
                 <button
-                  key={t.id}
-                  style={{
-                    ...S.footerBtn,
-                    padding: "10px 14px",
-                    borderRadius: 0,
-                    fontWeight: theme === t.id ? 600 : 400,
-                    color: theme === t.id ? P.accentSoft : P.muted,
-                    background: theme === t.id ? P.bgActive : "transparent",
-                  }}
-                  onClick={() => { changeTheme(t.id); setShowThemeMenu(false); }}
+                  style={{ ...S.footerBtn, padding: "10px 14px", borderRadius: 0, color: P.accentSoft }}
+                  onClick={() => { onOpenGuide(); setShowOptionsMenu(false); }}
+                  onMouseEnter={e => e.currentTarget.style.background = P.bgHover}
+                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}
                 >
-                  <span style={S.icon}>{t.icon}</span>
-                  {!collapsed && <span>{t.label}</span>}
+                  <span style={S.icon}><FiHelpCircle size={15} /></span>
+                  {!collapsed && <span>Guía del sistema</span>}
                 </button>
-              ))}
+              )}
+
+              <a
+                href="/privacidad"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ ...S.footerBtn, padding: "10px 14px", borderRadius: 0 }}
+                onClick={() => setShowOptionsMenu(false)}
+                onMouseEnter={e => e.currentTarget.style.background = P.bgHover}
+                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+              >
+                <span style={S.icon}><FiFileText size={15} /></span>
+                {!collapsed && <span>Términos y Cond.</span>}
+              </a>
+
             </div>
           )}
           <button
             style={{ ...S.footerBtn, borderRadius: 8 }}
-            onClick={() => setShowThemeMenu(v => !v)}
+            onClick={() => setShowOptionsMenu(v => !v)}
             onMouseEnter={e => e.currentTarget.style.background = P.bgHover}
             onMouseLeave={e => e.currentTarget.style.background = "transparent"}
           >
-            <span style={S.icon}>{currentThemeIcon}</span>
-            {!collapsed && <span>Temas</span>}
+            <span style={S.icon}><FiMoreHorizontal size={15} /></span>
+            {!collapsed && <span>Más opciones</span>}
           </button>
         </div>
-
-        {/* Guía del sistema — recorrido paso a paso de la vista actual */}
-        {onOpenGuide && (
-          <button
-            style={{ ...S.footerBtn, color: P.accentSoft }}
-            onClick={onOpenGuide}
-            title="Guía del sistema"
-            onMouseEnter={e => e.currentTarget.style.background = P.bgHover}
-            onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-          >
-            <span style={S.icon}><FiHelpCircle size={15} /></span>
-            {!collapsed && <span>Guía del sistema</span>}
-          </button>
-        )}
-
-        <a
-          href="/privacidad"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={S.footerBtn}
-          onMouseEnter={e => e.currentTarget.style.background = P.bgHover}
-          onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-        >
-          <span style={S.icon}><FiFileText size={15} /></span>
-          {!collapsed && <span>Términos y Cond.</span>}
-        </a>
-
-        <a
-          href={role === "admin" ? "/Manual de Administrador.pdf" : role === "trainer" ? "/Manual de Entrenador.pdf" : "/Manual de Usuario.pdf"}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={S.footerBtn}
-          onMouseEnter={e => e.currentTarget.style.background = P.bgHover}
-          onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-        >
-          <span style={S.icon}><FiBookOpen size={15} /></span>
-          {!collapsed && <span>Manual de Ayuda</span>}
-        </a>
 
         <button
           style={{ ...S.footerBtn, color: "var(--danger, #ef4444)" }}
@@ -650,7 +684,7 @@ export default function Sidebar({
         {!collapsed && (
           <div style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
             <span style={S.brandText}>{user.nombre || "Usuario"}</span>
-            <span style={S.badge}>{ROLE_LABELS[role] || "USER"}</span>
+            <span style={S.badge}>{roleLabel}</span>
           </div>
         )}
       </div>

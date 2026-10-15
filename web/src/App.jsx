@@ -1,4 +1,6 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { cloneElement } from "react";
+import { BrowserRouter, Routes, Route, useLocation, useOutlet } from "react-router-dom";
+import { AnimatePresence } from "framer-motion";
 import { ThemeProvider } from "./hooks/ThemeContext";
 import Layout from "./components/compartido/Layout";
 
@@ -10,9 +12,11 @@ import PrivacyPolicy  from "./pages/publico/PrivacyPolicy";
 
 // --- PÁGINAS DE OWNER GYM ---
 import OwnerOnboarding    from "./pages/owner_gym/OwnerOnboarding";
+import CambiarPasswordInicial from "./pages/compartido/CambiarPasswordInicial";
 import OwnerDashboard     from "./pages/owner_gym/OwnerDashboard";
 import OwnerStaff         from "./pages/owner_gym/OwnerStaff";
 import OwnerSucursales    from "./pages/owner_gym/OwnerSucursales";
+import VerificarMiembro   from "./pages/compartido/VerificarMiembro";
 import OwnerMemberships   from "./pages/owner_gym/OwnerMemberships";
 import OwnerProfile       from "./pages/owner_gym/OwnerProfile";
 import OwnerMiPerfil      from "./pages/owner_gym/OwnerMiPerfil";
@@ -78,18 +82,42 @@ import SuperadminModelos      from "./pages/superadmin/SuperadminModelos";
 import OwnerPagos             from "./pages/owner_gym/OwnerPagos";
 import PagoResultado          from "./pages/publico/PagoResultado";
 
+// Login (AuthPage.jsx) y el wizard de registro (RegisterGym.jsx) usan el
+// mismo layout espejado (ver la nota de "Entrada en desvanecido" en ambos
+// archivos): el formulario y la imagen intercambian de lado según la
+// página. Al navegar entre ellas con react-router, la página vieja se
+// desmontaba de golpe (sin animación de salida) y la nueva aparecía con
+// su propio fade de entrada -- el corte abrupto en medio se sentía como
+// un "recargo de pantalla". Este layout, montado SOLO alrededor de estas
+// 3 rutas públicas (no afecta el resto del ruteo de la app), envuelve el
+// contenido con AnimatePresence para que la página saliente también haga
+// fade-out antes de desmontarse, dando el cross-fade real que se pidió.
+function AuthTransitionLayout() {
+  const location = useLocation();
+  const element = useOutlet();
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      {element && cloneElement(element, { key: location.pathname })}
+    </AnimatePresence>
+  );
+}
+
 function App() {
   return (
     <ThemeProvider>
       <BrowserRouter>
         <Routes>
           {/* 1. RUTAS PÚBLICAS */}
-          <Route path="/" element={<AuthPage />} />
-          <Route path="/register" element={<AuthPage />} />
+          <Route element={<AuthTransitionLayout />}>
+            <Route path="/" element={<AuthPage />} />
+            <Route path="/register" element={<AuthPage />} />
+            <Route path="/register-gym" element={<RegisterGym />} />
+          </Route>
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/privacidad" element={<PrivacyPolicy />} />
-          <Route path="/register-gym"     element={<RegisterGym />} />
           <Route path="/owner/bienvenida" element={<OwnerOnboarding />} />
+          {/* SCRUM-224: fuera de cualquier Layout por rol -- aplica a Miembro, Entrenador, Recepcionista y Administrador por igual. */}
+          <Route path="/cambiar-password-inicial" element={<CambiarPasswordInicial />} />
           {/* Retorno de las pasarelas de pago (PayPal / Mercado Pago) */}
           <Route path="/pago/exito"     element={<PagoResultado resultado="exito" />} />
           <Route path="/pago/cancelado" element={<PagoResultado resultado="cancelado" />} />
@@ -103,6 +131,7 @@ function App() {
             <Route path="/owner/pos"           element={<PointOfSale />}      />
             <Route path="/owner/staff"         element={<OwnerStaff />}       />
             <Route path="/owner/sucursales"    element={<OwnerSucursales />}  />
+            <Route path="/owner/verificar-sucursal" element={<VerificarMiembro />} />
             <Route path="/owner/memberships"   element={<OwnerMemberships />} />
             <Route path="/owner/profile"       element={<OwnerProfile />}     />
             <Route path="/owner/mi-perfil"     element={<OwnerMiPerfil />}    />
@@ -150,6 +179,7 @@ function App() {
             <Route path="/trainer/profile"           element={<TrainerProfile />} />
             <Route path="/trainer/pos"               element={<PointOfSale />} />
             <Route path="/trainer/requests"          element={<TrainerRequests />} />
+            <Route path="/trainer/verificar-sucursal"  element={<VerificarMiembro />} />
             <Route path="/trainer/messages"          element={<TrainerMessages />} />
           </Route>
 
@@ -161,6 +191,7 @@ function App() {
             <Route path="/receptionist/appointments" element={<ReceptionistAppointments />} />
             <Route path="/receptionist/payments"     element={<ReceptionistPayments />} />
             <Route path="/receptionist/members"      element={<ReceptionistMembers />} />
+            <Route path="/receptionist/verificar-sucursal" element={<VerificarMiembro />} />
             <Route path="/receptionist/messages"     element={<ReceptionistMessages />} />
             <Route path="/receptionist/tasks"        element={<ReceptionistTasks />} />
             <Route path="/receptionist/analytics"    element={<ReceptionistAnalytics />} />
