@@ -10,6 +10,7 @@ export function useAuth() {
   const logout    = useAuthStore((s) => s.logout);
   const hydrate   = useAuthStore((s) => s.hydrate);
   const clearError = useAuthStore((s) => s.clearError);
+  const cambiarPasswordInicial = useAuthStore((s) => s.cambiarPasswordInicial);
 
   const isLoggedIn = !!token && !!user;
   const isMember   = user?.role === 'Miembro' || user?.role === 'user';
@@ -17,5 +18,5 @@ export function useAuth() {
   const isAdmin    = user?.role === 'owner_gym' || user?.role === 'Admin' || user?.role === 'superadmin';
 
   return { user, token, loading, error, isLoggedIn, isMember, isTrainer, isAdmin,
-           login, logout, hydrate, clearError };
+           login, logout, hydrate, clearError, cambiarPasswordInicial };
 }

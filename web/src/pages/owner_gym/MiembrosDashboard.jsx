@@ -5,13 +5,17 @@
  * Se almacena en MongoDB directamente — sin filesystem ni volúmenes.
  */
 import { useState, useEffect, useRef, useCallback } from "react";
-import { FiCamera, FiSearch, FiUsers, FiCheck } from "react-icons/fi";
+import { FiCamera, FiSearch, FiUsers, FiCheck, FiRepeat } from "react-icons/fi";
 import DetalleUsuarioModal, { fechaFicha } from "../../components/compartido/DetalleUsuarioModal";
 import HistorialAsistencias from "../../components/compartido/HistorialAsistencias";
 import {
   getMiembros, createMiembro, updateMiembro,
   deleteMiembro, reactivateMiembro,
 } from "../../api/miembros";
+// Traslado de miembros entre sucursales (HU-48 / SCRUM-219) -- seleccion
+// multiple desde este dashboard, empujando miembros hacia OTRA sucursal
+// que el usuario elige (direccion inversa a la de Verificar Visitante).
+import { trasladarMiembros, getSucursalesDestino } from "../../api/verificacion";
 
 // ── Paleta / tokens ───────────────────────────────────────────────────────────
 const C = {
@@ -356,9 +360,16 @@ function MiembroForm({ initial, onSave, onCancel }) {
             <input style={inputSt} type="email" value={form.email} onChange={set("email")} placeholder="ejemplo@gym.com" required={!isEdit} />
           </Field>
         </div>
-        <Field label={isEdit ? "Contraseña — vacío para mantener" : "Contraseña"}>
-          <input style={inputSt} type="password" value={form.password} onChange={set("password")} placeholder={isEdit ? "••••••••" : "Crear contraseña"} />
-        </Field>
+        {isEdit && (
+          <Field label="Contraseña — vacío para mantener">
+            <input style={inputSt} type="password" value={form.password} onChange={set("password")} placeholder="••••••••" />
+          </Field>
+        )}
+        {!isEdit && (
+          <p style={{ fontSize: 11.5, color: C.t3, margin: 0 }}>
+            Se generará una contraseña y se enviará por correo a este email.
+          </p>
+        )}
       </div>
 
       {/* Perfil físico */}
@@ -435,17 +446,40 @@ export function miembroADetalle(m) {
   };
 }
 
-function MemberCard({ m, inactivos, onView, onEdit, onDelete, onReactivate }) {
+function MemberCard({ m, inactivos, onView, onEdit, onDelete, onReactivate, selectable, selected, onToggleSelect }) {
   const imcVal  = imc(m.peso_inicial, m.estatura);
   const imcMeta = imcLabel(imcVal);
 
   return (
     <div style={{
-      background: C.card, border: `1px solid ${C.border}`,
+      background: C.card,
+      border: `1px solid ${selected ? C.accent : C.border}`,
       borderRadius: 14, overflow: "hidden",
       opacity: inactivos ? 0.7 : 1,
-      transition: "box-shadow .15s",
+      position: "relative",
+      transition: "box-shadow .15s, border-color .15s",
     }}>
+      {selectable && (
+        <label
+          onClick={e => e.stopPropagation()}
+          title="Seleccionar para trasladar"
+          style={{
+            position: "absolute", top: 8, left: 8, zIndex: 2,
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            width: 22, height: 22, borderRadius: 6, cursor: "pointer",
+            background: selected ? C.accent : "rgba(0,0,0,.4)",
+            border: `1px solid ${selected ? C.accent : C.border}`,
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={Boolean(selected)}
+            onChange={() => onToggleSelect(m.id)}
+            style={{ position: "absolute", inset: 0, opacity: 0, width: "100%", height: "100%", cursor: "pointer" }}
+          />
+          {selected && <FiCheck size={14} color="#fff" />}
+        </label>
+      )}
       {/* Header */}
       <div style={{ padding: "16px 18px 12px", display: "flex", gap: 14, alignItems: "flex-start" }}>
         <Avatar src={m.foto_perfil} name={m.nombre} size={52} />
@@ -579,6 +613,60 @@ export default function MiembrosDashboard() {
   const [modal,      setModal]      = useState(null);   // null | {} | {miembro}
   const [confirm,    setConfirm]    = useState(null);   // null | {title,msg,fn,danger}
 
+  // -- Traslado de sucursal, seleccion multiple (HU-48 / SCRUM-219) ---------
+  const [sucursalesDestino, setSucursalesDestino] = useState([]); // [] o 1 sola -> oculta la funcion
+  const [selectionMode,     setSelectionMode]     = useState(false);
+  const [selectedIds,       setSelectedIds]       = useState([]); // ids de Mongo (string) marcados
+  const [destinoId,         setDestinoId]         = useState("");
+  const [trasladando,       setTrasladando]       = useState(false);
+
+  // Sucursales disponibles como destino (todas si Propietario, solo las
+  // asignadas si Administrador). Si viene <=1, no hay a donde mover miembros
+  // y la funcion de traslado masivo se oculta por completo.
+  useEffect(() => {
+    getSucursalesDestino()
+      .then(({ data }) => setSucursalesDestino(data || []))
+      .catch(() => setSucursalesDestino([]));
+  }, []);
+
+  const puedeTrasladar = !inactivos && sucursalesDestino.length > 1;
+
+  const toggleSelect = useCallback((id) => {
+    setSelectedIds(ids => (ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]));
+  }, []);
+
+  const handleTrasladoMasivo = () => {
+    if (!selectedIds.length || !destinoId) return;
+    const sucursal = sucursalesDestino.find(s => String(s.id) === String(destinoId));
+    setConfirm({
+      title:  `¿Trasladar ${selectedIds.length} miembro${selectedIds.length !== 1 ? "s" : ""}?`,
+      msg:    `Se moverán a "${sucursal?.nombre}". Podrán ser atendidos ahí de inmediato.`,
+      danger: false,
+      fn: async () => {
+        setConfirm(null);
+        setTrasladando(true);
+        try {
+          const { data } = await trasladarMiembros(selectedIds, Number(destinoId));
+          const destinoNombre = data.sucursal_destino?.nombre || sucursal?.nombre || "la sucursal destino";
+          toast.success(`${data.movidos} miembro${data.movidos !== 1 ? "s" : ""} trasladado${data.movidos !== 1 ? "s" : ""} a ${destinoNombre}`);
+          setSelectedIds([]);
+          setSelectionMode(false);
+          setDestinoId("");
+          load(1);
+        } catch (err) {
+          const resp = err?.response?.data;
+          if (err?.response?.status === 409 && resp) {
+            toast.error(`${resp.msg} — caben ${resp.caben}, solicitados ${resp.solicitados}`);
+          } else {
+            toast.error(resp?.msg || "No se pudo completar el traslado");
+          }
+        } finally {
+          setTrasladando(false);
+        }
+      },
+    });
+  };
+
   const load = useCallback(async (p = page) => {
     setLoading(true);
     try {
@@ -596,6 +684,13 @@ export default function MiembrosDashboard() {
     const t = setTimeout(() => load(1), 400);
     return () => clearTimeout(t);
   }, [search, inactivos]); // eslint-disable-line
+
+  // La seleccion es solo de la pagina/filtro actual: se limpia si cambian.
+  useEffect(() => {
+    setSelectionMode(false);
+    setSelectedIds([]);
+    setDestinoId("");
+  }, [page, search, inactivos]);
 
   const handleEdit   = (m) => setModal(m);
   const handleNew    = ()  => setModal({});
@@ -663,6 +758,20 @@ export default function MiembrosDashboard() {
           </p>
         </div>
         <div style={{ display: "flex", gap: 10 }}>
+          {puedeTrasladar && (
+            <button
+              data-guide="ow-mem-traslado"
+              onClick={() => { setSelectionMode(v => !v); setSelectedIds([]); setDestinoId(""); }}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                padding: "9px 16px", borderRadius: 8, border: `1px solid ${selectionMode ? C.accent : C.border}`,
+                background: selectionMode ? `${C.accent}18` : "transparent",
+                color: selectionMode ? C.accent : C.t2, fontSize: 13, fontWeight: 600, cursor: "pointer",
+              }}
+            >
+              <FiRepeat size={14} /> {selectionMode ? "Cancelar selección" : "Cambiar de sucursal"}
+            </button>
+          )}
           <button
             onClick={() => { setInactivos(v => !v); setPage(1); }}
             style={{ padding: "9px 16px", borderRadius: 8, border: `1px solid ${C.border}`, background: inactivos ? `${C.danger}18` : "transparent", color: inactivos ? C.danger : C.t2, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
@@ -695,6 +804,47 @@ export default function MiembrosDashboard() {
         )}
       </div>
 
+      {/* Barra de traslado masivo -- solo visible en modo seleccion */}
+      {selectionMode && (
+        <div style={{
+          display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
+          padding: "12px 16px", marginBottom: 20, borderRadius: 10,
+          background: `${C.accent}0F`, border: `1px solid ${C.accent}33`,
+        }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: C.t1, whiteSpace: "nowrap" }}>
+            {selectedIds.length} seleccionado{selectedIds.length !== 1 ? "s" : ""}
+          </span>
+          <select
+            value={destinoId}
+            onChange={e => setDestinoId(e.target.value)}
+            style={{ ...inputSt, padding: "7px 10px", fontSize: 13, minWidth: 220, flex: "0 1 260px" }}
+          >
+            <option value="">Elegir sucursal destino…</option>
+            {sucursalesDestino.filter(s => !s.es_actual).map(s => (
+              <option key={s.id} value={s.id}>{s.nombre}</option>
+            ))}
+          </select>
+          <button
+            disabled={!selectedIds.length || !destinoId || trasladando}
+            onClick={handleTrasladoMasivo}
+            style={{
+              padding: "8px 18px", borderRadius: 8, border: "none",
+              background: C.accent, color: "#fff", fontSize: 13, fontWeight: 700,
+              cursor: (!selectedIds.length || !destinoId || trasladando) ? "not-allowed" : "pointer",
+              opacity: (!selectedIds.length || !destinoId || trasladando) ? 0.5 : 1,
+            }}
+          >
+            {trasladando ? "Trasladando…" : "Trasladar seleccionados"}
+          </button>
+          <button
+            onClick={() => { setSelectionMode(false); setSelectedIds([]); setDestinoId(""); }}
+            style={{ padding: "8px 14px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", color: C.t2, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+          >
+            Cancelar
+          </button>
+        </div>
+      )}
+
       {/* Grid */}
       {loading && miembros.length === 0 ? (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: 16 }}>
@@ -726,6 +876,9 @@ export default function MiembrosDashboard() {
               onEdit={handleEdit}
               onDelete={handleDelete}
               onReactivate={handleReactivate}
+              selectable={selectionMode}
+              selected={selectedIds.includes(m.id)}
+              onToggleSelect={toggleSelect}
             />
           ))}
         </div>

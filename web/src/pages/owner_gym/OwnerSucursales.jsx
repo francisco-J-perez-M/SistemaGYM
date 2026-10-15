@@ -21,7 +21,8 @@ import {
   FiUser, FiShield,
 } from "react-icons/fi";
 import {
-  getSucursales, getSucursalesCapacidad, crearSucursal, editarSucursal, toggleSucursal,
+  getSucursales, getSucursalesCapacidad, getLimiteSucursales,
+  crearSucursal, editarSucursal, toggleSucursal,
   getAdministradores, crearAdministrador, reasignarSucursalesAdmin, toggleAdministrador,
 } from "../../api/owner_gym";
 
@@ -52,8 +53,10 @@ const GYM_TYPES_OPTIONS = [
   { value: "otro",                  label: "Otro / Personalizado" },
 ];
 
-const PLAN_OPTIONS = ["starter", "basico", "pro", "enterprise"];
-const PLAN_COLOR   = { starter: "#64748b", basico: "#6366f1", pro: "#8b5cf6", enterprise: "#eab308" };
+// SCRUM-223: el plan ya no se elige por sucursal -- lo contrata la
+// organización completa (ver GET /sucursales/limite). PLAN_COLOR se
+// conserva para el badge de plan de la organización en el header.
+const PLAN_COLOR = { starter: "#64748b", basico: "#6366f1", pro: "#8b5cf6", enterprise: "#eab308" };
 
 // ── Toast (mismo patrón que OwnerStaff.jsx) ───────────────────────────────────
 let _setToasts = () => {};
@@ -150,7 +153,7 @@ function CapBar({ label, bloque }) {
 }
 
 // ── SucursalModal ─────────────────────────────────────────────────────────────
-const EMPTY_SUC = { nombre: "", email_contacto: "", telefono: "", tipo_gimnasio: "", plan: "", heredar_cobro: true };
+const EMPTY_SUC = { nombre: "", email_contacto: "", telefono: "", tipo_gimnasio: "", heredar_cobro: true };
 
 function SucursalModal({ open, onClose, onSave, initial, saving }) {
   const [form, setForm] = useState(EMPTY_SUC);
@@ -159,7 +162,7 @@ function SucursalModal({ open, onClose, onSave, initial, saving }) {
   useEffect(() => {
     if (!open) return;
     setForm(initial
-      ? { nombre: initial.nombre || "", email_contacto: initial.email_contacto || "", telefono: initial.telefono || "", tipo_gimnasio: initial.tipo_gimnasio || "", plan: initial.plan || "", heredar_cobro: true }
+      ? { nombre: initial.nombre || "", email_contacto: initial.email_contacto || "", telefono: initial.telefono || "", tipo_gimnasio: initial.tipo_gimnasio || "", heredar_cobro: true }
       : EMPTY_SUC
     );
   }, [open, initial]);
@@ -204,19 +207,14 @@ function SucursalModal({ open, onClose, onSave, initial, saving }) {
                 </IcoWrap>
               </Field>
             </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
-              <Field label="Tipo de establecimiento">
-                <select style={{ ...inputSt, padding: "9px 12px" }} value={form.tipo_gimnasio} onChange={set("tipo_gimnasio")}>
-                  {GYM_TYPES_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                </select>
-              </Field>
-              <Field label={isEdit ? "Plan" : "Plan (vacío = heredar de la sede principal)"}>
-                <select style={{ ...inputSt, padding: "9px 12px" }} value={form.plan} onChange={set("plan")}>
-                  <option value="">{isEdit ? "Sin cambiar" : "Heredar de la sede principal"}</option>
-                  {PLAN_OPTIONS.map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
-              </Field>
-            </div>
+            {/* SCRUM-223: ya no hay selector de "Plan" aquí -- una sucursal no
+                tiene plan propio, hereda el de su organización (se administra
+                desde la sección de Suscripción, no desde Sucursales). */}
+            <Field label="Tipo de establecimiento">
+              <select style={{ ...inputSt, padding: "9px 12px" }} value={form.tipo_gimnasio} onChange={set("tipo_gimnasio")}>
+                {GYM_TYPES_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+              </select>
+            </Field>
             {!isEdit && (
               <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: C.t2, cursor: "pointer" }}>
                 <input type="checkbox" checked={form.heredar_cobro} onChange={e => setForm(f => ({ ...f, heredar_cobro: e.target.checked }))} />
@@ -294,11 +292,9 @@ function AdminModal({ open, onClose, onSave, initial, sucursales, saving }) {
                   </IcoWrap>
                 </Field>
               </div>
-              <Field label="Contraseña" required>
-                <IcoWrap icon={<FiLock size={14} />}>
-                  <input style={inputSt} type="password" value={form.password} onChange={set("password")} placeholder="Mínimo 6 caracteres" required />
-                </IcoWrap>
-              </Field>
+              <p style={{ fontSize: 11.5, color: C.t3, margin: 0 }}>
+                Se generará una contraseña y se enviará por correo a este email.
+              </p>
             </div>
           )}
 
@@ -347,7 +343,7 @@ function SucursalCard({ s, cap, onEdit, onToggle }) {
             <div style={{ minWidth: 0 }}>
               <p style={{ fontSize: 14, fontWeight: 700, color: C.t1, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.nombre}</p>
               <p style={{ fontSize: 11, color: C.t3, margin: "2px 0 0" }}>
-                {s.es_sucursal_principal ? "Sede principal" : "Sucursal"} · <span style={{ color: PLAN_COLOR[s.plan] || C.t2, fontWeight: 700 }}>{(s.plan || "—").toUpperCase()}</span>
+                {s.es_sucursal_principal ? "Sede principal" : "Sucursal"}
               </p>
             </div>
           </div>
@@ -427,6 +423,7 @@ function AdminCard({ a, sucursalesMap, onReasignar, onToggle }) {
 export default function OwnerSucursales() {
   const [sucursales, setSucursales]   = useState([]);
   const [capacidad,  setCapacidad]    = useState({});
+  const [limiteSucursales, setLimiteSucursales] = useState(null); // {plan, actual, tope, ...} -- SCRUM-223
   const [administradores, setAdministradores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving,  setSaving]  = useState(false);
@@ -440,13 +437,14 @@ export default function OwnerSucursales() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [rSuc, rCap, rAdmin] = await Promise.all([
-        getSucursales(), getSucursalesCapacidad(), getAdministradores(),
+      const [rSuc, rCap, rLimite, rAdmin] = await Promise.all([
+        getSucursales(), getSucursalesCapacidad(), getLimiteSucursales(), getAdministradores(),
       ]);
       setSucursales(rSuc.data);
       const capMap = {};
       (rCap.data || []).forEach(b => { capMap[b.id_gimnasio] = b; });
       setCapacidad(capMap);
+      setLimiteSucursales(rLimite.data);
       setAdministradores(rAdmin.data);
     } catch {
       toast.error("No se pudo cargar la información de sucursales");
@@ -468,7 +466,6 @@ export default function OwnerSucursales() {
         nombre: form.nombre, email_contacto: form.email_contacto,
         telefono: form.telefono, tipo_gimnasio: form.tipo_gimnasio,
       };
-      if (form.plan) payload.plan = form.plan;
       if (sucEditing) {
         await editarSucursal(sucEditing.id, payload);
         toast.success(`${form.nombre} actualizada`);
@@ -514,13 +511,13 @@ export default function OwnerSucursales() {
         await reasignarSucursalesAdmin(adminEditing.id, form.sucursales);
         toast.success(`Sucursales de ${adminEditing.nombre} actualizadas`);
       } else {
-        if (!form.nombre || !form.email || !form.password) {
-          toast.error("Completa nombre, email y contraseña");
+        if (!form.nombre || !form.email) {
+          toast.error("Completa nombre y email");
           setSaving(false);
           return;
         }
         await crearAdministrador({
-          nombre: form.nombre, email: form.email, password: form.password,
+          nombre: form.nombre, email: form.email,
           sucursales: form.sucursales,
         });
         toast.success(`${form.nombre} registrado como Administrador`);
@@ -560,12 +557,23 @@ export default function OwnerSucursales() {
       />
 
       {/* Header */}
-      <div className="section-header" style={{ marginBottom: 24 }}>
-        <div>
+      <div className="section-header" style={{ marginBottom: 24, alignItems: "flex-start" }}>
+        <div style={{ flex: 1, minWidth: 220 }}>
           <h2 className="page-title" style={{ margin: "0 0 4px" }}>Sucursales</h2>
           <p style={{ margin: 0, fontSize: 13, color: C.t2 }}>
             {sucursales.length} sucursal{sucursales.length !== 1 ? "es" : ""} · {administradores.length} administrador{administradores.length !== 1 ? "es" : ""}
+            {limiteSucursales?.plan && (
+              <> · Plan <span style={{ color: PLAN_COLOR[limiteSucursales.plan] || C.t2, fontWeight: 700 }}>{limiteSucursales.plan.toUpperCase()}</span></>
+            )}
           </p>
+          {/* SCRUM-223: el tope de sucursales es de la ORGANIZACIÓN, no de
+              cada sucursal individual -- por eso se muestra una sola vez
+              aquí, no en cada SucursalCard. */}
+          {limiteSucursales && (
+            <div style={{ maxWidth: 260, marginTop: 10 }}>
+              <CapBar label="Sucursales de tu organización" bloque={limiteSucursales} />
+            </div>
+          )}
         </div>
         <button onClick={() => { setSucEditing(null); setSucModal(true); }}
           style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 18px", borderRadius: 10, border: "none", background: C.accent, color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>

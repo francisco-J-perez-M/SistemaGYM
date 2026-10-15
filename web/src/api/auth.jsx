@@ -68,6 +68,17 @@ export async function completeOnboarding(payload) {
   });
 }
 
+// SCRUM-224: cambio de contraseña obligatorio en el primer login para
+// cuentas creadas por un Propietario/Administrador (miembro, staff,
+// administrador) -- mismo cliente que completeOnboarding (ver
+// api/cliente.js), que ya envía la sesión vigente.
+export async function cambiarPasswordInicial(nuevaPassword) {
+  return peticion("/api/auth/cambiar-password-inicial", {
+    method: "PUT",
+    body: JSON.stringify({ nueva_password: nuevaPassword }),
+  });
+}
+
 export async function getPlanesPublicos() {
   const response = await fetch("/api/onboarding/planes");
   const data = await response.json();

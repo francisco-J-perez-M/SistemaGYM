@@ -15,6 +15,7 @@ import {
 } from "react-icons/fa";
 import { registerGym, getPlanesPublicos } from "../../api/auth";
 import useTheme from "../../hooks/useTheme";
+import { passwordStrength } from "../../utils/passwordStrength";
 
 const GYM_TYPES = [
   { id: "gimnasio_tradicional", label: "Gimnasio Tradicional",  description: "Pesas, cardio y musculación libre",           Icon: FaDumbbell  },
@@ -29,28 +30,15 @@ const GYM_TYPES = [
 
 const STEPS = ["Tipo", "Gimnasio", "Plan", "Administrador"];
 
-// Fortaleza de contraseña
-function passStrength(pwd) {
-  if (!pwd) return null;
-  const checks = [
-    pwd.length >= 8,
-    /[A-Z]/.test(pwd),
-    /[0-9]/.test(pwd),
-    /[^A-Za-z0-9]/.test(pwd),
-  ];
-  const score = checks.filter(Boolean).length;
-  if (score <= 1) return { level: 0, label: "Muy débil",  color: "var(--danger)" };
-  if (score === 2) return { level: 1, label: "Aceptable",  color: "var(--warning)" };
-  if (score === 3) return { level: 2, label: "Buena",      color: "var(--warning)" };
-  return               { level: 3, label: "Excelente",   color: "var(--success)" };
-}
+// Fortaleza de contraseña -- ver utils/passwordStrength.js
+const passStrength = passwordStrength;
 
 const btnBack = {
-  display: "flex", alignItems: "center", gap: 6,
-  padding: "12px 20px", borderRadius: "var(--r-md, 8px)",
+  display: "flex", alignItems: "center", gap: 5,
+  padding: "10px 16px", borderRadius: "var(--r-md, 8px)",
   background: "transparent", border: "1px solid var(--border-color, #444)",
   color: "var(--text-secondary, #aaa)", cursor: "pointer",
-  fontSize: 13, fontWeight: 600,
+  fontSize: 12.5, fontWeight: 600,
 };
 
 export default function RegisterGym() {
@@ -153,77 +141,66 @@ export default function RegisterGym() {
   };
 
   return (
-    <div className="split-login-container" style={{ minHeight: "100vh" }}>
+    <motion.div
+      className="split-login-container"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+    >
 
-      {/* Panel izquierdo */}
+      {/* Panel izquierdo: imagen de marca */}
       <motion.div
-        className="login-left-side"
-        initial={{ opacity: 0, x: -60 }} animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+        className="auth-image-panel"
         style={{
-          backgroundImage: `linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.75)),
-            url('https://img.freepik.com/foto-gratis/vista-frontal-entrenador-fisico-masculino-posando-brazos-cruzados_23-2148239739.jpg?w=740')`,
-          backgroundSize: "cover", backgroundPosition: "center",
+          backgroundImage: "url('/auth-register-hero.jpg')",
+          // Logo y leyenda de esta imagen quedan hacia la derecha; se
+          // ancla el recorte ahí para no perderlos en pantallas angostas.
+          backgroundPosition: "right center",
         }}
       >
-        <motion.div className="brand-logo-container"
-          initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.4, duration: 0.5 }}
-        >
-          <h1 className="brand-text-logo">GYM<span style={{ color: "var(--accent)" }}>PRO</span></h1>
-        </motion.div>
-        <div className="brand-hero-text">
-          <motion.h2 initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.6, duration: 0.7 }}>Registra</motion.h2>
-          <motion.h2 initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.8, duration: 0.7 }}>tu gimnasio.</motion.h2>
-          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.1, duration: 0.6 }}
-            style={{ color: "rgba(255,255,255,0.75)", marginTop: 16, maxWidth: 280, lineHeight: 1.6 }}
-          >
-            14 días de prueba gratis.<br />Sin tarjeta de crédito.
-          </motion.p>
-          <AnimatePresence>
-            {selectedType && (
-              <motion.div key={selectedType}
-                initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                style={{
-                  marginTop: 32, padding: "14px 20px",
-                  background: "rgba(255,255,255,0.1)", backdropFilter: "blur(8px)",
-                  borderRadius: 12, border: "1px solid rgba(255,255,255,0.2)", maxWidth: 260,
-                }}
-              >
-                <div style={{ marginBottom: 6 }}>
-                  {(() => { const T = GYM_TYPES.find(t => t.id === selectedType); return T ? <T.Icon size={28} color="var(--accent)" /> : null; })()}
-                </div>
-                <p style={{ color: "#fff", fontWeight: 600, margin: 0 }}>
-                  {GYM_TYPES.find(t => t.id === selectedType)?.label}
-                </p>
-                <p style={{ color: "rgba(255,255,255,0.65)", fontSize: 12, margin: "4px 0 0" }}>
-                  Los planes y módulos se configurarán automáticamente
-                </p>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+        {/* Única pieza de texto sobre la imagen: la vista previa dinámica
+            del tipo de gimnasio elegido en el paso 0. Se ancla abajo a la
+            izquierda, lejos del logo/leyenda (arriba/abajo a la derecha)
+            que ya trae la propia imagen. */}
+        <AnimatePresence>
+          {selectedType && (
+            <motion.div key={selectedType} className="auth-image-caption"
+              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+              style={{
+                padding: "14px 20px",
+                background: "rgba(0,0,0,0.45)", backdropFilter: "blur(8px)",
+                borderRadius: 12, border: "1px solid rgba(255,255,255,0.2)",
+              }}
+            >
+              <div style={{ marginBottom: 6 }}>
+                {(() => { const T = GYM_TYPES.find(t => t.id === selectedType); return T ? <T.Icon size={28} color="var(--accent)" /> : null; })()}
+              </div>
+              <p style={{ color: "#fff", fontWeight: 600, margin: 0 }}>
+                {GYM_TYPES.find(t => t.id === selectedType)?.label}
+              </p>
+              <p style={{ color: "rgba(255,255,255,0.75)", fontSize: 12, margin: "4px 0 0" }}>
+                Los planes y módulos se configurarán automáticamente
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
 
-      {/* Panel derecho */}
-      <motion.div
-        className="login-right-side"
-        initial={{ opacity: 0, x: 60 }} animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-        style={{ overflowY: "auto" }}
-      >
-        <div className="login-card" style={{ maxWidth: step === 0 ? 560 : (step === 2 ? 480 : 440), width: "100%" }}>
+      {/* Panel derecho: formulario */}
+      <div className="auth-form-panel">
+        <div className="login-card" style={{ maxWidth: 480, width: "100%" }}>
 
           {/* Indicador de pasos */}
-          <div style={{ display: "flex", gap: 8, marginBottom: 28 }}>
+          <div style={{ display: "flex", gap: 6, marginBottom: 20 }}>
             {STEPS.map((label, i) => (
               <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
                 <div style={{
-                  width: "100%", height: 4, borderRadius: 2,
+                  width: "100%", height: 3, borderRadius: 2,
                   background: i <= step ? "var(--accent)" : "var(--border-color, #333)",
                   transition: "background 0.3s",
                 }} />
-                <span style={{ fontSize: 11, color: i <= step ? "var(--accent)" : "var(--text-muted, #888)" }}>{label}</span>
+                <span style={{ fontSize: 10.5, color: i <= step ? "var(--accent)" : "var(--text-muted, #888)" }}>{label}</span>
               </div>
             ))}
           </div>
@@ -265,18 +242,18 @@ export default function RegisterGym() {
                 {/* ── Paso 0: Tipo de gimnasio ── */}
                 {step === 0 && (
                   <motion.div key="paso0" variants={slide} initial="hidden" animate="visible" exit="exit">
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 12, marginBottom: 20 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(108px, 1fr))", gap: 8, marginBottom: 16 }}>
                       {GYM_TYPES.map((tipo) => {
                         const isSelected = selectedType === tipo.id;
                         return (
                           <motion.button key={tipo.id} type="button" whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
                             onClick={() => { setSelectedType(tipo.id); setError(""); }}
                             style={{
-                              padding: "16px 12px", borderRadius: 12,
+                              padding: "12px 8px", borderRadius: 10,
                               border: `2px solid ${isSelected ? "var(--accent)" : "var(--border-color, #333)"}`,
                               background: isSelected ? "var(--accent, #6c63ff)22" : "var(--card-bg, #1e1e2e)",
                               cursor: "pointer", textAlign: "center",
-                              display: "flex", flexDirection: "column", alignItems: "center", gap: 8, position: "relative",
+                              display: "flex", flexDirection: "column", alignItems: "center", gap: 6, position: "relative",
                             }}
                           >
                             {isSelected && (
@@ -286,9 +263,9 @@ export default function RegisterGym() {
                                 <FiCheck size={10} color="#fff" />
                               </motion.div>
                             )}
-                            <tipo.Icon size={28} color={isSelected ? "var(--accent)" : "var(--text-secondary, #aaa)"} />
-                            <span style={{ fontSize: 12, fontWeight: 600, color: isSelected ? "var(--accent)" : "var(--text-primary, #fff)", lineHeight: 1.3 }}>{tipo.label}</span>
-                            <span style={{ fontSize: 10, color: "var(--text-muted, #888)", lineHeight: 1.3 }}>{tipo.description}</span>
+                            <tipo.Icon size={22} color={isSelected ? "var(--accent)" : "var(--text-secondary, #aaa)"} />
+                            <span style={{ fontSize: 11.5, fontWeight: 600, color: isSelected ? "var(--accent)" : "var(--text-primary, #fff)", lineHeight: 1.3 }}>{tipo.label}</span>
+                            <span style={{ fontSize: 9.5, color: "var(--text-muted, #888)", lineHeight: 1.3 }}>{tipo.description}</span>
                           </motion.button>
                         );
                       })}
@@ -518,7 +495,7 @@ export default function RegisterGym() {
             </>
           )}
         </div>
-      </motion.div>
-    </div>
+      </div>
+    </motion.div>
   );
 }

@@ -22,6 +22,7 @@ const ROUTE_MAP = {
     "/owner/pos":          "ow-pos",
     "/owner/staff":        "ow-staff",
     "/owner/sucursales":   "ow-sucursales",
+    "/owner/verificar-sucursal": "ow-verificar-sucursal",
     "/owner/memberships":  "ow-membresias",
     "/owner/mi-perfil":    "ow-mi-perfil",
     "/owner/profile":      "ow-profile",
@@ -47,6 +48,7 @@ const ROUTE_MAP = {
     "/trainer/profile":           "profile",
     "/trainer/pos":               "pos",
     "/trainer/requests":          "requests",
+    "/trainer/verificar-sucursal": "verificar-sucursal",
     "/trainer/trainer-kmeans":    "trainer-kmeans",
     "/trainer/trainer-regresion": "trainer-regresion",
   },
@@ -56,6 +58,7 @@ const ROUTE_MAP = {
     "/receptionist/appointments": "appointments",
     "/receptionist/payments":     "payments",
     "/receptionist/members":      "members",
+    "/receptionist/verificar-sucursal": "verificar-sucursal",
     "/receptionist/pos":          "pos",
     "/receptionist/messages":     "messages",
     "/receptionist/tasks":        "tasks",
@@ -101,6 +104,7 @@ const NAV_MAP = {
     "ow-pos":        "/owner/pos",
     "ow-staff":      "/owner/staff",
     "ow-sucursales": "/owner/sucursales",
+    "ow-verificar-sucursal": "/owner/verificar-sucursal",
     "ow-membresias": "/owner/memberships",
     "ow-mi-perfil":  "/owner/mi-perfil",
     "ow-profile":    "/owner/profile",
@@ -125,6 +129,7 @@ const NAV_MAP = {
     profile:           "/trainer/profile",
     pos:               "/trainer/pos",
     requests:          "/trainer/requests",
+    "verificar-sucursal": "/trainer/verificar-sucursal",
     "trainer-kmeans":    "/trainer/trainer-kmeans",
     "trainer-regresion": "/trainer/trainer-regresion",
   },
@@ -134,6 +139,7 @@ const NAV_MAP = {
     appointments:    "/receptionist/appointments",
     payments:        "/receptionist/payments",
     members:         "/receptionist/members",
+    "verificar-sucursal": "/receptionist/verificar-sucursal",
     pos:             "/receptionist/pos",
     messages:        "/receptionist/messages",
     tasks:           "/receptionist/tasks",
@@ -242,7 +248,11 @@ export default function Layout({ role = "owner_gym" }) {
   // RENDERIZADO: mientras no se conoce el rol se muestra un cargador, y
   // el panel (el <Outlet/> de abajo) solo se monta si el rol autoriza.
   // Así ningún componente hijo llega a lanzar peticiones antes de tiempo.
-  const [sesion, setSesion] = useState({ estado: "cargando", rol: null });
+  // SCRUM-224: funcionesPlan trae las banderas del plan contratado
+  // (ver GET /api/auth/me -> "funciones_plan"), para que cualquier pantalla
+  // bajo este Layout pueda saber de entrada si una función está bloqueada
+  // por el plan, sin pedirlo aparte -- ver hooks/useFuncionesPlan.js.
+  const [sesion, setSesion] = useState({ estado: "cargando", rol: null, multiSucursal: false, funcionesPlan: {}, debeCambiarPassword: false });
 
   useEffect(() => {
     let vigente = true;
@@ -253,7 +263,21 @@ export default function Layout({ role = "owner_gym" }) {
         // a mano lo que normalizarRol() ya resuelve (alias + mayúsculas),
         // y cualquier rol nuevo (p. ej. "Administrador", HU-45) quedaba a
         // merced de que su alias ya estuviera en minúsculas en roles.js.
-        setSesion({ estado: "listo", rol: normalizarRol(d?.role).toLowerCase() });
+        setSesion({
+          estado: "listo",
+          rol: normalizarRol(d?.role).toLowerCase(),
+          // HU-47/SCRUM-218: oculta el acceso a "Verificar Visitante" cuando la
+          // organización tiene una sola sucursal (no hay nada que verificar entre
+          // sucursales). El backend igual responde 404 si se fuerza la ruta.
+          multiSucursal: !!d?.organizacion_multi_sucursal,
+          funcionesPlan: d?.funciones_plan || {},
+          // SCRUM-224: re-verificado contra el servidor en cada navegación,
+          // igual que el rol -- cierra el hueco por el que alguien con una
+          // contraseña generada/reseteada podía evitar la pasarela
+          // navegando directo a otra URL en vez de usar la redirección de
+          // AuthPage.jsx (que solo corre una vez, justo tras el login).
+          debeCambiarPassword: !!d?.debe_cambiar_password,
+        });
         readImpersonationState();
       })
       .catch(() => { if (vigente) setSesion({ estado: "anonimo", rol: null }); });
@@ -339,6 +363,12 @@ export default function Layout({ role = "owner_gym" }) {
     return <Navigate to="/" replace />;
   }
 
+  // SCRUM-224: ningún panel se monta (ni sus peticiones) hasta que esta
+  // persona cambie la contraseña que no eligió ella misma.
+  if (sesion.debeCambiarPassword) {
+    return <Navigate to="/cambiar-password-inicial" replace />;
+  }
+
   return (
     <div
       style={{
@@ -392,6 +422,7 @@ export default function Layout({ role = "owner_gym" }) {
             onTabChange={handleNav}
             onLogout={handleLogout}
             onOpenGuide={guideEnabled ? openGuide : undefined}
+            multiSucursal={sesion.multiSucursal}
           />
         )}
 
@@ -406,7 +437,7 @@ export default function Layout({ role = "owner_gym" }) {
             flexDirection: "column",
           }}
         >
-          <Outlet />
+          <Outlet context={{ funcionesPlan: sesion.funcionesPlan }} />
         </div>
 
         {guideEnabled && (

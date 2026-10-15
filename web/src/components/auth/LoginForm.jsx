@@ -8,7 +8,7 @@ import {
   FiSun, FiMoon, FiStar, FiEye, FiEyeOff, FiAlertTriangle 
 } from "react-icons/fi";
 import { GiPineTree } from "react-icons/gi";
-import { normalizarRol, ROL_PROPIETARIO, ROL_MIEMBRO, ROL_ENTRENADOR, ROL_RECEPCIONISTA } from "../../constants/roles";
+import { normalizarRol, ROL_PROPIETARIO, ROL_ADMINISTRADOR, ROL_MIEMBRO, ROL_ENTRENADOR, ROL_RECEPCIONISTA } from "../../constants/roles";
 
 export default function LoginForm() {
   const [email, setEmail] = useState("");
@@ -89,7 +89,10 @@ export default function LoginForm() {
       // 5. Redirección normal según Rol
       if (userRole === "superadmin") {
         navigate("/superadmin");
-      } else if (userRole === ROL_PROPIETARIO) {
+      } else if (userRole === ROL_PROPIETARIO || userRole === ROL_ADMINISTRADOR) {
+        // HU-45: mismo panel que Propietario -- ver el fix equivalente y
+        // su explicación completa en AuthPage.jsx (el componente que sí
+        // se renderiza en producción).
         navigate("/dashboard");
       } else if (userRole === ROL_ENTRENADOR) {
         navigate("/trainer-dashboard");

@@ -14,6 +14,7 @@ import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { API_BASE_URL, ENDPOINTS } from '../constants/Api';
 import type { AuthUser } from '../types';
+import api from './api';
 
 export interface LoginResponse {
   access_token:   string;
@@ -55,6 +56,21 @@ export async function persistSession(
 /** Reemplaza solo el access token tras un refresco. */
 export async function actualizarAccessToken(token: string): Promise<void> {
   await SecureStore.setItemAsync(CLAVE_ACCESO, token);
+}
+
+/**
+ * SCRUM-224: cambia la contraseña cuando el sistema la generó (cuenta
+ * nueva o reseteada por un administrador) y limpia `debe_cambiar_password`
+ * en el servidor. Requiere sesión activa -- usa el cliente autenticado
+ * (`api`), no axios directo como login()/refrescarSesion().
+ */
+export async function cambiarPasswordInicialRequest(
+  nuevaPassword: string
+): Promise<{ access_token: string; user: AuthUser }> {
+  const { data } = await api.put<{
+    msg: string; access_token: string; user: AuthUser;
+  }>(ENDPOINTS.CAMBIAR_PASSWORD_INICIAL, { nueva_password: nuevaPassword });
+  return { access_token: data.access_token, user: data.user };
 }
 
 /** Datos del usuario guardados, para reflejar cambios de perfil sin volver a entrar. */
