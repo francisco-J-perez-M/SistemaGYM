@@ -51,7 +51,9 @@ const alerta = (icon, title, text) =>
 
 function TarjetaPasarela({ pasarela, onRecargar, soloLectura }) {
   const [form, setForm]   = useState({});
-  const [modo, setModo]   = useState(pasarela.modo || "sandbox");
+  // SCRUM-224: en produccion el backend manda modo_forzado=true y ya no
+  // deja elegir "sandbox" -- el estado inicial respeta eso desde el arranque.
+  const [modo, setModo]   = useState(pasarela.modo_forzado ? "live" : (pasarela.modo || "sandbox"));
   const [moneda, setMoneda] = useState(pasarela.moneda || "MXN");
   const [titular, setTitular] = useState(pasarela.titular_cuenta || "");
   // SCRUM-221 / HU-50, criterio 3: cambiar la cuenta pide la contraseña del
@@ -61,7 +63,7 @@ function TarjetaPasarela({ pasarela, onRecargar, soloLectura }) {
   const [probando, setProbando]   = useState(false);
 
   useEffect(() => {
-    setModo(pasarela.modo || "sandbox");
+    setModo(pasarela.modo_forzado ? "live" : (pasarela.modo || "sandbox"));
     setMoneda(pasarela.moneda || "MXN");
     setTitular(pasarela.titular_cuenta || "");
     setForm({});
@@ -247,8 +249,8 @@ function TarjetaPasarela({ pasarela, onRecargar, soloLectura }) {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 2fr", gap: 12, marginBottom: 16 }}>
         <div>
           <label style={{ display: "block", fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>Modo</label>
-          <select value={modo} onChange={(e) => setModo(e.target.value)} disabled={soloLectura} style={inputStyle}>
-            <option value="sandbox">Pruebas (sandbox)</option>
+          <select value={modo} onChange={(e) => setModo(e.target.value)} disabled={soloLectura || pasarela.modo_forzado} style={inputStyle}>
+            {!pasarela.modo_forzado && <option value="sandbox">Pruebas (sandbox)</option>}
             <option value="live">Producción (dinero real)</option>
           </select>
         </div>
@@ -341,8 +343,14 @@ export default function OwnerPagos() {
         <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0, lineHeight: 1.6 }}>
           <b style={{ color: "var(--text-primary)" }}>¿Cómo funciona?</b> Cada gimnasio usa sus
           propias credenciales, así que los pagos de tus clientes llegan a tu cuenta sin
-          intermediarios. Empieza en modo <b>Pruebas</b> para validar el flujo sin mover dinero
-          real y, cuando todo funcione, cambia a <b>Producción</b>.
+          intermediarios.{" "}
+          {pasarelas.some((p) => p.modo_forzado) ? (
+            <>Este servidor está en <b>producción</b>: todos los cobros son con dinero
+            real, aquí no hay modo de pruebas disponible.</>
+          ) : (
+            <>Empieza en modo <b>Pruebas</b> para validar el flujo sin mover dinero
+            real y, cuando todo funcione, cambia a <b>Producción</b>.</>
+          )}
         </p>
       </div>
 
