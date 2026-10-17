@@ -168,12 +168,17 @@ function TarjetaPasarela({ pasarela, onRecargar, soloLectura }) {
               {pasarela.activo ? "Activo" : "Inactivo"}
             </span>
           )}
-          <span style={{
-            fontSize: 11, fontWeight: 700, padding: "4px 10px", borderRadius: 99,
-            background: "var(--bg-input)", color: "var(--text-secondary)",
-          }}>
-            {modo === "live" ? "Producción" : "Pruebas"}
-          </span>
+          {/* SCRUM-224: en produccion no hay nada que distinguir (todo es
+              dinero real todo el tiempo) -- el badge de modo desaparece y
+              deja de mencionar "pruebas"/"producción" por completo. */}
+          {!pasarela.modo_forzado && (
+            <span style={{
+              fontSize: 11, fontWeight: 700, padding: "4px 10px", borderRadius: 99,
+              background: "var(--bg-input)", color: "var(--text-secondary)",
+            }}>
+              {modo === "live" ? "Producción" : "Pruebas"}
+            </span>
+          )}
         </div>
       </div>
 
@@ -246,14 +251,19 @@ function TarjetaPasarela({ pasarela, onRecargar, soloLectura }) {
       )}
 
       {/* Ajustes */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 2fr", gap: 12, marginBottom: 16 }}>
-        <div>
-          <label style={{ display: "block", fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>Modo</label>
-          <select value={modo} onChange={(e) => setModo(e.target.value)} disabled={soloLectura || pasarela.modo_forzado} style={inputStyle}>
-            {!pasarela.modo_forzado && <option value="sandbox">Pruebas (sandbox)</option>}
-            <option value="live">Producción (dinero real)</option>
-          </select>
-        </div>
+      <div style={{ display: "grid", gridTemplateColumns: pasarela.modo_forzado ? "1fr 2fr" : "1fr 1fr 2fr", gap: 12, marginBottom: 16 }}>
+        {/* SCRUM-224: en produccion ya no hay nada que elegir -- el campo
+            "Modo" desaparece por completo en vez de solo deshabilitarse,
+            para no mencionar "pruebas"/"producción" donde no aplica. */}
+        {!pasarela.modo_forzado && (
+          <div>
+            <label style={{ display: "block", fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>Modo</label>
+            <select value={modo} onChange={(e) => setModo(e.target.value)} disabled={soloLectura} style={inputStyle}>
+              <option value="sandbox">Pruebas (sandbox)</option>
+              <option value="live">Producción (dinero real)</option>
+            </select>
+          </div>
+        )}
         <div>
           <label style={{ display: "block", fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>Moneda</label>
           <select value={moneda} onChange={(e) => setMoneda(e.target.value)} disabled={soloLectura} style={inputStyle}>
@@ -344,10 +354,7 @@ export default function OwnerPagos() {
           <b style={{ color: "var(--text-primary)" }}>¿Cómo funciona?</b> Cada gimnasio usa sus
           propias credenciales, así que los pagos de tus clientes llegan a tu cuenta sin
           intermediarios.{" "}
-          {pasarelas.some((p) => p.modo_forzado) ? (
-            <>Este servidor está en <b>producción</b>: todos los cobros son con dinero
-            real, aquí no hay modo de pruebas disponible.</>
-          ) : (
+          {!pasarelas.some((p) => p.modo_forzado) && (
             <>Empieza en modo <b>Pruebas</b> para validar el flujo sin mover dinero
             real y, cuando todo funcione, cambia a <b>Producción</b>.</>
           )}
