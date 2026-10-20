@@ -5,12 +5,13 @@
  * Se almacena en MongoDB directamente — sin filesystem ni volúmenes.
  */
 import { useState, useEffect, useRef, useCallback } from "react";
-import { FiCamera, FiSearch, FiUsers, FiCheck, FiRepeat } from "react-icons/fi";
+import { FiCamera, FiSearch, FiUsers, FiCheck, FiRepeat, FiMail } from "react-icons/fi";
+import EmailDomainInput from "../../components/compartido/EmailDomainInput";
 import DetalleUsuarioModal, { fechaFicha } from "../../components/compartido/DetalleUsuarioModal";
 import HistorialAsistencias from "../../components/compartido/HistorialAsistencias";
 import {
   getMiembros, createMiembro, updateMiembro,
-  deleteMiembro, reactivateMiembro,
+  deleteMiembro, reactivateMiembro, reenviarCredencialesMiembro,
 } from "../../api/miembros";
 // Traslado de miembros entre sucursales (HU-48 / SCRUM-219) -- seleccion
 // multiple desde este dashboard, empujando miembros hacia OTRA sucursal
@@ -357,7 +358,13 @@ function MiembroForm({ initial, onSave, onCancel }) {
             <input style={inputSt} value={form.nombre} onChange={set("nombre")} placeholder="Ej: Juan Pérez" required={!isEdit} />
           </Field>
           <Field label="Email" required half>
-            <input style={inputSt} type="email" value={form.email} onChange={set("email")} placeholder="ejemplo@gym.com" required={!isEdit} />
+            <EmailDomainInput
+              value={form.email}
+              onChange={(email) => setForm(f => ({ ...f, email }))}
+              placeholder="ejemplo"
+              required={!isEdit}
+              inputStyle={inputSt}
+            />
           </Field>
         </div>
         {isEdit && (
@@ -446,7 +453,7 @@ export function miembroADetalle(m) {
   };
 }
 
-function MemberCard({ m, inactivos, onView, onEdit, onDelete, onReactivate, selectable, selected, onToggleSelect }) {
+function MemberCard({ m, inactivos, onView, onEdit, onDelete, onReactivate, onResend, selectable, selected, onToggleSelect }) {
   const imcVal  = imc(m.peso_inicial, m.estatura);
   const imcMeta = imcLabel(imcVal);
 
@@ -529,6 +536,15 @@ function MemberCard({ m, inactivos, onView, onEdit, onDelete, onReactivate, sele
 
       {/* Acciones */}
       <div style={{ padding: "10px 14px", display: "flex", gap: 8 }}>
+        {!inactivos && m.debe_cambiar_password && (
+          <button
+            onClick={() => onResend(m)}
+            title="Reenviar credenciales por correo"
+            style={{ flexShrink: 0, width: 32, padding: "7px 0", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", color: C.accent, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+          >
+            <FiMail size={13} />
+          </button>
+        )}
         <button
           onClick={() => onView(m)}
           title="Ver ficha completa"
@@ -717,6 +733,24 @@ export default function MiembrosDashboard() {
     },
   });
 
+  // Si el correo de bienvenida con la contraseña temporal nunca llegó (caso
+  // real: un correo @hotmail que nunca lo recibió), esto genera una
+  // contraseña nueva y la reenvía -- solo visible mientras el miembro siga
+  // sin cambiar su contraseña inicial (ver debe_cambiar_password).
+  const handleResend = (m) => setConfirm({
+    title:  `¿Reenviar credenciales a ${m.nombre}?`,
+    msg:    "Se generará una contraseña temporal nueva (la anterior deja de servir) y se le enviará por correo.",
+    danger: false,
+    fn:     async () => {
+      try {
+        const { data } = await reenviarCredencialesMiembro(m.id);
+        if (data?.aviso) toast.error(data.msg);
+        else toast.success("Credenciales reenviadas por correo");
+      } catch { toast.error("No se pudieron reenviar las credenciales"); }
+      setConfirm(null);
+    },
+  });
+
   const handleSave = () => { setModal(null); load(page); };
 
   return (
@@ -876,6 +910,7 @@ export default function MiembrosDashboard() {
               onEdit={handleEdit}
               onDelete={handleDelete}
               onReactivate={handleReactivate}
+              onResend={handleResend}
               selectable={selectionMode}
               selected={selectedIds.includes(m.id)}
               onToggleSelect={toggleSelect}

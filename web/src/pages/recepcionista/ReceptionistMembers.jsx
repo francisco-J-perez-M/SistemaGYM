@@ -4,8 +4,10 @@ import { motion } from "framer-motion";
 import axios from "axios";
 import {
   FiUsers, FiSearch, FiCheckCircle, FiAlertCircle,
-  FiXCircle, FiRefreshCw, FiUser, FiPhone, FiMail,
+  FiXCircle, FiRefreshCw, FiUser, FiPhone, FiMail, FiPlus, FiX,
 } from "react-icons/fi";
+import { createMiembro } from "../../api/miembros";
+import EmailDomainInput from "../../components/compartido/EmailDomainInput";
 import "../../css/CSSUnificado.css";
 
 const API_URL = "/api/recepcionista";
@@ -42,6 +44,14 @@ export default function ReceptionistMembers() {
   const [page,     setPage]     = useState(1);
   const [pages,    setPages]    = useState(1);
   const [resumen,  setResumen]  = useState({ total: 0, activa: 0, por_vencer: 0, vencida: 0 });
+
+  // Alta de miembros (antes exclusiva de Propietario/Administrador -- el
+  // backend ahora tambien acepta el rol Recepcionista en POST /api/miembros).
+  const [modalOpen, setModalOpen] = useState(false);
+  const [form, setForm] = useState({ nombre: "", email: "", telefono: "" });
+  const [guardando, setGuardando] = useState(false);
+  const [formError, setFormError] = useState(null);
+  const [aviso, setAviso] = useState(null); // { tipo: "ok"|"error", msg }
 
   // La búsqueda y el resumen por estado se resuelven en el servidor sobre todo
   // el padrón; el navegador solo recibe la página que va a mostrar.
@@ -90,6 +100,42 @@ export default function ReceptionistMembers() {
     vencidos:   resumen.vencida,
   };
 
+  useEffect(() => {
+    if (!aviso) return;
+    const t = setTimeout(() => setAviso(null), 4000);
+    return () => clearTimeout(t);
+  }, [aviso]);
+
+  const abrirNuevo = () => {
+    setForm({ nombre: "", email: "", telefono: "" });
+    setFormError(null);
+    setModalOpen(true);
+  };
+
+  const handleCrearMiembro = async (e) => {
+    e.preventDefault();
+    if (!form.nombre.trim() || !form.email.trim()) {
+      setFormError("Nombre y correo son obligatorios.");
+      return;
+    }
+    setGuardando(true);
+    setFormError(null);
+    try {
+      await createMiembro({
+        nombre:   form.nombre.trim(),
+        email:    form.email.trim().toLowerCase(),
+        telefono: form.telefono.trim() || undefined,
+      });
+      setModalOpen(false);
+      setAviso({ tipo: "ok", msg: `${form.nombre.trim()} se registró y recibirá su contraseña por correo.` });
+      fetchMembers(1, search);
+    } catch (err) {
+      setFormError(err.response?.data?.error || "No se pudo registrar al miembro.");
+    } finally {
+      setGuardando(false);
+    }
+  };
+
   return (
     <div className="dashboard-content">
       {/* ── Header ─────────────────────────────────── */}
@@ -106,19 +152,44 @@ export default function ReceptionistMembers() {
             Consulta y gestión de membresías — recepción
           </p>
         </div>
-        <motion.button
-          onClick={() => fetchMembers(page, search)}
-          whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-          style={{
-            display: "flex", alignItems: "center", gap: "6px",
-            padding: "9px 16px", background: "var(--accent-dim)",
-            border: "1px solid var(--accent)", color: "var(--accent-soft)",
-            borderRadius: "var(--r-md)", cursor: "pointer", fontSize: "13px", fontWeight: 600,
-          }}
-        >
-          <FiRefreshCw size={14} /> Actualizar
-        </motion.button>
+        <div style={{ display: "flex", gap: "10px" }}>
+          <motion.button
+            onClick={() => fetchMembers(page, search)}
+            whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+            style={{
+              display: "flex", alignItems: "center", gap: "6px",
+              padding: "9px 16px", background: "var(--accent-dim)",
+              border: "1px solid var(--accent)", color: "var(--accent-soft)",
+              borderRadius: "var(--r-md)", cursor: "pointer", fontSize: "13px", fontWeight: 600,
+            }}
+          >
+            <FiRefreshCw size={14} /> Actualizar
+          </motion.button>
+          <motion.button
+            onClick={abrirNuevo}
+            whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+            style={{
+              display: "flex", alignItems: "center", gap: "6px",
+              padding: "9px 16px", background: "var(--accent)",
+              border: "1px solid var(--accent)", color: "#fff",
+              borderRadius: "var(--r-md)", cursor: "pointer", fontSize: "13px", fontWeight: 700,
+            }}
+          >
+            <FiPlus size={14} /> Nuevo miembro
+          </motion.button>
+        </div>
       </motion.div>
+
+      {aviso && (
+        <div style={{
+          marginBottom: "16px", padding: "10px 16px", borderRadius: "var(--r-md)",
+          background: aviso.tipo === "ok" ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.12)",
+          color: aviso.tipo === "ok" ? "var(--success)" : "var(--danger)",
+          fontSize: "13px", fontWeight: 600,
+        }}>
+          {aviso.msg}
+        </div>
+      )}
 
       {/* ── KPIs ───────────────────────────────────── */}
       <div className="kpi-grid" style={{ marginBottom: "24px" }}>
@@ -260,6 +331,123 @@ export default function ReceptionistMembers() {
               background: "var(--bg-input)", color: "var(--text-secondary)" }}>
             Siguiente →
           </button>
+        </div>
+      )}
+
+      {/* ── Modal: nuevo miembro ───────────────────── */}
+      {modalOpen && (
+        <div
+          onClick={(e) => e.target === e.currentTarget && !guardando && setModalOpen(false)}
+          style={{
+            position: "fixed", inset: 0, zIndex: 9000,
+            background: "rgba(0,0,0,.65)", backdropFilter: "blur(4px)",
+            display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
+          }}
+        >
+          <div style={{
+            background: "var(--bg-card)", border: "1px solid var(--border)",
+            borderRadius: 16, width: "100%", maxWidth: 420,
+            boxShadow: "0 24px 64px rgba(0,0,0,.6)",
+          }}>
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              padding: "18px 22px", borderBottom: "1px solid var(--border)",
+            }}>
+              <h2 style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
+                Nuevo miembro
+              </h2>
+              <button
+                type="button"
+                onClick={() => !guardando && setModalOpen(false)}
+                style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", display: "flex" }}
+              >
+                <FiX size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCrearMiembro} style={{ padding: "18px 22px 22px", display: "flex", flexDirection: "column", gap: 14 }}>
+              <div>
+                <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 5 }}>
+                  Nombre completo *
+                </label>
+                <input
+                  value={form.nombre}
+                  onChange={(e) => setForm(f => ({ ...f, nombre: e.target.value }))}
+                  placeholder="Ej: Ana López"
+                  required
+                  style={{
+                    width: "100%", boxSizing: "border-box", padding: "9px 12px",
+                    background: "var(--bg-input)", border: "1px solid var(--border)",
+                    borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none",
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 5 }}>
+                  Correo *
+                </label>
+                <EmailDomainInput
+                  value={form.email}
+                  onChange={(email) => setForm(f => ({ ...f, email }))}
+                  placeholder="ejemplo"
+                  required
+                  inputStyle={{
+                    width: "100%", boxSizing: "border-box", padding: "9px 12px",
+                    background: "var(--bg-input)", border: "1px solid var(--border)",
+                    borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none",
+                  }}
+                />
+                <p style={{ fontSize: 11.5, color: "var(--text-tertiary)", margin: "6px 0 0" }}>
+                  Se generará una contraseña y se enviará por correo a este email.
+                </p>
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 5 }}>
+                  Teléfono
+                </label>
+                <input
+                  value={form.telefono}
+                  onChange={(e) => setForm(f => ({ ...f, telefono: e.target.value }))}
+                  placeholder="Opcional"
+                  style={{
+                    width: "100%", boxSizing: "border-box", padding: "9px 12px",
+                    background: "var(--bg-input)", border: "1px solid var(--border)",
+                    borderRadius: 8, color: "var(--text-primary)", fontSize: 13, outline: "none",
+                  }}
+                />
+              </div>
+
+              {formError && (
+                <p style={{ fontSize: 12.5, color: "var(--danger)", margin: 0 }}>{formError}</p>
+              )}
+
+              <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+                <button
+                  type="button"
+                  onClick={() => !guardando && setModalOpen(false)}
+                  style={{
+                    flex: 1, padding: "10px 0", borderRadius: 8, border: "1px solid var(--border)",
+                    background: "transparent", color: "var(--text-secondary)", fontSize: 13, fontWeight: 600, cursor: "pointer",
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={guardando}
+                  style={{
+                    flex: 1, padding: "10px 0", borderRadius: 8, border: "none",
+                    background: "var(--accent)", color: "#fff", fontSize: 13, fontWeight: 700,
+                    cursor: guardando ? "default" : "pointer", opacity: guardando ? 0.7 : 1,
+                  }}
+                >
+                  {guardando ? "Guardando…" : "Registrar"}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

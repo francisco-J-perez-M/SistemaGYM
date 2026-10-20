@@ -5,6 +5,7 @@ import { ThemeProvider } from "./hooks/ThemeContext";
 import Layout from "./components/compartido/Layout";
 
 // --- PÁGINAS PÚBLICAS ---
+import Landing     from "./pages/publico/Landing";
 import AuthPage    from "./components/auth/AuthPage";
 import RegisterGym from "./pages/publico/RegisterGym";
 import ForgotPassword from "./pages/publico/ForgotPassword";
@@ -80,6 +81,7 @@ import SuperadminBackups      from "./pages/superadmin/SuperadminBackups";
 import SuperadminAnalytics    from "./pages/superadmin/SuperadminAnalytics";
 import SuperadminModelos      from "./pages/superadmin/SuperadminModelos";
 import OwnerPagos             from "./pages/owner_gym/OwnerPagos";
+import OwnerPerfilPublico    from "./pages/owner_gym/OwnerPerfilPublico";
 import PagoResultado          from "./pages/publico/PagoResultado";
 
 // Login (AuthPage.jsx) y el wizard de registro (RegisterGym.jsx) usan el
@@ -108,8 +110,12 @@ function App() {
       <BrowserRouter>
         <Routes>
           {/* 1. RUTAS PÚBLICAS */}
+          {/* La comercial (Landing) es ahora "/" -- antes era el login. Vive
+              fuera de AuthTransitionLayout (no comparte el cross-fade con
+              login/registro, es una página distinta en tono y layout). */}
+          <Route path="/" element={<Landing />} />
           <Route element={<AuthTransitionLayout />}>
-            <Route path="/" element={<AuthPage />} />
+            <Route path="/login" element={<AuthPage />} />
             <Route path="/register" element={<AuthPage />} />
             <Route path="/register-gym" element={<RegisterGym />} />
           </Route>
@@ -138,6 +144,7 @@ function App() {
             <Route path="/owner/reportes"      element={<OwnerReportes />}    />
             <Route path="/owner/subscription"  element={<OwnerSubscription />} />
             <Route path="/owner/pagos-online"  element={<OwnerPagos />}       />
+            <Route path="/owner/perfil-publico" element={<OwnerPerfilPublico />} />
             <Route path="/owner/backups"       element={<BackupsDashboard />} />
             <Route path="/owner/mapreduce"     element={<AnalyticsMapReduce />} />
             <Route path="/owner/kmeans"        element={<AnalyticsKMeans />}  />

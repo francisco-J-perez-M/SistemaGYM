@@ -29,6 +29,7 @@ const ROUTE_MAP = {
     "/owner/reportes":     "ow-reportes",
     "/owner/subscription": "ow-subscription",
     "/owner/pagos-online": "ow-pagos-online",
+    "/owner/perfil-publico": "ow-perfil-publico",
     "/owner/backups":      "ow-backups",
     "/owner/mapreduce":    "ow-mapreduce",
     "/owner/kmeans":       "ow-kmeans",
@@ -111,6 +112,7 @@ const NAV_MAP = {
     "ow-reportes":   "/owner/reportes",
     "ow-subscription": "/owner/subscription",
     "ow-pagos-online": "/owner/pagos-online",
+    "ow-perfil-publico": "/owner/perfil-publico",
     "ow-backups":    "/owner/backups",
     "ow-mapreduce":  "/owner/mapreduce",
     "ow-kmeans":     "/owner/kmeans",
@@ -292,7 +294,7 @@ export default function Layout({ role = "owner_gym" }) {
       // atrapado, forzar cierre de sesión y volver al login.
       localStorage.removeItem("token");
       localStorage.removeItem("user");
-      navigate("/", { replace: true });
+      navigate("/login", { replace: true });
       return;
     }
     localStorage.setItem("token", prevToken);
@@ -337,7 +339,7 @@ export default function Layout({ role = "owner_gym" }) {
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
-    navigate("/", { replace: true });
+    navigate("/login", { replace: true });
   };
 
   // Guarda de renderizado (PR-02): mientras no se conoce el rol verificado
@@ -360,7 +362,7 @@ export default function Layout({ role = "owner_gym" }) {
 
   const permitidos = ROLE_MAP[role] || [];
   if (sesion.estado === "anonimo" || !permitidos.includes(sesion.rol)) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/login" replace />;
   }
 
   // SCRUM-224: ningún panel se monta (ni sus peticiones) hasta que esta
