@@ -202,7 +202,7 @@ export default function OwnerOnboarding() {
 
   useEffect(() => {
     const token = localStorage.getItem("token");
-    if (!token) { navigate("/"); return; }
+    if (!token) { navigate("/login"); return; }
     if (!storedUser.primer_login) navigate("/owner");
   }, []);
 
