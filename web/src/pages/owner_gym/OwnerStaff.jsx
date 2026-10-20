@@ -3,7 +3,8 @@
  * Diseño de cards con foto de perfil (base64, sin filesystem).
  */
 import { useEffect, useState, useRef, useCallback } from "react";
-import { getStaff, crearStaff, toggleStaff, updateStaff } from "../../api/owner_gym";
+import { getStaff, crearStaff, toggleStaff, updateStaff, reenviarCredencialesStaff } from "../../api/owner_gym";
+import EmailDomainInput from "../../components/compartido/EmailDomainInput";
 import DetalleUsuarioModal, { fechaFicha } from "../../components/compartido/DetalleUsuarioModal";
 
 // ── Tokens ────────────────────────────────────────────────────────────────────
@@ -224,7 +225,13 @@ function StaffModal({ open, onClose, onSave, initial, saving }) {
               </Field>
               <Field label="Email" required>
                 <IcoWrap icon={<IcoMail />}>
-                  <input style={inputSt} type="email" value={form.email} onChange={set("email")} placeholder="juan@gym.com" required={!isEdit} />
+                  <EmailDomainInput
+                    value={form.email}
+                    onChange={(email) => setForm(f => ({ ...f, email }))}
+                    placeholder="juan"
+                    required={!isEdit}
+                    inputStyle={inputSt}
+                  />
                 </IcoWrap>
               </Field>
             </div>
@@ -289,7 +296,7 @@ function staffADetalle(u) {
   };
 }
 
-function StaffCard({ u, onView, onEdit, onToggle }) {
+function StaffCard({ u, onView, onEdit, onToggle, onResend }) {
   return (
     <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, overflow: "hidden", opacity: u.activo ? 1 : 0.7, transition: "box-shadow .15s" }}>
       {/* Header */}
@@ -319,6 +326,12 @@ function StaffCard({ u, onView, onEdit, onToggle }) {
             style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", color: C.t2, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
             <IcoEdit /> Editar
           </button>
+          {u.debe_cambiar_password && (
+            <button onClick={() => onResend(u)} title="Reenviar credenciales por correo"
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 30, padding: "6px 0", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", color: C.accent, cursor: "pointer" }}>
+              <IcoMail />
+            </button>
+          )}
           <button onClick={() => onToggle(u)}
             style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 8, border: "none", background: u.activo ? `${C.danger}18` : `${C.success}20`, color: u.activo ? C.danger : C.success, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
             {u.activo ? "Desactivar" : "Activar"}
@@ -402,6 +415,26 @@ export default function OwnerStaff() {
           toast.success(`${u.nombre} ${u.activo ? "desactivado" : "activado"}`);
           load();
         } catch { toast.error("No se pudo cambiar el estado"); }
+      },
+    });
+  };
+
+  // Si el correo de bienvenida con la contraseña temporal nunca llegó (caso
+  // real: un correo @hotmail que nunca lo recibió), esto genera una
+  // contraseña nueva y la reenvía -- solo visible mientras el usuario siga
+  // sin cambiar su contraseña inicial (ver debe_cambiar_password).
+  const handleResend = (u) => {
+    setConfirm({
+      title:   `¿Reenviar credenciales a ${u.nombre}?`,
+      message: "Se generará una contraseña temporal nueva (la anterior deja de servir) y se le enviará por correo.",
+      danger:  false,
+      onConfirm: async () => {
+        setConfirm(null);
+        try {
+          const { data } = await reenviarCredencialesStaff(u.id);
+          if (data?.aviso) toast.error(data.msg);
+          else toast.success("Credenciales reenviadas por correo");
+        } catch { toast.error("No se pudieron reenviar las credenciales"); }
       },
     });
   };
@@ -521,6 +554,7 @@ export default function OwnerStaff() {
               onView={setDetalle}
               onEdit={(u) => { setEditing(u); setModal(true); }}
               onToggle={handleToggle}
+              onResend={handleResend}
             />
           ))}
         </div>

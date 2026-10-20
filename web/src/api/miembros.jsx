@@ -24,6 +24,10 @@ export const updateMiembro = (id, data) => API.put(`/miembros/${id}`, data);
 export const deleteMiembro = (id) => API.delete(`/miembros/${id}`);
 export const reactivateMiembro = (id) => API.put(`/miembros/${id}/reactivar`);
 
+/** Genera una contrasena nueva y reenvia el correo de bienvenida -- para
+ *  cuando el original nunca llego (p. ej. a un correo @hotmail). */
+export const reenviarCredencialesMiembro = (id) => API.post(`/miembros/${id}/reenviar-credenciales`);
+
 /** Historial paginado de días asistidos al gimnasio por un miembro. */
 export const getAsistenciasMiembro = (id, page = 1, perPage = 10) =>
   API.get(`/miembros/${id}/asistencias?page=${page}&per_page=${perPage}`);
