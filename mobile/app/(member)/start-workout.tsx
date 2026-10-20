@@ -97,8 +97,21 @@ const normTxt = (s?: string) =>
   (s ?? '').toString().toLowerCase()
     .replace(/á/g, 'a').replace(/é/g, 'e').replace(/í/g, 'i')
     .replace(/ó/g, 'o').replace(/ú/g, 'u').replace(/ü/g, 'u').trim();
-const todayName = () => WEEKDAYS_ES[new Date().getDay()];
-const dayMatchesToday = (d?: RoutineDay | null) => normTxt(d?.dia).includes(todayName());
+// "Registrar rutina de otro día de la semana" (no solo hoy): se necesita
+// el nombre del día de una fecha YYYY-MM-DD cualquiera (no solo hoy), para
+// encontrar la candidata que corresponde al día que el socio elija con los
+// chips de abajo — y la fecha local de "hoy" en el mismo formato, para
+// saber si el día elegido es hoy o uno pasado de la semana.
+const fechaLocalHoy = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+const nombreDeFecha = (fechaYYYYMMDD: string) => {
+  const [y, m, d] = fechaYYYYMMDD.split('-').map(Number);
+  return WEEKDAYS_ES[new Date(y, (m || 1) - 1, d || 1).getDay()];
+};
+const dayMatchesName = (d: RoutineDay | null | undefined, nombre: string) => normTxt(d?.dia).includes(nombre);
+const DIAS_CORTOS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']; // mismo orden que /api/user/checkins/semana (lunes..domingo)
 
 const DESCANSO_DEFECTO_SEG = 60;
 const LB_A_KG = 0.453592;
@@ -151,25 +164,128 @@ export default function StartWorkoutScreen() {
     useFetch<{ rutinas: Routine[] }>(ENDPOINTS.USER_ASSIGNED_ROUTINES, undefined, { cache: true });
   const { data: profileData, loading: loadingProfile } =
     useFetch<{ unidadMedida?: string }>(ENDPOINTS.USER_PROFILE, undefined, { cache: true });
+  // "Registrar rutina de otro día de la semana" (no solo hoy): qué días
+  // lunes-domingo ya tienen check-in registrado (ver checkins/semana en el
+  // backend) — determina qué chips de día están habilitados más abajo.
+  const { data: semanaData } = useFetch<{
+    semana: { fecha: string; dia: string; asistio: boolean; futuro: boolean }[];
+    hoy: string;
+  }>(ENDPOINTS.USER_CHECKINS_SEMANA, undefined, { cache: true });
+  const diasSemana = semanaData?.semana ?? [];
 
   const cargando = loadingPropias || loadingAsignadas || loadingProfile;
+
+  // Día de la semana actual que se está viendo/registrando — por defecto
+  // hoy. Cambiarlo recalcula `candidatas` más abajo para ese día en vez de
+  // hoy, pero solo se puede elegir un día con asistencia ya registrada
+  // (ver chips de día en el render): sin check-in ese día, no hay nada que
+  // registrar ahí (ver bloque "Anti-fraude" del backend).
+  const [diaElegido, setDiaElegido] = useState<string>(() => fechaLocalHoy());
+  const nombreDiaElegido = useMemo(() => nombreDeFecha(diaElegido), [diaElegido]);
+  const esDiaElegidoHoy = diaElegido === fechaLocalHoy();
+
+  // Cambiar de día (chips Lun-Dom más abajo): solo tiene efecto sobre días
+  // con asistencia ya registrada (se valida al renderizar los chips, acá
+  // solo se asume que ya se filtró). Como las series marcadas son de UNA
+  // sesión a la vez, cambiar de día reinicia el progreso -- se avisa si ya
+  // había algo marcado, igual que `elegirRutina` más abajo.
+  const elegirDia = (fecha: string) => {
+    if (fecha === diaElegido) return;
+    const hechasActuales = (ejercicios ?? []).reduce(
+      (acc, e) => acc + e.series.filter((s) => s.completada).length, 0,
+    );
+    const cambiar = () => {
+      setDiaElegido(fecha);
+      setRutinaElegidaId(null);
+      setEjercicios(null);
+      setExpandido(null);
+      setEstado('progreso');
+      setRestante(0);
+      if (timerRef.current) clearInterval(timerRef.current);
+      setSesionIniciada(Date.now());
+      setResultado(null);
+    };
+    if (hechasActuales > 0) {
+      Alert.alert(
+        'Cambiar de día',
+        'Tienes series marcadas en la sesión actual que se perderán si cambias de día. ¿Continuar?',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Cambiar', style: 'destructive', onPress: cambiar },
+        ],
+      );
+    } else {
+      cambiar();
+    }
+  };
+
+  // Fila de chips Lun-Dom: solo se puede elegir un día con asistencia ya
+  // registrada (`asistio`); los demás se ven deshabilitados. Se usa tanto
+  // en el estado "sin rutina para este día" como en la lista de
+  // ejercicios, para poder cambiar de día desde cualquiera de los dos.
+  const renderDiaChips = () => {
+    if (diasSemana.length === 0) return null;
+    return (
+      <View style={styles.diaSelectorRow}>
+        {diasSemana.map((d, i) => {
+          const habilitado = d.asistio && !d.futuro;
+          const activo = d.fecha === diaElegido;
+          const numeroDia = Number(d.fecha.split('-')[2]);
+          return (
+            <TouchableOpacity
+              key={d.fecha}
+              onPress={() => elegirDia(d.fecha)}
+              disabled={!habilitado}
+              style={[
+                styles.diaChip,
+                activo && styles.diaChipActivo,
+                !habilitado && styles.diaChipDeshabilitado,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={
+                `${DIAS_CORTOS[i]} ${numeroDia}` +
+                (habilitado ? '' : ', sin check-in ese día') +
+                (activo ? ', seleccionado' : '')
+              }
+            >
+              <Text style={[
+                styles.diaChipLabel,
+                activo && styles.diaChipLabelActivo,
+                !habilitado && styles.diaChipLabelDeshabilitado,
+              ]}>
+                {DIAS_CORTOS[i]}
+              </Text>
+              <Text style={[
+                styles.diaChipNumero,
+                activo && styles.diaChipLabelActivo,
+                !habilitado && styles.diaChipLabelDeshabilitado,
+              ]}>
+                {numeroDia}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    );
+  };
 
   const routines = useMemo<RoutineUI[]>(() => [
     ...toArray<Routine>(routinesData?.rutinas).map(r => normalizaRutina(r, 'propia')),
     ...toArray<Routine>(assignedData?.rutinas).map(r => normalizaRutina(r, 'entrenador')),
   ], [routinesData, assignedData]);
 
-  // Todas las rutinas de hoy, de cualquier origen — puede haber más de una
-  // (propia + asignada por un entrenador para el mismo día).
+  // Todas las rutinas del día elegido (hoy por defecto), de cualquier
+  // origen — puede haber más de una (propia + asignada por un entrenador
+  // para el mismo día).
   const candidatas = useMemo(() => {
     const out: { routine: RoutineUI; day: RoutineDay }[] = [];
     for (const r of routines) {
       if (r.activa === false) continue;
-      const idx = (r.dias || []).findIndex(dayMatchesToday);
+      const idx = (r.dias || []).findIndex((d) => dayMatchesName(d, nombreDiaElegido));
       if (idx >= 0) out.push({ routine: r, day: r.dias[idx] });
     }
     return out;
-  }, [routines]);
+  }, [routines, nombreDiaElegido]);
 
   // Cuál de las candidatas se está siguiendo hoy. Por defecto, la asignada
   // por un entrenador si hay una; si no, la primera propia. Se siembra una
@@ -301,6 +417,12 @@ export default function StartWorkoutScreen() {
       id_rutina: seleccion.routine.idRutinaOrigen ?? undefined,
       duracion_min: duracionMin,
       ejercicios: porGuardar,
+      // Solo se manda cuando el socio eligió explícitamente un día pasado
+      // de la semana con los chips (ver renderDiaChips) -- para "hoy" se
+      // omite y el backend usa su propia hora local, igual que antes de
+      // este cambio (evita un desfase de un día si el reloj del teléfono
+      // no coincide exactamente con la zona horaria del gimnasio).
+      dia: esDiaElegidoHoy ? undefined : diaElegido,
     };
     const totalSeriesGuardadas = porGuardar.reduce((acc, e) => acc + e.series.length, 0);
 
@@ -349,24 +471,31 @@ export default function StartWorkoutScreen() {
 
   if (!seleccion || (ejercicios !== null && ejercicios.length === 0)) {
     return (
-      <View style={[styles.screen, styles.center, { paddingTop: insets.top }]}>
-        <Ionicons name="moon-outline" size={48} color={colors.textMuted} />
-        <Text style={styles.emptyTitle}>Hoy no tienes rutina asignada</Text>
-        <Text style={styles.emptyText}>
-          Puede ser un día de descanso, o aún no tienes una rutina con ejercicios para hoy.
-        </Text>
-        <Button
-          label="Registrar un entrenamiento libre"
-          onPress={() => router.replace('/(member)/workout-log')}
-          style={{ marginTop: 20, width: '100%' }}
-        />
-        <Button
-          label="Ver / crear mis rutinas"
-          variant="secondary"
-          onPress={() => router.replace('/(member)/mi-rutina')}
-          style={{ marginTop: 10, width: '100%' }}
-        />
-      </View>
+      <ScrollView style={styles.screen} contentContainerStyle={[styles.content, { paddingTop: insets.top + 16 }]}>
+        {renderDiaChips()}
+        <View style={styles.center}>
+          <Ionicons name="moon-outline" size={48} color={colors.textMuted} />
+          <Text style={styles.emptyTitle}>
+            {esDiaElegidoHoy ? 'Hoy no tienes rutina asignada' : `No tienes rutina para ese día`}
+          </Text>
+          <Text style={styles.emptyText}>
+            {esDiaElegidoHoy
+              ? 'Puede ser un día de descanso, o aún no tienes una rutina con ejercicios para hoy.'
+              : 'Puede ser un día de descanso, o ese día no tiene ejercicios en tu rutina.'}
+          </Text>
+          <Button
+            label="Registrar un entrenamiento libre"
+            onPress={() => router.replace('/(member)/workout-log')}
+            style={{ marginTop: 20, width: '100%' }}
+          />
+          <Button
+            label="Ver / crear mis rutinas"
+            variant="secondary"
+            onPress={() => router.replace('/(member)/mi-rutina')}
+            style={{ marginTop: 10, width: '100%' }}
+          />
+        </View>
+      </ScrollView>
     );
   }
 
@@ -464,9 +593,10 @@ export default function StartWorkoutScreen() {
     );
   }
 
-  // ── Lista libre de ejercicios de hoy ────────────────────────────────────
+  // ── Lista libre de ejercicios del día elegido ───────────────────────────
   return (
     <ScrollView style={styles.screen} contentContainerStyle={[styles.content, { paddingTop: insets.top + 16 }]}>
+      {renderDiaChips()}
       {candidatas.length > 1 && (
         <View style={styles.selectorRutina}>
           {candidatas.map((c) => {
@@ -633,6 +763,17 @@ function make_styles(colors: any, fs: number) {
     rutinaChipActiva: { backgroundColor: colors.accent, borderColor: colors.accent },
     rutinaChipTexto: { fontSize: 12.5 * fs, color: colors.textSecondary, fontWeight: '600' },
     rutinaChipTextoActiva: { color: colors.onAccent },
+    diaSelectorRow: { flexDirection: 'row', gap: 6, marginBottom: 12 },
+    diaChip: {
+      flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 12,
+      borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card,
+    },
+    diaChipActivo: { backgroundColor: colors.accent, borderColor: colors.accent },
+    diaChipDeshabilitado: { opacity: 0.4 },
+    diaChipLabel: { fontSize: 11 * fs, color: colors.textSecondary, fontWeight: '600' },
+    diaChipNumero: { fontSize: 13 * fs, color: colors.text, fontWeight: '700', marginTop: 2 },
+    diaChipLabelActivo: { color: colors.onAccent },
+    diaChipLabelDeshabilitado: { color: colors.textMuted },
     progresoBar:  { height: 6, borderRadius: 3, backgroundColor: colors.border, overflow: 'hidden' },
     progresoFill: { height: 6, borderRadius: 3 },
     headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 },

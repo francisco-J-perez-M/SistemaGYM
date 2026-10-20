@@ -2,7 +2,7 @@
  * Dashboard del Miembro.
  * Muestra: saludo, racha, KPIs, membresía, rutina de hoy, logros.
  */
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl,
 } from 'react-native';
@@ -21,7 +21,6 @@ import WorkoutRow from '../../components/member/WorkoutRow';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import type { DashboardData, Exercise } from '../../types';
-import api from '../../services/api';
 import { refreshMemberReminders } from '../../services/reminders';
 
 export default function MemberDashboard() {
@@ -41,9 +40,6 @@ export default function MemberDashboard() {
     });
   }, [data]);
 
-  const [checkinDone, setCheckinDone] = useState(false);
-  const [checkinLoading, setCheckinLoading] = useState(false);
-
   // SCRUM-167: esta tarjeta ya solo PREVISUALIZA la rutina de hoy — el
   // registro real (series, repeticiones, carga) ocurre en la sesión guiada
   // de start-workout.tsx, que resuelve "hoy" con el mismo criterio y
@@ -51,18 +47,14 @@ export default function MemberDashboard() {
   // mandaba este botón antes.
   const workoutExercises: Exercise[] = data?.todayWorkout?.exercises ?? [];
 
-  const handleCheckin = async () => {
-    setCheckinLoading(true);
-    try {
-      await api.post(ENDPOINTS.USER_CHECKIN);
-      setCheckinDone(true);
-    } catch {
-      setCheckinDone(true);
-    } finally {
-      setCheckinLoading(false);
-    }
-  };
-
+  // El antiguo botón de "Registrar asistencia" (ícono de ubicación) se
+  // quitó: llamaba a ENDPOINTS.USER_CHECKIN sin ninguna prueba de
+  // presencia -- incluso si la llamada fallaba por completo, marcaba la
+  // asistencia como hecha (ver `catch { setCheckinDone(true); }` en el
+  // historial de este archivo). Se reemplaza por un ícono que lleva a
+  // escanear el QR general que muestra el recepcionista (ver
+  // checkin-qr.tsx) -- ese flujo sí prueba que el miembro estuvo frente a
+  // la pantalla de recepción.
   const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
   const dayNames = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
   const todayIdx = (new Date().getDay() + 6) % 7; // lunes=0
@@ -99,16 +91,11 @@ export default function MemberDashboard() {
         </View>
         <TouchableOpacity
           style={styles.checkinBtn}
-          onPress={handleCheckin}
-          disabled={checkinDone || checkinLoading}
-          accessibilityLabel={checkinDone ? 'Asistencia registrada' : 'Registrar asistencia'}
+          onPress={() => router.push('/(member)/checkin-qr')}
+          accessibilityLabel="Registrar entrada escaneando el QR del gimnasio"
           accessibilityRole="button"
         >
-          <Ionicons
-            name={checkinDone ? 'checkmark-circle' : 'location-outline'}
-            size={22}
-            color={checkinDone ? colors.success : colors.accent}
-          />
+          <Ionicons name="qr-code-outline" size={22} color={colors.accent} />
         </TouchableOpacity>
       </View>
 

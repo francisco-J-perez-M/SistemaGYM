@@ -75,11 +75,17 @@ export default function MemberLayout() {
           }}
         />
       ))}
-      {['routines', 'chat', 'start-workout'].map((name) => (
+      {(['routines', 'chat', 'start-workout', 'checkin-qr'] as const).map((name) => (
         <Drawer.Screen
           key={name}
           name={name}
-          options={{ drawerItemStyle: { display: 'none' }, title: name }}
+          options={{
+            drawerItemStyle: { display: 'none' },
+            // checkin-qr es nueva (QR general de check-in): se le da un
+            // título legible en vez de usar el nombre de archivo tal cual,
+            // como hacían las demás pantallas ocultas de este grupo.
+            title: name === 'checkin-qr' ? 'Registrar entrada' : name,
+          }}
         />
       ))}
     </Drawer>

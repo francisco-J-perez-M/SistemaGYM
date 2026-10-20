@@ -13,11 +13,11 @@
  * captura (RUTA_POR_CAMPO). El bloque médico es opcional —nunca bloquea
  * el 100%— y se distingue visualmente del resto.
  */
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useColors } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
@@ -52,7 +52,19 @@ const CIRCUNFERENCIA = 2 * Math.PI * RADIO;
 export default function PerfilCompletoBadge() {
   const colors = useColors();
   const [abierto, setAbierto] = useState(false);
-  const { data } = useFetch<ProfileCompletion>(ENDPOINTS.PROFILE_COMPLETION);
+  const { data, refetch } = useFetch<ProfileCompletion>(ENDPOINTS.PROFILE_COMPLETION);
+
+  // Bug reportado: el % se quedaba "pegado" al valor con el que se montó
+  // por primera vez cada pantalla (headerRight se evalúa una vez por cada
+  // Drawer.Screen visitada, y los screens del Drawer no se desmontan al
+  // navegar fuera) — así que capturar/editar datos de perfil en otra
+  // pantalla nunca se reflejaba aquí, y volver a una pantalla visitada
+  // hace rato podía incluso "retroceder" el % a su valor viejo. Se
+  // refresca en cada enfoque (mismo patrón ya usado en
+  // app/(admin)/suscripcion.tsx) para que siempre muestre el valor real.
+  useFocusEffect(useCallback(() => {
+    refetch();
+  }, [refetch]));
 
   // Sin datos aún (cargando o error): no mostrar un anillo a medio llenar
   // que podría confundirse con "50% de progreso real".

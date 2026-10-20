@@ -1,0 +1,21 @@
+diff --git a/node_modules/expo-camera/android/src/main/java/expo/modules/camera/ExpoCameraView.kt b/node_modules/expo-camera/android/src/main/java/expo/modules/camera/ExpoCameraView.kt
+index d9690e3..69e899d 100644
+--- a/node_modules/expo-camera/android/src/main/java/expo/modules/camera/ExpoCameraView.kt
++++ b/node_modules/expo-camera/android/src/main/java/expo/modules/camera/ExpoCameraView.kt
+@@ -133,6 +133,16 @@ class ExpoCameraView(
+
+   private var previewView = PreviewView(context).apply {
+     elevation = 0f
++    // GymPro: en modo PERFORMANCE (default de CameraX), PreviewView usa un
++    // SurfaceView para la vista previa. En varios Huawei/EMUI (confirmado
++    // en un HUAWEI nova 12s con EMUI 14.2.0, GPU Turbo) ese SurfaceView no
++    // compone correctamente contra el resto de la jerarquia de vistas de
++    // React Native: la preview sale en negro aunque CameraX sigue
++    // entregando frames con normalidad (por eso el escaneo de QR funciona
++    // igual). COMPATIBLE fuerza un TextureView, mas lento en GPU pero sin
++    // ese problema de compositing. Parcheado via patch-package — ver
++    // patches/expo-camera+*.patch.
++    implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+   }
+   private val scope = CoroutineScope(Dispatchers.Main)
+   private var shouldCreateCamera = false

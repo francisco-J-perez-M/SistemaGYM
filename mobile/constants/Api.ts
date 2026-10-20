@@ -87,7 +87,8 @@ export const ENDPOINTS = {
 
   // ── Miembro ───────────────────────────────────────────────────────────────
   USER_DASHBOARD:     '/user/dashboard',        // GET  /api/user/dashboard
-  USER_CHECKIN:       '/user/checkin',           // POST /api/user/checkin
+  USER_CHECKIN_QR:    '/user/checkin/qr',        // POST /api/user/checkin/qr (escanear QR general del recepcionista)
+  USER_CHECKINS_SEMANA: '/user/checkins/semana', // GET  /api/user/checkins/semana (dias con asistencia esta semana)
   USER_PROFILE:       '/user/profile',           // GET  /api/user/profile
   USER_MEMBERSHIP:    '/user/membership',        // GET  /api/user/membership
   MEMBERSHIP_PLANS:   '/user/membership/plans',  // GET  /api/user/membership/plans
