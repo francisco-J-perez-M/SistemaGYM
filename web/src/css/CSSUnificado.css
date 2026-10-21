@@ -1071,7 +1071,12 @@ ul, ol { list-style: none; }
   display: flex;
   flex-direction: row;   /* sidebar LEFT, content RIGHT */
   width: 100%;
-  min-height: 100vh;
+  /* Antes era 100vh: este bloque siempre vive anidado dentro del
+     contenedor de Layout.jsx (que ya mide el alto disponible real,
+     restando el banner de impersonacion si esta presente), asi que
+     pedir el 100% del VIEWPORT aqui lo hacia desbordar ese contenedor
+     por la altura de ese banner. 100% del padre es lo correcto. */
+  min-height: 100%;
 }
 
 .main-wrapper {
@@ -1624,7 +1629,11 @@ ul, ol { list-style: none; }
    ============================================================ */
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  /* min(260px, 100%) en vez de 260px fijos: evita que una sola columna
+     fuerce overflow horizontal en un viewport mas angosto que 260px
+     (telefonos muy pequenos), sin esperar a que un media query lo
+     corrija mas abajo. */
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
   gap: 18px;
   margin-bottom: 22px;
   /* perspective para efecto 3D tilt */
@@ -2538,10 +2547,65 @@ button.swal2-confirm { background-color: var(--accent) !important; }
 
 @media (max-width: 480px) {
   .kpi-grid { grid-template-columns: 1fr; }
-  .icon-btn { padding: 6px; }
+  .icon-btn { padding: 6px; min-width: 40px; min-height: 40px; }
   .stat-value { font-size: 24px; }
   .compact-form-title h3 { font-size: 13px; }
   .btn-compact-primary { width: 100%; }
+  /* Objetivo tactil minimo (~40px) para los controles mas chicos. */
+  .btn-outline-small,
+  .action-link { min-height: 36px; display: inline-flex; align-items: center; }
+  .top-header { padding: 10px 16px 10px 60px; }
+}
+
+/* ============================================================
+   22b. RESPONSIVE -- TOP HEADER / SHELL MOVIL
+   El sidebar ahora es un drawer fuera de flujo en movil (ver
+   Sidebar.jsx: boton hamburguesa fijo arriba a la izquierda, backdrop y
+   transform en vez de compartir ancho con el contenido) -- estas reglas
+   le dejan espacio a ese boton y evitan que el header de cada pagina se
+   desborde o amontone fecha/usuario/acciones en una pantalla angosta.
+   ============================================================ */
+@media (max-width: 768px) {
+  /* Espacio a la izquierda para que el titulo no quede debajo del boton
+     hamburguesa (fixed, 42px + 14px de margen). */
+  .top-header {
+    padding-left: 64px;
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 70px;
+    row-gap: 8px;
+  }
+
+  .page-title { font-size: 17px; }
+
+  .header-right { gap: 10px; flex-wrap: wrap; }
+
+  /* Fecha larga ("lunes, 21 de octubre de 2026"): sobra en una pantalla
+     angosta -- se oculta, no aporta nada que el saludo de cada pagina no
+     diga ya de forma mas corta. */
+  .date-display { display: none; }
+
+  /* Nombre/rol del usuario en el header: se deja solo el avatar, igual
+     que ya pasa con el sidebar colapsado. */
+  .user-profile .user-info { display: none; }
+  .user-profile { padding-left: 10px; gap: 0; }
+
+  .welcome-content { flex-wrap: wrap; gap: 14px; }
+}
+
+/* ── Utilidad: grid de 2/3 columnas que colapsa en movil ──
+   Pensada para los paneles armados con estilos inline
+   (display:grid + gridTemplateColumns fijo) -- un estilo inline con
+   grid-template-columns siempre le gana a una regla de hoja de estilos,
+   asi que para que esto funcione el componente debe quitar esa
+   propiedad de su objeto de estilos inline (el resto, como el gap,
+   puede seguir inline) y agregar la clase correspondiente. */
+.grid-2col-responsive { grid-template-columns: 1fr 1fr; }
+.grid-3col-responsive { grid-template-columns: 1fr 1fr 1fr; }
+
+@media (max-width: 600px) {
+  .grid-2col-responsive,
+  .grid-3col-responsive { grid-template-columns: 1fr; }
 }
 
 /* ============================================================

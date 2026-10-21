@@ -390,7 +390,7 @@ export default function UserWorkoutLog() {
               )}
 
               {/* Cierre */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 18 }}>
+              <div className="grid-2col-responsive" style={{ display: "grid", gap: 12, marginTop: 18 }}>
                 <div>
                   <label style={S.label}><FiClock /> Duración (min)</label>
                   <input style={S.input} type="number" value={duracion} onChange={e => setDuracion(e.target.value)} placeholder="45" />

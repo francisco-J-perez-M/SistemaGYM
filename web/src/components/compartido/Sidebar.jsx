@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import useTheme from "../../hooks/ThemeContext";
+import useIsMobile from "../../hooks/useIsMobile";
 import axios from "axios";
 import Swal from "sweetalert2";
 import {
@@ -10,6 +11,7 @@ import {
   FiShoppingCart, FiCpu, FiPieChart, FiChevronDown,
   FiChevronLeft, FiChevronRight, FiGlobe, FiPackage, FiServer,
   FiMoreHorizontal, FiHelpCircle, FiMapPin, FiSearch, FiBriefcase, FiImage,
+  FiMenu, FiX,
 } from "react-icons/fi";
 import { GiMuscleUp, GiMeal } from "react-icons/gi";
 // HU-45: para ocultar "Sucursales" a Administrador -- comparte el panel
@@ -208,11 +210,26 @@ export default function Sidebar({
   multiSucursal = false,
 }) {
   const { theme, changeTheme } = useTheme();
-  const [collapsed,      setCollapsed]      = useState(false);
+  // En escritorio "collapsed" sigue significando lo de siempre (sidebar
+  // angosto, solo iconos). En movil ese concepto no aplica -- ahi el
+  // sidebar es un drawer que se oculta por completo (mobileOpen) y, al
+  // abrirse, siempre se muestra a ancho completo, nunca colapsado -- por
+  // eso "collapsed" (el valor que usa el resto del componente para
+  // pintarse) se deriva de ambos en vez de ser directamente el estado.
+  const [collapsedPref,  setCollapsedPref]  = useState(false);
   const [openSubmenu,    setOpenSubmenu]    = useState(null);
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
   const [accessLevel,    setAccessLevel]    = useState("premium");
+  const [mobileOpen,     setMobileOpen]     = useState(false);
   const optionsRef = useRef(null);
+  const isMobile = useIsMobile(768);
+  const collapsed = isMobile ? false : collapsedPref;
+
+  // Si la pantalla deja de ser movil (girar a horizontal, devtools, etc.)
+  // el drawer no debe quedarse "abierto" de forma invisible.
+  useEffect(() => {
+    if (!isMobile) setMobileOpen(false);
+  }, [isMobile]);
 
   // Obtener access level del miembro
   useEffect(() => {
@@ -312,20 +329,32 @@ export default function Sidebar({
     aside: {
       width: W,
       minWidth: W,
-      maxWidth: W,
+      // En movil el drawer es un overlay a ancho fijo; se limita a 85vw
+      // para no tapar la pantalla entera en telefonos muy angostos.
+      maxWidth: isMobile ? "85vw" : W,
       height: "100vh",
       display: "flex",
       flexDirection: "column",
       background: P.bg,
       borderRight: `1px solid ${P.border}`,
       flexShrink: 0,
-      // overflow visible: el botón de colapsar sobresale del borde derecho
-      // (right: -14) y con "hidden" quedaba recortado, así que no se veía.
-      // El recorte que sí hace falta está en la lista de navegación.
+      // overflow visible: el boton de colapsar sobresale del borde derecho
+      // (right: -14) y con "hidden" quedaba recortado, asi que no se veia.
+      // El recorte que si hace falta esta en la lista de navegacion.
       overflow: "visible",
-      transition: "width .3s cubic-bezier(.4,0,.2,1), min-width .3s cubic-bezier(.4,0,.2,1)",
-      position: "relative",
-      zIndex: 100,
+      transition: "width .3s cubic-bezier(.4,0,.2,1), min-width .3s cubic-bezier(.4,0,.2,1), transform .3s cubic-bezier(.4,0,.2,1)",
+      // En movil el sidebar sale del flujo normal (fixed) y vive oculto
+      // fuera de pantalla hasta que se abre, en vez de compartir el ancho
+      // con el contenido -- esto es lo que corrige que todo se viera
+      // encimado: antes el sidebar (260px fijos) le quitaba ese espacio a
+      // un viewport de 360-400px sin que ningun media query pudiera hacer
+      // nada, porque todo este componente usa estilos inline, no clases.
+      position: isMobile ? "fixed" : "relative",
+      top: 0,
+      left: 0,
+      transform: isMobile ? (mobileOpen ? "translateX(0)" : "translateX(-100%)") : "none",
+      boxShadow: isMobile && mobileOpen ? "8px 0 32px rgba(0,0,0,.45)" : "none",
+      zIndex: 1000,
     },
     collapseBtn: {
       position: "absolute",
@@ -500,15 +529,49 @@ export default function Sidebar({
   };
 
   return (
-    <aside style={S.aside}>
-      {/* Collapse button */}
-      <button
-        style={S.collapseBtn}
-        onClick={() => setCollapsed(c => !c)}
-        title={collapsed ? "Expandir" : "Colapsar"}
-      >
-        {collapsed ? <FiChevronRight size={14} /> : <FiChevronLeft size={14} />}
-      </button>
+    <>
+      {/* Boton hamburguesa: fijo fuera del <aside>, sigue visible y
+          clicable aunque el drawer este totalmente fuera de pantalla
+          (transform: translateX(-100%)). Solo en movil -- en escritorio
+          el control sigue siendo el boton circular de colapsar de abajo. */}
+      {isMobile && (
+        <button
+          onClick={() => setMobileOpen(v => !v)}
+          aria-label={mobileOpen ? "Cerrar menu" : "Abrir menu"}
+          title={mobileOpen ? "Cerrar menu" : "Abrir menu"}
+          style={{
+            position: "fixed", top: 14, left: 14, width: 42, height: 42,
+            borderRadius: 10, background: P.bg, border: `1px solid ${P.border}`,
+            color: P.text, display: "flex", alignItems: "center", justifyContent: "center",
+            cursor: "pointer", zIndex: 1100, boxShadow: "0 2px 10px rgba(0,0,0,.35)",
+          }}
+        >
+          {mobileOpen ? <FiX size={18} /> : <FiMenu size={18} />}
+        </button>
+      )}
+
+      {/* Fondo semitransparente detras del drawer abierto: tocarlo lo
+          cierra, patron estandar de menu off-canvas. */}
+      {isMobile && mobileOpen && (
+        <div
+          onClick={() => setMobileOpen(false)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 999 }}
+        />
+      )}
+
+      <aside style={S.aside}>
+      {/* Collapse button: solo aplica en escritorio -- en movil el drawer
+          siempre se muestra a ancho completo y se abre/cierra con el
+          boton hamburguesa de arriba, no con este. */}
+      {!isMobile && (
+        <button
+          style={S.collapseBtn}
+          onClick={() => setCollapsedPref(c => !c)}
+          title={collapsed ? "Expandir" : "Colapsar"}
+        >
+          {collapsed ? <FiChevronRight size={14} /> : <FiChevronLeft size={14} />}
+        </button>
+      )}
 
       {/* Header */}
       <div style={S.header}>
@@ -543,7 +606,11 @@ export default function Sidebar({
                 onClick={() => {
                   if (isRestr) { handleRestricted(item.label); return; }
                   if (hasChildren) setOpenSubmenu(isOpen ? null : item.id);
-                  else { setOpenSubmenu(null); onTabChange(item.id); }
+                  else {
+                    setOpenSubmenu(null);
+                    onTabChange(item.id);
+                    if (isMobile) setMobileOpen(false);
+                  }
                 }}
                 onMouseEnter={e => { e.currentTarget.style.background = P.bgHover; }}
                 onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
@@ -572,7 +639,7 @@ export default function Sidebar({
                     <div
                       key={sub.id}
                       style={S.subItem(activeTab === sub.id)}
-                      onClick={e => { e.stopPropagation(); onTabChange(sub.id); setOpenSubmenu(null); }}
+                      onClick={e => { e.stopPropagation(); onTabChange(sub.id); setOpenSubmenu(null); if (isMobile) setMobileOpen(false); }}
                       onMouseEnter={e => { if (activeTab !== sub.id) e.currentTarget.style.background = P.bgHover; }}
                       onMouseLeave={e => { if (activeTab !== sub.id) e.currentTarget.style.background = "transparent"; }}
                     >
@@ -689,6 +756,7 @@ export default function Sidebar({
           </div>
         )}
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }

@@ -219,7 +219,7 @@ export default function TrainerDashboard() {
       </div>
 
       {/* ── Grid inferior: sesiones de hoy + próximas + accesos rápidos ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+      <div className="grid-2col-responsive" style={{ display: "grid", gap: 20 }}>
 
         {/* Sesiones de hoy */}
         <div className="stat-card" data-guide="tr-today" style={{ padding: "20px 22px" }}>

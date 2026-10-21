@@ -7,6 +7,14 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+/* Red de seguridad: ningun elemento (modal mal posicionado, tabla sin
+   scroll propio, etc.) deberia poder forzar scroll horizontal del
+   documento completo. */
+html {
+  overflow-x: hidden;
 }
 
 code {
