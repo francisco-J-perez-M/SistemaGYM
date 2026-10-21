@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { getTodosMovimientos, getCategoriasVentas } from "../../api/pagos";
 import { useToast } from "../../hooks/useToast";
 import "../../css/CSSUnificado.css";
@@ -168,6 +169,7 @@ function FilterPill({ active, onClick, children, color = "var(--accent)" }) {
    COMPONENTE PRINCIPAL
 ═══════════════════════════════════════════════ */
 export default function PagosDashboard() {
+  const navigate = useNavigate();
   const { toast, ToastPortal } = useToast();
 
   const [movimientos, setMovimientos] = useState([]);
@@ -264,6 +266,9 @@ export default function PagosDashboard() {
             <span className="total-count">{pagination.total} registros</span>
           )}
         </div>
+        <button className="btn-primary" onClick={() => navigate("/owner/cobrar")}>
+          Cobrar Membresía
+        </button>
       </div>
 
       {/* ── Barra de filtros ── */}

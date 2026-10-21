@@ -43,6 +43,7 @@ const MENUS = {
     { id: "ow-dashboard",  label: "Dashboard",       icon: <FiBarChart2 />    },
     { id: "ow-miembros",   label: "Miembros",         icon: <FiUsers />        },
     { id: "ow-pagos",      label: "Pagos",            icon: <FiDollarSign />   },
+    { id: "ow-cobrar",     label: "Cobrar Membresía", icon: <FiDollarSign />   },
     { id: "ow-pos",        label: "Punto de Venta",   icon: <FiShoppingCart /> },
     // HU-47/SCRUM-218: solo visible si la organización tiene 2+ sucursales
     // (multiSucursal, prop venida de /api/auth/me) -- ver filtrarOcultos abajo.
@@ -156,6 +157,7 @@ const MENUS = {
       id: "rec-admin", label: "Pagos y Tareas", icon: <FiClipboard />,
       children: [
         { id: "payments", label: "Pagos",    icon: <FiDollarSign /> },
+        { id: "cobrar", label: "Cobrar Membresía", icon: <FiDollarSign /> },
         { id: "messages", label: "Bitácora", icon: <FiActivity />   },
         { id: "tasks",    label: "Tareas",   icon: <FiClipboard />  },
       ],
