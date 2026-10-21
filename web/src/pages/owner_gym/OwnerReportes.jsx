@@ -13,6 +13,7 @@
  * el token JWT, que el navegador no adjuntaría al seguir un href.
  */
 import { useEffect, useMemo, useState } from "react";
+import useIsMobile from "../../hooks/useIsMobile";
 import Swal from "sweetalert2";
 import {
   FiFileText, FiDownload, FiCheckSquare, FiSquare, FiCalendar,
@@ -38,7 +39,7 @@ const MESES = [
 ];
 
 const S = {
-  page:  { padding: "28px 32px", background: "var(--bg-main)", minHeight: "100vh", color: C.t1, fontFamily: "Inter,system-ui,sans-serif" },
+  page:  { background: "var(--bg-main)", minHeight: "100vh", color: C.t1, fontFamily: "Inter,system-ui,sans-serif" },
   title: { fontSize: 24, fontWeight: 700, margin: "0 0 4px" },
   sub:   { fontSize: 13, color: C.t2, marginBottom: 26 },
   card:  { background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: "24px 28px" },
@@ -69,6 +70,7 @@ export default function OwnerReportes() {
   // Owner sí administra la suscripción, de ahí puedeMejorarPlan.
   const funcionesPlan = useFuncionesPlan();
   const reportesPdfPermitido = funcionesPlan.reportes_pdf !== false;
+  const isMobile = useIsMobile(768);
   const hoy = useMemo(() => new Date(), []);
 
   const [opciones, setOpciones] = useState(null);
@@ -176,7 +178,7 @@ export default function OwnerReportes() {
 
   if (error) {
     return (
-      <div style={S.page}>
+      <div style={S.page} className="reportes-page">
         <div style={{ ...S.card, maxWidth: 460, textAlign: "center" }}>
           <FiAlertCircle size={34} color={C.danger} />
           <p style={{ margin: "12px 0 18px", color: C.t2, fontSize: 14 }}>
@@ -200,7 +202,7 @@ export default function OwnerReportes() {
       planSugerido="Básico"
       puedeMejorarPlan
     >
-    <div style={S.page}>
+    <div style={S.page} className="reportes-page">
       <div style={{ display: "flex", alignItems: "center", gap: 15, marginBottom: 6 }}>
         <div style={{
           width: 50, height: 50, borderRadius: 14,
@@ -217,7 +219,7 @@ export default function OwnerReportes() {
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 300px", gap: 20, marginTop: 26, alignItems: "start" }}>
+      <div className="reportes-grid" style={{ display: "grid", gap: 20, marginTop: 26, alignItems: "start" }}>
         {/* Configuración */}
         <div style={S.card}>
           {/* Sucursal -- solo si hay más de una entre las que el usuario
@@ -340,7 +342,7 @@ export default function OwnerReportes() {
         </div>
 
         {/* Resumen y descarga */}
-        <div style={{ ...S.card, position: "sticky", top: 24 }}>
+        <div style={{ ...S.card, position: isMobile ? "static" : "sticky", top: isMobile ? 0 : 24 }}>
           <p style={{ margin: "0 0 4px", fontSize: 12, color: C.t2, textTransform: "uppercase", letterSpacing: ".05em", fontWeight: 700 }}>
             Tu reporte
           </p>

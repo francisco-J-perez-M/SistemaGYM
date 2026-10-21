@@ -178,7 +178,7 @@ export default function SuperadminDashboard() {
           </div>
 
           {/* Two-column section */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 24 }}>
+          <div className="grid-2col-responsive" style={{ display: "grid", gap: 20, marginBottom: 24 }}>
             {/* Top gyms by revenue */}
             <div style={card()}>
               <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 16, letterSpacing: ".03em" }}>

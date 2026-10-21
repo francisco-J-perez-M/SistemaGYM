@@ -169,14 +169,14 @@ export default function AuthPage() {
             <div className="form-group">
               <label htmlFor="email">Correo electrónico</label>
               <div className="input-dark-container">
-                <input id="email" type="email" placeholder="ejemplo@correo.com" value={email} onChange={(e) => setEmail(e.target.value)} required disabled={loading} />
+                <input id="email" type="email" autoComplete="username" placeholder="ejemplo@correo.com" value={email} onChange={(e) => setEmail(e.target.value)} required disabled={loading} />
               </div>
             </div>
 
             <div className="form-group">
               <label htmlFor="password">Contraseña</label>
               <div className="input-dark-container password-input-wrapper">
-                <input id="password" type={showPassword ? "text" : "password"} placeholder="******" value={password} onChange={(e) => setPassword(e.target.value)} required disabled={loading} />
+                <input id="password" type={showPassword ? "text" : "password"} autoComplete="current-password" placeholder="******" value={password} onChange={(e) => setPassword(e.target.value)} required disabled={loading} />
                 <button type="button" className="password-toggle-btn" onClick={() => setShowPassword(!showPassword)}>
                   {showPassword ? <FiEye /> : <FiEyeOff />}
                 </button>

@@ -53,7 +53,7 @@ const S = {
   cardValue: { fontSize: 28, fontWeight: 700, margin: "8px 0 4px", color: "var(--text-primary,var(--text-primary))" },
   cardSub:   { fontSize: 12, color: "var(--text-tertiary,var(--text-tertiary))" },
   grid2: {
-    display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 24,
+    display: "grid", gap: 20, marginBottom: 24,
   },
   section: {
     background: "var(--bg-card)",
@@ -262,7 +262,7 @@ export default function OwnerDashboard() {
       </div>
 
       {/* Gráficas */}
-      <div style={{ ...S.grid2, "@media(maxWidth:768px)": { gridTemplateColumns: "1fr" } }} data-guide="ow-ingresos">
+      <div className="grid-2col-responsive" style={S.grid2} data-guide="ow-ingresos">
         {/* Ingresos históricos */}
         <div style={S.section}>
           <InfoGrafico
@@ -355,7 +355,7 @@ export default function OwnerDashboard() {
       </div>
 
       {/* Actividad reciente + Alertas */}
-      <div style={S.grid2}>
+      <div className="grid-2col-responsive" style={S.grid2}>
 
         {/* ── Actividad Reciente (paginada) ── */}
         <div style={S.section} data-guide="ow-actividad">
