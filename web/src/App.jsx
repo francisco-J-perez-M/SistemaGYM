@@ -197,6 +197,7 @@ function App() {
             <Route path="/receptionist/pos"          element={<PointOfSale />} />
             <Route path="/receptionist/appointments" element={<ReceptionistAppointments />} />
             <Route path="/receptionist/payments"     element={<ReceptionistPayments />} />
+            <Route path="/receptionist/cobrar"       element={<CobrarMembresia />} />
             <Route path="/receptionist/members"      element={<ReceptionistMembers />} />
             <Route path="/receptionist/verificar-sucursal" element={<VerificarMiembro />} />
             <Route path="/receptionist/messages"     element={<ReceptionistMessages />} />
