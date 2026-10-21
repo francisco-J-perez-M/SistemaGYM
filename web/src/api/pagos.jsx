@@ -27,16 +27,25 @@ export const registrarPago = async (data) => {
  * Historial unificado de pagos y ventas POS.
  *
  * `anio`/`mes` acotan el periodo (mes sin año se ignora en el backend, así que
- * sólo se envía acompañado). La respuesta trae `monto_total`, que suma TODO el
- * filtro y no sólo la página pedida, y `anios` para poblar el selector.
+ * sólo se envía acompañado). `desde`/`hasta` (rango libre "YYYY-MM-DD") tiene
+ * prioridad sobre anio/mes -- así se filtra por día o semana sin necesitar un
+ * parámetro distinto por cada granularidad. La respuesta trae `monto_total`,
+ * que suma TODO el filtro y no sólo la página pedida, y `anios` para poblar
+ * el selector.
  */
 export const getTodosMovimientos = async ({
-  page = 1, tipo = "todos", categoria = "", anio = 0, mes = 0, per_page = 0,
+  page = 1, tipo = "todos", categoria = "", anio = 0, mes = 0,
+  desde = "", hasta = "", per_page = 0,
 } = {}) => {
   const params = new URLSearchParams({ page, tipo });
   if (categoria) params.set("categoria", categoria);
-  if (anio)      params.set("anio", anio);
-  if (anio && mes) params.set("mes", mes);
+  if (desde && hasta) {
+    params.set("desde", desde);
+    params.set("hasta", hasta);
+  } else if (anio) {
+    params.set("anio", anio);
+    if (mes) params.set("mes", mes);
+  }
   if (per_page)  params.set("per_page", per_page);
   const res = await axios.get(`${API_URL}/todos?${params}`, {
     headers: authHeader(),

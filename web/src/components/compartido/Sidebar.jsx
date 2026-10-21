@@ -11,7 +11,7 @@ import {
   FiShoppingCart, FiCpu, FiPieChart, FiChevronDown,
   FiChevronLeft, FiChevronRight, FiGlobe, FiPackage, FiServer,
   FiMoreHorizontal, FiHelpCircle, FiMapPin, FiSearch, FiBriefcase, FiImage,
-  FiMenu, FiX,
+  FiMenu, FiX, FiClock,
 } from "react-icons/fi";
 import { GiMuscleUp, GiMeal } from "react-icons/gi";
 // HU-45: para ocultar "Sucursales" a Administrador -- comparte el panel
@@ -59,6 +59,7 @@ const MENUS = {
         { id: "ow-sucursales", label: "Sucursales",  icon: <FiMapPin />     },
         { id: "ow-membresias", label: "Membresías",   icon: <FiCreditCard /> },
         { id: "ow-reportes",   label: "Reportes",    icon: <FiFileText />   },
+        { id: "ow-reportes-auto", label: "Automatizar reportes", icon: <FiClock />   },
       ],
     },
     {

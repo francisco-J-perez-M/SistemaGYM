@@ -86,6 +86,13 @@ export default function OwnerReportes() {
 
   const [anio, setAnio] = useState(hoy.getFullYear());
   const [mes,  setMes]  = useState(hoy.getMonth() + 1);   // 0 = año completo
+  // Granularidad del reporte: "mesAnio" es el flujo clásico de Año/Mes;
+  // "dia" y "semana" mandan un rango libre (desde/hasta), que el backend ya
+  // soporta en _resolver_periodo() con prioridad sobre anio/mes.
+  const [modoPeriodo, setModoPeriodo] = useState("mesAnio"); // mesAnio | dia | semana
+  const isoHoy = () => hoy.toISOString().slice(0, 10);
+  const [fechaDia,    setFechaDia]    = useState(isoHoy);
+  const [fechaSemana, setFechaSemana] = useState(isoHoy);
   const [comparar, setComparar] = useState(true);
   // Las gráficas van activadas por omisión aquí: en pantalla el dueño suele
   // querer ver el reparto de un vistazo antes de leer las tablas.
@@ -123,7 +130,28 @@ export default function OwnerReportes() {
     setSecciones((prev) =>
       prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]);
 
-  const etiquetaPeriodo = !mes ? `Año ${anio}` : `${MESES[mes - 1]} ${anio}`;
+  // Lunes a domingo de la semana que contiene `fechaStr` ("YYYY-MM-DD").
+  const rangoSemana = (fechaStr) => {
+    const [y, m, d] = fechaStr.split("-").map(Number);
+    const base = new Date(y, m - 1, d);
+    const dow = (base.getDay() + 6) % 7; // lunes = 0 ... domingo = 6
+    const lunes = new Date(base); lunes.setDate(base.getDate() - dow);
+    const domingo = new Date(lunes); domingo.setDate(lunes.getDate() + 6);
+    const fmt = (x) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`;
+    return { desde: fmt(lunes), hasta: fmt(domingo) };
+  };
+  const formatFechaCorta = (f) => {
+    try { return new Date(`${f}T00:00:00`).toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" }); }
+    catch { return f; }
+  };
+
+  const rangoSemanaActual = modoPeriodo === "semana" ? rangoSemana(fechaSemana) : null;
+
+  const etiquetaPeriodo = modoPeriodo === "dia"
+    ? `Día ${formatFechaCorta(fechaDia)}`
+    : modoPeriodo === "semana"
+    ? `Semana del ${formatFechaCorta(rangoSemanaActual.desde)} al ${formatFechaCorta(rangoSemanaActual.hasta)}`
+    : !mes ? `Año ${anio}` : `${MESES[mes - 1]} ${anio}`;
 
   const generar = async () => {
     if (secciones.length === 0) {
@@ -133,9 +161,14 @@ export default function OwnerReportes() {
     }
     setGenerando(true);
     try {
+      const periodoParams = modoPeriodo === "dia"
+        ? { desde: fechaDia, hasta: fechaDia }
+        : modoPeriodo === "semana"
+        ? rangoSemanaActual
+        : { anio, mes };
+
       const data = await descargarReportePdf({
-        anio,
-        mes,
+        ...periodoParams,
         secciones: secciones.join(","),
         ...(comparar ? { comparar: 1 } : {}),
         ...(graficas ? { graficas: 1 } : {}),
@@ -242,24 +275,72 @@ export default function OwnerReportes() {
           )}
 
           {/* Periodo */}
-          <label style={S.label}><FiCalendar style={{ verticalAlign: -2 }} /> Año</label>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 22 }}>
-            {anios.map((a) => (
-              <button key={a} onClick={() => setAnio(a)} style={S.chip(anio === a)}>
-                {a}
-              </button>
-            ))}
+          <label style={S.label}><FiCalendar style={{ verticalAlign: -2 }} /> Periodo</label>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 18 }}>
+            <button onClick={() => setModoPeriodo("mesAnio")} style={S.chip(modoPeriodo === "mesAnio")}>Mes / Año</button>
+            <button onClick={() => setModoPeriodo("semana")}  style={S.chip(modoPeriodo === "semana")}>Semana</button>
+            <button onClick={() => setModoPeriodo("dia")}     style={S.chip(modoPeriodo === "dia")}>Día</button>
           </div>
 
-          <label style={S.label}>Mes</label>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 24 }}>
-            <button onClick={() => setMes(0)} style={S.chip(mes === 0)}>Año completo</button>
-            {MESES.map((m, i) => (
-              <button key={m} onClick={() => setMes(i + 1)} style={S.chip(mes === i + 1)}>
-                {m.slice(0, 3)}
-              </button>
-            ))}
-          </div>
+          {modoPeriodo === "mesAnio" && (
+            <>
+              <label style={S.label}>Año</label>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 22 }}>
+                {anios.map((a) => (
+                  <button key={a} onClick={() => setAnio(a)} style={S.chip(anio === a)}>
+                    {a}
+                  </button>
+                ))}
+              </div>
+
+              <label style={S.label}>Mes</label>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 24 }}>
+                <button onClick={() => setMes(0)} style={S.chip(mes === 0)}>Año completo</button>
+                {MESES.map((m, i) => (
+                  <button key={m} onClick={() => setMes(i + 1)} style={S.chip(mes === i + 1)}>
+                    {m.slice(0, 3)}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
+          {modoPeriodo === "dia" && (
+            <div style={{ marginBottom: 24 }}>
+              <label style={S.label}>Elige el día</label>
+              <input
+                type="date"
+                value={fechaDia}
+                max={isoHoy()}
+                onChange={(e) => e.target.value && setFechaDia(e.target.value)}
+                style={{
+                  padding: "10px 14px", borderRadius: 10, fontSize: 13.5,
+                  border: `1px solid ${C.border}`, background: C.input, color: C.t1,
+                }}
+              />
+            </div>
+          )}
+
+          {modoPeriodo === "semana" && (
+            <div style={{ marginBottom: 24 }}>
+              <label style={S.label}>Cualquier día de la semana que quieras</label>
+              <input
+                type="date"
+                value={fechaSemana}
+                max={isoHoy()}
+                onChange={(e) => e.target.value && setFechaSemana(e.target.value)}
+                style={{
+                  padding: "10px 14px", borderRadius: 10, fontSize: 13.5,
+                  border: `1px solid ${C.border}`, background: C.input, color: C.t1,
+                }}
+              />
+              {rangoSemanaActual && (
+                <p style={{ margin: "8px 0 0", fontSize: 12, color: C.t2 }}>
+                  Semana del {formatFechaCorta(rangoSemanaActual.desde)} al {formatFechaCorta(rangoSemanaActual.hasta)}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Secciones */}
           <label style={S.label}><FiBarChart2 style={{ verticalAlign: -2 }} /> Qué incluir</label>
