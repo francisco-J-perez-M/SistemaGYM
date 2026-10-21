@@ -213,7 +213,7 @@ function TarjetaPasarela({ pasarela, onRecargar, soloLectura }) {
       )}
 
       {/* Campos de credenciales */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+      <form onSubmit={(e) => e.preventDefault()} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
         {pasarela.campos.map((campo) => (
           <div key={campo.clave}>
             <label style={{ display: "block", fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>
@@ -224,18 +224,18 @@ function TarjetaPasarela({ pasarela, onRecargar, soloLectura }) {
               value={form[campo.clave] ?? ""}
               onChange={(e) => setForm((f) => ({ ...f, [campo.clave]: e.target.value }))}
               placeholder={listo ? "Guardado — escribe para reemplazar" : campo.etiqueta}
-              autoComplete="off"
+              autoComplete="new-password"
               disabled={soloLectura}
               style={soloLectura ? { ...inputStyle, opacity: 0.6, cursor: "not-allowed" } : inputStyle}
             />
           </div>
         ))}
-      </div>
+      </form>
 
       {/* SCRUM-221 / HU-50, criterio 3: reautenticación -- solo aparece cuando
           realmente se está reemplazando alguna credencial. */}
       {!soloLectura && cambiaCredenciales && (
-        <div style={{ marginBottom: 12 }}>
+        <form onSubmit={(e) => e.preventDefault()} style={{ marginBottom: 12 }}>
           <label style={{ display: "block", fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>
             Tu contraseña (confirma el cambio de cuenta) <FiLock style={{ verticalAlign: "-1px" }} />
           </label>
@@ -247,7 +247,7 @@ function TarjetaPasarela({ pasarela, onRecargar, soloLectura }) {
             autoComplete="current-password"
             style={inputStyle}
           />
-        </div>
+        </form>
       )}
 
       {/* Ajustes */}

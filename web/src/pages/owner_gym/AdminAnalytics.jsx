@@ -1438,7 +1438,7 @@ export default function AdminAnalytics() {
   const ActiveComp = TABS.find(t => t.id === activeTab)?.Component;
 
   return (
-    <div style={{ padding: "24px 28px", maxWidth: 1100, margin: "0 auto" }}>
+    <div className="analytics-page" style={{ maxWidth: 1100, margin: "0 auto" }}>
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ color: "var(--text-primary)", fontSize: 24, fontWeight: 700, margin: 0 }}>
           Inteligencia de tu Gimnasio
@@ -1450,7 +1450,7 @@ export default function AdminAnalytics() {
 
       {/* Tabs */}
       <div style={{
-        display: "flex", gap: 4, marginBottom: 28,
+        display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 28,
         borderBottom: "2px solid var(--border-dark)", paddingBottom: 0,
       }}>
         {TABS.map(tab => (

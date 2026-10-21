@@ -2608,6 +2608,28 @@ button.swal2-confirm { background-color: var(--accent) !important; }
   .grid-3col-responsive { grid-template-columns: 1fr; }
 }
 
+/* -- Reportes (OwnerReportes.jsx): panel de configuracion + tarjeta
+   "Tu reporte" (sticky en escritorio) en 2 columnas; en movil se apilan
+   y la tarjeta deja de pegarse arriba (position:sticky lo controla el
+   propio componente via useIsMobile, no esta regla). */
+.reportes-grid { grid-template-columns: minmax(0,1fr) 300px; }
+
+/* -- Analytics del owner (AdminAnalytics.jsx, "Inteligencia de tu
+   Gimnasio"): construye su propio contenedor de pagina (no usa
+   .top-header), asi que necesita su propio padding-left para el boton
+   hamburguesa. */
+.analytics-page { padding: 24px 28px; }
+
+/* -- Reportes (OwnerReportes.jsx): el contenedor de pagina tambien
+   construye su propio padding (no usa .top-header). */
+.reportes-page { padding: 28px 32px; }
+
+@media (max-width: 768px) {
+  .reportes-page { padding: 20px 16px 20px 64px; }
+  .reportes-grid { grid-template-columns: 1fr; }
+  .analytics-page { padding: 20px 16px 20px 64px; }
+}
+
 /* ============================================================
    23. ACCESIBILIDAD
    ============================================================ */
