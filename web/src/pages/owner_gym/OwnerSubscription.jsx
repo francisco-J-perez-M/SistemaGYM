@@ -112,6 +112,48 @@ export default function OwnerSubscription() {
 
   useEffect(() => { cargarRecurrente(); }, [cargarRecurrente]);
 
+  // ── Lotes de capacidad ("comprar más espacio para miembros") ───────────────
+  //
+  // Petición explícita del usuario: ampliar el tope de miembros del plan
+  // comprando lotes de tamaño fijo. El cobro en sí lo hace BotonesPago con
+  // contexto="lote_capacidad" (mismo checkout de un solo pago que ya usan
+  // los planes); aquí solo se muestra el catálogo y lo que ya se compró.
+  const [catalogoLotes, setCatalogoLotes] = useState([]);
+  const [lotes, setLotes]                 = useState([]);
+  const [extraVigente, setExtraVigente]   = useState(0);
+
+  const cargarLotes = useCallback(async () => {
+    try {
+      const [c, l] = await Promise.all([
+        fetch("/api/owner_gym/complementos-capacidad/catalogo", { headers: authHeaders() }).then(r => r.json()),
+        fetch("/api/owner_gym/complementos-capacidad", { headers: authHeaders() }).then(r => r.json()),
+      ]);
+      setCatalogoLotes(Array.isArray(c?.lotes) ? c.lotes : []);
+      setLotes(Array.isArray(l?.lotes) ? l.lotes : []);
+      setExtraVigente(l?.extra_miembros_vigente || 0);
+    } catch { /* sección extra -- no bloquea el resto de la pantalla */ }
+  }, []);
+
+  useEffect(() => { cargarLotes(); }, [cargarLotes]);
+
+  const cancelarLote = async (id) => {
+    if (!window.confirm(
+      "¿Desactivar este lote de capacidad?\n\n" +
+      "No hay reembolso -- fue un cobro único, no un cargo recurrente. " +
+      "Tu tope de miembros bajará de inmediato.")) return;
+    try {
+      const r = await fetch(`/api/owner_gym/complementos-capacidad/${id}`, {
+        method: "DELETE", headers: authHeaders(),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.msg || "No se pudo desactivar el lote.");
+      await cargarLotes();
+      setMsg({ type: "ok", text: j.msg });
+    } catch (e) {
+      setMsg({ type: "error", text: e.message });
+    }
+  };
+
   // Al volver de autorizar, la pasarela nos regresa con ?recurrente=exito. En
   // desarrollo los webhooks no llegan a localhost, así que se pregunta el
   // estado real en lugar de darlo por hecho.
@@ -246,7 +288,10 @@ export default function OwnerSubscription() {
                   {sub?.ciclo_facturacion === "anual" ? precioDisplayParaCiclo(planActual, "anual") : planActual?.precio_display}
                 </p>
                 {planActual?.max_miembros != null && (
-                  <p style={{ color: "var(--text-secondary)", fontSize: 13, margin: "4px 0 0" }}>Hasta {planActual.max_miembros} miembros</p>
+                  <p style={{ color: "var(--text-secondary)", fontSize: 13, margin: "4px 0 0" }}>
+                    Hasta {planActual.max_miembros + extraVigente} miembros
+                    {extraVigente > 0 && ` (incluye +${extraVigente} por lotes)`}
+                  </p>
                 )}
               </div>
               <div style={{ textAlign: "right" }}>
@@ -478,6 +523,74 @@ export default function OwnerSubscription() {
           );
         })}
       </div>
+
+      {/* Ampliar capacidad con lotes */}
+      <h3 style={S.section}>Ampliar tu capacidad de miembros</h3>
+      <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "-6px 0 16px" }}>
+        ¿Tu sucursal está cerca del tope de tu plan? Compra espacio adicional en lotes fijos --
+        se suma al tope de tu plan mientras esté vigente el ciclo que elijas arriba (mensual o
+        anual), sin tener que cambiar de plan.
+      </p>
+
+      {extraVigente > 0 && (
+        <div style={{ ...S.banner, background: "rgba(99,102,241,.12)", color: "var(--accent)" }}>
+          <FiUsers size={14} /> Ya tienes <strong>+{extraVigente} miembros</strong> extra activos por lotes comprados.
+        </div>
+      )}
+
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
+        gap: 14, marginBottom: 18,
+      }}>
+        {catalogoLotes.map((l) => {
+          const centavos = ciclo === "anual" ? l.precio_anual_mxn : l.precio_mensual_mxn;
+          return (
+            <div key={l.cantidad_miembros} style={{
+              background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14,
+              padding: 16, display: "flex", flexDirection: "column", gap: 8,
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--text-primary)", fontWeight: 800, fontSize: 15 }}>
+                <FiUsers size={15} /> +{l.cantidad_miembros} miembros
+              </div>
+              <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                ${(centavos / 100).toLocaleString("es-MX", { minimumFractionDigits: 2 })} MXN
+                /{ciclo === "anual" ? "año" : "mes"}
+              </div>
+              <div style={{ marginTop: 4 }}>
+                <BotonesPago
+                  contexto="lote_capacidad"
+                  monto={Number((centavos / 100).toFixed(2))}
+                  descripcion={`Lote +${l.cantidad_miembros} miembros — GymPro (${ciclo})`}
+                  metadatos={{ cantidad_miembros: l.cantidad_miembros, ciclo }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {lotes.some(l => l.estado === "activo") && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 26 }}>
+          {lotes.filter(l => l.estado === "activo").map((l) => (
+            <div key={l.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 14px",
+              background: "var(--bg-input)", borderRadius: 9 }}>
+              <FiUsers style={{ color: l.vigente ? "var(--success)" : "var(--text-secondary)", flexShrink: 0 }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 600, color: "var(--text-primary)", fontSize: 13 }}>
+                  +{l.cantidad_miembros} miembros — {l.precio_display}
+                </div>
+                <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                  {l.vigente ? `Vigente hasta ${fechaCorta(l.fecha_fin)}` : `Venció ${fechaCorta(l.fecha_fin)}`}
+                </div>
+              </div>
+              {l.vigente && (
+                <button style={S.ghostBtn} onClick={() => cancelarLote(l.id)}>Desactivar</button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Facturas */}
       <h3 style={S.section}>Historial de facturas</h3>

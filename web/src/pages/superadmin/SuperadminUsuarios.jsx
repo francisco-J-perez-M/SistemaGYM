@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
-import { getUsuarios, toggleUsuario, impersonar } from "../../api/superadmin";
+import { getUsuarios, toggleUsuario, impersonar, eliminarUsuario } from "../../api/superadmin";
 import { FiUserCheck, FiInfo } from "react-icons/fi";
 // Catálogo único de roles (SCRUM-107): antes este archivo definía su propia
 // copia de ROL_BADGE/ROUTE_FOR_ROLE, que podía divergir de otras vistas.
@@ -82,6 +82,42 @@ export default function SuperadminUsuarios() {
     }
   };
 
+  const handleDelete = async (user) => {
+    const { isConfirmed, value: typed } = await Swal.fire({
+      title: `Eliminar PERMANENTEMENTE a "${user.nombre}"`,
+      html: `
+        <p style="margin-bottom:8px">Esto borra su cuenta y <strong>todos</strong> sus datos asociados (asistencias, pagos, rutinas, mensajes, etc.) de forma <strong>irreversible</strong>. No es una desactivación.</p>
+        <p style="margin-bottom:8px">Escribe <strong>ELIMINAR</strong> para confirmar:</p>
+      `,
+      icon: "warning",
+      input: "text",
+      inputPlaceholder: "ELIMINAR",
+      showCancelButton: true,
+      confirmButtonText: "Eliminar permanentemente",
+      confirmButtonColor: "var(--danger)",
+      cancelButtonText: "Cancelar",
+      background: "var(--bg-card)",
+      color: "var(--text-primary)",
+      preConfirm: (v) => {
+        if (v !== "ELIMINAR") {
+          Swal.showValidationMessage('Escribe "ELIMINAR" (en mayúsculas) para continuar');
+          return false;
+        }
+        return v;
+      },
+    });
+    if (!isConfirmed || typed !== "ELIMINAR") return;
+
+    try {
+      await eliminarUsuario(user.id);
+      setUsers(prev => prev.filter(u => u.id !== user.id));
+      setTotal(t => t - 1);
+      Swal.fire({ icon: "success", title: "Usuario eliminado permanentemente", timer: 1800, showConfirmButton: false, background: "var(--bg-card)", color: "var(--text-primary)" });
+    } catch (e) {
+      Swal.fire({ icon: "error", title: "No se pudo eliminar", text: e?.response?.data?.msg || "Error desconocido", background: "var(--bg-card)", color: "var(--text-primary)" });
+    }
+  };
+
   const handleImpersonate = async (user) => {
     const { isConfirmed } = await Swal.fire({
       title: `Impersonar a "${user.nombre}"`,
@@ -129,7 +165,7 @@ export default function SuperadminUsuarios() {
   const fmtDate = (d) => d ? new Date(d).toLocaleDateString("es-MX") : "—";
 
   return (
-    <div style={{ padding: "28px 32px", minHeight: "100vh", background: "var(--bg-input)", fontFamily: "inherit" }}>
+    <div className="superadmin-page" style={{ minHeight: "100vh", background: "var(--bg-input)", fontFamily: "inherit" }}>
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 24, fontWeight: 800, color: "var(--text-primary)", marginBottom: 4 }}>Usuarios</h1>
         <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>{total} usuarios en la plataforma</p>
@@ -176,6 +212,7 @@ export default function SuperadminUsuarios() {
 
       {/* Table */}
       <div style={card({ padding: 0, overflow: "hidden" })}>
+        <div className="superadmin-table-scroll">
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
             <tr style={{ background: "var(--bg-input)" }}>
@@ -221,12 +258,22 @@ export default function SuperadminUsuarios() {
                     >
                       {u.activo ? "Desactivar" : "Activar"}
                     </button>
+                    {u.rol?.toLowerCase() !== "superadmin" && (
+                      <button
+                        style={btnStyle("danger")}
+                        onClick={() => handleDelete(u)}
+                        title="Eliminar permanentemente (no reversible)"
+                      >
+                        Eliminar
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       {pages > 1 && (

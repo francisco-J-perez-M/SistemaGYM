@@ -2608,6 +2608,40 @@ button.swal2-confirm { background-color: var(--accent) !important; }
   .grid-3col-responsive { grid-template-columns: 1fr; }
 }
 
+/* -- Superadmin: grids de 4 columnas (SuperadminGimnasios, SuperadminModelos)
+   y el layout "columna principal + aside" de SuperadminBackups (2fr 1fr).
+   Mismo criterio que grid-2col/3col-responsive: el componente quita
+   gridTemplateColumns de su estilo inline y agrega la clase. */
+.grid-4col-responsive { grid-template-columns: repeat(4, 1fr); }
+.grid-aside-responsive { grid-template-columns: 2fr 1fr; }
+
+@media (max-width: 768px) {
+  .grid-4col-responsive { grid-template-columns: repeat(2, 1fr); }
+  .grid-aside-responsive { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 600px) {
+  .grid-4col-responsive { grid-template-columns: 1fr; }
+}
+
+/* -- Superadmin (SuperadminAnalytics/Backups/Dashboard/Gimnasios/Modelos/
+   Planes/Suscripciones/Usuarios.jsx): las 8 pantallas construyen su propio
+   contenedor de pagina con el mismo padding fijo (no usan .top-header),
+   asi que ninguna dejaba espacio para el boton hamburguesa en movil --
+   mismo problema ya resuelto para .analytics-page/.reportes-page. */
+.superadmin-page { padding: 28px 32px; }
+
+@media (max-width: 768px) {
+  .superadmin-page { padding: 20px 16px 20px 64px; }
+}
+
+/* -- Superadmin: tablas anchas (6-7 columnas) que de otro modo se
+   aplastan o rompen el layout en una pantalla angosta -- en vez de
+   intentar que cada columna encoja, la tabla hace scroll horizontal
+   propio dentro de su tarjeta. */
+.superadmin-table-scroll { overflow-x: auto; }
+
+
 /* -- Reportes (OwnerReportes.jsx): panel de configuracion + tarjeta
    "Tu reporte" (sticky en escritorio) en 2 columnas; en movil se apilan
    y la tarjeta deja de pegarse arriba (position:sticky lo controla el

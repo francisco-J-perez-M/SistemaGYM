@@ -57,7 +57,7 @@ function GymDetailModal({ gym, onClose }) {
         <h2 style={{ fontSize: 18, fontWeight: 800, color: "var(--text-primary)", marginBottom: 4 }}>{detail?.nombre ?? gym.nombre}</h2>
         <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 20 }}>ID: {gym.id} · {detail?.email ?? gym.email}</p>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 20 }}>
+        <div className="grid-3col-responsive" style={{ display: "grid", gap: 12, marginBottom: 20 }}>
           {[
             ["Plan", <span style={badge(PLAN_COLORS[(detail?.plan ?? gym.plan)] || "info")}>{PLAN_LABELS[(detail?.plan ?? gym.plan)] || (detail?.plan ?? gym.plan)}</span>],
             ["Estado", <span style={badge((detail?.activo ?? gym.activo) ? "pos" : "neg")}>{(detail?.activo ?? gym.activo) ? "Activo" : "Inactivo"}</span>],
@@ -76,7 +76,7 @@ function GymDetailModal({ gym, onClose }) {
             <h3 style={{ fontSize: 13, fontWeight: 700, color: "var(--text-secondary)", marginBottom: 12, textTransform: "uppercase", letterSpacing: ".06em" }}>
               Suscripción
             </h3>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 20 }}>
+            <div className="grid-3col-responsive" style={{ display: "grid", gap: 12, marginBottom: 20 }}>
               {[
                 ["Plan SaaS",       detail.suscripcion.plan ?? "—"],
                 ["Estado",          <span style={badge(detail.suscripcion.estado === "active" ? "pos" : "warn")}>{detail.suscripcion.estado}</span>],
@@ -104,7 +104,7 @@ function GymDetailModal({ gym, onClose }) {
           <>
             {/* Miembros */}
             <p style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 8, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".05em" }}>Miembros</p>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 16 }}>
+            <div className="grid-4col-responsive" style={{ display: "grid", gap: 10, marginBottom: 16 }}>
               {[
                 ["Total",    metricas.total_miembros    ?? "—", "var(--text-primary)"],
                 ["Activos",  metricas.miembros_activos  ?? "—", "var(--success)"],
@@ -120,7 +120,7 @@ function GymDetailModal({ gym, onClose }) {
 
             {/* Asistencias */}
             <p style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 8, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".05em" }}>Asistencias</p>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 16 }}>
+            <div className="grid-3col-responsive" style={{ display: "grid", gap: 10, marginBottom: 16 }}>
               {[
                 ["Este Mes",  metricas.asistencias_mes   ?? "—"],
                 ["Últimos 30d",metricas.asistencias_30d  ?? "—"],
@@ -135,7 +135,7 @@ function GymDetailModal({ gym, onClose }) {
 
             {/* Ingresos */}
             <p style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 8, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".05em" }}>Ingresos</p>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: metricas.ingresos_12m?.length ? 16 : 0 }}>
+            <div className="grid-4col-responsive" style={{ display: "grid", gap: 10, marginBottom: metricas.ingresos_12m?.length ? 16 : 0 }}>
               {[
                 ["Este Mes",    "$" + (metricas.ingresos_mes_mxn   ?? 0).toLocaleString("es-MX", { minimumFractionDigits: 0 })],
                 ["Últimos 30d", "$" + (metricas.ingresos_30d_mxn   ?? 0).toLocaleString("es-MX", { minimumFractionDigits: 0 })],
@@ -261,7 +261,7 @@ export default function SuperadminGimnasios() {
   const pages = Math.ceil(total / perPage);
 
   return (
-    <div style={{ padding: "28px 32px", minHeight: "100vh", background: "var(--bg-input)", fontFamily: "inherit" }}>
+    <div className="superadmin-page" style={{ minHeight: "100vh", background: "var(--bg-input)", fontFamily: "inherit" }}>
       {selected && <GymDetailModal gym={selected} onClose={() => setSelected(null)} />}
 
       {/* Header */}
@@ -308,6 +308,7 @@ export default function SuperadminGimnasios() {
 
       {/* Table */}
       <div style={card({ padding: 0, overflow: "hidden" })}>
+        <div className="superadmin-table-scroll">
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
             <tr style={{ background: "var(--bg-input)" }}>
@@ -355,6 +356,7 @@ export default function SuperadminGimnasios() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Pagination */}
