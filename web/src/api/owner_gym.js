@@ -35,6 +35,25 @@ export const getReporteSucursales = () => API.get("/owner_gym/reportes/sucursale
 export const descargarReportePdf = (params) =>
   API.get("/owner_gym/reportes/pdf", { params, responseType: "blob" });
 
+// ── Reportes automáticos (corte de caja por correo) ───────────────────────
+// idGimnasio: igual que en los reportes manuales -- opcional, otra
+// sucursal de la misma organización.
+export const getReportesAutomaticos = (idGimnasio) =>
+  API.get("/owner_gym/reportes/automaticos", {
+    params: idGimnasio ? { id_gimnasio: idGimnasio } : {},
+  });
+export const crearReporteAutomatico = (data, idGimnasio) =>
+  API.post("/owner_gym/reportes/automaticos", data, {
+    params: idGimnasio ? { id_gimnasio: idGimnasio } : {},
+  });
+export const actualizarReporteAutomatico = (id, data) =>
+  API.put(`/owner_gym/reportes/automaticos/${id}`, data);
+export const eliminarReporteAutomatico = (id) =>
+  API.delete(`/owner_gym/reportes/automaticos/${id}`);
+/** Lo manda ya, fuera de su horario -- para probar que el correo llega. */
+export const ejecutarReporteAutomaticoAhora = (id) =>
+  API.post(`/owner_gym/reportes/automaticos/${id}/ejecutar`);
+
 // ── Staff (entrenadores + recepcionistas) ─────────────────────────────────
 export const getStaff            = (params = {}) => API.get("/owner_gym/staff", { params });
 export const getStaffMember      = (id)          => API.get(`/owner_gym/staff/${id}`);

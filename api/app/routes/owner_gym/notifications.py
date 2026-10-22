@@ -316,10 +316,28 @@ def init_scheduler(app):
             kwargs={"app": app},
         )
 
+        # Reportes automaticos (corte de caja por correo). Cada configuracion
+        # elige su propia hora de envio (hora_envio, 0-23) y si quiere el
+        # reporte "el mismo dia" (ultimo dia del periodo que cierra) o "al
+        # dia siguiente" (comportamiento original, por omision 06:00) -- por
+        # eso el job ya no corre una vez al dia a una hora fija, sino cada
+        # hora en punto, y es tick_reportes_automaticos() quien filtra, por
+        # fila, si esta es su hora y si hoy le toca.
+        from app.routes.owner_gym.reportes_automaticos import tick_reportes_automaticos
+        scheduler.add_job(
+            func=tick_reportes_automaticos,
+            trigger=CronTrigger(minute=0),
+            id="reportes_automaticos",
+            name="Reportes automaticos por correo (corte de caja)",
+            replace_existing=True,
+            kwargs={"app": app},
+        )
+
         scheduler.start()
         _scheduler_status["activo"] = True
         app.logger.info("[Scheduler] Tareas registradas: 'notif_vencimientos' (08:00 MX), "
-                        "'billing_auto_renovacion' (03:00 MX) y 'aviso_no_asistio' (21:00 MX)")
+                        "'billing_auto_renovacion' (03:00 MX), 'aviso_no_asistio' (21:00 MX) "
+                        "y 'reportes_automaticos' (cada hora, segun hora_envio de cada config)")
 
     except ImportError:
         app.logger.warning("[Scheduler] APScheduler no disponible. Instalar: pip install apscheduler")
