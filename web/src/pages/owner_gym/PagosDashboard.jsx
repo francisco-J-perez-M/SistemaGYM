@@ -158,6 +158,14 @@ function MovimientoCard({ m }) {
             <span style={{ color: "var(--text-secondary)" }}>{m.categoria}</span>
           </div>
         )}
+        {/* Referencia de transferencia -- para localizar el movimiento en el
+            estado de cuenta del banco si hace falta conciliarlo. */}
+        {m.metodo_pago === "Transferencia" && m.referencia && (
+          <div className="detail-row" style={{ fontSize: 12 }}>
+            <MoneyIcon />
+            <span style={{ color: "var(--text-secondary)" }}>Ref: {m.referencia}</span>
+          </div>
+        )}
         <div className="detail-row" style={{ fontSize: 12 }}>
           <CalendarIcon />
           <span style={{ color: "var(--text-secondary)" }}>{formatFecha(m.fecha)}</span>

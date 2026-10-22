@@ -6,32 +6,32 @@ import {
   FiCalendar, FiRefreshCw, FiArrowRight, FiInfo, FiSend, FiStar
 } from "react-icons/fi";
 import useMetodosPago from "../../hooks/useMetodosPago";
-import { pagarYRedirigir, reconciliarSilencioso } from "../../api/pagosOnline";
+import { reconciliarSilencioso } from "../../api/pagosOnline";
 import "../../css/CSSUnificado.css";
 
 const fmt = (n) =>
   new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(n ?? 0);
 
-// Los métodos aceptados son Efectivo, PayPal y Mercado Pago. Los dos últimos
-// se añaden dinámicamente según lo que el gimnasio tenga activo (useMetodosPago).
+// En la web solo Efectivo o Transferencia -- ambos manuales, el staff
+// confirma el pago en la sucursal. PayPal y Mercado Pago (cobro en línea con
+// la propia cuenta del miembro) quedan exclusivos de la app móvil.
 const ICONOS_METODO = {
-  Efectivo:    FiDollarSign,
-  paypal:      FiCreditCard,
-  mercadopago: FiCreditCard,
+  Efectivo:      FiDollarSign,
+  Transferencia: FiSend,
 };
 
 export default function UserMembershipRenewal() {
   const navigate = useNavigate();
   const [plans,          setPlans]          = useState([]);
   const [selectedPlan,   setSelectedPlan]   = useState(null);
-  const [selectedMethod, setSelectedMethod] = useState("Tarjeta");
+  const [selectedMethod, setSelectedMethod] = useState("Efectivo");
+  const [referencia,     setReferencia]     = useState("");
   const [loading,        setLoading]        = useState(true);
   const [processing,     setProcessing]     = useState(false);
   const [error,          setError]          = useState(null);
   const [success,        setSuccess]        = useState(null);
   const [currentMem,     setCurrentMem]     = useState(null);
-  // Efectivo + las pasarelas que el gimnasio tenga activas
-  const { metodos } = useMetodosPago("membresia");
+  const { metodos } = useMetodosPago("membresia", { soloManual: true });
 
   useEffect(() => {
     if (!localStorage.getItem("token")) { navigate("/", { replace: true }); return; }
@@ -70,26 +70,8 @@ export default function UserMembershipRenewal() {
 
   const handleRenew = async () => {
     if (!selectedPlan) { setError("Selecciona un plan."); return; }
-
-    // Si el método elegido es una pasarela, el cobro ocurre en PayPal o Mercado
-    // Pago: se crea la transacción y se redirige. La membresía se renueva al
-    // confirmarse el pago (páginas de retorno /pago/exito).
-    const metodoSel = metodos.find((m) => m.id === selectedMethod);
-    if (metodoSel?.esPasarela) {
-      setProcessing(true);
-      setError(null);
-      try {
-        await pagarYRedirigir({
-          proveedor: metodoSel.proveedor,
-          contexto: "membresia",
-          monto: Number(selectedPlan.precio),
-          descripcion: `Membresía ${selectedPlan.nombre}`,
-          referencia_local: selectedPlan.id_membresia,
-        });
-      } catch (e) {
-        setError(e?.response?.data?.msg || "No se pudo iniciar el pago en línea.");
-        setProcessing(false);
-      }
+    if (selectedMethod === "Transferencia" && !referencia.trim()) {
+      setError("Captura la referencia de la transferencia.");
       return;
     }
 
@@ -100,7 +82,11 @@ export default function UserMembershipRenewal() {
       const res = await fetch("/api/user/membership/renew", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ id_membresia: selectedPlan.id_membresia, metodo_pago: selectedMethod }),
+        body: JSON.stringify({
+          id_membresia: selectedPlan.id_membresia,
+          metodo_pago:  selectedMethod,
+          ...(selectedMethod === "Transferencia" ? { referencia: referencia.trim() } : {}),
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Error al renovar");
@@ -410,15 +396,6 @@ export default function UserMembershipRenewal() {
                   transition: "border-color .2s, background .2s",
                 }}
               >
-                {m.esPasarela && m.modo === "sandbox" && (
-                  <span style={{
-                    position: "absolute", top: 8, right: 8, fontSize: 9, fontWeight: 800,
-                    background: "var(--bg-input)", color: "var(--text-secondary)",
-                    padding: "2px 6px", borderRadius: 5, letterSpacing: ".04em",
-                  }}>
-                    PRUEBAS
-                  </span>
-                )}
                 <Icon size={26} style={{ marginBottom: 6, color: sel ? "var(--accent)" : "var(--text-secondary)" }} />
                 <div style={{ fontWeight: 700, fontSize: 14, color: "var(--text-primary)", marginBottom: 2 }}>{m.label}</div>
                 <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{m.desc}</div>
@@ -426,6 +403,29 @@ export default function UserMembershipRenewal() {
             );
           })}
         </div>
+
+        {/* Referencia de la transferencia: queda en el historial del pago
+            para poder localizarla después en el estado de cuenta. */}
+        {selectedMethod === "Transferencia" && (
+          <div style={{ marginTop: 14 }}>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".05em", color: "var(--text-secondary)", marginBottom: 6 }}>
+              Referencia de la transferencia
+            </label>
+            <input
+              style={{
+                width: "100%", boxSizing: "border-box", padding: "10px 14px",
+                background: "var(--bg-input)", border: "1px solid var(--border)",
+                borderRadius: 8, color: "var(--text-primary)", fontSize: 14, outline: "none",
+              }}
+              placeholder="Folio, clave de rastreo o referencia bancaria"
+              value={referencia}
+              onChange={e => setReferencia(e.target.value)}
+            />
+            <p style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 6, lineHeight: 1.4 }}>
+              Captúrala tal como aparece en tu comprobante de transferencia.
+            </p>
+          </div>
+        )}
       </section>
 
       {/* Resumen y confirmación */}
@@ -460,12 +460,13 @@ export default function UserMembershipRenewal() {
               whileHover={{ scale: processing ? 1 : 1.02 }}
               whileTap={{ scale: processing ? 1 : 0.97 }}
               onClick={handleRenew}
-              disabled={processing}
+              disabled={processing || (selectedMethod === "Transferencia" && !referencia.trim())}
               style={{
                 width: "100%", marginTop: 20, padding: "15px",
                 background: processing ? "var(--bg-input)" : "var(--accent)",
                 color: "#fff", border: "none", borderRadius: 12,
-                fontSize: 16, fontWeight: 700, cursor: processing ? "not-allowed" : "pointer",
+                fontSize: 16, fontWeight: 700,
+                cursor: processing || (selectedMethod === "Transferencia" && !referencia.trim()) ? "not-allowed" : "pointer",
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
                 opacity: processing ? 0.7 : 1, transition: "all .2s",
               }}
@@ -475,9 +476,7 @@ export default function UserMembershipRenewal() {
               ) : (
                 <>
                   <FiCheck />
-                  {metodos.find(m => m.id === selectedMethod)?.esPasarela
-                    ? `Pagar ${fmt(selectedPlan.precio)} con ${metodos.find(m => m.id === selectedMethod)?.label}`
-                    : `Confirmar y pagar ${fmt(selectedPlan.precio)}`}
+                  Confirmar y pagar {fmt(selectedPlan.precio)}
                   <FiArrowRight />
                 </>
               )}

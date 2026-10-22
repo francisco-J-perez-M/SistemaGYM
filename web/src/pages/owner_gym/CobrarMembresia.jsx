@@ -10,7 +10,6 @@ import { getMembresias } from "../../api/membresias";
 import { registrarPago } from "../../api/pagos";
 import { useToast } from "../../hooks/useToast";
 import useMetodosPago from "../../hooks/useMetodosPago";
-import { pagarYRedirigir } from "../../api/pagosOnline";
 import "../../css/CSSUnificado.css";
 
 /* ── Iconos ── */
@@ -77,8 +76,11 @@ export default function CobrarMembresia() {
   // en cada cobro -- no es un precio fijo del catalogo de membresias).
   const [tipoPago,         setTipoPago]         = useState("renovacion");
   const [costoInscripcion, setCostoInscripcion] = useState("");
-  // Efectivo + pasarelas activas del gimnasio (PayPal / Mercado Pago)
-  const { metodos: metodosPago } = useMetodosPago("membresia");
+  const [referencia,       setReferencia]       = useState("");
+  // Cobro manual en el portal web: solo Efectivo o Transferencia. PayPal y
+  // Mercado Pago exigen que el miembro pague con su propia cuenta, así que
+  // ese cobro queda exclusivo de la app móvil (el miembro se autocobra ahí).
+  const { metodos: metodosPago } = useMetodosPago("membresia", { soloManual: true });
   const [submitting,  setSubmitting]  = useState(false);
   const [success,     setSuccess]     = useState(null); // pago registrado
   const [loadingData, setLoadingData] = useState(true);
@@ -97,54 +99,19 @@ export default function CobrarMembresia() {
 
   const membresiasFiltradas = membresias.filter(m => m.activo !== false);
 
-  const metodoSeleccionado = metodosPago.find(m => m.id === metodo);
   const esInscripcion      = tipoPago === "inscripcion";
+  const esTransferencia    = metodo === "Transferencia";
   const costoInscripcionNum = Number(costoInscripcion);
   const canSubmit = miembro && membresia && metodo &&
-    (!esInscripcion || (costoInscripcion !== "" && costoInscripcionNum > 0));
+    (!esInscripcion || (costoInscripcion !== "" && costoInscripcionNum > 0)) &&
+    (!esTransferencia || referencia.trim() !== "");
   const montoTotal = membresia
     ? Number(membresia.precio) + (esInscripcion && costoInscripcionNum > 0 ? costoInscripcionNum : 0)
     : 0;
 
-  // El cobro en línea (pasarela) todavía no desglosa inscripción -- se
-  // mantiene como renovación simple; si el staff cambia a una pasarela
-  // mientras tenía elegida "Inscripción", se regresa a "Renovación" para
-  // no sugerir un desglose que esa pasarela no va a aplicar.
-  const handleMetodoChange = (id) => {
-    setMetodo(id);
-    const sel = metodosPago.find(m => m.id === id);
-    if (sel?.esPasarela && tipoPago === "inscripcion") {
-      setTipoPago("renovacion");
-      setCostoInscripcion("");
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!canSubmit) return;
-
-    // Con PayPal o Mercado Pago el cobro ocurre en la pasarela: se crea la
-    // transacción y se redirige al pagador.
-    const metodoSel = metodosPago.find(m => m.id === metodo);
-    if (metodoSel?.esPasarela) {
-      setSubmitting(true);
-      try {
-        await pagarYRedirigir({
-          proveedor: metodoSel.proveedor,
-          contexto: "membresia",
-          monto: Number(membresia.precio),
-          descripcion: `Membresía ${membresia.nombre || ""} — ${miembro.nombre}`,
-          // El plan comprado; el miembro al que se le aplica va en metadatos
-          referencia_local: Number(membresia.id_membresia || membresia.id),
-          email_pagador: miembro.email,
-          metadatos: { id_miembro_mongo: miembro.id },
-        });
-      } catch (err) {
-        toast(err?.response?.data?.msg || "No se pudo iniciar el pago en línea", "error");
-        setSubmitting(false);
-      }
-      return;
-    }
 
     setSubmitting(true);
     try {
@@ -154,12 +121,14 @@ export default function CobrarMembresia() {
         metodo_pago:       metodo,
         tipo_pago:         tipoPago,
         ...(esInscripcion ? { costo_inscripcion: costoInscripcionNum } : {}),
+        ...(esTransferencia ? { referencia: referencia.trim() } : {}),
       });
       setSuccess({
         miembro:           miembro.nombre,
         plan:              membresia.nombre,
         monto:             membresia.precio,
         metodo,
+        referencia:        esTransferencia ? referencia.trim() : null,
         duracion:          membresia.duracion_meses,
         tipoPago,
         costoInscripcion:  esInscripcion ? costoInscripcionNum : null,
@@ -171,6 +140,7 @@ export default function CobrarMembresia() {
       setMetodo("Efectivo");
       setTipoPago("renovacion");
       setCostoInscripcion("");
+      setReferencia("");
       setSearch("");
     } catch (err) {
       toast.error("Error al registrar", err.response?.data?.error || "Error interno del servidor");
@@ -273,16 +243,13 @@ export default function CobrarMembresia() {
                 >Renovación</button>
                 <button
                   type="button"
-                  disabled={metodoSeleccionado?.esPasarela}
                   onClick={() => setTipoPago("inscripcion")}
-                  title={metodoSeleccionado?.esPasarela ? "No disponible con pago en línea" : undefined}
                   style={{
                     padding: "10px", borderRadius: 8, fontWeight: 600, fontSize: 13,
-                    cursor: metodoSeleccionado?.esPasarela ? "not-allowed" : "pointer",
+                    cursor: "pointer",
                     border: esInscripcion ? "2px solid var(--accent)" : "1px solid var(--border)",
                     background: esInscripcion ? "var(--accent-dim)" : "var(--bg-input)",
                     color: esInscripcion ? "var(--accent-soft)" : "var(--text-secondary)",
-                    opacity: metodoSeleccionado?.esPasarela ? 0.5 : 1,
                     transition: "border-color .15s, background .15s",
                   }}
                 >Inscripción y primer pago</button>
@@ -345,12 +312,13 @@ export default function CobrarMembresia() {
                 <MoneyIcon />
                 <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>Método de Pago</h3>
               </div>
-              {/* Efectivo (se cobra en caja) + las pasarelas activas del gimnasio */}
+              {/* Solo Efectivo o Transferencia -- PayPal/Mercado Pago quedan
+                  exclusivos de la app móvil (el miembro paga con su cuenta). */}
               <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.max(1, metodosPago.length)}, 1fr)`, gap: 10 }}>
                 {metodosPago.map(m => (
                   <button
                     key={m.id} type="button"
-                    onClick={() => handleMetodoChange(m.id)}
+                    onClick={() => setMetodo(m.id)}
                     style={{
                       padding: "10px", borderRadius: 8, cursor: "pointer", fontWeight: 600, fontSize: 13,
                       border: metodo === m.id ? "2px solid var(--accent)" : "1px solid var(--border)",
@@ -361,6 +329,24 @@ export default function CobrarMembresia() {
                   >{m.label}</button>
                 ))}
               </div>
+
+              {/* Referencia de la transferencia: se guarda en el historial
+                  del pago para poder localizarla después en el estado de
+                  cuenta del banco si hace falta conciliarla. */}
+              {esTransferencia && (
+                <div style={{ marginTop: 14 }}>
+                  <label style={labelSt}>Referencia de la transferencia</label>
+                  <input
+                    style={inputSt}
+                    placeholder="Folio, clave de rastreo o referencia bancaria"
+                    value={referencia}
+                    onChange={e => setReferencia(e.target.value)}
+                  />
+                  <p style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 6, lineHeight: 1.4 }}>
+                    Captúrala tal como aparece en el comprobante o en el estado de cuenta.
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Botón submit */}
@@ -375,20 +361,8 @@ export default function CobrarMembresia() {
                 transition: "all .2s",
               }}
             >
-              {submitting
-                ? "Procesando…"
-                : metodosPago.find(m => m.id === metodo)?.esPasarela
-                  ? `Cobrar con ${metodosPago.find(m => m.id === metodo)?.label}`
-                  : "Registrar Pago"}
+              {submitting ? "Procesando…" : "Registrar Pago"}
             </button>
-
-            {/* Aviso del flujo cuando se cobra por pasarela */}
-            {metodosPago.find(m => m.id === metodo)?.esPasarela && miembro && membresia && (
-              <p style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 10, lineHeight: 1.5 }}>
-                Se abrirá la pasarela para cobrar {fmt(membresia.precio)} a {miembro.nombre}.
-                El pago se registra automáticamente al confirmarse.
-              </p>
-            )}
           </form>
 
           {/* ── Columna derecha: resumen / confirmación ── */}
@@ -413,6 +387,7 @@ export default function CobrarMembresia() {
                       : [["Monto", fmt(success.monto)]]),
                     ["Duración",  success.duracion === 1 ? "1 mes" : `${success.duracion} meses`],
                     ["Método",    success.metodo],
+                    ...(success.referencia ? [["Referencia", success.referencia]] : []),
                   ].map(([k, v]) => (
                     <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: "1px solid var(--border)", fontSize: 13 }}>
                       <span style={{ color: "var(--text-secondary)" }}>{k}</span>
@@ -444,6 +419,7 @@ export default function CobrarMembresia() {
                       : [["Monto", membresia ? fmt(membresia.precio) : "—"]]),
                     ["Duración", membresia ? (membresia.duracion_meses === 1 ? "1 mes" : `${membresia.duracion_meses} meses`) : "—"],
                     ["Método",   metodo],
+                    ...(esTransferencia ? [["Referencia", referencia.trim() || "—"]] : []),
                   ].map(([k, v]) => (
                     <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "6px 0", borderBottom: "1px solid var(--border)" }}>
                       <span style={{ color: "var(--text-secondary)" }}>{k}</span>

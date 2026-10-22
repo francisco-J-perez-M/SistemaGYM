@@ -25,8 +25,9 @@ const labelSt = {
 };
 
 export default function CheckoutModal({ cart, miembros, onClose, onComplete }) {
-  const [miembro,    setMiembro]  = useState("");
-  const [metodo,     setMetodo]   = useState("Efectivo");
+  const [miembro,    setMiembro]    = useState("");
+  const [metodo,     setMetodo]     = useState("Efectivo");
+  const [referencia, setReferencia] = useState("");
   // Efectivo + pasarelas activas del gimnasio (PayPal / Mercado Pago)
   const { metodos: metodosPago } = useMetodosPago("producto");
   const [loading,    setLoading]  = useState(false);
@@ -47,7 +48,18 @@ export default function CheckoutModal({ cart, miembros, onClose, onComplete }) {
 
   const total = cart.reduce((s, i) => s + i.precio * i.qty, 0);
 
+  // La venta siempre debe quedar asociada a un miembro -- si el campo se
+  // deja en blanco no hay forma de que el historial de compras del miembro
+  // ni los reportes del negocio cuadren correctamente.
+  const faltaMiembro    = !lockedMiembro && !miembro;
+  const esTransferencia = metodo === "Transferencia";
+  const faltaReferencia = esTransferencia && !referencia.trim();
+  const puedeConfirmar  = !faltaMiembro && !faltaReferencia;
+
   const handlePagar = async () => {
+    if (faltaMiembro) { setErr("Selecciona un miembro para continuar"); return; }
+    if (faltaReferencia) { setErr("Captura la referencia de la transferencia"); return; }
+
     // Con PayPal o Mercado Pago el cobro se hace en la pasarela y se redirige.
     const metodoSel = metodosPago.find(m => m.id === metodo);
     if (metodoSel?.esPasarela) {
@@ -62,7 +74,7 @@ export default function CheckoutModal({ cart, miembros, onClose, onComplete }) {
           // El backend registra la venta y descuenta inventario al confirmarse
           metadatos: {
             items: cart.map(({ id, nombre, precio, qty, categoria }) => ({ id, nombre, precio, qty, categoria })),
-            id_miembro: lockedMiembro ? lockedMiembro.pgId : (miembro || null),
+            id_miembro: lockedMiembro ? lockedMiembro.pgId : miembro,
             nombre_miembro: lockedMiembro
               ? lockedMiembro.nombre
               : (miembros.find(m => String(m.id) === String(miembro))?.nombre || ""),
@@ -79,9 +91,7 @@ export default function CheckoutModal({ cart, miembros, onClose, onComplete }) {
     try {
       // Miembro auto-asignado (rol Miembro): usa el PG user ID para el lookup de email en backend.
       // Selección manual (staff): usa el Mongo _id tal cual — se almacena en ventas sin conversión.
-      const id_miem   = lockedMiembro
-        ? lockedMiembro.pgId
-        : (miembro || null);
+      const id_miem   = lockedMiembro ? lockedMiembro.pgId : miembro;
       const nom_miem  = lockedMiembro
         ? lockedMiembro.nombre
         : (miembros.find(m => String(m.id) === String(miembro))?.nombre || "");
@@ -92,6 +102,7 @@ export default function CheckoutModal({ cart, miembros, onClose, onComplete }) {
         metodo_pago:    metodo,
         id_miembro:     id_miem,
         nombre_miembro: nom_miem,
+        ...(esTransferencia ? { referencia: referencia.trim() } : {}),
       };
       const res = await registrarVenta(payload);
       onComplete({ ...payload, id: res.data?.id, fecha: nowStr() });
@@ -133,7 +144,7 @@ export default function CheckoutModal({ cart, miembros, onClose, onComplete }) {
             <div>
               <label style={labelSt}>
                 <FiUser style={{ display: "inline", marginRight: 4 }} size={11} />
-                Miembro {lockedMiembro ? "" : "(opcional)"}
+                Miembro
               </label>
 
               {lockedMiembro ? (
@@ -157,13 +168,19 @@ export default function CheckoutModal({ cart, miembros, onClose, onComplete }) {
                   </span>
                 </div>
               ) : (
-                /* Staff: selector libre de miembro */
-                <select style={inputSt} value={miembro} onChange={e => setMiembro(e.target.value)}>
-                  <option value="">Venta sin miembro asociado</option>
+                /* Staff: selector libre de miembro -- obligatorio, sin
+                   opción de "venta sin miembro asociado" */
+                <select style={inputSt} value={miembro} onChange={e => { setMiembro(e.target.value); setErr(""); }}>
+                  <option value="" disabled>Selecciona un miembro…</option>
                   {miembros.map(m => (
                     <option key={m.id} value={m.id}>{m.nombre} {m.apellido}</option>
                   ))}
                 </select>
+              )}
+              {!lockedMiembro && miembros.length === 0 && (
+                <p style={{ fontSize: 11, color: "var(--danger)", marginTop: 6 }}>
+                  No hay miembros registrados en este gimnasio todavía.
+                </p>
               )}
             </div>
 
@@ -181,6 +198,19 @@ export default function CheckoutModal({ cart, miembros, onClose, onComplete }) {
                   </button>
                 ))}
               </div>
+
+              {/* Referencia de la transferencia: queda en el historial del
+                  movimiento para poder localizarla en el banco si hace falta. */}
+              {esTransferencia && (
+                <div style={{ marginTop: 10 }}>
+                  <input
+                    style={inputSt}
+                    placeholder="Folio o referencia de la transferencia"
+                    value={referencia}
+                    onChange={e => { setReferencia(e.target.value); setErr(""); }}
+                  />
+                </div>
+              )}
             </div>
 
             {err && (
@@ -195,10 +225,11 @@ export default function CheckoutModal({ cart, miembros, onClose, onComplete }) {
                 <span style={{ fontSize: 14, color: "var(--text-secondary)" }}>Total a cobrar</span>
                 <span style={{ fontSize: 24, fontWeight: 800, color: "var(--text-primary)" }}>{fmt(total)}</span>
               </div>
-              <button onClick={handlePagar} disabled={loading}
+              <button onClick={handlePagar} disabled={loading || !puedeConfirmar}
                 style={{ width: "100%", padding: "12px 0", borderRadius: 10, border: "none",
-                  background: loading ? "#4f46e5" : "var(--accent)", color: "#fff",
-                  fontSize: 15, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer",
+                  background: loading ? "#4f46e5" : puedeConfirmar ? "var(--accent)" : "var(--border-hover, rgba(255,255,255,.12))",
+                  color: puedeConfirmar ? "#fff" : "var(--text-secondary)",
+                  fontSize: 15, fontWeight: 700, cursor: (loading || !puedeConfirmar) ? "not-allowed" : "pointer",
                   display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: loading ? 0.8 : 1 }}>
                 {loading
                   ? "Procesando..."

@@ -255,6 +255,7 @@ function CobroInline({ idMiembro, onCobrado, onCancel }) {
   const [idMembresia, setIdMembresia] = useState("");
   const [metodo, setMetodo] = useState("Efectivo");
   const [tarjeta, setTarjeta] = useState("");
+  const [referencia, setReferencia] = useState("");
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [err, setErr] = useState(null);
@@ -268,12 +269,16 @@ function CobroInline({ idMiembro, onCobrado, onCancel }) {
 
   const confirmar = async () => {
     if (!idMembresia) { setErr("Selecciona un tipo de membresía"); return; }
+    if (metodo === "Transferencia" && !referencia.trim()) {
+      setErr("Captura la referencia de la transferencia"); return;
+    }
     setGuardando(true);
     setErr(null);
     try {
       await registrarPago({
         id_miembro: idMiembro, id_membresia: idMembresia,
         metodo_pago: metodo, numero_tarjeta: metodo === "Tarjeta" ? tarjeta : undefined,
+        referencia: metodo === "Transferencia" ? referencia.trim() : undefined,
       });
       onCobrado();
     } catch (e) {
@@ -308,10 +313,14 @@ function CobroInline({ idMiembro, onCobrado, onCancel }) {
                 <input style={inputSt} value={tarjeta} onChange={e => setTarjeta(e.target.value)} placeholder="Número de tarjeta" />
               </div>
             )}
+            {metodo === "Transferencia" && (
+              <input style={inputSt} value={referencia} onChange={e => setReferencia(e.target.value)}
+                placeholder="Folio o referencia de la transferencia" />
+            )}
           </div>
           {err && <p style={{ fontSize: 12, color: C.danger, margin: "0 0 10px" }}>{err}</p>}
           <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={confirmar} disabled={guardando}
+            <button onClick={confirmar} disabled={guardando || (metodo === "Transferencia" && !referencia.trim())}
               style={{ flex: 1, padding: "9px 0", borderRadius: 8, border: "none", background: guardando ? C.border : C.success, color: "#fff", fontWeight: 700, fontSize: 13, cursor: guardando ? "not-allowed" : "pointer" }}>
               {guardando ? "Procesando…" : "Confirmar cobro"}
             </button>
