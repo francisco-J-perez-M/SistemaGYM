@@ -15,6 +15,7 @@
 import { useEffect, useMemo, useState } from "react";
 import useIsMobile from "../../hooks/useIsMobile";
 import Swal from "sweetalert2";
+import SelectorFecha from "../../components/compartido/SelectorFecha";
 import {
   FiFileText, FiDownload, FiCheckSquare, FiSquare, FiCalendar,
   FiBarChart2, FiRefreshCw, FiAlertCircle, FiTrendingUp, FiPieChart, FiMapPin,
@@ -308,37 +309,28 @@ export default function OwnerReportes() {
           {modoPeriodo === "dia" && (
             <div style={{ marginBottom: 24 }}>
               <label style={S.label}>Elige el día</label>
-              <input
-                type="date"
+              <SelectorFecha
+                modo="dia"
                 value={fechaDia}
                 max={isoHoy()}
-                onChange={(e) => e.target.value && setFechaDia(e.target.value)}
-                style={{
-                  padding: "10px 14px", borderRadius: 10, fontSize: 13.5,
-                  border: `1px solid ${C.border}`, background: C.input, color: C.t1,
-                }}
+                onChange={setFechaDia}
+                label={formatFechaCorta(fechaDia)}
               />
             </div>
           )}
 
           {modoPeriodo === "semana" && (
             <div style={{ marginBottom: 24 }}>
-              <label style={S.label}>Cualquier día de la semana que quieras</label>
-              <input
-                type="date"
+              <label style={S.label}>Elige la semana</label>
+              <SelectorFecha
+                modo="semana"
                 value={fechaSemana}
                 max={isoHoy()}
-                onChange={(e) => e.target.value && setFechaSemana(e.target.value)}
-                style={{
-                  padding: "10px 14px", borderRadius: 10, fontSize: 13.5,
-                  border: `1px solid ${C.border}`, background: C.input, color: C.t1,
-                }}
+                onChange={setFechaSemana}
+                label={rangoSemanaActual
+                  ? `${formatFechaCorta(rangoSemanaActual.desde)} – ${formatFechaCorta(rangoSemanaActual.hasta)}`
+                  : "Elegir semana"}
               />
-              {rangoSemanaActual && (
-                <p style={{ margin: "8px 0 0", fontSize: 12, color: C.t2 }}>
-                  Semana del {formatFechaCorta(rangoSemanaActual.desde)} al {formatFechaCorta(rangoSemanaActual.hasta)}
-                </p>
-              )}
             </div>
           )}
 
