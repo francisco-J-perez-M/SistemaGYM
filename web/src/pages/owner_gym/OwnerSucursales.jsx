@@ -18,13 +18,22 @@
 import { useEffect, useState, useCallback } from "react";
 import {
   FiMapPin, FiPlus, FiEdit2, FiHome, FiPhone, FiMail, FiLock,
-  FiUser, FiShield,
+  FiUser, FiShield, FiUsers, FiUserPlus, FiDollarSign, FiPercent,
 } from "react-icons/fi";
 import {
-  getSucursales, getSucursalesCapacidad, getLimiteSucursales,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+} from "recharts";
+import {
+  getSucursales, getSucursalesCapacidad, getLimiteSucursales, getSucursalesMetricas,
   crearSucursal, editarSucursal, toggleSucursal,
   getAdministradores, crearAdministrador, reasignarSucursalesAdmin, toggleAdministrador,
 } from "../../api/owner_gym";
+import InfoGrafico, { COLORES_GRAFICO, COLOR_REJILLA, ejeY } from "../../components/compartido/InfoGrafico";
+
+// Moneda MXN sin decimales -- mismo formato que OwnerDashboard.jsx, para que
+// una misma cifra de ingresos se lea igual en todo el panel del propietario.
+const fmt = (n) =>
+  new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 }).format(n ?? 0);
 
 // ── Tokens ────────────────────────────────────────────────────────────────────
 const C = {
@@ -417,6 +426,164 @@ function AdminCard({ a, sucursalesMap, onReasignar, onToggle }) {
   );
 }
 
+// ── Resumen comparativo (consolidado + tabla por sucursal) ────────────────────
+// Combina dos fuentes que antes no se cruzaban en el frontend: la ocupación
+// (GET /sucursales/capacidad, ya existía) y las cifras de negocio del periodo
+// (GET /sucursales/metricas, nuevo -- reutiliza _recolectar() del reporte en
+// PDF). Solo tiene sentido con al menos 1 sucursal, así que el componente que
+// llama decide cuándo montarlo.
+
+function KpiTile({ label, value, sub, icon, accent }) {
+  return (
+    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: "16px 18px", borderTop: `3px solid ${accent}` }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: C.t2, textTransform: "uppercase", letterSpacing: ".05em" }}>{label}</span>
+        <span style={{ color: accent, fontSize: 17 }}>{icon}</span>
+      </div>
+      <div style={{ fontSize: 24, fontWeight: 700, margin: "8px 0 2px", color: C.t1 }}>{value}</div>
+      {sub && <div style={{ fontSize: 11.5, color: C.t3 }}>{sub}</div>}
+    </div>
+  );
+}
+
+function ComparativaTooltip({ active, payload, label, moneda }) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px" }}>
+      <p style={{ margin: "0 0 6px", fontWeight: 700, color: C.t1, fontSize: 13 }}>{label}</p>
+      {payload.map((p) => (
+        <p key={p.dataKey} style={{ margin: "3px 0", color: p.color, fontSize: 12 }}>
+          {p.name}: {moneda ? fmt(p.value) : p.value}
+        </p>
+      ))}
+    </div>
+  );
+}
+
+function ResumenComparativo({ filas, periodo }) {
+  const totalActivos  = filas.reduce((a, f) => a + f.activos, 0);
+  const totalAltas    = filas.reduce((a, f) => a + f.altas, 0);
+  const totalIngresos = filas.reduce((a, f) => a + f.ingresos, 0);
+  const pcts = filas.map(f => f.pctMiembros).filter(v => v != null);
+  const ocupacionProm = pcts.length ? Math.round(pcts.reduce((a, b) => a + b, 0) / pcts.length) : null;
+
+  const datosIngresos = filas.map(f => ({ nombre: f.nombre, ingresos: f.ingresos }));
+  const datosConteo   = filas.map(f => ({ nombre: f.nombre, activos: f.activos, altas: f.altas }));
+
+  return (
+    <div style={{ marginBottom: 32 }}>
+      <div style={{ marginBottom: 14 }}>
+        <h3 style={{ fontSize: 16, fontWeight: 700, color: C.t1, margin: "0 0 4px" }}>Resumen comparativo</h3>
+        <p style={{ margin: 0, fontSize: 13, color: C.t2 }}>
+          Métricas consolidadas de las sucursales de tu organización{periodo ? ` · ${periodo}` : ""}
+        </p>
+      </div>
+
+      {/* Consolidado */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))", gap: 14, marginBottom: 20 }}>
+        <KpiTile label="Miembros activos" value={totalActivos} sub={`En ${filas.length} sucursal${filas.length !== 1 ? "es" : ""}`} icon={<FiUsers />} accent={C.accent} />
+        <KpiTile label="Altas del periodo" value={totalAltas} sub="Suma de todas las sucursales" icon={<FiUserPlus />} accent={C.success} />
+        <KpiTile label="Ingresos del periodo" value={fmt(totalIngresos)} sub="Membresías + punto de venta" icon={<FiDollarSign />} accent={C.warning} />
+        <KpiTile label="Ocupación de miembros" value={ocupacionProm != null ? `${ocupacionProm}%` : "—"} sub="Promedio vs. tope del plan" icon={<FiPercent />} accent="#0ea5e9" />
+      </div>
+
+      {/* Gráficas */}
+      <div className="grid-2col-responsive" style={{ display: "grid", gap: 16, marginBottom: 20 }}>
+        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: "18px 20px" }}>
+          <InfoGrafico
+            titulo="Ingresos por sucursal"
+            periodo={periodo}
+            subtitulo="Membresías y punto de venta sumados, de cada sucursal en el periodo."
+            series={[{ color: COLORES_GRAFICO.ingresos, nombre: "Ingresos", descripcion: "Total cobrado por esa sucursal en el periodo mostrado." }]}
+          />
+          <ResponsiveContainer width="100%" height={240}>
+            <BarChart data={datosIngresos} margin={{ top: 10, right: 8, left: 6, bottom: 22 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />
+              <XAxis dataKey="nombre" tick={{ fill: "var(--text-tertiary)", fontSize: 11 }} />
+              <YAxis tick={{ fill: "var(--text-tertiary)", fontSize: 11 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} label={ejeY("MXN")} />
+              <Tooltip content={<ComparativaTooltip moneda />} />
+              <Bar dataKey="ingresos" name="Ingresos" fill={COLORES_GRAFICO.ingresos} radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: "18px 20px" }}>
+          <InfoGrafico
+            titulo="Activos y altas por sucursal"
+            periodo={periodo}
+            subtitulo="Tamaño del padrón frente a lo que creció en el periodo."
+            series={[
+              { color: COLORES_GRAFICO.asistencia, nombre: "Activos", descripcion: "Miembros con estado Activo hoy en esa sucursal." },
+              { color: COLORES_GRAFICO.membresias, nombre: "Altas", descripcion: "Miembros nuevos registrados en el periodo mostrado." },
+            ]}
+          />
+          <ResponsiveContainer width="100%" height={240}>
+            <BarChart data={datosConteo} margin={{ top: 10, right: 8, left: 6, bottom: 22 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />
+              <XAxis dataKey="nombre" tick={{ fill: "var(--text-tertiary)", fontSize: 11 }} />
+              <YAxis tick={{ fill: "var(--text-tertiary)", fontSize: 11 }} allowDecimals={false} />
+              <Tooltip content={<ComparativaTooltip />} />
+              <Legend wrapperStyle={{ fontSize: 12, color: "var(--text-secondary)", paddingTop: 6 }} verticalAlign="top" />
+              <Bar dataKey="activos" name="Activos" fill={COLORES_GRAFICO.asistencia} radius={[4, 4, 0, 0]} />
+              <Bar dataKey="altas" name="Altas" fill={COLORES_GRAFICO.membresias} radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Tabla comparativa */}
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+          <thead>
+            <tr style={{ borderBottom: `1px solid ${C.border}` }}>
+              {["Sucursal", "Activos", "Altas", "Ingresos", "Ocupación miembros", "Ocupación staff"].map((h, i) => (
+                <th key={h} style={{
+                  textAlign: i === 0 ? "left" : "right", padding: "12px 16px",
+                  fontSize: 11, fontWeight: 700, color: C.t2, textTransform: "uppercase", letterSpacing: ".04em",
+                  whiteSpace: "nowrap",
+                }}>
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {filas.map((f) => (
+              <tr key={f.id} style={{ borderBottom: `1px solid ${C.border}`, opacity: f.activo ? 1 : 0.6 }}>
+                <td style={{ padding: "12px 16px", color: C.t1, fontWeight: 600 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <FiMapPin size={13} color={C.t3} />
+                    {f.nombre}
+                    {f.es_sucursal_principal && (
+                      <span style={{ fontSize: 10, fontWeight: 700, color: C.t3, border: `1px solid ${C.border}`, borderRadius: 99, padding: "1px 7px" }}>SEDE PRINCIPAL</span>
+                    )}
+                    {!f.activo && (
+                      <span style={{ fontSize: 10, fontWeight: 700, color: C.danger, background: `${C.danger}18`, borderRadius: 99, padding: "1px 7px" }}>INACTIVA</span>
+                    )}
+                  </div>
+                </td>
+                <td style={{ padding: "12px 16px", textAlign: "right", color: C.t1 }}>{f.activos}</td>
+                <td style={{ padding: "12px 16px", textAlign: "right", color: C.t1 }}>{f.altas}</td>
+                <td style={{ padding: "12px 16px", textAlign: "right", color: C.t1, fontWeight: 600 }}>{fmt(f.ingresos)}</td>
+                <td style={{ padding: "12px 16px", textAlign: "right" }}>
+                  {f.pctMiembros != null
+                    ? <span style={{ fontWeight: 700, color: f.pctMiembros >= 100 ? C.danger : f.pctMiembros >= 90 ? C.warning : C.success }}>{f.pctMiembros}%</span>
+                    : <span style={{ color: C.t3 }}>sin límite</span>}
+                </td>
+                <td style={{ padding: "12px 16px", textAlign: "right" }}>
+                  {f.pctStaff != null
+                    ? <span style={{ fontWeight: 700, color: f.pctStaff >= 100 ? C.danger : f.pctStaff >= 90 ? C.warning : C.success }}>{f.pctStaff}%</span>
+                    : <span style={{ color: C.t3 }}>sin límite</span>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 // ═════════════════════════════════════════════════════════════════════════════
 // COMPONENTE PRINCIPAL
 // ═════════════════════════════════════════════════════════════════════════════
@@ -425,6 +592,8 @@ export default function OwnerSucursales() {
   const [capacidad,  setCapacidad]    = useState({});
   const [limiteSucursales, setLimiteSucursales] = useState(null); // {plan, actual, tope, ...} -- SCRUM-223
   const [administradores, setAdministradores] = useState([]);
+  const [metricas, setMetricas] = useState({}); // {id_gimnasio: {ingresos_total, altas, activos, ...}}
+  const [metricasPeriodo, setMetricasPeriodo] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving,  setSaving]  = useState(false);
 
@@ -437,8 +606,9 @@ export default function OwnerSucursales() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [rSuc, rCap, rLimite, rAdmin] = await Promise.all([
+      const [rSuc, rCap, rLimite, rAdmin, rMet] = await Promise.all([
         getSucursales(), getSucursalesCapacidad(), getLimiteSucursales(), getAdministradores(),
+        getSucursalesMetricas(),
       ]);
       setSucursales(rSuc.data);
       const capMap = {};
@@ -446,6 +616,10 @@ export default function OwnerSucursales() {
       setCapacidad(capMap);
       setLimiteSucursales(rLimite.data);
       setAdministradores(rAdmin.data);
+      const metMap = {};
+      (rMet.data?.sucursales || []).forEach(m => { metMap[m.id_gimnasio] = m; });
+      setMetricas(metMap);
+      setMetricasPeriodo(rMet.data?.periodo || "");
     } catch {
       toast.error("No se pudo cargar la información de sucursales");
     } finally {
@@ -591,6 +765,21 @@ export default function OwnerSucursales() {
               <p style={{ fontSize: 13, margin: 0 }}>Tu sede principal se creó automáticamente al dar de alta tu gimnasio.</p>
             </div>
           ) : (
+            <>
+            <ResumenComparativo
+              periodo={metricasPeriodo}
+              filas={sucursales.map(s => {
+                const cap = capacidad[s.id] || {};
+                const met = metricas[s.id] || {};
+                const pctMiembros = cap.miembros?.tope != null ? Math.round((cap.miembros.actual / cap.miembros.tope) * 100) : null;
+                const pctStaff    = cap.staff?.tope    != null ? Math.round((cap.staff.actual    / cap.staff.tope)    * 100) : null;
+                return {
+                  id: s.id, nombre: s.nombre, activo: s.activo, es_sucursal_principal: s.es_sucursal_principal,
+                  activos: met.activos ?? 0, altas: met.altas ?? 0, ingresos: met.ingresos_total ?? 0,
+                  pctMiembros, pctStaff,
+                };
+              })}
+            />
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: 16, marginBottom: 32 }}>
               {sucursales.map(s => (
                 <SucursalCard key={s.id} s={s} cap={capacidad[s.id]}
@@ -599,6 +788,7 @@ export default function OwnerSucursales() {
                 />
               ))}
             </div>
+            </>
           )}
 
           {/* Administradores */}

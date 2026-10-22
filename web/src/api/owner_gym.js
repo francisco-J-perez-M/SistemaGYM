@@ -93,6 +93,10 @@ export const eliminarProducto    = (id)          => API.delete(`/owner_gym/produ
 // de su organización y su ocupación (miembros/staff) frente al plan.
 export const getSucursales         = ()        => API.get("/owner_gym/sucursales");
 export const getSucursalesCapacidad = ()       => API.get("/owner_gym/sucursales/capacidad");
+// Tabla comparativa por sucursal (ingresos, altas, activos, asistencias) --
+// reutiliza _recolectar() del reporte ejecutivo (ver reportes_negocio.py).
+// Sin params usa el mes en curso, igual que /reportes/pdf.
+export const getSucursalesMetricas = (params = {}) => API.get("/owner_gym/sucursales/metricas", { params });
 // SCRUM-223: sucursales usadas vs. tope del plan de TODA mi organización
 // (antes el plan vivía por sucursal; ahora lo contrata la organización).
 export const getLimiteSucursales    = ()       => API.get("/owner_gym/sucursales/limite");
