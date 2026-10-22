@@ -51,6 +51,7 @@ function memberToDetalle(m) {
     activo:    m.activo !== false,
     subtitulo: m.tipo_membresia ?? null,
     datos: [
+      { icono: "generico",   etiqueta: "ID",            valor: m.id_usuario_pg != null ? `#${m.id_usuario_pg}` : null },
       { icono: "membresia",  etiqueta: "Membresía",    valor: m.tipo_membresia },
       { icono: "vence",      etiqueta: "Vence",        valor: fechaFicha(m.fecha_fin) },
       { icono: "ingreso",    etiqueta: "Ingreso",       valor: fechaFicha(m.fecha_registro) },
@@ -490,7 +491,7 @@ export default function ReceptionistMembers() {
         }} />
         <input
           type="text"
-          placeholder="Buscar por nombre, correo o teléfono…"
+          placeholder="Buscar por nombre, correo o ID…"
           value={search}
           onChange={e => setSearch(e.target.value)}
           style={{
@@ -519,7 +520,7 @@ export default function ReceptionistMembers() {
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                  {["Nombre", "Correo", "Teléfono", "Membresía", "Estado", "Acciones"].map(h => (
+                  {["ID", "Nombre", "Correo", "Teléfono", "Membresía", "Estado", "Acciones"].map(h => (
                     <th key={h} style={{
                       padding: "10px 14px", textAlign: h === "Acciones" ? "right" : "left", fontWeight: 700,
                       color: "var(--text-secondary)", fontSize: "11px",
@@ -542,6 +543,9 @@ export default function ReceptionistMembers() {
                     onMouseEnter={e => e.currentTarget.style.background = "var(--bg-hover)"}
                     onMouseLeave={e => e.currentTarget.style.background = ""}
                   >
+                    <td style={{ padding: "12px 14px", color: "var(--text-secondary)", fontSize: "12px", fontFamily: "monospace" }}>
+                      {m.id_usuario_pg != null ? `#${m.id_usuario_pg}` : "—"}
+                    </td>
                     <td style={{ padding: "12px 14px", color: "var(--text-primary)", fontWeight: 500 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                         <div style={{

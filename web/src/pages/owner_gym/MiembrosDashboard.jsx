@@ -437,6 +437,7 @@ export function miembroADetalle(m) {
     activo:    m.activo !== false,
     subtitulo: m.membresia?.nombre ?? m.membresia_activa ?? null,
     datos: [
+      { icono: "generico",   etiqueta: "ID",            valor: m.id_usuario_pg != null ? `#${m.id_usuario_pg}` : null },
       { icono: "membresia",  etiqueta: "Membresía",     valor: m.membresia?.nombre ?? m.membresia_activa },
       { icono: "vence",      etiqueta: "Vence",         valor: fechaFicha(m.membresia?.fecha_fin) },
       { icono: "ingreso",    etiqueta: "Ingreso",       valor: fechaFicha(m.registrationDate ?? m.fecha_registro) },
@@ -496,6 +497,7 @@ function MemberCard({ m, inactivos, onView, onEdit, onDelete, onReactivate, onRe
           </p>
           <p style={{ fontSize: 12, color: C.t2, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {m.email}
+            {m.id_usuario_pg != null && <> · ID #{m.id_usuario_pg}</>}
           </p>
           {m.membresia_activa && (
             <p style={{ fontSize: 11, color: C.accent, margin: "4px 0 0" }}>
@@ -830,7 +832,7 @@ export default function MiembrosDashboard() {
         <input
           value={search}
           onChange={e => { setSearch(e.target.value); setPage(1); }}
-          placeholder="Buscar por nombre o email…"
+          placeholder="Buscar por nombre, email o ID…"
           style={{ ...inputSt, paddingLeft: 36, width: "100%", borderRadius: 10 }}
         />
         {search && (

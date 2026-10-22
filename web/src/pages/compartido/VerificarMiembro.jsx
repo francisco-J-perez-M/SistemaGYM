@@ -256,6 +256,13 @@ function CobroInline({ idMiembro, onCobrado, onCancel }) {
   const [metodo, setMetodo] = useState("Efectivo");
   const [tarjeta, setTarjeta] = useState("");
   const [referencia, setReferencia] = useState("");
+  // Pago hecho en otro día (p. ej. una transferencia ya realizada que no se
+  // pudo registrar antes por no existir todavía esta función): la
+  // renovación y el conteo de días de la membresía arrancan desde la fecha
+  // elegida en vez de hoy.
+  const [fechaManual, setFechaManual] = useState(false);
+  const [fechaPago, setFechaPago] = useState("");
+  const [horaPago, setHoraPago] = useState("");
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [err, setErr] = useState(null);
@@ -272,6 +279,9 @@ function CobroInline({ idMiembro, onCobrado, onCancel }) {
     if (metodo === "Transferencia" && !referencia.trim()) {
       setErr("Captura la referencia de la transferencia"); return;
     }
+    if (fechaManual && !fechaPago) {
+      setErr("Indica la fecha en la que se hizo el pago"); return;
+    }
     setGuardando(true);
     setErr(null);
     try {
@@ -279,6 +289,7 @@ function CobroInline({ idMiembro, onCobrado, onCancel }) {
         id_miembro: idMiembro, id_membresia: idMembresia,
         metodo_pago: metodo, numero_tarjeta: metodo === "Tarjeta" ? tarjeta : undefined,
         referencia: metodo === "Transferencia" ? referencia.trim() : undefined,
+        fecha_pago: fechaManual && fechaPago ? (horaPago ? `${fechaPago}T${horaPago}` : fechaPago) : undefined,
       });
       onCobrado();
     } catch (e) {
@@ -317,10 +328,28 @@ function CobroInline({ idMiembro, onCobrado, onCancel }) {
               <input style={inputSt} value={referencia} onChange={e => setReferencia(e.target.value)}
                 placeholder="Folio o referencia de la transferencia" />
             )}
+
+            {/* Pago registrado en otro día (p. ej. una transferencia que ya
+                se hizo pero no se pudo capturar antes). */}
+            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 12.5, color: C.t2 }}>
+              <input type="checkbox" checked={fechaManual}
+                onChange={e => { setFechaManual(e.target.checked); if (!e.target.checked) { setFechaPago(""); setHoraPago(""); } }}
+                style={{ width: 14, height: 14, cursor: "pointer" }} />
+              El pago se hizo en otro día
+            </label>
+            {fechaManual && (
+              <div style={{ display: "flex", gap: 8 }}>
+                <input type="date" style={inputSt} value={fechaPago}
+                  max={new Date().toISOString().slice(0, 10)}
+                  onChange={e => setFechaPago(e.target.value)} />
+                <input type="time" style={inputSt} value={horaPago}
+                  onChange={e => setHoraPago(e.target.value)} />
+              </div>
+            )}
           </div>
           {err && <p style={{ fontSize: 12, color: C.danger, margin: "0 0 10px" }}>{err}</p>}
           <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={confirmar} disabled={guardando || (metodo === "Transferencia" && !referencia.trim())}
+            <button onClick={confirmar} disabled={guardando || (metodo === "Transferencia" && !referencia.trim()) || (fechaManual && !fechaPago)}
               style={{ flex: 1, padding: "9px 0", borderRadius: 8, border: "none", background: guardando ? C.border : C.success, color: "#fff", fontWeight: 700, fontSize: 13, cursor: guardando ? "not-allowed" : "pointer" }}>
               {guardando ? "Procesando…" : "Confirmar cobro"}
             </button>

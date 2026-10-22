@@ -53,7 +53,10 @@ function MemberCard({ miembro, onClear }) {
         </div>
         <div>
           <div style={{ fontWeight: 700, fontSize: 14, color: "var(--text-primary)" }}>{miembro.nombre}</div>
-          <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{miembro.email}</div>
+          <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+            {miembro.email}
+            {miembro.id_usuario_pg != null && <> · ID #{miembro.id_usuario_pg}</>}
+          </div>
         </div>
       </div>
       <button onClick={onClear} style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontSize: 18, lineHeight: 1 }}>×</button>
@@ -77,6 +80,13 @@ export default function CobrarMembresia() {
   const [tipoPago,         setTipoPago]         = useState("renovacion");
   const [costoInscripcion, setCostoInscripcion] = useState("");
   const [referencia,       setReferencia]       = useState("");
+  // Pago hecho en otro día (p. ej. una transferencia ya realizada que no se
+  // pudo registrar antes por no existir todavía esta función): al activarlo,
+  // la renovación y el conteo de días de la membresía arrancan desde la
+  // fecha elegida en vez de hoy.
+  const [fechaManual, setFechaManual] = useState(false);
+  const [fechaPago,   setFechaPago]   = useState("");
+  const [horaPago,    setHoraPago]    = useState("");
   // Cobro manual en el portal web: solo Efectivo o Transferencia. PayPal y
   // Mercado Pago exigen que el miembro pague con su propia cuenta, así que
   // ese cobro queda exclusivo de la app móvil (el miembro se autocobra ahí).
@@ -93,8 +103,10 @@ export default function CobrarMembresia() {
   }, []);
 
   const miembrosFiltrados = miembros.filter(m => {
-    const q = search.toLowerCase();
-    return !q || (m.nombre || "").toLowerCase().includes(q) || (m.email || "").toLowerCase().includes(q);
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    if (/^\d+$/.test(q) && String(m.id_usuario_pg ?? "") === q) return true;
+    return (m.nombre || "").toLowerCase().includes(q) || (m.email || "").toLowerCase().includes(q);
   });
 
   const membresiasFiltradas = membresias.filter(m => m.activo !== false);
@@ -104,7 +116,8 @@ export default function CobrarMembresia() {
   const costoInscripcionNum = Number(costoInscripcion);
   const canSubmit = miembro && membresia && metodo &&
     (!esInscripcion || (costoInscripcion !== "" && costoInscripcionNum > 0)) &&
-    (!esTransferencia || referencia.trim() !== "");
+    (!esTransferencia || referencia.trim() !== "") &&
+    (!fechaManual || fechaPago !== "");
   const montoTotal = membresia
     ? Number(membresia.precio) + (esInscripcion && costoInscripcionNum > 0 ? costoInscripcionNum : 0)
     : 0;
@@ -122,6 +135,7 @@ export default function CobrarMembresia() {
         tipo_pago:         tipoPago,
         ...(esInscripcion ? { costo_inscripcion: costoInscripcionNum } : {}),
         ...(esTransferencia ? { referencia: referencia.trim() } : {}),
+        ...(fechaManual && fechaPago ? { fecha_pago: horaPago ? `${fechaPago}T${horaPago}` : fechaPago } : {}),
       });
       setSuccess({
         miembro:           miembro.nombre,
@@ -133,6 +147,7 @@ export default function CobrarMembresia() {
         tipoPago,
         costoInscripcion:  esInscripcion ? costoInscripcionNum : null,
         montoTotal,
+        fechaPago:         fechaManual && fechaPago ? fechaPago : null,
       });
       // Reset form
       setMiembro(null);
@@ -141,6 +156,9 @@ export default function CobrarMembresia() {
       setTipoPago("renovacion");
       setCostoInscripcion("");
       setReferencia("");
+      setFechaManual(false);
+      setFechaPago("");
+      setHoraPago("");
       setSearch("");
     } catch (err) {
       toast.error("Error al registrar", err.response?.data?.error || "Error interno del servidor");
@@ -187,7 +205,7 @@ export default function CobrarMembresia() {
                     <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-secondary)", pointerEvents: "none" }}><SearchIcon /></span>
                     <input
                       style={{ ...inputSt, paddingLeft: 36 }}
-                      placeholder="Buscar por nombre o email…"
+                      placeholder="Buscar por nombre, email o ID…"
                       value={search}
                       onChange={e => setSearch(e.target.value)}
                       autoComplete="off"
@@ -213,7 +231,12 @@ export default function CobrarMembresia() {
                           {(m.nombre || "?")[0].toUpperCase()}
                         </div>
                         <div>
-                          <div style={{ fontWeight: 600, fontSize: 13, color: "var(--text-primary)" }}>{m.nombre}</div>
+                          <div style={{ fontWeight: 600, fontSize: 13, color: "var(--text-primary)" }}>
+                            {m.nombre}
+                            {m.id_usuario_pg != null && (
+                              <span style={{ fontWeight: 500, color: "var(--text-secondary)" }}> · ID #{m.id_usuario_pg}</span>
+                            )}
+                          </div>
                           <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>{m.email}</div>
                         </div>
                       </button>
@@ -349,6 +372,51 @@ export default function CobrarMembresia() {
               )}
             </div>
 
+            {/* Fecha del pago: por defecto es hoy. Si el pago en realidad se
+                hizo otro día (p. ej. una transferencia ya realizada que no
+                se pudo registrar antes), se puede indicar la fecha real --
+                la renovación y el conteo de días de la membresía arrancan
+                desde ahí. */}
+            <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: "20px 22px" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={fechaManual}
+                  onChange={e => { setFechaManual(e.target.checked); if (!e.target.checked) { setFechaPago(""); setHoraPago(""); } }}
+                  style={{ width: 16, height: 16, cursor: "pointer" }}
+                />
+                <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
+                  El pago se hizo en otro día
+                </span>
+              </label>
+              {fechaManual && (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 14 }}>
+                  <div>
+                    <label style={labelSt}>Fecha del pago</label>
+                    <input
+                      type="date"
+                      style={inputSt}
+                      value={fechaPago}
+                      max={new Date().toISOString().slice(0, 10)}
+                      onChange={e => setFechaPago(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label style={labelSt}>Hora (opcional)</label>
+                    <input
+                      type="time"
+                      style={inputSt}
+                      value={horaPago}
+                      onChange={e => setHoraPago(e.target.value)}
+                    />
+                  </div>
+                  <p style={{ gridColumn: "1 / -1", fontSize: 11, color: "var(--text-secondary)", margin: 0, lineHeight: 1.4 }}>
+                    La renovación y el conteo de días de la membresía empezarán desde esta fecha, no desde hoy.
+                  </p>
+                </div>
+              )}
+            </div>
+
             {/* Botón submit */}
             <button
               type="submit"
@@ -388,6 +456,7 @@ export default function CobrarMembresia() {
                     ["Duración",  success.duracion === 1 ? "1 mes" : `${success.duracion} meses`],
                     ["Método",    success.metodo],
                     ...(success.referencia ? [["Referencia", success.referencia]] : []),
+                    ...(success.fechaPago ? [["Fecha del pago", success.fechaPago]] : []),
                   ].map(([k, v]) => (
                     <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: "1px solid var(--border)", fontSize: 13 }}>
                       <span style={{ color: "var(--text-secondary)" }}>{k}</span>
@@ -420,6 +489,7 @@ export default function CobrarMembresia() {
                     ["Duración", membresia ? (membresia.duracion_meses === 1 ? "1 mes" : `${membresia.duracion_meses} meses`) : "—"],
                     ["Método",   metodo],
                     ...(esTransferencia ? [["Referencia", referencia.trim() || "—"]] : []),
+                    ...(fechaManual ? [["Fecha del pago", fechaPago || "—"]] : []),
                   ].map(([k, v]) => (
                     <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "6px 0", borderBottom: "1px solid var(--border)" }}>
                       <span style={{ color: "var(--text-secondary)" }}>{k}</span>
