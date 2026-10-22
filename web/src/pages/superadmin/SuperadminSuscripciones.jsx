@@ -82,7 +82,7 @@ export default function SuperadminSuscripciones() {
   const fmtDate = (d) => d ? new Date(d).toLocaleDateString("es-MX") : "—";
 
   return (
-    <div style={{ padding: "28px 32px", minHeight: "100vh", background: "var(--bg-input)", fontFamily: "inherit" }}>
+    <div className="superadmin-page" style={{ minHeight: "100vh", background: "var(--bg-input)", fontFamily: "inherit" }}>
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 24, fontWeight: 800, color: "var(--text-primary)", marginBottom: 4 }}>Suscripciones</h1>
         <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>{total} suscripciones en la plataforma</p>
@@ -122,6 +122,7 @@ export default function SuperadminSuscripciones() {
 
       {/* Table */}
       <div style={card({ padding: 0, overflow: "hidden" })}>
+        <div className="superadmin-table-scroll">
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
             <tr style={{ background: "var(--bg-input)" }}>
@@ -150,6 +151,7 @@ export default function SuperadminSuscripciones() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       {pages > 1 && (

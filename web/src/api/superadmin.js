@@ -31,6 +31,7 @@ export const getUsuarios     = (params = {}) => API.get("/superadmin/usuarios", 
 export const getUsuario      = (id)           => API.get(`/superadmin/usuarios/${id}`);
 export const impersonar      = (id)           => API.post(`/superadmin/usuarios/${id}/impersonate`);
 export const toggleUsuario   = (id)           => API.patch(`/superadmin/usuarios/${id}/toggle`);
+export const eliminarUsuario = (id)           => API.delete(`/superadmin/usuarios/${id}`);
 
 // ── Backups admin ─────────────────────────────────────────────────
 export const getBackupStatus      = ()         => API.get("/superadmin/backups/status");

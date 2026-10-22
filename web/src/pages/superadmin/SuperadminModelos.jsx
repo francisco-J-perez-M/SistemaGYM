@@ -97,7 +97,7 @@ function TabCodoSilueta({ gymId }) {
         <Metric label="k optimo (silueta)" value={k_recomendado_silueta} color={INFO} icon={<FiTarget />} />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+      <div className="grid-2col-responsive" style={{ display: "grid", gap: 16 }}>
         <div style={card()}>
           <h3 style={hStyle}>Metodo del Codo (inercia por k)</h3>
           <p style={pStyle}>El "codo" marca el punto donde agregar más grupos deja de reducir significativamente la inercia.</p>
@@ -136,6 +136,7 @@ function TabCodoSilueta({ gymId }) {
       </div>
 
       <div style={card({ padding: 0, overflow: "hidden" })}>
+        <div className="superadmin-table-scroll">
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
             <tr style={{ background: "var(--bg-input)" }}>
@@ -158,6 +159,7 @@ function TabCodoSilueta({ gymId }) {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );
@@ -229,7 +231,7 @@ function TabEntrenamiento({ gymId }) {
       </div>
 
       {/* Paso 1 y 2 */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+      <div className="grid-2col-responsive" style={{ display: "grid", gap: 16 }}>
         <div style={card()}>
           <h3 style={hStyle}><FiPlayCircle style={{ color: ACCENT, verticalAlign: "-2px", marginRight: 6 }} />1. Entrenamiento</h3>
           <p style={pStyle}>{p["1_entrenamiento"].descripcion}</p>
@@ -238,7 +240,7 @@ function TabEntrenamiento({ gymId }) {
         <div style={card()}>
           <h3 style={hStyle}><FiCheckCircle style={{ color: INFO, verticalAlign: "-2px", marginRight: 6 }} />2. Evaluacion (datos no vistos)</h3>
           <p style={pStyle}>{p["2_evaluacion"].descripcion}</p>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8 }}>
+          <div className="grid-4col-responsive" style={{ display: "grid", gap: 8 }}>
             {[["Accuracy", ev.accuracy], ["Precision", ev.precision], ["Recall", ev.recall], ["F1", ev.f1]].map(([k, v]) => (
               <div key={k} style={{ background: "var(--bg-input)", borderRadius: 8, padding: "10px 12px" }}>
                 <p style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>{k}</p>
@@ -267,6 +269,7 @@ function TabEntrenamiento({ gymId }) {
       <div style={card()}>
         <h3 style={hStyle}><FiSliders style={{ color: PURPLE, verticalAlign: "-2px", marginRight: 6 }} />4. Optimizacion</h3>
         <p style={pStyle}>{opt.descripcion}</p>
+        <div className="superadmin-table-scroll">
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
             <tr style={{ background: "var(--bg-input)" }}>
@@ -286,6 +289,7 @@ function TabEntrenamiento({ gymId }) {
             })}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Paso 5 */}
@@ -375,7 +379,7 @@ export default function SuperadminModelos() {
   const gymName = gyms.find(g => String(g.id) === String(gymId))?.nombre;
 
   return (
-    <div style={{ padding: "28px 32px", minHeight: "100vh", background: "var(--bg-input)", fontFamily: "inherit" }}>
+    <div className="superadmin-page" style={{ minHeight: "100vh", background: "var(--bg-input)", fontFamily: "inherit" }}>
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20, gap: 16, flexWrap: "wrap" }}>
         <div>

@@ -295,7 +295,7 @@ export default function SuperadminPlanes() {
     Swal.fire({ icon: "success", title: "Plan guardado", timer: 1500, showConfirmButton: false, background: "var(--bg-card)", color: "var(--text-primary)" }); };
 
   return (
-    <div style={{ padding: "28px 32px", minHeight: "100vh", background: "var(--bg-input)", fontFamily: "inherit" }}>
+    <div className="superadmin-page" style={{ minHeight: "100vh", background: "var(--bg-input)", fontFamily: "inherit" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 800, color: "var(--text-primary)", marginBottom: 4 }}>Planes de Suscripción</h1>
