@@ -63,6 +63,26 @@ export const updateStaff         = (id, data)    => API.put(`/owner_gym/staff/${
 // Genera una contrasena nueva y reenvia el correo de bienvenida -- para
 // cuando el original nunca llego (p. ej. a un correo @hotmail).
 export const reenviarCredencialesStaff = (id)    => API.post(`/owner_gym/staff/${id}/reenviar-credenciales`);
+// Mover uno o mas integrantes del staff (Entrenador/Recepcionista) a otra
+// sucursal de la misma organizacion.
+export const trasladarStaff = (idsUsuario, idGimnasioDestino) =>
+  API.post("/owner_gym/staff/trasladar", {
+    ids_usuario: idsUsuario,
+    ...(idGimnasioDestino ? { id_gimnasio_destino: idGimnasioDestino } : {}),
+  });
+
+// ── Personal operativo (mantenimiento, limpieza, etc. -- SIN acceso al
+//    sistema: es un directorio, no genera usuario ni credenciales) ───────
+export const getPuestosPersonal  = ()           => API.get("/owner_gym/personal/puestos");
+export const getPersonal         = (params = {}) => API.get("/owner_gym/personal", { params });
+export const crearPersonal       = (data)        => API.post("/owner_gym/personal", data);
+export const editarPersonal      = (id, data)    => API.put(`/owner_gym/personal/${id}`, data);
+export const togglePersonal      = (id)          => API.patch(`/owner_gym/personal/${id}/toggle`);
+export const trasladarPersonal   = (idsPersonal, idGimnasioDestino) =>
+  API.post("/owner_gym/personal/trasladar", {
+    ids_personal: idsPersonal,
+    ...(idGimnasioDestino ? { id_gimnasio_destino: idGimnasioDestino } : {}),
+  });
 
 // ── Tipos de membresía ────────────────────────────────────────────────────
 export const getMembresias       = (params = {}) => API.get("/owner_gym/membresias", { params });

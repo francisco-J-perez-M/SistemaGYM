@@ -59,3 +59,21 @@ export const getCategoriasVentas = async () => {
   });
   return res.data;
 };
+
+// Corrige un pago de membresía ya registrado (monto, método, referencia,
+// concepto o fecha capturados mal).
+export const editarPago = async (id, data) => {
+  const res = await axios.put(`${API_URL}/${id}`, data, {
+    headers: { ...authHeader(), "Content-Type": "application/json" },
+  });
+  return res.data;
+};
+
+// Elimina un pago registrado por error -- el backend revierte también la
+// membresía que ese pago activó, si aplica (ver eliminar_pago() en el API).
+export const eliminarPago = async (id) => {
+  const res = await axios.delete(`${API_URL}/${id}`, {
+    headers: authHeader(),
+  });
+  return res.data;
+};

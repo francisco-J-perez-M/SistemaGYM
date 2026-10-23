@@ -3,7 +3,11 @@
  * Diseño de cards con foto de perfil (base64, sin filesystem).
  */
 import { useEffect, useState, useRef, useCallback } from "react";
-import { getStaff, crearStaff, toggleStaff, updateStaff, reenviarCredencialesStaff } from "../../api/owner_gym";
+import {
+  getStaff, crearStaff, toggleStaff, updateStaff, reenviarCredencialesStaff, trasladarStaff,
+  getPuestosPersonal, getPersonal, crearPersonal, editarPersonal, togglePersonal, trasladarPersonal,
+} from "../../api/owner_gym";
+import { getSucursalesDestino } from "../../api/verificacion";
 import EmailDomainInput from "../../components/compartido/EmailDomainInput";
 import DetalleUsuarioModal, { fechaFicha } from "../../components/compartido/DetalleUsuarioModal";
 
@@ -38,6 +42,8 @@ const IcoEdit   = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="no
 const IcoSearch = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>;
 const IcoPlus   = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14"/></svg>;
 const IcoX      = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>;
+const IcoMove   = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>;
+const IcoCheck  = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg>;
 
 // ── Avatar ────────────────────────────────────────────────────────────────────
 function Avatar({ src, name, size = 52 }) {
@@ -296,9 +302,30 @@ function staffADetalle(u) {
   };
 }
 
-function StaffCard({ u, onView, onEdit, onToggle, onResend }) {
+function StaffCard({ u, onView, onEdit, onToggle, onResend, selectable, selected, onToggleSelect }) {
   return (
-    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, overflow: "hidden", opacity: u.activo ? 1 : 0.7, transition: "box-shadow .15s" }}>
+    <div style={{ background: C.card, border: `1px solid ${selected ? C.accent : C.border}`, borderRadius: 14, overflow: "hidden", opacity: u.activo ? 1 : 0.7, position: "relative", transition: "box-shadow .15s, border-color .15s" }}>
+      {selectable && (
+        <label
+          onClick={e => e.stopPropagation()}
+          title="Seleccionar para trasladar"
+          style={{
+            position: "absolute", top: 8, left: 8, zIndex: 2,
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            width: 22, height: 22, borderRadius: 6, cursor: "pointer",
+            background: selected ? C.accent : "rgba(0,0,0,.4)",
+            border: `1px solid ${selected ? C.accent : C.border}`,
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={Boolean(selected)}
+            onChange={() => onToggleSelect(u.id)}
+            style={{ position: "absolute", inset: 0, opacity: 0, width: "100%", height: "100%", cursor: "pointer" }}
+          />
+          {selected && <IcoCheck />}
+        </label>
+      )}
       {/* Header */}
       <div style={{ padding: "16px 18px 12px", display: "flex", gap: 14, alignItems: "flex-start" }}>
         <Avatar src={u.foto_perfil} name={u.nombre} size={52} />
@@ -363,10 +390,382 @@ function Skeleton() {
   );
 }
 
+// ── Personal operativo (mantenimiento, limpieza, etc. — sin login) ────────
+const PERSONAL_EMPTY_FORM = { nombre: "", puesto: "", puestoOtro: "", telefono: "", notas: "" };
+
+function PersonalModal({ open, onClose, onSave, initial, saving, puestos }) {
+  const [form, setForm] = useState(PERSONAL_EMPTY_FORM);
+  const isEdit = Boolean(initial);
+
+  useEffect(() => {
+    if (!open) return;
+    if (initial) {
+      const conocido = puestos.includes(initial.puesto);
+      setForm({
+        nombre: initial.nombre || "", telefono: initial.telefono || "", notas: initial.notas || "",
+        puesto: conocido ? initial.puesto : "Otro",
+        puestoOtro: conocido ? "" : (initial.puesto || ""),
+      });
+    } else {
+      setForm(PERSONAL_EMPTY_FORM);
+    }
+  }, [open, initial, puestos]);
+
+  if (!open) return null;
+
+  const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
+  const inputSt = {
+    width: "100%", boxSizing: "border-box", background: C.input,
+    border: `1px solid ${C.border}`, borderRadius: 8,
+    padding: "9px 12px 9px 32px", color: C.t1, fontSize: 13, outline: "none",
+  };
+
+  const submit = (e) => {
+    e.preventDefault();
+    const puestoFinal = form.puesto === "Otro" ? form.puestoOtro.trim() : form.puesto;
+    onSave({ ...form, puesto: puestoFinal });
+  };
+
+  return (
+    <div onClick={e => e.target === e.currentTarget && onClose()}
+      style={{ position: "fixed", inset: 0, zIndex: 9000, background: "rgba(0,0,0,.65)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, width: "100%", maxWidth: 480, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 24px 64px rgba(0,0,0,.6)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 24px 16px", borderBottom: `1px solid ${C.border}` }}>
+          <div>
+            <h2 style={{ fontSize: 16, fontWeight: 700, color: C.t1, margin: 0 }}>{isEdit ? "Editar personal" : "Agregar personal"}</h2>
+            <p style={{ fontSize: 12, color: C.t2, margin: "2px 0 0" }}>Sin acceso al sistema -- solo directorio</p>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: C.t2, cursor: "pointer", fontSize: 20, lineHeight: 1, padding: 4 }}>✕</button>
+        </div>
+
+        <form onSubmit={submit} style={{ padding: "20px 24px 24px", display: "flex", flexDirection: "column", gap: 12 }}>
+          <Field label="Nombre completo" required>
+            <IcoWrap icon={<IcoUser />}>
+              <input style={inputSt} value={form.nombre} onChange={set("nombre")} placeholder="Juan Pérez" required />
+            </IcoWrap>
+          </Field>
+
+          <Field label="Puesto" required>
+            <IcoWrap icon={<IcoShield />}>
+              <select style={inputSt} value={form.puesto} onChange={set("puesto")} required>
+                <option value="">Seleccionar puesto…</option>
+                {puestos.map(p => <option key={p} value={p}>{p}</option>)}
+                <option value="Otro">Otro…</option>
+              </select>
+            </IcoWrap>
+          </Field>
+
+          {form.puesto === "Otro" && (
+            <Field label="Especifica el puesto" required>
+              <IcoWrap icon={<IcoEdit />}>
+                <input style={inputSt} value={form.puestoOtro} onChange={set("puestoOtro")} placeholder="Ej. Jardinería" required />
+              </IcoWrap>
+            </Field>
+          )}
+
+          <Field label="Teléfono">
+            <IcoWrap icon={<IcoUser />}>
+              <input style={inputSt} value={form.telefono} onChange={set("telefono")} placeholder="Opcional" />
+            </IcoWrap>
+          </Field>
+
+          <Field label="Notas">
+            <textarea
+              style={{ ...inputSt, paddingLeft: 12, minHeight: 60, resize: "vertical" }}
+              value={form.notas} onChange={set("notas")} placeholder="Horario, observaciones… (opcional)"
+            />
+          </Field>
+
+          <button type="submit" disabled={saving}
+            style={{ width: "100%", padding: 12, borderRadius: 10, border: "none", fontWeight: 700, fontSize: 14, cursor: saving ? "not-allowed" : "pointer", background: saving ? C.input : C.accent, color: saving ? C.t2 : "#fff", marginTop: 6 }}>
+            {saving ? "Guardando…" : isEdit ? "Guardar cambios" : "Agregar"}
+          </button>
+          <button type="button" onClick={onClose}
+            style={{ width: "100%", marginTop: 8, padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", color: C.t2, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+            Cancelar
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function PersonalCard({ p, onEdit, onToggle, selectable, selected, onToggleSelect }) {
+  return (
+    <div style={{ background: C.card, border: `1px solid ${selected ? C.accent : C.border}`, borderRadius: 14, overflow: "hidden", opacity: p.activo ? 1 : 0.7, position: "relative" }}>
+      {selectable && (
+        <label onClick={e => e.stopPropagation()} title="Seleccionar para trasladar"
+          style={{ position: "absolute", top: 8, left: 8, zIndex: 2, display: "inline-flex", alignItems: "center", justifyContent: "center", width: 22, height: 22, borderRadius: 6, cursor: "pointer", background: selected ? C.accent : "rgba(0,0,0,.4)", border: `1px solid ${selected ? C.accent : C.border}` }}>
+          <input type="checkbox" checked={Boolean(selected)} onChange={() => onToggleSelect(p.id)}
+            style={{ position: "absolute", inset: 0, opacity: 0, width: "100%", height: "100%", cursor: "pointer" }} />
+          {selected && <IcoCheck />}
+        </label>
+      )}
+      <div style={{ padding: "16px 18px 12px", display: "flex", gap: 14, alignItems: "flex-start" }}>
+        <Avatar name={p.nombre} size={52} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ fontSize: 15, fontWeight: 700, color: C.t1, margin: "0 0 3px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.nombre}</p>
+          {p.telefono && <p style={{ fontSize: 12, color: C.t2, margin: "0 0 7px" }}>{p.telefono}</p>}
+          <span style={{ display: "inline-flex", alignItems: "center", padding: "2px 9px", borderRadius: 99, fontSize: 11, fontWeight: 700, background: `${C.accent}22`, color: C.accent }}>
+            {p.puesto}
+          </span>
+        </div>
+        <span style={{ display: "inline-flex", padding: "3px 9px", borderRadius: 99, fontSize: 11, fontWeight: 700, background: p.activo ? `${C.success}20` : `${C.danger}18`, color: p.activo ? C.success : C.danger, flexShrink: 0 }}>
+          {p.activo ? "Activo" : "Inactivo"}
+        </span>
+      </div>
+      {p.notas && (
+        <p style={{ margin: "0 18px 12px", fontSize: 12, color: C.t3, lineHeight: 1.4 }}>{p.notas}</p>
+      )}
+      <div style={{ borderTop: `1px solid ${C.border}`, padding: "8px 12px", display: "flex", gap: 6, justifyContent: "flex-end" }}>
+        <button onClick={() => onEdit(p)}
+          style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", color: C.t2, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+          <IcoEdit /> Editar
+        </button>
+        <button onClick={() => onToggle(p)}
+          style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 8, border: "none", background: p.activo ? `${C.danger}18` : `${C.success}20`, color: p.activo ? C.danger : C.success, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+          {p.activo ? "Desactivar" : "Activar"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PersonalSection({ sucursalesDestino, puedeTrasladar }) {
+  const [personal, setPersonal] = useState([]);
+  const [puestos,  setPuestos]  = useState([]);
+  const [loading,  setLoading]  = useState(true);
+  const [saving,   setSaving]   = useState(false);
+  const [search,   setSearch]   = useState("");
+  const [activos,  setActivos]  = useState("true");
+  const [modal,    setModal]    = useState(false);
+  const [editing,  setEditing]  = useState(null);
+  const [confirm,  setConfirm]  = useState(null);
+
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds,   setSelectedIds]   = useState([]);
+  const [destinoId,     setDestinoId]     = useState("");
+  const [trasladando,   setTrasladando]   = useState(false);
+
+  useEffect(() => {
+    getPuestosPersonal().then(({ data }) => setPuestos(data || [])).catch(() => setPuestos([]));
+  }, []);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = { activos };
+      if (search) params.q = search;
+      const { data } = await getPersonal(params);
+      setPersonal(data);
+    } catch (err) {
+      const s = err.response?.status;
+      if (s !== 401 && s !== 403) toast.error("No se pudo cargar el personal");
+      setPersonal([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [activos, search]);
+
+  useEffect(() => {
+    const t = setTimeout(load, search ? 420 : 0);
+    return () => clearTimeout(t);
+  }, [load]);
+
+  const toggleSelect = useCallback((id) => {
+    setSelectedIds(ids => (ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]));
+  }, []);
+
+  const handleToggle = (p) => {
+    setConfirm({
+      title: `¿${p.activo ? "Desactivar" : "Activar"} a ${p.nombre}?`,
+      message: p.activo ? "Quedará marcado como inactivo en el directorio." : "Volverá a aparecer como activo.",
+      danger: p.activo,
+      onConfirm: async () => {
+        setConfirm(null);
+        try {
+          await togglePersonal(p.id);
+          toast.success(`${p.nombre} ${p.activo ? "desactivado" : "activado"}`);
+          load();
+        } catch { toast.error("No se pudo cambiar el estado"); }
+      },
+    });
+  };
+
+  const handleSave = async (form) => {
+    if (!form.nombre.trim() || !form.puesto.trim()) {
+      toast.error("Nombre y puesto son requeridos");
+      return;
+    }
+    setSaving(true);
+    try {
+      const payload = {
+        nombre: form.nombre.trim(), puesto: form.puesto.trim(),
+        telefono: form.telefono.trim(), notas: form.notas.trim(),
+      };
+      if (editing) {
+        await editarPersonal(editing.id, payload);
+        toast.success(`${payload.nombre} actualizado`);
+      } else {
+        await crearPersonal(payload);
+        toast.success(`${payload.nombre} agregado`);
+      }
+      setModal(false); setEditing(null); load();
+    } catch (e) {
+      toast.error(e.response?.data?.msg || "Error al guardar");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleTrasladoMasivo = () => {
+    if (!selectedIds.length || !destinoId) return;
+    const sucursal = sucursalesDestino.find(s => String(s.id) === String(destinoId));
+    setConfirm({
+      title: `¿Trasladar ${selectedIds.length} integrante${selectedIds.length !== 1 ? "s" : ""}?`,
+      message: `Se moverán a "${sucursal?.nombre}".`,
+      danger: false,
+      onConfirm: async () => {
+        setConfirm(null);
+        setTrasladando(true);
+        try {
+          const { data } = await trasladarPersonal(selectedIds, Number(destinoId));
+          const destinoNombre = data.sucursal_destino?.nombre || sucursal?.nombre || "la sucursal destino";
+          toast.success(`${data.movidos} trasladado${data.movidos !== 1 ? "s" : ""} a ${destinoNombre}`);
+          setSelectedIds([]); setSelectionMode(false); setDestinoId("");
+          load();
+        } catch (err) {
+          toast.error(err?.response?.data?.msg || "No se pudo completar el traslado");
+        } finally {
+          setTrasladando(false);
+        }
+      },
+    });
+  };
+
+  return (
+    <>
+      <ConfirmDialog
+        open={Boolean(confirm)} title={confirm?.title} message={confirm?.message}
+        danger={confirm?.danger} onConfirm={confirm?.onConfirm} onCancel={() => setConfirm(null)}
+      />
+
+      <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ flex: 1, minWidth: 220, position: "relative", display: "flex", alignItems: "center" }}>
+          <span style={{ position: "absolute", left: 12, color: C.t3, display: "flex" }}><IcoSearch /></span>
+          <input
+            style={{ width: "100%", boxSizing: "border-box", background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, padding: "9px 36px 9px 34px", color: C.t1, fontSize: 13, outline: "none" }}
+            placeholder="Buscar por nombre…"
+            value={search} onChange={e => setSearch(e.target.value)}
+          />
+          {search && (
+            <button onClick={() => setSearch("")}
+              style={{ position: "absolute", right: 10, background: "none", border: "none", color: C.t3, cursor: "pointer", display: "flex" }}>
+              <IcoX />
+            </button>
+          )}
+        </div>
+        <div style={{ display: "flex", gap: 6 }}>
+          {[{ v: "true", label: "Activos" }, { v: "false", label: "Inactivos" }].map(({ v, label }) => (
+            <button key={v} onClick={() => setActivos(v)}
+              style={{ padding: "8px 16px", borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: "pointer", border: `1px solid ${activos === v ? (v === "true" ? C.accent : C.danger) : C.border}`, background: activos === v ? (v === "true" ? C.accent : C.danger) : "transparent", color: activos === v ? "#fff" : C.t2 }}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: 10 }}>
+          {puedeTrasladar && activos === "true" && (
+            <button
+              onClick={() => { setSelectionMode(v => !v); setSelectedIds([]); setDestinoId(""); }}
+              style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 16px", borderRadius: 10, border: `1px solid ${selectionMode ? C.accent : C.border}`, background: selectionMode ? `${C.accent}18` : "transparent", color: selectionMode ? C.accent : C.t2, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+            >
+              <IcoMove /> {selectionMode ? "Cancelar selección" : "Cambiar de sucursal"}
+            </button>
+          )}
+          <button onClick={() => { setEditing(null); setModal(true); }}
+            style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 18px", borderRadius: 10, border: "none", background: C.accent, color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+            <IcoPlus /> Agregar personal
+          </button>
+        </div>
+      </div>
+
+      {selectionMode && (
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", padding: "12px 16px", marginBottom: 20, borderRadius: 10, background: `${C.accent}0F`, border: `1px solid ${C.accent}33` }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: C.t1, whiteSpace: "nowrap" }}>
+            {selectedIds.length} seleccionado{selectedIds.length !== 1 ? "s" : ""}
+          </span>
+          <select value={destinoId} onChange={e => setDestinoId(e.target.value)}
+            style={{ background: C.input, border: `1px solid ${C.border}`, borderRadius: 8, padding: "7px 10px", color: C.t1, fontSize: 13, minWidth: 220, flex: "0 1 260px" }}>
+            <option value="">Elegir sucursal destino…</option>
+            {sucursalesDestino.filter(s => !s.es_actual).map(s => (
+              <option key={s.id} value={s.id}>{s.nombre}</option>
+            ))}
+          </select>
+          <button disabled={!selectedIds.length || !destinoId || trasladando} onClick={handleTrasladoMasivo}
+            style={{ padding: "8px 18px", borderRadius: 8, border: "none", background: C.accent, color: "#fff", fontSize: 13, fontWeight: 700, cursor: (!selectedIds.length || !destinoId || trasladando) ? "not-allowed" : "pointer", opacity: (!selectedIds.length || !destinoId || trasladando) ? 0.5 : 1 }}>
+            {trasladando ? "Trasladando…" : "Trasladar seleccionados"}
+          </button>
+          <button onClick={() => { setSelectionMode(false); setSelectedIds([]); setDestinoId(""); }}
+            style={{ padding: "8px 14px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", color: C.t2, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+            Cancelar
+          </button>
+        </div>
+      )}
+
+      {loading ? (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: 16 }}>
+          {[...Array(4)].map((_, i) => <Skeleton key={i} />)}
+        </div>
+      ) : personal.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "64px 24px", color: C.t3 }}>
+          <p style={{ fontSize: 16, fontWeight: 700, color: C.t2, margin: "0 0 8px" }}>
+            No hay personal {activos === "true" ? "activo" : "inactivo"}
+          </p>
+          <p style={{ fontSize: 13, margin: "0 0 20px" }}>
+            {search ? `Sin resultados para "${search}"` : "Agrega mantenimiento, limpieza u otro puesto operativo."}
+          </p>
+          {!search && (
+            <button onClick={() => { setEditing(null); setModal(true); }}
+              style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 10, border: "none", background: C.accent, color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+              <IcoPlus /> Agregar personal
+            </button>
+          )}
+        </div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: 16 }}>
+          {personal.map(p => (
+            <PersonalCard key={p.id} p={p}
+              onEdit={(p) => { setEditing(p); setModal(true); }}
+              onToggle={handleToggle}
+              selectable={selectionMode}
+              selected={selectedIds.includes(p.id)}
+              onToggleSelect={toggleSelect}
+            />
+          ))}
+        </div>
+      )}
+
+      <PersonalModal
+        open={modal}
+        onClose={() => { setModal(false); setEditing(null); }}
+        onSave={handleSave}
+        initial={editing}
+        saving={saving}
+        puestos={puestos}
+      />
+    </>
+  );
+}
+
 // ═════════════════════════════════════════════════════════════════════════════
 // COMPONENTE PRINCIPAL
 // ═════════════════════════════════════════════════════════════════════════════
 export default function OwnerStaff() {
+  // "staff" = Entrenador/Recepcionista (con acceso al sistema); "personal"
+  // = mantenimiento/limpieza/etc. (solo directorio, sin login -- ver
+  // models/personal_operativo.py).
+  const [tab, setTab] = useState("staff");
+
   const [staff,   setStaff]   = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving,  setSaving]  = useState(false);
@@ -378,6 +777,58 @@ export default function OwnerStaff() {
   // Integrante cuya ficha completa se está viendo; null cierra el modal.
   const [detalle, setDetalle] = useState(null);
   const [confirm, setConfirm] = useState(null);
+
+  // -- Traslado de sucursal, selección múltiple (mismo criterio que
+  //    MiembrosDashboard.jsx -- HU-48, adaptado a staff) -------------------
+  // Compartido entre la pestaña de staff y la de personal operativo: la
+  // lista de sucursales destino es la misma organización en ambos casos.
+  const [sucursalesDestino, setSucursalesDestino] = useState([]);
+  const [selectionMode,     setSelectionMode]     = useState(false);
+  const [selectedIds,       setSelectedIds]       = useState([]);
+  const [destinoId,         setDestinoId]         = useState("");
+  const [trasladando,       setTrasladando]       = useState(false);
+
+  useEffect(() => {
+    getSucursalesDestino()
+      .then(({ data }) => setSucursalesDestino(data || []))
+      .catch(() => setSucursalesDestino([]));
+  }, []);
+
+  const puedeTrasladar = activos === "true" && sucursalesDestino.length > 1;
+
+  const toggleSelect = useCallback((id) => {
+    setSelectedIds(ids => (ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]));
+  }, []);
+
+  const handleTrasladoMasivo = () => {
+    if (!selectedIds.length || !destinoId) return;
+    const sucursal = sucursalesDestino.find(s => String(s.id) === String(destinoId));
+    setConfirm({
+      title:  `¿Trasladar ${selectedIds.length} integrante${selectedIds.length !== 1 ? "s" : ""} del staff?`,
+      message: `Se moverán a "${sucursal?.nombre}" y podrán operar ahí de inmediato.`,
+      danger: false,
+      onConfirm: async () => {
+        setConfirm(null);
+        setTrasladando(true);
+        try {
+          const { data } = await trasladarStaff(selectedIds, Number(destinoId));
+          const destinoNombre = data.sucursal_destino?.nombre || sucursal?.nombre || "la sucursal destino";
+          toast.success(`${data.movidos} integrante${data.movidos !== 1 ? "s" : ""} trasladado${data.movidos !== 1 ? "s" : ""} a ${destinoNombre}`);
+          setSelectedIds([]); setSelectionMode(false); setDestinoId("");
+          load();
+        } catch (err) {
+          const resp = err?.response?.data;
+          if (err?.response?.status === 409 && resp) {
+            toast.error(`${resp.msg} — caben ${resp.caben}, solicitados ${resp.solicitados}`);
+          } else {
+            toast.error(resp?.msg || "No se pudo completar el traslado");
+          }
+        } finally {
+          setTrasladando(false);
+        }
+      },
+    });
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -477,19 +928,61 @@ export default function OwnerStaff() {
       />
 
       {/* Header */}
-      <div className="section-header" style={{ marginBottom: 24 }}>
+      <div className="section-header" style={{ marginBottom: 16 }}>
         <div>
           <h2 className="page-title" style={{ margin: "0 0 4px" }}>Staff del Gimnasio</h2>
           <p style={{ margin: 0, fontSize: 13, color: C.t2 }}>
             {nEnt} entrenador{nEnt !== 1 ? "es" : ""} · {nRec} recepcionista{nRec !== 1 ? "s" : ""}
           </p>
         </div>
-        <button onClick={() => { setEditing(null); setModal(true); }}
-          style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 18px", borderRadius: 10, border: "none", background: C.accent, color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
-          <IcoPlus /> Agregar Staff
-        </button>
+        {tab === "staff" && (
+          <div style={{ display: "flex", gap: 10 }}>
+            {puedeTrasladar && (
+              <button
+                onClick={() => { setSelectionMode(v => !v); setSelectedIds([]); setDestinoId(""); }}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 6,
+                  padding: "9px 16px", borderRadius: 10, border: `1px solid ${selectionMode ? C.accent : C.border}`,
+                  background: selectionMode ? `${C.accent}18` : "transparent",
+                  color: selectionMode ? C.accent : C.t2, fontSize: 13, fontWeight: 600, cursor: "pointer",
+                }}
+              >
+                <IcoMove /> {selectionMode ? "Cancelar selección" : "Cambiar de sucursal"}
+              </button>
+            )}
+            <button onClick={() => { setEditing(null); setModal(true); }}
+              style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 18px", borderRadius: 10, border: "none", background: C.accent, color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+              <IcoPlus /> Agregar Staff
+            </button>
+          </div>
+        )}
       </div>
 
+      {/* Pestañas: staff con acceso al sistema vs. personal operativo (sin
+          login -- mantenimiento, limpieza, etc.) */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 20, borderBottom: `1px solid ${C.border}` }}>
+        {[
+          { v: "staff",    label: "Con acceso al sistema" },
+          { v: "personal", label: "Personal operativo" },
+        ].map(({ v, label }) => (
+          <button key={v} onClick={() => setTab(v)}
+            style={{
+              padding: "10px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer",
+              background: "none", border: "none", borderBottom: `2px solid ${tab === v ? C.accent : "transparent"}`,
+              color: tab === v ? C.accent : C.t2, marginBottom: -1,
+            }}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "personal" ? (
+        <PersonalSection
+          sucursalesDestino={sucursalesDestino}
+          puedeTrasladar={sucursalesDestino.length > 1}
+        />
+      ) : (
+      <>
       {/* Toolbar */}
       <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap", alignItems: "center" }}>
         <div style={{ flex: 1, minWidth: 220, position: "relative", display: "flex", alignItems: "center" }}>
@@ -524,6 +1017,47 @@ export default function OwnerStaff() {
         </div>
       </div>
 
+      {/* Barra de traslado masivo -- solo visible en modo selección */}
+      {selectionMode && (
+        <div style={{
+          display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
+          padding: "12px 16px", marginBottom: 20, borderRadius: 10,
+          background: `${C.accent}0F`, border: `1px solid ${C.accent}33`,
+        }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: C.t1, whiteSpace: "nowrap" }}>
+            {selectedIds.length} seleccionado{selectedIds.length !== 1 ? "s" : ""}
+          </span>
+          <select
+            value={destinoId}
+            onChange={e => setDestinoId(e.target.value)}
+            style={{ background: C.input, border: `1px solid ${C.border}`, borderRadius: 8, padding: "7px 10px", color: C.t1, fontSize: 13, minWidth: 220, flex: "0 1 260px" }}
+          >
+            <option value="">Elegir sucursal destino…</option>
+            {sucursalesDestino.filter(s => !s.es_actual).map(s => (
+              <option key={s.id} value={s.id}>{s.nombre}</option>
+            ))}
+          </select>
+          <button
+            disabled={!selectedIds.length || !destinoId || trasladando}
+            onClick={handleTrasladoMasivo}
+            style={{
+              padding: "8px 18px", borderRadius: 8, border: "none",
+              background: C.accent, color: "#fff", fontSize: 13, fontWeight: 700,
+              cursor: (!selectedIds.length || !destinoId || trasladando) ? "not-allowed" : "pointer",
+              opacity: (!selectedIds.length || !destinoId || trasladando) ? 0.5 : 1,
+            }}
+          >
+            {trasladando ? "Trasladando…" : "Trasladar seleccionados"}
+          </button>
+          <button
+            onClick={() => { setSelectionMode(false); setSelectedIds([]); setDestinoId(""); }}
+            style={{ padding: "8px 14px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", color: C.t2, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+          >
+            Cancelar
+          </button>
+        </div>
+      )}
+
       {/* Grid */}
       {loading ? (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: 16 }}>
@@ -555,6 +1089,9 @@ export default function OwnerStaff() {
               onEdit={(u) => { setEditing(u); setModal(true); }}
               onToggle={handleToggle}
               onResend={handleResend}
+              selectable={selectionMode}
+              selected={selectedIds.includes(u.id)}
+              onToggleSelect={toggleSelect}
             />
           ))}
         </div>
@@ -573,6 +1110,8 @@ export default function OwnerStaff() {
         onClose={() => setDetalle(null)}
         titulo="Detalle del staff"
       />
+      </>
+      )}
     </div>
   );
 }
