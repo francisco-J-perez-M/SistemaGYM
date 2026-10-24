@@ -131,10 +131,19 @@ services:
       - gympro
 
   # ── Mobile Expo Dev Server ──────────────────────────────────────────────────
-  # Servidor de desarrollo Expo para la app nativa (iOS / Android).
-  #
-  # La IP del host se detecta automáticamente en el entrypoint.sh:
-  #   - Mac / Windows Docker Desktop → host.docker.internal
-  #   - Linux                        → default gateway de la red bridge
-  #
-  # Sobreescritura manual (solo si la de
+  # Metro NO necesita Docker. Usa start-mobile.ps1 en Windows para arrancar
+  # el servidor Expo directamente con Node.js local (más simple y sin problemas
+  # de red, volúmenes ni TTY).
+  # Ver: mobile/README.md o start-mobile.ps1
+
+# ── Volúmenes persistentes ───────────────────────────────────────────────────
+volumes:
+  mongo_data:
+    driver: local
+  pg_data:
+    driver: local
+
+# ── Red interna ──────────────────────────────────────────────────────────────
+networks:
+  gympro:
+    driver: bridge

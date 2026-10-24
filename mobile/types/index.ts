@@ -127,48 +127,110 @@ export interface MembershipPlan {
 
 // ── Trainer ───────────────────────────────────────────────────────────────────
 
+/**
+ * Respuesta real de GET /api/trainer/dashboard
+ */
 export interface TrainerDashboard {
-  trainer:       { nombre: string; especialidad?: string };
-  total_clients: number;
-  active_today:  number;
-  sessions_week: number;
-  pending_tasks: number;
+  trainer_name:      string;
+  stats: {
+    total_clients:   number;
+    sessions_today:  number;
+    sessions_week:   number;
+    completion_rate: number;
+  };
+  today_sessions:    any[];
+  upcoming_sessions: any[];
 }
 
-export interface TrainerClient {
-  _id:          string;
-  nombre:       string;
-  email:        string;
-  objetivo?:    string;
-  ultima_sesion?: string;
-  progreso?:    number;
+/**
+ * Un cliente tal como lo devuelve GET /api/trainer/clients
+ * Campos reales: id (no _id), name (no nombre), goal (no objetivo)
+ */
+export interface TrainerClientAPI {
+  id:            string;
+  name:          string;
+  goal?:         string;
+  sessionsTotal: number;
+  attendance:    number;
+  streak:        number;
+  status:        string;
 }
 
-// ── Admin ─────────────────────────────────────────────────────────────────────
+/** Respuesta paginada de GET /api/trainer/clients */
+export interface TrainerClientsResponse {
+  success:    boolean;
+  clients:    TrainerClientAPI[];
+  pagination: {
+    page:        number;
+    per_page:    number;
+    total:       number;
+    total_pages: number;
+  };
+}
 
-export interface AdminKPI {
-  total_miembros:     number;
-  nuevos_mes:         number;
-  ingresos_mes:       number;
-  membresias_activas: number;
-  asistencias_hoy:    number;
-  por_vencer:         number;
+// ── Admin / Owner Gym ─────────────────────────────────────────────────────────
+
+/**
+ * Respuesta real de GET /api/owner_gym/dashboard
+ * (estructura anidada con miembros, ingresos, staff, ventas)
+ */
+export interface OwnerDashboard {
+  miembros: {
+    activos:    number;
+    inactivos:  number;
+    total:      number;
+    nuevos_mes: number;
+    por_vencer: number;
+  };
+  ingresos: {
+    mes_actual:    number;
+    mes_anterior:  number;
+    variacion_pct: number;
+  };
+  ventas_pos: {
+    total_mes:      number;
+    transacciones:  number;
+  };
+  staff: {
+    entrenadores:   number;
+    recepcionistas: number;
+  };
+  tipos_membresia: number;
 }
 
 export interface MiembroAdmin {
-  _id:           string;
-  nombre:        string;
-  email:         string;
-  membresia?:    string;
-  estado?:       string;
+  _id:            string;
+  nombre:         string;
+  email:          string;
+  membresia?:     string;
+  estado?:        string;
   fecha_ingreso?: string;
 }
 
-export interface Pago {
-  _id:           string;
-  miembro_nombre: string;
-  monto:         number;
-  concepto:      string;
-  fecha:         string;
-  metodo?:       string;
+/** Respuesta paginada de GET /api/miembros */
+export interface MiembrosResponse {
+  miembros:     MiembroAdmin[];
+  total:        number;
+  pages:        number;
+  current_page: number;
+}
+
+/** Un pago tal como lo devuelve la API (campos reales de Pago.to_dict()) */
+export interface PagoAPI {
+  id_pago?:       string;
+  id_miembro?:    string;
+  nombre_miembro: string;   // campo real del backend
+  monto:          number;
+  concepto:       string;
+  metodo_pago?:   string;   // campo real del backend
+  fecha_pago:     string;   // campo real del backend
+  id_gimnasio?:   number;
+}
+
+/** Respuesta paginada de GET /api/pagos */
+export interface PagosResponse {
+  pagos:  PagoAPI[];
+  total:  number;
+  pages:  number;
+  page:   number;
 }

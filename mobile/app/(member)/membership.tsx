@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
+import { toDateStr, toStr } from '../../utils/format';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import MembershipCard from '../../components/member/MembershipCard';
 import Card from '../../components/ui/Card';
@@ -148,9 +149,9 @@ export default function MembershipScreen() {
           {historial.map((h: any, i: number) => (
             <View key={i} style={styles.histRow}>
               <View>
-                <Text style={styles.histPlan}>{h.plan ?? h.nombre_plan ?? 'Plan'}</Text>
+                <Text style={styles.histPlan}>{toStr(h.plan ?? h.nombre_plan, 'Plan')}</Text>
                 <Text style={styles.histDates}>
-                  {h.fecha_inicio?.slice(0, 10)} → {h.fecha_fin?.slice(0, 10)}
+                  {toDateStr(h.fecha_inicio)} → {toDateStr(h.fecha_fin)}
                 </Text>
               </View>
               <Badge

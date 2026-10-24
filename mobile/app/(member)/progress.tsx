@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
+import { toDateStr, toArray } from '../../utils/format';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
@@ -30,12 +31,12 @@ export default function ProgressScreen() {
   const [cadera,  setCadera]  = useState('');
   const [saving,  setSaving]  = useState(false);
 
-  const sorted = [...(records ?? [])].sort(
+  const sorted = [...toArray(records)].sort(
     (a, b) => new Date(a.fecha_registro).getTime() - new Date(b.fecha_registro).getTime()
   );
 
   const chartData = sorted.slice(-10);
-  const labels    = chartData.map((r) => r.fecha_registro.slice(5)); // MM-DD
+  const labels    = chartData.map((r) => toDateStr(r.fecha_registro, 10).slice(5) || ''); // MM-DD
   const weights   = chartData.map((r) => r.peso);
 
   const last   = sorted[sorted.length - 1];
@@ -156,7 +157,7 @@ export default function ProgressScreen() {
           [...sorted].reverse().slice(0, 15).map((r) => (
             <View key={r._id} style={styles.histRow}>
               <View>
-                <Text style={styles.histDate}>{r.fecha_registro.slice(0, 10)}</Text>
+                <Text style={styles.histDate}>{toDateStr(r.fecha_registro)}</Text>
                 <View style={styles.histMeasures}>
                   {r.cintura && <Text style={styles.histMini}>Cintura: {r.cintura}cm</Text>}
                   {r.cadera  && <Text style={styles.histMini}>Cadera: {r.cadera}cm</Text>}

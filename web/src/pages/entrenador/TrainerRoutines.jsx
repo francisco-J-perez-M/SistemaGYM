@@ -77,7 +77,7 @@ function getVideoBlobUrl(b64, exerciseId) {
 /**
  * Re-encoda el video a menor resolución (≤480p) y bitrate (400 kbps)
  * usando Canvas + MediaRecorder nativo. Sin dependencias externas.
- * Rechaza si la duración supera 15 segundos.
+ * Rechaza si la duración supera 30 segundos.
  */
 async function processVideo(file) {
   return new Promise((resolve, reject) => {
@@ -111,7 +111,7 @@ async function processVideo(file) {
 
       const recorder = new MediaRecorder(canvas.captureStream(20), {
         mimeType,
-        videoBitsPerSecond: 800_000, //  400_000 ~750 KB para 15 s, 800_000 para 30 s
+        videoBitsPerSecond: 800_000, // 800 kbps → ~3 MB para 30 s
       });
 
       const chunks = [];
@@ -253,7 +253,7 @@ function ImageSlots({ images = [], onChange }) {
 }
 
 /* ════════════════════════════════════════════
-   SUBCOMPONENTE: Slot de video (1 video, máx 15 s)
+   SUBCOMPONENTE: Slot de video (1 video, máx 30 s)
 ════════════════════════════════════════════ */
 function VideoSlot({ video, onChange, exerciseId }) {
   const inputRef  = useRef();
@@ -288,7 +288,7 @@ function VideoSlot({ video, onChange, exerciseId }) {
         fontSize: 11, fontWeight: 600, color: "var(--text-secondary)",
         display: "flex", alignItems: "center", gap: 5, marginBottom: 6,
       }}>
-        <FiVideo size={11} /> Video demostrativo (máx. 15 s · se comprime automáticamente)
+        <FiVideo size={11} /> Video demostrativo (máx. 30 s · se comprime automáticamente)
       </label>
 
       {blobUrl ? (
@@ -341,7 +341,7 @@ function VideoSlot({ video, onChange, exerciseId }) {
               <FiVideo size={14} style={{ flexShrink: 0 }} />
               {err
                 ? <span style={{ color: "var(--danger)" }}>{err} — click para reintentar</span>
-                : <span>Subir video (MP4 / WebM · máx. 15 s)</span>
+                : <span>Subir video (MP4 / WebM · máx. 30 s)</span>
               }
             </>
           )}

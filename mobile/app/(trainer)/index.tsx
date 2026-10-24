@@ -1,32 +1,43 @@
 /**
- * Dashboard del Entrenador — KPIs, clientes de hoy, sesiones próximas.
+ * Dashboard del Entrenador — KPIs, sesiones de hoy, clientes recientes.
+ *
+ * GET /api/trainer/dashboard → {trainer_name, stats:{total_clients, sessions_today,
+ *                               sessions_week, completion_rate}, today_sessions, upcoming_sessions}
+ * GET /api/trainer/clients   → {clients:[{id,name,goal,sessionsTotal,attendance,streak,status}],
+ *                               pagination}
  */
 import React from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
 import { useAuth } from '../../hooks/useAuth';
+import { toInitial, toStr, toFirstName, toArray } from '../../utils/format';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import StatCard from '../../components/admin/StatCard';
 import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
-import type { TrainerDashboard, TrainerClient } from '../../types';
+import type { TrainerDashboard, TrainerClientsResponse, TrainerClientAPI } from '../../types';
 
 export default function TrainerDashboardScreen() {
   const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
-  const { data,    loading,   refetch   } = useFetch<TrainerDashboard>(ENDPOINTS.TRAINER_DASHBOARD);
-  const { data: clients } = useFetch<TrainerClient[]>(ENDPOINTS.TRAINER_CLIENTS);
+  const { data,          loading,   refetch } = useFetch<TrainerDashboard>(ENDPOINTS.TRAINER_DASHBOARD);
+  const { data: clientsData }                 = useFetch<TrainerClientsResponse>(ENDPOINTS.TRAINER_CLIENTS);
 
   if (loading) return <LoadingSpinner fullScreen message="Cargando panel…" />;
 
-  const nombre = user?.nombre?.split(' ')[0] ?? 'Entrenador';
+  // Extraer datos desde la estructura real del API
+  const trainerName  = toFirstName(data?.trainer_name ?? user?.nombre, 'Entrenador');
+  const totalClients = data?.stats?.total_clients   ?? 0;
+  const sessionsToday= data?.stats?.sessions_today  ?? 0;
+  const sessionsWeek = data?.stats?.sessions_week   ?? 0;
+  const completionRate= data?.stats?.completion_rate ?? 0;
+  const clients      = toArray(clientsData?.clients);
 
   return (
     <ScrollView
@@ -39,7 +50,7 @@ export default function TrainerDashboardScreen() {
       <View style={styles.topBar}>
         <View>
           <Text style={styles.greeting} accessibilityRole="header">Panel de Entrenador</Text>
-          <Text style={styles.sub}>Hola, {nombre}</Text>
+          <Text style={styles.sub}>Hola, {trainerName}</Text>
         </View>
         <TouchableOpacity
           style={styles.logoutBtn}
@@ -52,70 +63,66 @@ export default function TrainerDashboardScreen() {
       </View>
 
       {/* Hero banner */}
-      <LinearGradient colors={['#1e1b4b', '#312e81']} style={styles.heroBanner} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+      <View style={styles.heroBanner}>
         <View style={styles.heroIcon}>
           <Ionicons name="fitness-outline" size={28} color={Colors.accent} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.heroTitle}>{data?.trainer?.nombre ?? user?.nombre ?? 'Entrenador'}</Text>
-          <Text style={styles.heroSub}>{data?.trainer?.especialidad ?? 'Entrenador personal'}</Text>
+          <Text style={styles.heroTitle}>{toStr(data?.trainer_name ?? user?.nombre, 'Entrenador')}</Text>
+          <Text style={styles.heroSub}>Entrenador Personal</Text>
         </View>
         <Badge label="Activo" color="success" />
-      </LinearGradient>
+      </View>
 
-      {/* KPIs */}
+      {/* KPIs — campos reales del API */}
       <View style={styles.kpiGrid}>
         <StatCard
           label="Total clientes"
-          value={data?.total_clients ?? 0}
+          value={totalClients}
           icon={<Ionicons name="people-outline" size={20} color={Colors.accent} />}
           color={Colors.accent}
         />
         <StatCard
-          label="Activos hoy"
-          value={data?.active_today ?? 0}
+          label="Sesiones hoy"
+          value={sessionsToday}
           icon={<Ionicons name="checkmark-circle-outline" size={20} color={Colors.success} />}
           color={Colors.success}
         />
         <StatCard
           label="Sesiones / semana"
-          value={data?.sessions_week ?? 0}
+          value={sessionsWeek}
           icon={<Ionicons name="calendar-outline" size={20} color={Colors.warning} />}
           color={Colors.warning}
         />
         <StatCard
-          label="Tareas pendientes"
-          value={data?.pending_tasks ?? 0}
-          icon={<Ionicons name="list-outline" size={20} color={Colors.error} />}
-          color={Colors.error}
+          label="% Completado"
+          value={`${completionRate}%`}
+          icon={<Ionicons name="trending-up-outline" size={20} color={Colors.info} />}
+          color={Colors.info}
         />
       </View>
 
-      {/* Recent clients */}
+      {/* Clientes recientes — campos reales: id, name, goal, attendance */}
       <Card>
         <Text style={styles.sectionTitle}>Clientes recientes</Text>
-        {(clients ?? []).slice(0, 5).length === 0 ? (
+        {clients.slice(0, 5).length === 0 ? (
           <View style={styles.empty}>
             <Ionicons name="people-outline" size={32} color={Colors.textMuted} />
             <Text style={styles.emptyText}>No tienes clientes asignados aún.</Text>
           </View>
         ) : (
-          (clients ?? []).slice(0, 5).map((c) => (
-            <View key={c._id} style={styles.clientRow}>
+          clients.slice(0, 5).map((c: TrainerClientAPI) => (
+            <View key={c.id} style={styles.clientRow}>
               <View style={styles.clientAvatar}>
-                <Text style={styles.clientInitial}>
-                  {c.nombre.charAt(0).toUpperCase()}
-                </Text>
+                <Text style={styles.clientInitial}>{toInitial(c.name)}</Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.clientName}>{c.nombre}</Text>
-                <Text style={styles.clientMeta}>{c.objetivo ?? c.email}</Text>
+                <Text style={styles.clientName}>{toStr(c.name)}</Text>
+                <Text style={styles.clientMeta}>{toStr(c.goal)}</Text>
               </View>
-              {c.ultima_sesion && (
-                <Text style={styles.lastSession}>
-                  Última: {c.ultima_sesion.slice(0, 10)}
-                </Text>
-              )}
+              {c.attendance != null ? (
+                <Text style={styles.lastSession}>{c.attendance}% asist.</Text>
+              ) : null}
             </View>
           ))
         )}
@@ -131,7 +138,7 @@ const styles = StyleSheet.create({
   greeting: { color: Colors.text, fontSize: 22, fontWeight: '700' },
   sub:      { color: Colors.textSecondary, fontSize: 13 },
   logoutBtn:{ padding: 8 },
-  heroBanner: { flexDirection: 'row', alignItems: 'center', borderRadius: 18, padding: 16, gap: 12 },
+  heroBanner: { flexDirection: 'row', alignItems: 'center', borderRadius: 18, padding: 16, gap: 12, backgroundColor: '#1e1b4b' },
   heroIcon: {
     width: 50, height: 50, borderRadius: 16,
     backgroundColor: 'rgba(108,99,255,0.2)', alignItems: 'center', justifyContent: 'center',

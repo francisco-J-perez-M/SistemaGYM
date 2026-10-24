@@ -15,7 +15,14 @@ export default function RootLayout() {
   const loading = useAuthStore((s) => s.loading);
 
   useEffect(() => {
-    hydrate().then(() => SplashScreen.hideAsync());
+    hydrate().then(() => {
+      // expo-splash-screen v31+ usa hide() sync; v0.x usaba hideAsync().
+      if (typeof (SplashScreen as any).hide === 'function') {
+        (SplashScreen as any).hide();
+      } else {
+        SplashScreen.hideAsync();
+      }
+    });
   }, [hydrate]);
 
   return (

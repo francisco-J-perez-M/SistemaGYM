@@ -7,7 +7,7 @@ import {
   Alert, TextInput, RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
+// LinearGradient eliminado — puede fallar en Fabric (new arch) antes de registrarse
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
 import { ENDPOINTS } from '../../constants/Api';
@@ -77,15 +77,12 @@ export default function ProfileScreen() {
       showsVerticalScrollIndicator={false}
       refreshControl={<RefreshControl refreshing={loading} onRefresh={refetch} tintColor={Colors.accent} />}
     >
-      {/* Hero banner */}
-      <LinearGradient
-        colors={['#1e1b4b', '#312e81', Colors.background]}
-        style={[styles.hero, { paddingTop: insets.top + 20 }]}
-      >
+      {/* Hero banner — sin LinearGradient */}
+      <View style={[styles.hero, { paddingTop: insets.top + 20 }]}>
         <View style={styles.avatarWrap} accessibilityLabel={`Avatar de ${displayNombre}`}>
-          <LinearGradient colors={Colors.gradientAccent} style={styles.avatar}>
+          <View style={styles.avatar}>
             <Text style={styles.initials}>{initials}</Text>
-          </LinearGradient>
+          </View>
         </View>
         <Text style={styles.heroName}>{displayNombre}</Text>
         <Text style={styles.heroEmail}>{data?.email ?? user?.email ?? ''}</Text>
@@ -95,7 +92,7 @@ export default function ProfileScreen() {
           <StatPill label="Nivel" value={data?.nivel_experiencia ?? '—'} icon="bar-chart-outline" />
           <StatPill label="Altura" value={data?.estatura ? `${data.estatura}m` : '—'} icon="resize-outline" />
         </View>
-      </LinearGradient>
+      </View>
 
       <View style={styles.body}>
         {/* Info card */}
@@ -211,14 +208,16 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
     paddingHorizontal: 24,
     gap:           10,
+    backgroundColor: '#1e1b4b',
   },
   avatarWrap: { marginBottom: 4 },
   avatar: {
-    width:          90,
-    height:         90,
-    borderRadius:   28,
-    alignItems:     'center',
-    justifyContent: 'center',
+    width:           90,
+    height:          90,
+    borderRadius:    28,
+    backgroundColor: Colors.accent,
+    alignItems:      'center',
+    justifyContent:  'center',
   },
   initials:  { color: '#fff', fontSize: 32, fontWeight: '800' },
   heroName:  { color: Colors.text, fontSize: 22, fontWeight: '700' },

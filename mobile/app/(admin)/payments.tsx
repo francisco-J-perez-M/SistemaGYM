@@ -1,3 +1,9 @@
+/**
+ * Pantalla Cobros — lista de pagos del gimnasio.
+ *
+ * API: GET /api/pagos → { pagos: [...], total: N, pages: N, page: N }
+ * Campos reales de cada pago: nombre_miembro, fecha_pago, metodo_pago (no miembro_nombre/fecha)
+ */
 import React from 'react';
 import { View, Text, StyleSheet, FlatList, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -5,14 +11,17 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
+import { toDateStr, toStr, toArray } from '../../utils/format';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
-import type { Pago } from '../../types';
+import type { PagosResponse, PagoAPI } from '../../types';
 
 export default function AdminPaymentsScreen() {
   const insets = useSafeAreaInsets();
-  const { data, loading, refetch } = useFetch<Pago[]>(ENDPOINTS.PAGOS);
+  // API devuelve { pagos: [...], total: N, pages: N, page: N }
+  const { data, loading, refetch } = useFetch<PagosResponse>(ENDPOINTS.PAGOS);
 
-  const total = (data ?? []).reduce((sum, p) => sum + (p.monto ?? 0), 0);
+  const pagos = toArray(data?.pagos);
+  const total = pagos.reduce((sum, p) => sum + (p.monto ?? 0), 0);
 
   if (loading) return <LoadingSpinner fullScreen message="Cargando cobros…" />;
 
@@ -20,7 +29,7 @@ export default function AdminPaymentsScreen() {
     <View style={[styles.screen, { paddingTop: insets.top + 16 }]}>
       <View style={styles.header}>
         <Text style={styles.title} accessibilityRole="header">Cobros</Text>
-        <Text style={styles.sub}>{(data ?? []).length} registros</Text>
+        <Text style={styles.sub}>{data?.total ?? pagos.length} registros</Text>
       </View>
 
       {/* Total banner */}
@@ -30,13 +39,13 @@ export default function AdminPaymentsScreen() {
         </View>
         <View>
           <Text style={styles.totalLabel}>Total recaudado</Text>
-          <Text style={styles.totalValue}>${total.toLocaleString()}</Text>
+          <Text style={styles.totalValue}>${Math.round(total).toLocaleString()}</Text>
         </View>
       </View>
 
       <FlatList
-        data={data ?? []}
-        keyExtractor={(p) => p._id}
+        data={pagos}
+        keyExtractor={(p, i) => p.id_pago ?? String(i)}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={refetch} tintColor={Colors.accent} />}
@@ -46,15 +55,18 @@ export default function AdminPaymentsScreen() {
             <Text style={styles.emptyText}>No hay cobros registrados.</Text>
           </View>
         }
-        renderItem={({ item: p }) => (
-          <View style={styles.pagoCard} accessible accessibilityLabel={`Pago de ${p.miembro_nombre}: $${p.monto}`}>
+        renderItem={({ item: p }: { item: PagoAPI }) => (
+          <View style={styles.pagoCard} accessible accessibilityLabel={`Pago de ${p.nombre_miembro}: $${p.monto}`}>
             <View style={styles.pagoIcon}>
               <Ionicons name="receipt-outline" size={18} color={Colors.warning} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.pagoNombre}>{p.miembro_nombre}</Text>
-              <Text style={styles.pagoConcepto}>{p.concepto}</Text>
-              <Text style={styles.pagoFecha}>{p.fecha?.slice(0, 10)}</Text>
+              {/* Campos reales: nombre_miembro, fecha_pago, metodo_pago */}
+              <Text style={styles.pagoNombre}>{toStr(p.nombre_miembro)}</Text>
+              <Text style={styles.pagoConcepto}>{toStr(p.concepto)}</Text>
+              <Text style={styles.pagoFecha}>
+                {toDateStr(p.fecha_pago)}{p.metodo_pago ? `  ·  ${p.metodo_pago}` : ''}
+              </Text>
             </View>
             <Text style={styles.pagoMonto}>${p.monto}</Text>
           </View>

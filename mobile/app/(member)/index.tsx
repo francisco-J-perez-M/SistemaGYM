@@ -7,11 +7,11 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
 import { useFetch } from '../../hooks/useFetch';
 import { useAuth } from '../../hooks/useAuth';
+import { toFirstName } from '../../utils/format';
 import { ENDPOINTS } from '../../constants/Api';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import KPICard from '../../components/member/KPICard';
@@ -59,7 +59,7 @@ export default function MemberDashboard() {
 
   if (loading) return <LoadingSpinner fullScreen message="Cargando tu dashboard…" />;
 
-  const nombre = user?.nombre?.split(' ')[0] ?? 'Miembro';
+  const nombre = toFirstName(user?.nombre, 'Miembro');
   const stats  = data?.workoutStats;
   const weekly = data?.weeklyProgress ?? [];
 
@@ -104,17 +104,12 @@ export default function MemberDashboard() {
 
       {/* ── Racha banner ── */}
       {!!stats?.streakDays && (
-        <LinearGradient
-          colors={['#7c3aed', '#6c63ff']}
-          style={styles.streakBanner}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-        >
+        <View style={styles.streakBanner}>
           <Ionicons name="flame" size={20} color="#fbbf24" />
           <Text style={styles.streakText}>
             ¡Racha de <Text style={{ fontWeight: '800' }}>{stats.streakDays} días</Text>! Sigue así
           </Text>
-        </LinearGradient>
+        </View>
       )}
 
       {/* ── KPIs ── */}
@@ -256,6 +251,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius:    14,
+    backgroundColor: '#7c3aed',  // equivale al primer color del gradiente anterior
   },
   streakText: { color: '#fff', fontSize: 14 },
   kpiGrid: {
