@@ -345,7 +345,7 @@ export default function TrainerRegresion() {
     setMembersLoading(true);
     try {
       const token = localStorage.getItem("token");
-      const r     = await fetch(`${API_BASE}/api/trainer/members`, {
+      const r     = await fetch(`${API_BASE}/api/trainer/members?my_clients=1`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!r.ok) throw new Error();
