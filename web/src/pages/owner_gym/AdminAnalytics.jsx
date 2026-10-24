@@ -7,7 +7,7 @@
  */
 import { useState, useEffect, useCallback } from "react";
 import {
-  BarChart, Bar, PieChart, Pie, Cell,
+  BarChart, Bar, PieChart, Pie, Cell, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer,
 } from "recharts";
@@ -1100,6 +1100,199 @@ function TabFuerza() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// TAB: Laboratorio de Modelos
+// ─────────────────────────────────────────────────────────────────────────────
+const ConfusionMatrix = ({ matrix, clases }) => {
+  if (!matrix || !matrix.length) return null;
+  const max = Math.max(1, ...matrix.flat());
+  return (
+    <table style={{ borderCollapse: "separate", borderSpacing: 3, marginTop: 8 }}>
+      <thead>
+        <tr>
+          <th />
+          {clases.map((c, i) => <th key={i} style={{ fontSize: 10, color: "var(--text-secondary)", fontWeight: 600, padding: "2px 6px" }}>{c}</th>)}
+        </tr>
+      </thead>
+      <tbody>
+        {matrix.map((row, ri) => (
+          <tr key={ri}>
+            <td style={{ fontSize: 10, color: "var(--text-secondary)", fontWeight: 600, paddingRight: 6, textAlign: "right" }}>{clases[ri]}</td>
+            {row.map((v, ci) => {
+              const a = 0.15 + 0.7 * (v / max);
+              const diag = ri === ci;
+              return (
+                <td key={ci} style={{
+                  background: diag ? `rgba(76,217,100,${a.toFixed(2)})` : `rgba(255,107,157,${a.toFixed(2)})`,
+                  color: "var(--text-primary)", borderRadius: 4, minWidth: 34, textAlign: "center",
+                  padding: "6px 8px", fontSize: 12, fontWeight: 700,
+                }}>{v}</td>
+              );
+            })}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+};
+
+function TabModelos() {
+  const [data, setData]       = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState(null);
+  const [tl, setTL]           = useState(false);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true); setError(null);
+    try {
+      const token = localStorage.getItem("token");
+      const r = await fetch(`${API_BASE}/api/analytics/modelos`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) throw new Error(`Error ${r.status}`);
+      setData(await r.json());
+    } catch (e) { setError(e.message); }
+    finally { setLoading(false); }
+  }, []);
+
+  const retrain = async () => {
+    setTL(true); setError(null);
+    try {
+      const token = localStorage.getItem("token");
+      const r = await fetch(`${API_BASE}/api/analytics/modelos/train`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || "Error");
+      setData(j);
+    } catch (e) { setError(e.message); }
+    finally { setTL(false); }
+  };
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  if (loading) return <LoadingSpinner />;
+  if (error || !data || data.error) return (
+    <NoDataBox icon={<FiActivity />} title="Todavía no hay datos para los modelos"
+      description={data?.error || "Cuando haya suficiente historial de miembros, aquí verás la comparación de algoritmos."}
+      onRetry={fetchData} />
+  );
+
+  const hintP     = { fontSize: 12, color: "var(--text-secondary)", margin: "-4px 0 12px", lineHeight: 1.6 };
+  const tableStyle = { width: "100%", borderCollapse: "collapse", fontSize: 13 };
+  const thS = { padding: "8px 10px", textAlign: "left", color: "var(--text-secondary)", fontWeight: 500, borderBottom: "1px solid var(--border-dark)" };
+  const tdS = { padding: "8px 10px", color: "var(--text-primary)", fontWeight: 600 };
+
+  const reg = data.regresion, clf = data.clasificacion, mc = data.multiclase;
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, marginBottom: 10 }}>
+        <div style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.7, maxWidth: 760 }}>
+          <strong style={{ color: "var(--text-primary)" }}>Laboratorio de Modelos.</strong>{" "}
+          Entrenamos varios algoritmos sobre los mismos datos de tu gimnasio y comparamos qué tan bien predice cada uno.
+          Muestra distintas técnicas de inteligencia artificial y cómo se evalúan.
+        </div>
+        <TrainBtn loading={tl} onClick={retrain} label="Actualizar modelos" />
+      </div>
+
+      {/* Regresión */}
+      <SectionTitle>Regresión — predecir el peso corporal</SectionTitle>
+      {reg?.error ? <p style={hintP}>{reg.error}</p> : (
+        <>
+          <p style={hintP}>Comparamos una recta simple, una con varias variables y una curva. Un R² más cercano a 1 y un error (RMSE / MAE) más bajo indican mejor predicción. Datos usados: {reg.n} registros.</p>
+          <div style={{ display: "flex", gap: 24, flexWrap: "wrap", alignItems: "flex-start" }}>
+            <div style={{ flex: 1, minWidth: 300 }}>
+              <table style={tableStyle}>
+                <thead><tr>{["Modelo", "R²", "RMSE", "MAE"].map(h => <th key={h} style={thS}>{h}</th>)}</tr></thead>
+                <tbody>
+                  {reg.modelos.map((m, i) => (
+                    <tr key={i} style={{ borderBottom: "1px solid var(--border-dark)" }}>
+                      <td style={tdS}>{m.nombre}<div style={{ fontSize: 11, color: "var(--text-secondary)", fontWeight: 400 }}>{m.descripcion}</div></td>
+                      <td style={tdS}>{m.metricas.r2}</td>
+                      <td style={tdS}>{m.metricas.rmse}</td>
+                      <td style={tdS}>{m.metricas.mae}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {reg.curva?.length > 0 && (
+              <div style={{ flex: 1, minWidth: 300 }}>
+                <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 6px" }}>Recta vs curva (peso estimado según el tiempo)</p>
+                <ResponsiveContainer width="100%" height={220}>
+                  <LineChart data={reg.curva}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-dark)" />
+                    <XAxis dataKey="dias" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} tickFormatter={v => `${v}d`} />
+                    <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 11 }} domain={["auto", "auto"]} />
+                    <Tooltip />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                    <Line type="monotone" dataKey="lineal" name="Lineal" stroke={INFO} dot={false} strokeWidth={2} />
+                    <Line type="monotone" dataKey="polinomica" name="Polinómica" stroke={ACCENT} dot={false} strokeWidth={2} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* Clasificación binaria */}
+      <SectionTitle>Clasificación — ¿está en riesgo de abandono?</SectionTitle>
+      {clf?.error ? <p style={hintP}>{clf.error}</p> : (
+        <>
+          <p style={hintP}>
+            Cinco algoritmos deciden si un miembro está "en riesgo" o "estable".{" "}
+            {clf.holdout ? "Evaluados con datos que no vieron al entrenar." : "Muestra pequeña: evaluados sobre los mismos datos, tómalo como referencia."} Datos: {clf.n} miembros.
+          </p>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            {clf.modelos.map((m, i) => (
+              <div key={i} style={{ flex: 1, minWidth: 230, background: "var(--bg-input)", borderRadius: 10, padding: "12px 14px" }}>
+                <div style={{ fontWeight: 700, color: "var(--text-primary)", fontSize: 13, marginBottom: 8 }}>{m.nombre}</div>
+                {m.error ? <div style={{ fontSize: 12, color: DANGER }}>No se pudo entrenar</div> : (
+                  <>
+                    <div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: 12, color: "var(--text-secondary)" }}>
+                      <span>Acierto <strong style={{ color: SUCCESS }}>{(m.metricas.accuracy * 100).toFixed(0)}%</strong></span>
+                      <span>Precisión {(m.metricas.precision * 100).toFixed(0)}%</span>
+                      <span>Sensib. {(m.metricas.recall * 100).toFixed(0)}%</span>
+                      <span>F1 {m.metricas.f1}</span>
+                    </div>
+                    <ConfusionMatrix matrix={m.metricas.confusion} clases={clf.clases} />
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+          <p style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 8 }}>
+            Matriz de confusión — filas: valor real, columnas: lo que predijo. Verde = aciertos, rosa = errores.
+          </p>
+          {clf.reglas_arbol?.length > 0 && (
+            <>
+              <SectionTitle>Reglas del árbol de decisión</SectionTitle>
+              <p style={hintP}>Así decide el árbol, en texto legible:</p>
+              <pre style={{ background: "var(--bg-input)", border: "1px solid var(--border-dark)", borderRadius: 8, padding: "12px 14px", fontSize: 12, color: "var(--text-primary)", overflowX: "auto", lineHeight: 1.5, margin: 0 }}>{clf.reglas_arbol.join("\n")}</pre>
+            </>
+          )}
+        </>
+      )}
+
+      {/* Clasificación múltiple */}
+      <SectionTitle>Clasificación múltiple — el objetivo del miembro</SectionTitle>
+      {mc?.error ? <p style={hintP}>{mc.error}</p> : (
+        <>
+          <p style={hintP}>El modelo intenta adivinar el objetivo (perder peso, ganar músculo o mantener) a partir de la composición corporal. Datos: {mc.n} miembros, {mc.clases.length} objetivos.</p>
+          {mc.modelos.map((m, i) => (
+            <div key={i} style={{ background: "var(--bg-input)", borderRadius: 10, padding: "12px 14px", maxWidth: 540 }}>
+              <div style={{ fontWeight: 700, color: "var(--text-primary)", fontSize: 13, marginBottom: 8 }}>{m.nombre}</div>
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: 12, color: "var(--text-secondary)", marginBottom: 2 }}>
+                <span>Acierto <strong style={{ color: SUCCESS }}>{(m.metricas.accuracy * 100).toFixed(0)}%</strong></span>
+                <span>F1 {m.metricas.f1}</span>
+              </div>
+              <ConfusionMatrix matrix={m.metricas.confusion} clases={mc.clases} />
+            </div>
+          ))}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // COMPONENTE PRINCIPAL
 // ─────────────────────────────────────────────────────────────────────────────
 // Iconos SVG inline para los tabs (sin emojis)
@@ -1144,6 +1337,12 @@ const IconFuerza = () => (
     <path d="M18 22l4-4"/><path d="M2 6l4-4"/><path d="M3 10l7-7"/><path d="M14 21l7-7"/>
   </svg>
 );
+const IconModelos = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2a3 3 0 0 0-3 3 3 3 0 0 0-3 3 3 3 0 0 0 0 6 3 3 0 0 0 3 3 3 3 0 0 0 6 0 3 3 0 0 0 3-3 3 3 0 0 0 0-6 3 3 0 0 0-3-3 3 3 0 0 0-3-3z"/>
+    <path d="M12 8v8M9 12h6"/>
+  </svg>
+);
 
 const TABS = [
   { id: "mapreduce",     label: "Finanzas y Flujo",    Icon: IconMapReduce,     Component: TabMapReduce     },
@@ -1153,6 +1352,7 @@ const TABS = [
   { id: "heatmap",       label: "Horarios Concurridos", Icon: IconHeatmap,      Component: TabHeatmap       },
   { id: "rfm",           label: "Clientes por Valor",  Icon: IconRFM,           Component: TabRFM           },
   { id: "fuerza",        label: "Fuerza de Miembros",  Icon: IconFuerza,        Component: TabFuerza        },
+  { id: "modelos",       label: "Laboratorio de Modelos", Icon: IconModelos,    Component: TabModelos       },
 ];
 
 export default function AdminAnalytics() {
