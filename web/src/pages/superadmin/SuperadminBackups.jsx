@@ -113,6 +113,7 @@ export default function SuperadminBackups() {
   const [uploadPct, setUploadPct]   = useState(null);
   const fileRef = useRef(null);
   const pollRef = useRef(null);
+  const runningRef = useRef(false);   // para detectar la transición "terminó"
 
   const loadAll = () => {
     Promise.allSettled([
@@ -131,16 +132,39 @@ export default function SuperadminBackups() {
     return () => clearInterval(pollRef.current);
   }, []);
 
-  // Poll every 3s while backup is running
+  // Poll cada 2s mientras el backup corre (la barra de progreso se alimenta de aquí)
   useEffect(() => {
     clearInterval(pollRef.current);
     if (status?.is_running) {
       pollRef.current = setInterval(() => {
         getBackupStatus().then(r => setStatus(r.data)).catch(() => {});
-      }, 3000);
+      }, 2000);
     }
     return () => clearInterval(pollRef.current);
   }, [status?.is_running]);
+
+  // Detecta la transición "en ejecución" → "terminó": avisa y recarga el panel
+  useEffect(() => {
+    if (status?.is_running) {
+      runningRef.current = true;
+      return;
+    }
+    if (runningRef.current) {
+      runningRef.current = false;
+      const paso = (status?.current_step || "").toLowerCase();
+      const errored = paso.startsWith("error");
+      Swal.fire({
+        icon: errored ? "error" : "success",
+        title: errored ? "El backup falló" : "Backup completado",
+        text: errored ? (status?.current_step || "Revisa el historial.") : "El respaldo se generó y ya aparece en el historial.",
+        timer: errored ? undefined : 2600,
+        showConfirmButton: errored,
+        background: "var(--bg-card)",
+        color: "var(--text-primary)",
+      });
+      loadAll();   // recarga historial/estado para ver el nuevo backup
+    }
+  }, [status?.is_running, status?.current_step]);
 
   const handleTrigger = async () => {
     const { value: tipo } = await Swal.fire({
@@ -164,8 +188,23 @@ export default function SuperadminBackups() {
 
     try {
       await triggerBackup(tipo);
-      Swal.fire({ icon: "success", title: `Backup ${tipo} iniciado`, text: "El proceso corre en segundo plano.", timer: 2000, showConfirmButton: false, background: "var(--bg-card)", color: "var(--text-primary)" });
-      setTimeout(loadAll, 800);
+      // Optimista: muestra la barra de progreso de inmediato y arranca el polling.
+      runningRef.current = true;
+      setStatus(s => ({
+        ...(s || {}),
+        is_running: true,
+        progress_percentage: 5,
+        current_step: "Iniciando respaldo",
+      }));
+      Swal.fire({
+        icon: "info",
+        title: `Backup ${tipo} iniciado`,
+        text: "Sigue el progreso en la barra de estado.",
+        timer: 1600,
+        showConfirmButton: false,
+        background: "var(--bg-card)",
+        color: "var(--text-primary)",
+      });
     } catch (e) {
       const msg = e?.response?.data?.msg || "No se pudo iniciar";
       Swal.fire({ icon: "error", title: "Error", text: msg, background: "var(--bg-card)", color: "var(--text-primary)" });
@@ -337,10 +376,13 @@ export default function SuperadminBackups() {
                   {status.current_step && (
                     <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>{status.current_step}</span>
                   )}
+                  {status.is_running && (
+                    <span style={{ marginLeft: "auto", fontSize: 13, fontWeight: 700, color: "var(--accent-soft)" }}>{status.progress_percentage || 0}%</span>
+                  )}
                 </div>
                 {status.is_running && (
-                  <div style={{ height: 6, background: "var(--bg-input)", borderRadius: 99, overflow: "hidden" }}>
-                    <div style={{ width: `${status.progress_percentage || 0}%`, height: "100%", background: "var(--accent, var(--accent))", borderRadius: 99, transition: "width .5s ease" }} />
+                  <div style={{ height: 8, background: "var(--bg-input)", borderRadius: 99, overflow: "hidden" }}>
+                    <div style={{ width: `${status.progress_percentage || 0}%`, height: "100%", background: "var(--accent, var(--accent))", borderRadius: 99, transition: "width .4s ease" }} />
                   </div>
                 )}
               </div>
