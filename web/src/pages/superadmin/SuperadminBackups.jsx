@@ -368,7 +368,7 @@ export default function SuperadminBackups() {
   };
 
   return (
-    <div style={{ padding: "28px 32px", minHeight: "100vh", background: "var(--bg-input)", fontFamily: "inherit" }}>
+    <div className="superadmin-page" style={{ minHeight: "100vh", background: "var(--bg-input)", fontFamily: "inherit" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 800, color: "var(--text-primary)", marginBottom: 4 }}>Backups</h1>
@@ -418,7 +418,7 @@ export default function SuperadminBackups() {
             </div>
           )}
 
-          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 20, marginBottom: 20 }}>
+          <div className="grid-aside-responsive" style={{ display: "grid", gap: 20, marginBottom: 20 }}>
             {/* Historial */}
             <div style={card({ padding: 0, overflow: "hidden" })}>
               <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
@@ -437,6 +437,7 @@ export default function SuperadminBackups() {
                   </button>
                 </div>
               </div>
+              <div className="superadmin-table-scroll">
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                 <thead>
                   <tr style={{ background: "var(--bg-input)" }}>
@@ -512,6 +513,7 @@ export default function SuperadminBackups() {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
 
             {/* Programación */}
@@ -580,7 +582,7 @@ export default function SuperadminBackups() {
               Reconstruye una base de datos desde un respaldo del historial o desde un archivo externo (otra laptop / servidor).
             </p>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+            <div className="grid-2col-responsive" style={{ display: "grid", gap: 18 }}>
               {/* Desde el historial */}
               <div style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 16 }}>
                 <p style={{ fontSize: 12, fontWeight: 700, color: "var(--text-primary)", marginBottom: 12 }}>Desde el historial</p>

@@ -177,7 +177,7 @@ export default function SuperadminAnalytics() {
   ];
 
   return (
-    <div style={{ padding: "28px 32px", minHeight: "100vh", background: "var(--bg-input)", fontFamily: "inherit" }}>
+    <div className="superadmin-page" style={{ minHeight: "100vh", background: "var(--bg-input)", fontFamily: "inherit" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 800, color: "var(--text-primary)", marginBottom: 4 }}>Analytics de Plataforma</h1>
@@ -323,6 +323,7 @@ export default function SuperadminAnalytics() {
           : !churn?.gimnasios_riesgo?.length ? (
             <p style={{ fontSize: 14, color: "var(--success)", textAlign: "center", padding: "30px 0" }}>✓ Sin gimnasios en riesgo</p>
           ) : (
+            <div className="superadmin-table-scroll">
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
                 <tr>
@@ -345,6 +346,7 @@ export default function SuperadminAnalytics() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </div>
       )}
