@@ -442,6 +442,9 @@ export const trainerService = {
    * Devuelve { success, rutinas[], ejercicios[], resumen }
    */
   importRoutinesAI: async (file) => {
+    // Encola el ETL en background y devuelve { job_id, estado } de inmediato
+    // (202) -- el resultado real se consulta con getRoutineImportJobStatus.
+    // Ver SCRUM-203 / seguimiento de rendimiento del ETL de IA.
     const token = localStorage.getItem('token');
     const form  = new FormData();
     form.append('archivo', file);
@@ -460,7 +463,15 @@ export const trainerService = {
       }
       throw new Error(data.error || data.message || data.msg || 'Error en la importación');
     }
-    return data;
+    return data; // { success, job_id, estado: "procesando" }
+  },
+
+  /**
+   * Consulta el estado de un job de importación de rutinas (polling).
+   * Devuelve { job_id, estado: "procesando"|"listo"|"error", resultado?, error?, error_tipo?, detalle? }
+   */
+  getRoutineImportJobStatus: async (jobId) => {
+    return await apiFetch(`${API_BASE_URL}/trainer/routines/import-ai/jobs/${jobId}`);
   },
 };
 

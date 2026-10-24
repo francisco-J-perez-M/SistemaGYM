@@ -6,6 +6,7 @@
  *   2. Ejercicios — catálogo propio del gimnasio (asignable a rutinas).
  */
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   FiFileText, FiPlus, FiEdit, FiTrash2, FiCopy, FiSearch, FiX, FiFilter,
@@ -16,6 +17,9 @@ import { GiMuscleUp, GiWeightLiftingUp, GiRunningShoe } from "react-icons/gi";
 import { MdOutlineSmartToy } from "react-icons/md";
 import trainerService from "../../services/entrenador/trainerService";
 import { useToast } from "../../hooks/useToast";
+import {
+  useRoutineImportJob, startRoutineImportJob, dismissRoutineImportJob,
+} from "../../hooks/useRoutineImportJob";
 import "../../css/CSSUnificado.css";
 
 /* ── Constantes ── */
@@ -835,7 +839,7 @@ function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExe
   const [file, setFile]           = useState(null);
   const [clientId, setClientId]   = useState("");
   const [nivel, setNivel]         = useState("");        // Principiante | Intermedio | Avanzado
-  const [loading, setLoading]     = useState(false);
+  const [submitting, setSubmitting] = useState(false);  // encolando el job (solo el POST inicial)
   const [error, setError]         = useState(null);
   const [preview, setPreview]     = useState(null);   // { rutinas[], ejercicios[], resumen }
   const [saving, setSaving]       = useState(false);
@@ -847,11 +851,33 @@ function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExe
   const [expandedR, setExpandedR] = useState({});
   const fileRef = useRef(null);
 
+  // Job de importación en background (ver hooks/useRoutineImportJob.js). Vive
+  // fuera de este componente para que sobreviva si el entrenador cambia de
+  // pestaña o navega a otra pantalla mientras Ollama procesa el documento.
+  const job = useRoutineImportJob();
+  const jobPending = job?.estado === "procesando";
+
   useEffect(() => {
     trainerService.getRoutineAIStatus()
       .then(s => setAiStatus(s))
       .catch(() => setAiStatus({ disponible: false, modelo_activo: false, modelo: "phi3:mini" }));
   }, []);
+
+  // Reacciona a los cambios del job compartido: cuando termina (listo/error),
+  // sea porque lo acabamos de encolar aquí o porque el entrenador vuelve a
+  // esta pestaña tras dejarlo corriendo, se refleja en la vista previa local.
+  useEffect(() => {
+    if (!job) return;
+    if (job.estado === "listo" && job.resultado) {
+      setPreview(job.resultado);
+      setError(null);
+      const sr = {}; (job.resultado.rutinas || []).forEach((_, i) => sr[i] = true);
+      const se = {}; (job.resultado.ejercicios || []).forEach((_, i) => se[i] = true);
+      setSelRoutines(sr); setSelExercises(se);
+    } else if (job.estado === "error") {
+      setError(job.detalle ? `${job.error}. ${job.detalle}` : job.error);
+    }
+  }, [job]);
 
   const handleFile = (f) => {
     if (!f) return;
@@ -864,16 +890,14 @@ function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExe
 
   const handleProcess = async () => {
     if (!file) return;
-    setLoading(true); setError(null); setPreview(null);
+    setSubmitting(true); setError(null); setPreview(null);
     try {
+      // El POST solo encola el job y responde de inmediato (202) -- el
+      // resultado real llega por polling vía useRoutineImportJob, no aquí.
       const data = await trainerService.importRoutinesAI(file);
-      setPreview(data);
-      // Pre-seleccionar todo
-      const sr = {}; (data.rutinas || []).forEach((_, i) => sr[i] = true);
-      const se = {}; (data.ejercicios || []).forEach((_, i) => se[i] = true);
-      setSelRoutines(sr); setSelExercises(se);
+      startRoutineImportJob(data.job_id, file.name);
     } catch (err) { setError(err.message); }
-    finally { setLoading(false); }
+    finally { setSubmitting(false); }
   };
 
   const handleSave = async () => {
@@ -900,10 +924,15 @@ function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExe
     }
     setSaving(false);
     setSaved({ rutinas: rutinasOk, ejercicios: ejerciciosOk });
+    dismissRoutineImportJob();
     onImportDone?.();
   };
 
-  const reset = () => { setFile(null); setPreview(null); setError(null); setSaved(null); setClientId(""); setNivel(""); };
+  const reset = () => {
+    setFile(null); setPreview(null); setError(null); setSaved(null);
+    setClientId(""); setNivel("");
+    dismissRoutineImportJob();
+  };
 
   const aiOk = aiStatus?.disponible && aiStatus?.modelo_activo;
 
@@ -943,8 +972,28 @@ function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExe
         </div>
       )}
 
+      {/* ── Aviso de job en background ───────────────────────────────────── */}
+      {jobPending && (
+        <div style={{
+          background: "rgba(99,102,241,.08)", border: "1px solid rgba(99,102,241,.25)",
+          borderRadius: 10, padding: "14px 16px", marginBottom: 18,
+          display: "flex", alignItems: "center", gap: 12,
+        }}>
+          <FiLoader size={18} style={{ color: "var(--accent)", animation: "spin 1s linear infinite", flexShrink: 0 }} />
+          <div style={{ fontSize: 12.5, lineHeight: 1.6 }}>
+            <div style={{ fontWeight: 700, marginBottom: 2 }}>
+              Procesando {job?.archivo ? <code style={{ background: "rgba(0,0,0,.1)", padding: "1px 5px", borderRadius: 4 }}>{job.archivo}</code> : "el archivo"} con IA…
+            </div>
+            <div style={{ color: "var(--text-secondary)" }}>
+              Le avisaremos cuando el proceso de extracción termine — puedes volver a este módulo
+              más tarde y seguir con tu tarea de asignación de ejercicios mientras tanto.
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Selector de modo ─────────────────────────────────────────────── */}
-      {!preview && (
+      {!preview && !jobPending && (
         <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
           {[
             { key: "trainer", label: "Mis rutinas",         desc: "Migra tu biblioteca desde otro sistema" },
@@ -964,7 +1013,7 @@ function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExe
       )}
 
       {/* ── Selector de cliente (modo cliente) ───────────────────────────── */}
-      {!preview && mode === "client" && (
+      {!preview && !jobPending && mode === "client" && (
         <div style={{ marginBottom: 14 }}>
           <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: ".06em", display: "block", marginBottom: 5 }}>
             Cliente
@@ -988,7 +1037,7 @@ function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExe
       )}
 
       {/* ── Info ─────────────────────────────────────────────────────────── */}
-      {!preview && (
+      {!preview && !jobPending && (
         <div style={{ background: "rgba(99,102,241,.08)", border: "1px solid rgba(99,102,241,.2)", borderRadius: 10, padding: "12px 16px", marginBottom: 18, display: "flex", gap: 10, alignItems: "flex-start" }}>
           <MdOutlineSmartToy size={18} style={{ color: "var(--accent)", flexShrink: 0, marginTop: 1 }} />
           <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.6 }}>
@@ -1001,7 +1050,7 @@ function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExe
       )}
 
       {/* ── Dropzone ─────────────────────────────────────────────────────── */}
-      {!preview && (
+      {!preview && !jobPending && (
         <div
           style={{ border: `2px dashed ${drag ? "var(--accent)" : "var(--border)"}`, borderRadius: 12, padding: "36px 24px", textAlign: "center", background: drag ? "rgba(99,102,241,.05)" : "var(--bg-card)", cursor: "pointer", transition: "all .2s", marginBottom: 16 }}
           onDragOver={e => { e.preventDefault(); setDrag(true); }}
@@ -1023,14 +1072,14 @@ function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExe
       )}
 
       {/* ── Botón procesar ───────────────────────────────────────────────── */}
-      {!preview && (
+      {!preview && !jobPending && (
         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
           <button className="btn-compact-primary" onClick={handleProcess}
-            disabled={!file || loading || !aiOk}
+            disabled={!file || submitting || !aiOk}
             title={!aiOk ? "Ollama no disponible" : ""}
           >
-            {loading
-              ? <><FiLoader size={13} style={{ animation: "spin 1s linear infinite" }} /> Procesando...</>
+            {submitting
+              ? <><FiLoader size={13} style={{ animation: "spin 1s linear infinite" }} /> Enviando...</>
               : <><MdOutlineSmartToy size={14} /> Extraer con IA</>}
           </button>
         </div>
@@ -1168,8 +1217,23 @@ function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExe
 export default function TrainerRoutines() {
   const { toast, confirm, ToastPortal } = useToast();
 
-  /* ── Tab activo ── */
-  const [tab, setTab] = useState("routines"); // "routines" | "exercises" | "import"
+  /* ── Tab activo ──────────────────────────────────────────────────────
+   * Se sincroniza con ?tab=import en la URL para que el aviso de
+   * "importación en curso" en Layout.jsx pueda enlazar directo a este
+   * módulo aunque el entrenador esté en otra pantalla. ── */
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [tab, setTab] = useState(() => (
+    searchParams.get("tab") === "import" ? "import" : "routines"
+  )); // "routines" | "exercises" | "import"
+
+  useEffect(() => {
+    if (tab === "import") {
+      if (searchParams.get("tab") !== "import") setSearchParams({ tab: "import" }, { replace: true });
+    } else if (searchParams.get("tab")) {
+      setSearchParams({}, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
 
   /* ── Estado: rutinas ── */
   const [routines, setRoutines]             = useState([]);

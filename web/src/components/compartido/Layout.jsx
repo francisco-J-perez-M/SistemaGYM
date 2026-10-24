@@ -1,7 +1,9 @@
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { FiLoader, FiCheckCircle, FiAlertCircle, FiX } from "react-icons/fi";
 import Sidebar from "./Sidebar";
 import SystemGuide from "../guide/SystemGuide";
+import { useRoutineImportJob, dismissRoutineImportJob } from "../../hooks/useRoutineImportJob";
 
 const ROLE_MAP = {
   owner_gym:    ["owner_gym", "admin", "administrador"],
@@ -175,6 +177,33 @@ export default function Layout({ role = "owner_gym" }) {
   // a qué panel navegue el superadmin mientras impersona. ──────────────────
   const [impersonating, setImpersonating] = useState(false);
 
+  // ── Aviso de importación de rutinas por IA (background job) ─────────────
+  // Vive en Layout (no solo en TrainerRoutines) para que el entrenador vea
+  // el aviso sin importar en qué pantalla del panel esté, cumpliendo el
+  // requisito de poder "volver al módulo y terminar su tarea de asignación
+  // de ejercicios" mientras la IA procesa. El hook se llama siempre (reglas
+  // de hooks); solo se muestra la UI para el rol trainer/entrenador.
+  const routineImportJob = useRoutineImportJob();
+  const [importBannerHidden, setImportBannerHidden] = useState(false);
+  useEffect(() => { setImportBannerHidden(false); }, [routineImportJob?.job_id]);
+
+  const showImportBanner = role === "trainer" && !!routineImportJob && !importBannerHidden;
+
+  const goToRoutineImport = () => {
+    setImportBannerHidden(true);
+    navigate("/trainer/routines?tab=import");
+  };
+  const closeImportBanner = () => {
+    if (routineImportJob?.estado === "procesando") {
+      // Solo oculta el aviso; el job sigue corriendo/sondeando en background.
+      setImportBannerHidden(true);
+    } else {
+      // Estado terminal (listo/error): cerrar aquí descarta el resultado,
+      // igual que hacerlo desde el propio módulo de Rutinas.
+      dismissRoutineImportJob();
+    }
+  };
+
   const readImpersonationState = () => {
     try {
       const user = JSON.parse(localStorage.getItem("user") || "{}");
@@ -324,6 +353,86 @@ export default function Layout({ role = "owner_gym" }) {
           <SystemGuide open={guideOpen} path={guidePath} onClose={closeGuide} />
         )}
       </div>
+
+      {showImportBanner && (() => {
+        const estado = routineImportJob.estado;
+        const isDone  = estado === "listo";
+        const isError = estado === "error";
+        const color   = isError ? "var(--danger)" : isDone ? "var(--success)" : "var(--accent)";
+        const bg      = isError ? "rgba(239,68,68,.1)" : isDone ? "rgba(16,185,129,.1)" : "rgba(99,102,241,.1)";
+        const border  = isError ? "rgba(239,68,68,.3)" : isDone ? "rgba(16,185,129,.3)" : "rgba(99,102,241,.3)";
+        return (
+          <div
+            role="status"
+            style={{
+              position: "fixed",
+              right: 20,
+              bottom: 20,
+              zIndex: 2000,
+              width: 320,
+              maxWidth: "calc(100vw - 40px)",
+              background: "var(--bg-card, #fff)",
+              border: `1px solid ${border}`,
+              borderRadius: 12,
+              boxShadow: "0 8px 24px rgba(0,0,0,.18)",
+              padding: "14px 16px",
+              display: "flex",
+              gap: 12,
+              alignItems: "flex-start",
+            }}
+          >
+            <style>{`@keyframes spin{to{transform:rotate(360deg);}}`}</style>
+            <div style={{
+              width: 30, height: 30, borderRadius: "50%", background: bg,
+              display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+            }}>
+              {isDone ? (
+                <FiCheckCircle size={16} style={{ color }} />
+              ) : isError ? (
+                <FiAlertCircle size={16} style={{ color }} />
+              ) : (
+                <FiLoader size={16} style={{ color, animation: "spin 1s linear infinite" }} />
+              )}
+            </div>
+
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 3 }}>
+                {isDone ? "Importación de rutinas lista"
+                  : isError ? "La importación de rutinas falló"
+                  : "Importando rutinas con IA…"}
+              </div>
+              <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5, marginBottom: 10 }}>
+                {isDone
+                  ? "Ya puedes revisar y guardar el resultado en el módulo de Rutinas."
+                  : isError
+                  ? (routineImportJob.error || "Ocurrió un error al procesar el archivo.")
+                  : "Le avisaremos cuando el proceso de extracción termine — puedes seguir con tu tarea de asignación de ejercicios mientras tanto."}
+              </div>
+              <button
+                onClick={goToRoutineImport}
+                style={{
+                  border: "none", background: color, color: "#fff",
+                  borderRadius: 6, padding: "6px 12px", fontSize: 12, fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                {isDone ? "Ver resultado" : isError ? "Ver detalle" : "Ver progreso"}
+              </button>
+            </div>
+
+            <button
+              onClick={closeImportBanner}
+              aria-label="Cerrar aviso"
+              style={{
+                border: "none", background: "transparent", color: "var(--text-secondary)",
+                cursor: "pointer", padding: 2, flexShrink: 0,
+              }}
+            >
+              <FiX size={16} />
+            </button>
+          </div>
+        );
+      })()}
     </div>
   );
 }
