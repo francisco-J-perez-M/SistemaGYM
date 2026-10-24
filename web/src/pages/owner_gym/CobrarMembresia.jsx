@@ -72,6 +72,11 @@ export default function CobrarMembresia() {
   const [miembro,     setMiembro]     = useState(null);
   const [membresia,   setMembresia]   = useState(null);
   const [metodo,      setMetodo]      = useState("Efectivo");
+  // Renovacion (miembro ya tenia membresia) o inscripcion y primer pago
+  // (alta nueva, con un costo de inscripcion que el staff captura a mano
+  // en cada cobro -- no es un precio fijo del catalogo de membresias).
+  const [tipoPago,         setTipoPago]         = useState("renovacion");
+  const [costoInscripcion, setCostoInscripcion] = useState("");
   // Efectivo + pasarelas activas del gimnasio (PayPal / Mercado Pago)
   const { metodos: metodosPago } = useMetodosPago("membresia");
   const [submitting,  setSubmitting]  = useState(false);
@@ -92,7 +97,27 @@ export default function CobrarMembresia() {
 
   const membresiasFiltradas = membresias.filter(m => m.activo !== false);
 
-  const canSubmit = miembro && membresia && metodo;
+  const metodoSeleccionado = metodosPago.find(m => m.id === metodo);
+  const esInscripcion      = tipoPago === "inscripcion";
+  const costoInscripcionNum = Number(costoInscripcion);
+  const canSubmit = miembro && membresia && metodo &&
+    (!esInscripcion || (costoInscripcion !== "" && costoInscripcionNum > 0));
+  const montoTotal = membresia
+    ? Number(membresia.precio) + (esInscripcion && costoInscripcionNum > 0 ? costoInscripcionNum : 0)
+    : 0;
+
+  // El cobro en línea (pasarela) todavía no desglosa inscripción -- se
+  // mantiene como renovación simple; si el staff cambia a una pasarela
+  // mientras tenía elegida "Inscripción", se regresa a "Renovación" para
+  // no sugerir un desglose que esa pasarela no va a aplicar.
+  const handleMetodoChange = (id) => {
+    setMetodo(id);
+    const sel = metodosPago.find(m => m.id === id);
+    if (sel?.esPasarela && tipoPago === "inscripcion") {
+      setTipoPago("renovacion");
+      setCostoInscripcion("");
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -124,21 +149,28 @@ export default function CobrarMembresia() {
     setSubmitting(true);
     try {
       await registrarPago({
-        id_miembro:     miembro.id,
-        id_membresia:   Number(membresia.id_membresia || membresia.id),
-        metodo_pago:    metodo,
+        id_miembro:        miembro.id,
+        id_membresia:      Number(membresia.id_membresia || membresia.id),
+        metodo_pago:       metodo,
+        tipo_pago:         tipoPago,
+        ...(esInscripcion ? { costo_inscripcion: costoInscripcionNum } : {}),
       });
       setSuccess({
-        miembro:   miembro.nombre,
-        plan:      membresia.nombre,
-        monto:     membresia.precio,
+        miembro:           miembro.nombre,
+        plan:              membresia.nombre,
+        monto:             membresia.precio,
         metodo,
-        duracion:  membresia.duracion_meses,
+        duracion:          membresia.duracion_meses,
+        tipoPago,
+        costoInscripcion:  esInscripcion ? costoInscripcionNum : null,
+        montoTotal,
       });
       // Reset form
       setMiembro(null);
       setMembresia(null);
       setMetodo("Efectivo");
+      setTipoPago("renovacion");
+      setCostoInscripcion("");
       setSearch("");
     } catch (err) {
       toast.error("Error al registrar", err.response?.data?.error || "Error interno del servidor");
@@ -221,6 +253,61 @@ export default function CobrarMembresia() {
               )}
             </div>
 
+            {/* Tipo de cobro: renovación o inscripción + primer pago */}
+            <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: "20px 22px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+                <MoneyIcon />
+                <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>Tipo de Cobro</h3>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: esInscripcion ? 14 : 0 }}>
+                <button
+                  type="button"
+                  onClick={() => setTipoPago("renovacion")}
+                  style={{
+                    padding: "10px", borderRadius: 8, cursor: "pointer", fontWeight: 600, fontSize: 13,
+                    border: !esInscripcion ? "2px solid var(--accent)" : "1px solid var(--border)",
+                    background: !esInscripcion ? "var(--accent-dim)" : "var(--bg-input)",
+                    color: !esInscripcion ? "var(--accent-soft)" : "var(--text-secondary)",
+                    transition: "border-color .15s, background .15s",
+                  }}
+                >Renovación</button>
+                <button
+                  type="button"
+                  disabled={metodoSeleccionado?.esPasarela}
+                  onClick={() => setTipoPago("inscripcion")}
+                  title={metodoSeleccionado?.esPasarela ? "No disponible con pago en línea" : undefined}
+                  style={{
+                    padding: "10px", borderRadius: 8, fontWeight: 600, fontSize: 13,
+                    cursor: metodoSeleccionado?.esPasarela ? "not-allowed" : "pointer",
+                    border: esInscripcion ? "2px solid var(--accent)" : "1px solid var(--border)",
+                    background: esInscripcion ? "var(--accent-dim)" : "var(--bg-input)",
+                    color: esInscripcion ? "var(--accent-soft)" : "var(--text-secondary)",
+                    opacity: metodoSeleccionado?.esPasarela ? 0.5 : 1,
+                    transition: "border-color .15s, background .15s",
+                  }}
+                >Inscripción y primer pago</button>
+              </div>
+              {esInscripcion && (
+                <div>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>
+                    Costo de inscripción
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    style={inputSt}
+                    placeholder="0.00"
+                    value={costoInscripcion}
+                    onChange={e => setCostoInscripcion(e.target.value)}
+                  />
+                  <p style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 6, lineHeight: 1.4 }}>
+                    Captúralo a mano según lo que cobre la sucursal; se suma al precio del plan elegido abajo.
+                  </p>
+                </div>
+              )}
+            </div>
+
             {/* Selección de membresía */}
             <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: "20px 22px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
@@ -263,7 +350,7 @@ export default function CobrarMembresia() {
                 {metodosPago.map(m => (
                   <button
                     key={m.id} type="button"
-                    onClick={() => setMetodo(m.id)}
+                    onClick={() => handleMetodoChange(m.id)}
                     style={{
                       padding: "10px", borderRadius: 8, cursor: "pointer", fontWeight: 600, fontSize: 13,
                       border: metodo === m.id ? "2px solid var(--accent)" : "1px solid var(--border)",
@@ -316,7 +403,14 @@ export default function CobrarMembresia() {
                   {[
                     ["Miembro",   success.miembro],
                     ["Plan",      success.plan],
-                    ["Monto",     fmt(success.monto)],
+                    ["Tipo",      success.tipoPago === "inscripcion" ? "Inscripción y primer pago" : "Renovación"],
+                    ...(success.tipoPago === "inscripcion"
+                      ? [
+                          ["Costo de inscripción",   fmt(success.costoInscripcion)],
+                          ["Primer pago (membresía)", fmt(success.monto)],
+                          ["Total",                  fmt(success.montoTotal)],
+                        ]
+                      : [["Monto", fmt(success.monto)]]),
                     ["Duración",  success.duracion === 1 ? "1 mes" : `${success.duracion} meses`],
                     ["Método",    success.metodo],
                   ].map(([k, v]) => (
@@ -341,7 +435,13 @@ export default function CobrarMembresia() {
                   {[
                     ["Miembro",  miembro  ? miembro.nombre   : "—"],
                     ["Plan",     membresia ? membresia.nombre : "—"],
-                    ["Monto",    membresia ? fmt(membresia.precio) : "—"],
+                    ["Tipo",     esInscripcion ? "Inscripción y primer pago" : "Renovación"],
+                    ...(esInscripcion
+                      ? [
+                          ["Costo de inscripción",   costoInscripcionNum > 0 ? fmt(costoInscripcionNum) : "—"],
+                          ["Primer pago (membresía)", membresia ? fmt(membresia.precio) : "—"],
+                        ]
+                      : [["Monto", membresia ? fmt(membresia.precio) : "—"]]),
                     ["Duración", membresia ? (membresia.duracion_meses === 1 ? "1 mes" : `${membresia.duracion_meses} meses`) : "—"],
                     ["Método",   metodo],
                   ].map(([k, v]) => (
@@ -353,7 +453,7 @@ export default function CobrarMembresia() {
                 </div>
                 {membresia && (
                   <div style={{ marginTop: 16, padding: "14px 16px", background: "var(--accent-dim)", borderRadius: 10, textAlign: "center" }}>
-                    <div style={{ fontSize: 28, fontWeight: 800, color: "var(--accent)" }}>{fmt(membresia.precio)}</div>
+                    <div style={{ fontSize: 28, fontWeight: 800, color: "var(--accent)" }}>{fmt(montoTotal)}</div>
                     <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 2 }}>Total a cobrar</div>
                   </div>
                 )}

@@ -160,18 +160,30 @@ export default function ReceptionistPayments() {
             Historial y gestión de cobros del gimnasio
           </p>
         </div>
-        <motion.button
-          onClick={handleRefresh}
-          whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-          style={{
-            display: "flex", alignItems: "center", gap: "6px",
-            padding: "9px 16px", background: "var(--accent-dim)",
-            border: "1px solid var(--accent)", color: "var(--accent-soft)",
-            borderRadius: "var(--r-md)", cursor: "pointer", fontSize: "13px", fontWeight: 600,
-          }}
-        >
-          <FiRefreshCw size={14} /> Actualizar
-        </motion.button>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <button
+            onClick={() => navigate("/receptionist/cobrar")}
+            style={{
+              padding: "9px 16px", background: "var(--accent)",
+              border: "none", color: "#fff",
+              borderRadius: "var(--r-md)", cursor: "pointer", fontSize: "13px", fontWeight: 700,
+            }}
+          >
+            Cobrar Membresía
+          </button>
+          <motion.button
+            onClick={handleRefresh}
+            whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+            style={{
+              display: "flex", alignItems: "center", gap: "6px",
+              padding: "9px 16px", background: "var(--accent-dim)",
+              border: "1px solid var(--accent)", color: "var(--accent-soft)",
+              borderRadius: "var(--r-md)", cursor: "pointer", fontSize: "13px", fontWeight: 600,
+            }}
+          >
+            <FiRefreshCw size={14} /> Actualizar
+          </motion.button>
+        </div>
       </motion.div>
 
       {/* KPIs */}
