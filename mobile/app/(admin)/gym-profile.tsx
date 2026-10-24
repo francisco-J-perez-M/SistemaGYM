@@ -19,6 +19,7 @@ import Badge from '../../components/ui/Badge';
 
 interface GymProfile {
   nombre?:          string;
+  direccion?:       string;   // dirección física del gimnasio
   email_contacto?:  string;   // campo real: email_contacto
   email?:           string;   // alias por compatibilidad
   telefono?:        string;

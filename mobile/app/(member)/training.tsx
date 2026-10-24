@@ -11,7 +11,7 @@
 import React, { useState, useRef, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, SectionList, TouchableOpacity,
-  RefreshControl, TextInput, KeyboardAvoidingView, Platform, Alert,
+  RefreshControl, TextInput, KeyboardAvoidingView, Platform, Alert, Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -65,6 +65,13 @@ interface Trainer {
   name?:         string;
   especialidad?: string;
   email?:        string;
+  foto?:         string | null;   // base64 data URI
+}
+interface PTSolicitud {
+  id?:                string;
+  id_entrenador_pg:   number;
+  nombre_entrenador?: string;
+  estado:             string;   // pendiente | aceptada | rechazada
 }
 interface ChatMsg {
   _id?:       string;
@@ -102,8 +109,26 @@ export default function TrainingScreen() {
   const { data: trainersData, loading: loadingT, refetch: refetchT } =
     useFetch<Trainer[] | { trainers: Trainer[] }>(ENDPOINTS.USER_TRAINERS_LIST);
 
-  const rutinas  = toArray(rutinaData?.rutinas);
-  const trainers = toArray(Array.isArray(trainersData) ? trainersData : (trainersData as any)?.trainers ?? []);
+  // Solicitudes PT: el miembro solo puede chatear con su entrenador ASIGNADO
+  // (solicitud en estado "aceptada"). Restringimos la lista a esos entrenadores.
+  const { data: ptData, loading: loadingPT } =
+    useFetch<{ solicitudes: PTSolicitud[] }>(ENDPOINTS.USER_PT_REQUEST);
+
+  const rutinas     = toArray(rutinaData?.rutinas);
+  const allTrainers = toArray(Array.isArray(trainersData) ? trainersData : (trainersData as any)?.trainers ?? []);
+  const assignedIds = new Set(
+    toArray(ptData?.solicitudes)
+      .filter((s) => s.estado === 'aceptada')
+      .map((s) => s.id_entrenador_pg),
+  );
+  // Entrenadores asignados (con info completa del catálogo). Si el catálogo aún
+  // no cargó pero sí hay solicitud aceptada, caemos a los datos de la solicitud.
+  const trainers: Trainer[] = allTrainers.filter((t) => assignedIds.has((t.id ?? t._id) as number));
+  if (trainers.length === 0 && assignedIds.size > 0) {
+    toArray(ptData?.solicitudes)
+      .filter((s) => s.estado === 'aceptada')
+      .forEach((s) => trainers.push({ id: s.id_entrenador_pg, nombre: s.nombre_entrenador }));
+  }
   const active   = selectedTrainer ?? (trainers[0] ?? null);
   const trainerId = active?.id ?? active?._id;
   const chatUrl   = trainerId ? `${ENDPOINTS.USER_CHAT_BASE}/${trainerId}` : '';
@@ -287,7 +312,8 @@ export default function TrainingScreen() {
               horizontal data={trainers}
               keyExtractor={(t, i) => String(t.id ?? t._id ?? i)}
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 8, paddingHorizontal: 20, paddingBottom: 8 }}
+              style={styles.trainerSelector}
+              contentContainerStyle={{ gap: 8, paddingHorizontal: 20, paddingBottom: 8, alignItems: 'center' }}
               renderItem={({ item: t }) => {
                 const isActive = (t.id ?? t._id) === (active?.id ?? active?._id);
                 return (
@@ -309,17 +335,25 @@ export default function TrainingScreen() {
             <Card style={styles.trainerCard}>
               <View style={styles.empty}>
                 <Ionicons name="person-outline" size={40} color={colors.textMuted} />
-                <Text style={styles.emptyText}>Sin entrenadores disponibles.</Text>
+                <Text style={styles.emptyText}>Aún no tienes un entrenador asignado.</Text>
+                <Text style={styles.emptyHint}>
+                  Envía una solicitud de entrenamiento personal desde tu entrenador.
+                  Cuando la acepte, podrás chatear aquí.
+                </Text>
               </View>
             </Card>
           ) : active ? (
             <Card style={styles.trainerCard}>
               <View style={styles.trainerRow}>
-                <View style={styles.trainerAvatar}>
-                  <Text style={styles.trainerInitials}>
-                    {trainerName(active).charAt(0).toUpperCase()}
-                  </Text>
-                </View>
+                {active.foto && active.foto.startsWith('data:image') ? (
+                  <Image source={{ uri: active.foto }} style={styles.trainerAvatarImg} resizeMode="cover" />
+                ) : (
+                  <View style={styles.trainerAvatar}>
+                    <Text style={styles.trainerInitials}>
+                      {trainerName(active).charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                )}
                 <View style={{ flex: 1 }}>
                   <Text style={styles.trainerName}>{trainerName(active)}</Text>
                   {active.especialidad ? <Text style={styles.trainerSpec}>{active.especialidad}</Text> : null}
@@ -441,12 +475,14 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   ejNombre:     { color: colors.text, fontSize: 14 * fs, fontWeight: '600' },
   ejDetalle:    { color: colors.accent, fontSize: 12 * fs },
   ejNotas:      { color: colors.textSecondary, fontSize: 12 * fs, fontStyle: 'italic' },
-  trainerChip:  { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
+  trainerSelector: { flexGrow: 0, maxHeight: 48 },
+  trainerChip:  { alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
   trainerChipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
   trainerChipText:   { color: colors.textSecondary, fontSize: 13 * fs, fontWeight: '600' },
   trainerCard:  { marginHorizontal: 20, marginBottom: 12 },
   trainerRow:   { flexDirection: 'row', alignItems: 'center', gap: 12 },
   trainerAvatar:{ width: 52, height: 52, borderRadius: 16, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
+  trainerAvatarImg:{ width: 52, height: 52, borderRadius: 16, backgroundColor: colors.surface },
   trainerInitials: { color: '#fff', fontSize: 22 * fs, fontWeight: '800' },
   trainerName:  { color: colors.text, fontSize: 16 * fs, fontWeight: '700' },
   trainerSpec:  { color: colors.accent, fontSize: 12 * fs },

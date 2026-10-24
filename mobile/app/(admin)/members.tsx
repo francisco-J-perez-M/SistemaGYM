@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, RefreshControl,
+  View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, RefreshControl, Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -55,7 +55,7 @@ export default function AdminMembersScreen() {
 
       <FlatList
         data={filtered}
-        keyExtractor={(m, i) => m._id ?? String(i)}
+        keyExtractor={(m, i) => m.id ?? m._id ?? String(i)}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={refetch} tintColor={colors.accent} />}
@@ -67,18 +67,22 @@ export default function AdminMembersScreen() {
         }
         renderItem={({ item: m }) => (
           <View style={styles.memberCard} accessible accessibilityLabel={`Miembro: ${m.nombre}`}>
-            <View style={styles.avatar}>
-              <Text style={styles.initial}>{toInitial(m.nombre)}</Text>
-            </View>
+            {m.foto_perfil && m.foto_perfil.startsWith('data:image') ? (
+              <Image source={{ uri: m.foto_perfil }} style={styles.avatarImg} resizeMode="cover" />
+            ) : (
+              <View style={styles.avatar}>
+                <Text style={styles.initial}>{toInitial(m.nombre)}</Text>
+              </View>
+            )}
             <View style={{ flex: 1 }}>
               <Text style={styles.nombre}>{toStr(m.nombre)}</Text>
               <Text style={styles.email}>{toStr(m.email)}</Text>
-              {m.membresia ? <Text style={styles.membresia}>{toStr(m.membresia)}</Text> : null}
+              {m.membresia?.nombre ? <Text style={styles.membresia}>{m.membresia.nombre}</Text> : null}
               {m.fecha_ingreso ? <Text style={styles.fecha}>Ingreso: {toDateStr(m.fecha_ingreso)}</Text> : null}
             </View>
             <Badge
-              label={m.estado ?? 'Activo'}
-              color={m.estado === 'Activo' || m.estado === 'activo' ? 'success' : 'warning'}
+              label={m.activo === false ? 'Inactivo' : 'Activo'}
+              color={m.activo === false ? 'warning' : 'success'}
             />
           </View>
         )}
@@ -111,6 +115,7 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
     width: 44, height: 44, borderRadius: 14,
     backgroundColor: 'rgba(108,99,255,0.12)', alignItems: 'center', justifyContent: 'center',
   },
+  avatarImg: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.surface },
   initial:   { color: colors.accent, fontSize: 18 * fs, fontWeight: '700' },
   nombre:    { color: colors.text, fontSize: 15 * fs, fontWeight: '600' },
   email:     { color: colors.textSecondary, fontSize: 12 * fs },

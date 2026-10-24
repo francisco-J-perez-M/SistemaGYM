@@ -19,6 +19,7 @@ import KPICard from '../../components/member/KPICard';
 import MembershipCard from '../../components/member/MembershipCard';
 import WorkoutRow from '../../components/member/WorkoutRow';
 import Card from '../../components/ui/Card';
+import Button from '../../components/ui/Button';
 import type { DashboardData, Exercise } from '../../types';
 import api from '../../services/api';
 
@@ -33,6 +34,8 @@ export default function MemberDashboard() {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [checkinDone, setCheckinDone] = useState(false);
   const [checkinLoading, setCheckinLoading] = useState(false);
+  const [workoutDone, setWorkoutDone] = useState(false);
+  const [workoutSaving, setWorkoutSaving] = useState(false);
 
   const workoutExercises: Exercise[] = exercises.length
     ? exercises
@@ -43,6 +46,24 @@ export default function MemberDashboard() {
       const list = prev.length ? prev : [...workoutExercises];
       return list.map((e, i) => (i === idx ? { ...e, completed: !e.completed } : e));
     });
+  };
+
+  const completeWorkout = async () => {
+    setWorkoutSaving(true);
+    try {
+      await api.post(ENDPOINTS.WORKOUT_COMPLETE, {
+        type:      data?.todayWorkout?.type,
+        exercises: workoutExercises.map((e) => ({ name: e.name, completed: e.completed })),
+        fecha:     new Date().toISOString(),
+      });
+      setWorkoutDone(true);
+      refetch();
+    } catch {
+      // Endpoint stub: marcamos completado localmente aunque falle la red.
+      setWorkoutDone(true);
+    } finally {
+      setWorkoutSaving(false);
+    }
   };
 
   const handleCheckin = async () => {
@@ -194,14 +215,31 @@ export default function MemberDashboard() {
             <Text style={styles.emptyText}>Día de descanso o sin rutina asignada</Text>
           </View>
         ) : (
-          workoutExercises.map((ex, i) => (
-            <WorkoutRow
-              key={`${ex.name}-${i}`}
-              exercise={ex}
-              index={i}
-              onToggle={toggleExercise}
+          <>
+            {workoutExercises.map((ex, i) => (
+              <WorkoutRow
+                key={`${ex.name}-${i}`}
+                exercise={ex}
+                index={i}
+                onToggle={toggleExercise}
+              />
+            ))}
+            <Button
+              label={workoutDone ? 'Entrenamiento completado' : 'Marcar entrenamiento completado'}
+              variant={workoutDone ? 'secondary' : 'primary'}
+              onPress={completeWorkout}
+              loading={workoutSaving}
+              disabled={workoutDone}
+              icon={
+                <Ionicons
+                  name={workoutDone ? 'checkmark-done' : 'checkmark-circle-outline'}
+                  size={18}
+                  color={workoutDone ? colors.success : '#fff'}
+                />
+              }
+              style={{ marginTop: 12 }}
             />
-          ))
+          </>
         )}
       </Card>
 

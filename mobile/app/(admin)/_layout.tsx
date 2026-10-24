@@ -12,6 +12,8 @@ const SCREENS: Screen[] = [
   { name: 'members',     title: 'Miembros',        icon: 'people-outline',        iconActive: 'people'        },
   { name: 'payments',    title: 'Pagos',           icon: 'cash-outline',          iconActive: 'cash'          },
   { name: 'pos',         title: 'Punto de Venta',  icon: 'cart-outline',          iconActive: 'cart'          },
+  { name: 'reports',     title: 'Reportes',        icon: 'stats-chart-outline',   iconActive: 'stats-chart'   },
+  { name: 'analytics',   title: 'Analítica IA',    icon: 'sparkles-outline',      iconActive: 'sparkles'      },
   { name: 'staff',       title: 'Staff',           icon: 'person-circle-outline', iconActive: 'person-circle' },
   { name: 'membresias',  title: 'Membresías',      icon: 'card-outline',          iconActive: 'card'          },
   { name: 'profile',     title: 'Mi Perfil',       icon: 'person-outline',        iconActive: 'person'        },

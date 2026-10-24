@@ -7,6 +7,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl,
+  Image, Modal, ScrollView, Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -28,6 +29,32 @@ interface Producto {
   stock?: number;
   categoria?: string;
   activo?: boolean;
+  descripcion?: string;
+  imagenes?: string[];
+}
+
+const IMG_W = Dimensions.get('window').width - 88;
+
+function resolveUri(uri?: string): string | null {
+  if (!uri) return null;
+  if (uri.startsWith('data:') || uri.startsWith('http')) return uri;
+  return `data:image/jpeg;base64,${uri}`;
+}
+
+// Imagen de producto con fallback a icono.
+function ProductImage({ uri, size, radius, colors }: { uri?: string; size: number; radius: number; colors: any }) {
+  const [err, setErr] = useState(false);
+  const src = resolveUri(uri);
+  if (!src || err) {
+    return (
+      <View style={{ width: size, height: size, borderRadius: radius,
+        backgroundColor: 'rgba(108,99,255,0.1)', alignItems: 'center', justifyContent: 'center' }}>
+        <Ionicons name="cube-outline" size={size * 0.4} color={colors.accent} />
+      </View>
+    );
+  }
+  return <Image source={{ uri: src }} style={{ width: size, height: size, borderRadius: radius }}
+    resizeMode="cover" onError={() => setErr(true)} />;
 }
 
 interface VentaItem {
@@ -54,6 +81,8 @@ export default function POSScreen() {
   const styles = useMemo(() => make_styles(colors, fs), [colors, fs]);
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<Tab>('productos');
+  const [detail, setDetail] = useState<Producto | null>(null);
+  const [imgIdx, setImgIdx] = useState(0);
 
   const { data: prodData, loading: loadingP, refetch: refetchP } =
     useFetch<ProductosResponse>(ENDPOINTS.OWNER_PRODUCTOS);
@@ -105,10 +134,10 @@ export default function POSScreen() {
           ListEmptyComponent={<EmptyState icon="cube-outline" msg="No hay productos registrados."
               styles={styles} colors={colors} />}
           renderItem={({ item: p }) => (
-            <View style={styles.productCard} accessible accessibilityLabel={`${p.nombre}, $${p.precio}`}>
-              <View style={styles.productIconBox}>
-                <Ionicons name="cube-outline" size={28} color={colors.accent} />
-              </View>
+            <TouchableOpacity style={styles.productCard} activeOpacity={0.85}
+              onPress={() => { setDetail(p); setImgIdx(0); }}
+              accessibilityRole="button" accessibilityLabel={`Ver detalle de ${p.nombre}, $${p.precio}`}>
+              <ProductImage uri={p.imagenes?.[0]} size={64} radius={14} colors={colors} />
               <Text style={styles.productName} numberOfLines={2}>{toStr(p.nombre)}</Text>
               <Text style={styles.productPrice}>${p.precio}</Text>
               <View style={styles.productFooter}>
@@ -120,7 +149,7 @@ export default function POSScreen() {
                   color={p.activo !== false ? 'success' : 'error'}
                 />
               </View>
-            </View>
+            </TouchableOpacity>
           )}
         />
       )}
@@ -157,6 +186,71 @@ export default function POSScreen() {
           )}
         />
       )}
+
+      {/* Modal detalle de producto */}
+      <Modal visible={!!detail} transparent animationType="slide" onRequestClose={() => setDetail(null)}>
+        <View style={styles.overlay}>
+          <View style={styles.detailBox}>
+            <View style={styles.detailHeader}>
+              <Text style={styles.detailTitle} numberOfLines={1}>{toStr(detail?.nombre)}</Text>
+              <TouchableOpacity onPress={() => setDetail(null)} accessibilityLabel="Cerrar">
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {/* Carrusel de imágenes */}
+              {detail?.imagenes && detail.imagenes.length > 0 ? (
+                <>
+                  <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}
+                    onMomentumScrollEnd={(e) => setImgIdx(Math.round(e.nativeEvent.contentOffset.x / IMG_W))}>
+                    {detail.imagenes.map((img, i) => (
+                      <ProductImage key={i} uri={img} size={IMG_W} radius={16} colors={colors} />
+                    ))}
+                  </ScrollView>
+                  {detail.imagenes.length > 1 && (
+                    <View style={styles.dots}>
+                      {detail.imagenes.map((_, i) => (
+                        <View key={i} style={[styles.dot, i === imgIdx && styles.dotActive]} />
+                      ))}
+                    </View>
+                  )}
+                </>
+              ) : (
+                <ProductImage uri={undefined} size={IMG_W} radius={16} colors={colors} />
+              )}
+
+              <View style={styles.detailPriceRow}>
+                <Text style={styles.detailPrice}>${detail?.precio}</Text>
+                <Badge label={detail?.activo !== false ? 'Activo' : 'Inactivo'}
+                  color={detail?.activo !== false ? 'success' : 'error'} />
+              </View>
+
+              <View style={styles.detailMetaRow}>
+                {detail?.categoria ? (
+                  <View style={styles.metaPill}>
+                    <Ionicons name="pricetag-outline" size={13} color={colors.accent} />
+                    <Text style={styles.metaPillText}>{detail.categoria}</Text>
+                  </View>
+                ) : null}
+                {detail?.stock != null ? (
+                  <View style={styles.metaPill}>
+                    <Ionicons name="cube-outline" size={13} color={colors.accent} />
+                    <Text style={styles.metaPillText}>Stock: {detail.stock}</Text>
+                  </View>
+                ) : null}
+              </View>
+
+              {detail?.descripcion ? (
+                <>
+                  <Text style={styles.detailLabel}>Descripción</Text>
+                  <Text style={styles.detailDesc}>{detail.descripcion}</Text>
+                </>
+              ) : null}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -215,5 +309,22 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   totalValue:   { color: colors.text, fontSize: 20 * fs, fontWeight: '700' },
   empty:        { alignItems: 'center', paddingVertical: 60, gap: 12 },
   emptyText:    { color: colors.textMuted, fontSize: 14 * fs },
+
+  overlay:    { flex: 1, backgroundColor: colors.overlay, justifyContent: 'flex-end' },
+  detailBox:  { backgroundColor: colors.card, borderTopLeftRadius: 24, borderTopRightRadius: 24,
+                padding: 20, maxHeight: '85%', borderWidth: 1, borderColor: colors.border },
+  detailHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
+  detailTitle:  { color: colors.text, fontSize: 18 * fs, fontWeight: '700', flex: 1, marginRight: 8 },
+  dots:       { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 10 },
+  dot:        { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.border },
+  dotActive:  { backgroundColor: colors.accent, width: 18 },
+  detailPriceRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16 },
+  detailPrice: { color: colors.accent, fontSize: 28 * fs, fontWeight: '800' },
+  detailMetaRow: { flexDirection: 'row', gap: 8, marginTop: 12, flexWrap: 'wrap' },
+  metaPill:   { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: colors.accent + '14',
+                borderRadius: 16, paddingHorizontal: 10, paddingVertical: 6 },
+  metaPillText: { color: colors.accent, fontSize: 12 * fs, fontWeight: '600' },
+  detailLabel:  { color: colors.textSecondary, fontSize: 13 * fs, fontWeight: '700', marginTop: 16, marginBottom: 6 },
+  detailDesc:   { color: colors.text, fontSize: 14 * fs, lineHeight: 20 },
 });
 }

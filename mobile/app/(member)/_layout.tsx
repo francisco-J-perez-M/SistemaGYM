@@ -13,6 +13,8 @@ const SCREENS: Screen[] = [
   { name: 'training',   title: 'Entrenamiento',      icon: 'barbell-outline',   iconActive: 'barbell'   },
   { name: 'nutrition',  title: 'Nutrición y Dietas', icon: 'nutrition-outline', iconActive: 'nutrition'  },
   { name: 'membership', title: 'Mi Membresía',       icon: 'card-outline',      iconActive: 'card'      },
+  { name: 'payments',   title: 'Pagos',              icon: 'receipt-outline',   iconActive: 'receipt'   },
+  { name: 'health',     title: 'Salud',              icon: 'pulse-outline',     iconActive: 'pulse'     },
   { name: 'profile',    title: 'Mi Perfil',          icon: 'person-outline',    iconActive: 'person'    },
 ];
 

@@ -4,7 +4,7 @@
  */
 import React, { useMemo } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, RefreshControl,
+  View, Text, StyleSheet, FlatList, RefreshControl, Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -24,6 +24,7 @@ interface StaffMember {
   activo?:   boolean;
   telefono?: string;
   especializacion?: string;
+  foto_perfil?: string | null;   // base64 data URI (Usuario.to_dict)
 }
 
 interface StaffResponse {
@@ -69,9 +70,13 @@ export default function StaffScreen() {
         }
         renderItem={({ item: s }) => (
           <View style={styles.card} accessible accessibilityLabel={`${s.nombre}, ${s.rol ?? 'Staff'}`}>
-            <View style={styles.avatar}>
-              <Text style={styles.initial}>{toInitial(s.nombre)}</Text>
-            </View>
+            {s.foto_perfil && s.foto_perfil.startsWith('data:image') ? (
+              <Image source={{ uri: s.foto_perfil }} style={styles.avatarImg} resizeMode="cover" />
+            ) : (
+              <View style={styles.avatar}>
+                <Text style={styles.initial}>{toInitial(s.nombre)}</Text>
+              </View>
+            )}
             <View style={{ flex: 1 }}>
               <Text style={styles.nombre}>{toStr(s.nombre)}</Text>
               {s.email ? <Text style={styles.email}>{s.email}</Text> : null}
@@ -120,6 +125,7 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
     backgroundColor: 'rgba(108,99,255,0.15)',
     alignItems: 'center', justifyContent: 'center',
   },
+  avatarImg: { width: 46, height: 46, borderRadius: 14, backgroundColor: colors.surface },
   initial:         { color: colors.accent, fontSize: 18 * fs, fontWeight: '700' },
   nombre:          { color: colors.text, fontSize: 15 * fs, fontWeight: '600' },
   email:           { color: colors.textSecondary, fontSize: 12 * fs, marginTop: 1 },

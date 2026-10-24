@@ -408,7 +408,7 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   routineName: { color: colors.text, fontSize: 15 * fs, fontWeight: '700' },
   routineMeta: { color: colors.textSecondary, fontSize: 12 * fs, marginTop: 2 },
   statsRow:    { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  statPill:    { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.backgroundAlt ?? colors.card, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
+  statPill:    { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.cardAlt, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
   statLabel:   { color: colors.textSecondary, fontSize: 11 * fs, fontWeight: '600' },
   routineDesc: { color: colors.textSecondary, fontSize: 13 * fs, lineHeight: 18 },
   exList:      { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 10, gap: 8 },

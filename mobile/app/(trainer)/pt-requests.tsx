@@ -216,7 +216,7 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   dateText:    { color: colors.textMuted, fontSize: 11 * fs, marginTop: 2 },
   msgBox: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 8,
-    backgroundColor: colors.backgroundAlt ?? colors.card,
+    backgroundColor: colors.cardAlt,
     borderRadius: 10, padding: 10,
   },
   msgText: { color: colors.textSecondary, fontSize: 13 * fs, flex: 1, lineHeight: 18 },

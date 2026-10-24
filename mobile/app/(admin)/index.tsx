@@ -9,7 +9,7 @@
  */
 import React, { useMemo } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -138,17 +138,21 @@ export default function AdminDashboardScreen() {
           </View>
         ) : (
           recientes.map((m, i) => (
-            <View key={m._id ?? String(i)} style={styles.memberRow}>
-              <View style={styles.memberAvatar}>
-                <Text style={styles.memberInitial}>{toInitial(m.nombre)}</Text>
-              </View>
+            <View key={m.id ?? m._id ?? String(i)} style={styles.memberRow}>
+              {m.foto_perfil && m.foto_perfil.startsWith('data:image') ? (
+                <Image source={{ uri: m.foto_perfil }} style={styles.memberAvatarImg} resizeMode="cover" />
+              ) : (
+                <View style={styles.memberAvatar}>
+                  <Text style={styles.memberInitial}>{toInitial(m.nombre)}</Text>
+                </View>
+              )}
               <View style={{ flex: 1 }}>
                 <Text style={styles.memberName}>{toStr(m.nombre)}</Text>
                 <Text style={styles.memberEmail}>{toStr(m.email)}</Text>
               </View>
               <Badge
-                label={toStr(m.estado, 'Activo')}
-                color={m.estado === 'Activo' ? 'success' : 'warning'}
+                label={m.activo === false ? 'Inactivo' : 'Activo'}
+                color={m.activo === false ? 'warning' : 'success'}
               />
             </View>
           ))
@@ -186,6 +190,7 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
     width: 36, height: 36, borderRadius: 10,
     backgroundColor: 'rgba(108,99,255,0.12)', alignItems: 'center', justifyContent: 'center',
   },
+  memberAvatarImg: { width: 36, height: 36, borderRadius: 10, backgroundColor: colors.surface },
   memberInitial: { color: colors.accent, fontSize: 15 * fs, fontWeight: '700' },
   memberName:    { color: colors.text, fontSize: 14 * fs, fontWeight: '600' },
   memberEmail:   { color: colors.textSecondary, fontSize: 12 * fs },

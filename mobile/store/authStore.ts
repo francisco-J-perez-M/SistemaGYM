@@ -24,6 +24,9 @@ function resolveHomeRoute(role: string): string {
       return '/(member)/';
     case 'Entrenador':
       return '/(trainer)/';
+    case 'Recepcionista':
+    case 'recepcionista':
+      return '/(receptionist)/';
     case 'owner_gym':
     case 'Admin':
     case 'superadmin':
