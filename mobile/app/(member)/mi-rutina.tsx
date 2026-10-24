@@ -398,6 +398,9 @@ export default function MiRutinaScreen() {
         routine={detalle}
         mode="member"
         onClose={() => setDetalle(null)}
+        // Al marcar un día se recarga la lista: el conteo de entrenamientos y
+        // la racha que muestra el panel quedan al día sin salir de la pantalla.
+        onCompletado={refetch}
       />
     </ScrollView>
   );

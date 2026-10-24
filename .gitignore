@@ -24,5 +24,15 @@ venv/
 .DS_Store
 Thumbs.db
 
-# ── Backups generados (solo el directorio raíz, no api/app/backups/) ──────────
-/backups/
+# ── Backups y subidas generados en tiempo de ejecución ────────────────────────
+#
+# Se ignora el CONTENIDO pero se versiona un .gitkeep para que las carpetas
+# existan al clonar. Docker Compose las monta como volumen (./backups y
+# ./uploads); si no existen, el demonio de Docker las crea en el host como root
+# y el contenedor, que corre como el usuario `gymuser`, no puede escribir en
+# ellas: los respaldos y las fotos de perfil fallan con "permission denied" en
+# una computadora recién clonada aunque funcionen en la original.
+/backups/*
+!/backups/.gitkeep
+/uploads/*
+!/uploads/.gitkeep

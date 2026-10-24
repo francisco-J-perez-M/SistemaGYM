@@ -16,6 +16,15 @@ export const getOwnerAlertas     = ()           => API.get("/owner_gym/alertas")
 // ── Perfil del gimnasio ───────────────────────────────────────────────────
 export const getOwnerPerfil      = ()     => API.get("/owner_gym/perfil");
 export const updateOwnerPerfil   = (data) => API.put("/owner_gym/perfil", data);
+// Datos de la PERSONA propietaria, distintos de los del gimnasio.
+export const updateOwnerPropietario = (data) =>
+  API.put("/owner_gym/perfil/propietario", data);
+
+// ── Reportes ejecutivos ───────────────────────────────────────────────────
+export const getReporteOpciones = () => API.get("/owner_gym/reportes/opciones");
+/** Descarga el PDF como blob; el navegador no puede seguir un enlace con JWT. */
+export const descargarReportePdf = (params) =>
+  API.get("/owner_gym/reportes/pdf", { params, responseType: "blob" });
 
 // ── Staff (entrenadores + recepcionistas) ─────────────────────────────────
 export const getStaff            = (params = {}) => API.get("/owner_gym/staff", { params });

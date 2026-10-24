@@ -1,12 +1,19 @@
 /**
  * Reportes del Entrenador — KPIs, métricas de desempeño, evolución mensual,
- * top de clientes y opción de compartir un resumen.
- * Consume GET /api/trainer/reports?range=week|month|quarter.
- * Espeja el reporte del portal web (sin la exportación PDF de escritorio).
+ * top de clientes, resumen para compartir y descarga del reporte en PDF.
+ *
+ *   GET /api/trainer/reports?range=…       cifras en pantalla
+ *   GET /api/trainer/reportes/opciones     años con sesiones y secciones
+ *   GET /api/trainer/reportes/pdf          documento con los filtros elegidos
+ *
+ * El PDF lo arma el backend, el mismo que sirve al portal web: así el reporte
+ * que el entrenador descarga del teléfono y el que baja del navegador son el
+ * mismo documento, no dos maquetas parecidas.
  */
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, RefreshControl, Share,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions,
+  RefreshControl, Share, Modal, Alert, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { BarChart } from 'react-native-chart-kit';
@@ -14,7 +21,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors, useFontScale } from '../../hooks/useColors';
 import { conAlfa } from '../../constants/themes';
 import { ENDPOINTS } from '../../constants/Api';
+import { useFetch } from '../../hooks/useFetch';
+import { toArray } from '../../utils/format';
 import api from '../../services/api';
+import { downloadAndShare } from '../../services/download';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Card from '../../components/ui/Card';
 
@@ -23,6 +33,12 @@ const RANGOS: { id: string; label: string }[] = [
   { id: 'month',   label: 'Mes' },
   { id: 'quarter', label: 'Trimestre' },
 ];
+
+const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
+               'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
+interface SeccionReporte { id: string; label: string; descripcion: string }
+interface OpcionesReporte { anios: number[]; secciones: SeccionReporte[] }
 
 export default function TrainerReportsScreen() {
   const colors = useColors();
@@ -66,6 +82,48 @@ export default function TrainerReportsScreen() {
     try { await Share.share({ message: msg }); } catch { /* cancelado */ }
   }, [range, stats, metrics]);
 
+  // ── Descarga del PDF ──────────────────────────────────────────────────────
+  const { data: opciones } = useFetch<OpcionesReporte>(ENDPOINTS.TRAINER_REP_OPCIONES);
+  const hoy = new Date();
+  const [config,     setConfig]     = useState(false);
+  const [descargando, setDescargando] = useState(false);
+  const [anioPdf,    setAnioPdf]    = useState(hoy.getFullYear());
+  const [mesPdf,     setMesPdf]     = useState(hoy.getMonth() + 1); // 0 = año completo
+  const [secciones,  setSecciones]  = useState<string[]>(
+    ['resumen', 'sesiones', 'clientes', 'tipos'],
+  );
+
+  const catalogo = toArray<SeccionReporte>(opciones?.secciones);
+  const aniosPdf = toArray<number>(opciones?.anios);
+
+  const alternarSeccion = (id: string) =>
+    setSecciones((prev) => prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]);
+
+  const descargarPdf = async () => {
+    if (secciones.length === 0) {
+      Alert.alert('Elige al menos una sección', 'El reporte no puede ir vacío.');
+      return;
+    }
+    setDescargando(true);
+    try {
+      const consulta =
+        `${ENDPOINTS.TRAINER_REP_PDF}?anio=${anioPdf}&mes=${mesPdf}` +
+        `&secciones=${secciones.join(',')}`;
+      const nombre = `Reporte_entrenador_${anioPdf}-${String(mesPdf).padStart(2, '0')}.pdf`;
+      const r = await downloadAndShare(consulta, nombre);
+      if (!r.ok) {
+        // `reason` vacío significa que el usuario canceló el guardado.
+        if (r.reason) Alert.alert('No se pudo descargar', r.reason);
+      } else {
+        setConfig(false);
+      }
+    } catch (e: any) {
+      Alert.alert('Error', e?.message ?? 'No se pudo generar el reporte.');
+    } finally {
+      setDescargando(false);
+    }
+  };
+
   if (loading) return <LoadingSpinner fullScreen message="Cargando reporte…" />;
 
   const width = Dimensions.get('window').width - 40;
@@ -91,6 +149,14 @@ export default function TrainerReportsScreen() {
           <Text style={styles.title} accessibilityRole="header">Reportes</Text>
           <Text style={styles.subtitle}>Tu desempeño y el de tus clientes.</Text>
         </View>
+        <TouchableOpacity
+          style={styles.shareBtn}
+          onPress={() => setConfig(true)}
+          accessibilityLabel="Descargar reporte en PDF"
+          accessibilityRole="button"
+        >
+          <Ionicons name="download-outline" size={20} color={colors.accent} />
+        </TouchableOpacity>
         <TouchableOpacity style={styles.shareBtn} onPress={compartir} accessibilityLabel="Compartir resumen">
           <Ionicons name="share-outline" size={20} color={colors.accent} />
         </TouchableOpacity>
@@ -173,6 +239,110 @@ export default function TrainerReportsScreen() {
           </Card>
         </>
       )}
+
+      {/* Configuración de la descarga */}
+      <Modal
+        visible={config}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setConfig(false)}
+      >
+        <View style={styles.overlay}>
+          <View style={[styles.hoja, { paddingBottom: insets.bottom + 16 }]}>
+            <View style={styles.hojaHeader}>
+              <Text style={styles.hojaTitulo}>Descargar reporte</Text>
+              <TouchableOpacity
+                onPress={() => setConfig(false)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                accessibilityLabel="Cerrar"
+                accessibilityRole="button"
+              >
+                <Ionicons name="close" size={22} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 440 }}>
+              <Text style={styles.campoLabel}>Año</Text>
+              <View style={styles.chipsFila}>
+                {(aniosPdf.length ? aniosPdf : [hoy.getFullYear()]).map((a) => (
+                  <TouchableOpacity
+                    key={a}
+                    style={[styles.rangeChip, anioPdf === a && styles.rangeChipActive]}
+                    onPress={() => setAnioPdf(a)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: anioPdf === a }}
+                  >
+                    <Text style={[styles.rangeText, anioPdf === a && styles.rangeTextActive]}>{a}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={styles.campoLabel}>Mes</Text>
+              <View style={styles.chipsFila}>
+                <TouchableOpacity
+                  style={[styles.rangeChip, mesPdf === 0 && styles.rangeChipActive]}
+                  onPress={() => setMesPdf(0)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: mesPdf === 0 }}
+                >
+                  <Text style={[styles.rangeText, mesPdf === 0 && styles.rangeTextActive]}>Todo el año</Text>
+                </TouchableOpacity>
+                {MESES.map((m, i) => (
+                  <TouchableOpacity
+                    key={m}
+                    style={[styles.rangeChip, mesPdf === i + 1 && styles.rangeChipActive]}
+                    onPress={() => setMesPdf(i + 1)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: mesPdf === i + 1 }}
+                  >
+                    <Text style={[styles.rangeText, mesPdf === i + 1 && styles.rangeTextActive]}>{m}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={styles.campoLabel}>Qué incluir</Text>
+              {catalogo.map((s) => {
+                const activa = secciones.includes(s.id);
+                return (
+                  <TouchableOpacity
+                    key={s.id}
+                    style={[styles.seccionRow, activa && styles.seccionRowActiva]}
+                    onPress={() => alternarSeccion(s.id)}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: activa }}
+                    accessibilityLabel={s.label}
+                  >
+                    <Ionicons
+                      name={activa ? 'checkbox' : 'square-outline'}
+                      size={20}
+                      color={activa ? colors.accent : colors.textSecondary}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.seccionLabel}>{s.label}</Text>
+                      <Text style={styles.seccionDesc}>{s.descripcion}</Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            <TouchableOpacity
+              style={[styles.descargarBtn, descargando && { opacity: 0.6 }]}
+              onPress={descargarPdf}
+              disabled={descargando}
+              accessibilityRole="button"
+              accessibilityLabel="Generar y descargar el PDF"
+            >
+              {descargando
+                ? <ActivityIndicator color={colors.onAccent} />
+                : <>
+                    <Ionicons name="download-outline" size={18} color={colors.onAccent} />
+                    <Text style={styles.descargarTxt}>Descargar PDF</Text>
+                  </>}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -202,7 +372,35 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   return StyleSheet.create({
     screen:  { flex: 1, backgroundColor: colors.background },
     content: { padding: 20, gap: 14, paddingBottom: 40 },
-    headerRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    headerRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+
+    // Hoja de configuración de la descarga
+    overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,.6)', justifyContent: 'flex-end' },
+    hoja: {
+      backgroundColor: colors.background,
+      borderTopLeftRadius: 20, borderTopRightRadius: 20,
+      paddingHorizontal: 18, paddingTop: 16, gap: 10,
+    },
+    hojaHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    hojaTitulo: { color: colors.text, fontSize: 17 * fs, fontWeight: '700' },
+    campoLabel: {
+      color: colors.textSecondary, fontSize: 12.5 * fs, fontWeight: '700',
+      marginTop: 14, marginBottom: 7,
+    },
+    chipsFila: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+    seccionRow: {
+      flexDirection: 'row', alignItems: 'center', gap: 11,
+      backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
+      borderRadius: 12, padding: 12, marginBottom: 8,
+    },
+    seccionRowActiva: { borderColor: colors.accent },
+    seccionLabel: { color: colors.text, fontSize: 13.5 * fs, fontWeight: '700' },
+    seccionDesc:  { color: colors.textSecondary, fontSize: 11.5 * fs, marginTop: 2, lineHeight: 16 },
+    descargarBtn: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+      backgroundColor: colors.accent, paddingVertical: 14, borderRadius: 13, marginTop: 6,
+    },
+    descargarTxt: { color: colors.onAccent, fontSize: 15 * fs, fontWeight: '700' },
     title:   { color: colors.text, fontSize: 26 * fs, fontWeight: '700' },
     subtitle:{ color: colors.textSecondary, fontSize: 13 * fs },
     shareBtn: {

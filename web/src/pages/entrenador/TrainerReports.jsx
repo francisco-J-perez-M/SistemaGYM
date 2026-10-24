@@ -26,8 +26,33 @@ import {
   FiCheckCircle, FiXCircle, FiTarget, FiStar, FiFileText,
   FiLoader, FiClock,
 } from "react-icons/fi";
+import axios from "axios";
 import trainerService from "../../services/entrenador/trainerService";
 import "../../css/CSSUnificado.css";
+
+const MESES_CORTOS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun",
+                      "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+
+/** Cabecera con el JWT para las llamadas directas por axios. */
+const authHeaders = () => ({
+  Authorization: `Bearer ${localStorage.getItem("token")}`,
+});
+
+/** Estilos del panel de configuración del reporte a la medida. */
+const CFG = {
+  label: {
+    display: "block", fontSize: 11.5, fontWeight: 700, textTransform: "uppercase",
+    letterSpacing: ".05em", color: "var(--text-secondary)", marginBottom: 8,
+  },
+  chips: { display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 18 },
+  chip: (activo) => ({
+    padding: "7px 14px", borderRadius: 18, cursor: "pointer", fontSize: 12.5, fontWeight: 600,
+    border: `1px solid ${activo ? "var(--accent)" : "var(--border)"}`,
+    background: activo ? "var(--accent)" : "transparent",
+    color: activo ? "#fff" : "var(--text-secondary)",
+    transition: "all .15s",
+  }),
+};
 
 // ─── Paleta de colores ────────────────────────────────────────────────────────
 const COLORS = {
@@ -342,7 +367,9 @@ export default function TrainerReports() {
     URL.revokeObjectURL(url);
   };
 
-  // ── Exportar PDF ──────────────────────────────────────────────────────────
+  // ── Exportar PDF rápido ───────────────────────────────────────────────────
+  // Toma lo que ya está en pantalla y lo maqueta en el navegador. Es inmediato
+  // porque no vuelve a consultar nada.
   const handlePDF = async () => {
     if (!data) return;
     setExporting(true);
@@ -352,6 +379,67 @@ export default function TrainerReports() {
       alert("Error al generar el PDF: " + e.message);
     } finally {
       setExporting(false);
+    }
+  };
+
+  // ── Reporte a la medida ───────────────────────────────────────────────────
+  // Lo arma el backend con el periodo y las secciones que se elijan. Es el
+  // mismo documento que descarga la app móvil: al generarlo en el servidor, un
+  // reporte del navegador y otro del teléfono salen idénticos, cosa que no
+  // ocurriría maquetándolo dos veces en cada cliente.
+  const hoy = new Date();
+  const [cfgAbierta, setCfgAbierta] = useState(false);
+  const [opciones,   setOpciones]   = useState(null);
+  const [anio,       setAnio]       = useState(hoy.getFullYear());
+  const [mes,        setMes]        = useState(hoy.getMonth() + 1);  // 0 = año completo
+  const [secciones,  setSecciones]  = useState(["resumen", "sesiones", "clientes", "tipos"]);
+  const [generando,  setGenerando]  = useState(false);
+
+  useEffect(() => {
+    if (!cfgAbierta || opciones) return;
+    axios
+      .get("/api/trainer/reportes/opciones", { headers: authHeaders() })
+      .then((r) => {
+        setOpciones(r.data);
+        // Si el año en curso no tiene sesiones, se abre en el más reciente.
+        const anios = r.data?.anios;
+        if (Array.isArray(anios) && anios.length && !anios.includes(hoy.getFullYear())) {
+          setAnio(anios[0]);
+        }
+      })
+      .catch(() => setOpciones({ anios: [hoy.getFullYear()], secciones: [] }));
+  }, [cfgAbierta, opciones]); // eslint-disable-line
+
+  const alternarSeccion = (id) =>
+    setSecciones((prev) => prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]);
+
+  const descargarPersonalizado = async () => {
+    if (secciones.length === 0) {
+      alert("Elige al menos una sección: el reporte no puede ir vacío.");
+      return;
+    }
+    setGenerando(true);
+    try {
+      // Va por axios y no por un enlace directo porque el endpoint exige el JWT,
+      // que el navegador no adjuntaría al seguir un href.
+      const { data: blob } = await axios.get("/api/trainer/reportes/pdf", {
+        params: { anio, mes, secciones: secciones.join(",") },
+        headers: authHeaders(),
+        responseType: "blob",
+      });
+      const url = URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Reporte_entrenador_${anio}-${String(mes).padStart(2, "0")}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setCfgAbierta(false);
+    } catch (e) {
+      alert("No se pudo generar el reporte. Intenta de nuevo en un momento.");
+    } finally {
+      setGenerando(false);
     }
   };
 
@@ -418,16 +506,108 @@ export default function TrainerReports() {
           </button>
 
           <button
-            className="btn-compact-primary"
+            className="btn-outline-small"
             onClick={handlePDF}
             disabled={loading || !data || exporting}
             style={{ display:"flex", alignItems:"center", gap:6 }}
+            title="PDF de lo que ves en pantalla"
           >
             <FiFileText size={14} />
-            {exporting ? "Generando…" : "Descargar PDF"}
+            {exporting ? "Generando…" : "PDF rápido"}
+          </button>
+
+          <button
+            className="btn-compact-primary"
+            onClick={() => setCfgAbierta(true)}
+            style={{ display:"flex", alignItems:"center", gap:6 }}
+            title="Elegir periodo y secciones"
+          >
+            <FiDownload size={14} /> Reporte a la medida
           </button>
         </div>
       </div>
+
+      {/* ── Configuración del reporte a la medida ── */}
+      {cfgAbierta && (
+        <>
+          <div
+            onClick={() => setCfgAbierta(false)}
+            style={{ position:"fixed", inset:0, zIndex:9990, background:"rgba(0,0,0,.6)" }}
+          />
+          <div style={{
+            position:"fixed", zIndex:9991, top:"50%", left:"50%", transform:"translate(-50%,-50%)",
+            width:"min(520px, calc(100vw - 40px))", maxHeight:"85vh", overflowY:"auto",
+            background:"var(--bg-card)", border:"1px solid var(--border)", borderRadius:14,
+            padding:"22px 24px",
+          }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+              <h3 style={{ margin:0, fontSize:18, fontWeight:800 }}>Reporte a la medida</h3>
+              <button
+                onClick={() => setCfgAbierta(false)}
+                style={{ background:"none", border:"none", color:"var(--text-secondary)", cursor:"pointer", fontSize:20 }}
+                aria-label="Cerrar"
+              >
+                ×
+              </button>
+            </div>
+            <p style={{ fontSize:12.5, color:"var(--text-secondary)", margin:"0 0 18px" }}>
+              Elige el periodo y qué incluir. El documento lo genera el servidor.
+            </p>
+
+            <label style={CFG.label}>Año</label>
+            <div style={CFG.chips}>
+              {(opciones?.anios?.length ? opciones.anios : [hoy.getFullYear()]).map((a) => (
+                <button key={a} onClick={() => setAnio(a)} style={CFG.chip(anio === a)}>{a}</button>
+              ))}
+            </div>
+
+            <label style={CFG.label}>Mes</label>
+            <div style={CFG.chips}>
+              <button onClick={() => setMes(0)} style={CFG.chip(mes === 0)}>Año completo</button>
+              {MESES_CORTOS.map((m, i) => (
+                <button key={m} onClick={() => setMes(i + 1)} style={CFG.chip(mes === i + 1)}>{m}</button>
+              ))}
+            </div>
+
+            <label style={CFG.label}>Qué incluir</label>
+            <div style={{ display:"grid", gap:8, marginBottom:20 }}>
+              {(opciones?.secciones ?? []).map((s) => {
+                const activa = secciones.includes(s.id);
+                return (
+                  <div
+                    key={s.id}
+                    onClick={() => alternarSeccion(s.id)}
+                    style={{
+                      display:"flex", alignItems:"center", gap:11, cursor:"pointer",
+                      padding:"11px 13px", borderRadius:10,
+                      background:"var(--bg-input)",
+                      border:`1px solid ${activa ? "var(--accent)" : "var(--border)"}`,
+                    }}
+                  >
+                    <span style={{ color: activa ? "var(--accent)" : "var(--text-secondary)", fontSize:15 }}>
+                      {activa ? "☑" : "☐"}
+                    </span>
+                    <div>
+                      <div style={{ fontSize:13.5, fontWeight:700 }}>{s.label}</div>
+                      <div style={{ fontSize:11.5, color:"var(--text-secondary)" }}>{s.descripcion}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <button
+              className="btn-compact-primary"
+              onClick={descargarPersonalizado}
+              disabled={generando}
+              style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"center", gap:8, opacity: generando ? .6 : 1 }}
+            >
+              <FiDownload size={15} />
+              {generando ? "Generando…" : "Descargar PDF"}
+            </button>
+          </div>
+        </>
+      )}
 
       {/* ── Error ── */}
       <AnimatePresence>

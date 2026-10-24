@@ -13,6 +13,8 @@ import OwnerDashboard     from "./pages/owner_gym/OwnerDashboard";
 import OwnerStaff         from "./pages/owner_gym/OwnerStaff";
 import OwnerMemberships   from "./pages/owner_gym/OwnerMemberships";
 import OwnerProfile       from "./pages/owner_gym/OwnerProfile";
+import OwnerMiPerfil      from "./pages/owner_gym/OwnerMiPerfil";
+import OwnerReportes      from "./pages/owner_gym/OwnerReportes";
 import MiembrosDashboard  from "./pages/owner_gym/MiembrosDashboard";
 import PagosDashboard     from "./pages/owner_gym/PagosDashboard";
 import CobrarMembresia    from "./pages/owner_gym/CobrarMembresia";
@@ -47,6 +49,7 @@ import TrainerClients   from "./pages/entrenador/TrainerClients";
 import TrainerSchedule  from "./pages/entrenador/TrainerSchedule";
 import TrainerRoutines  from "./pages/entrenador/TrainerRoutines";
 import TrainerReports   from "./pages/entrenador/TrainerReports";
+import TrainerMessages  from "./pages/entrenador/TrainerMessages";
 import TrainerProfile   from "./pages/entrenador/TrainerProfile";
 import TrainerRequests  from "./pages/entrenador/TrainerRequests";
 import TrainerDiets     from "./pages/entrenador/TrainerDiets";
@@ -98,6 +101,8 @@ function App() {
             <Route path="/owner/staff"         element={<OwnerStaff />}       />
             <Route path="/owner/memberships"   element={<OwnerMemberships />} />
             <Route path="/owner/profile"       element={<OwnerProfile />}     />
+            <Route path="/owner/mi-perfil"     element={<OwnerMiPerfil />}    />
+            <Route path="/owner/reportes"      element={<OwnerReportes />}    />
             <Route path="/owner/subscription"  element={<OwnerSubscription />} />
             <Route path="/owner/pagos-online"  element={<OwnerPagos />}       />
             <Route path="/owner/backups"       element={<BackupsDashboard />} />
@@ -141,6 +146,7 @@ function App() {
             <Route path="/trainer/profile"           element={<TrainerProfile />} />
             <Route path="/trainer/pos"               element={<PointOfSale />} />
             <Route path="/trainer/requests"          element={<TrainerRequests />} />
+            <Route path="/trainer/messages"          element={<TrainerMessages />} />
           </Route>
 
           {/* 5. RUTAS RECEPCIONISTA */}

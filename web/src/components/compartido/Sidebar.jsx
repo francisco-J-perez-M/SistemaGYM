@@ -51,9 +51,15 @@ const MENUS = {
       ],
     },
     {
+      id: "ow-reportes", label: "Reportes", icon: <FiFileText />,
+    },
+    {
       id: "ow-config", label: "Configuración", icon: <FiSettings />,
       children: [
-        { id: "ow-profile",      label: "Perfil del Gym",            icon: <FiUser />       },
+        // Mi Perfil = la persona; Perfil del Gym = el negocio. Son pantallas
+        // distintas y antes solo existía la segunda.
+        { id: "ow-mi-perfil",    label: "Mi Perfil",                 icon: <FiUser />       },
+        { id: "ow-profile",      label: "Perfil del Gym",            icon: <FiGlobe />      },
         { id: "ow-subscription", label: "Mi Suscripción",            icon: <FiCreditCard /> },
         { id: "ow-pagos-online", label: "Cobros en línea",           icon: <FiDollarSign /> },
         { id: "ow-backups",      label: "Respaldos y Restauración", icon: <FiUpload /> },
@@ -85,7 +91,11 @@ const MENUS = {
     { id: "profile", label: "Mi Perfil", icon: <FiUser /> },
   ],
   trainer: [
+    { id: "tr-dashboard", label: "Dashboard",    icon: <FiBarChart2 />    },
     { id: "clients",   label: "Mis Clientes",    icon: <FiUsers />        },
+    // Mensajes y solicitudes son cosas distintas: una es conversación con
+    // clientes actuales y la otra, peticiones de quienes aún no lo son.
+    { id: "messages",  label: "Mensajes",        icon: <FiActivity />     },
     { id: "requests",  label: "Solicitudes PT",  icon: <GiMuscleUp />     },
     { id: "schedule",  label: "Agenda",          icon: <FiCalendar />     },
     { id: "routines",  label: "Rutinas",         icon: <FiFileText />     },
@@ -241,7 +251,10 @@ export default function Sidebar({
       background: P.bg,
       borderRight: `1px solid ${P.border}`,
       flexShrink: 0,
-      overflow: "hidden",
+      // overflow visible: el botón de colapsar sobresale del borde derecho
+      // (right: -14) y con "hidden" quedaba recortado, así que no se veía.
+      // El recorte que sí hace falta está en la lista de navegación.
+      overflow: "visible",
       transition: "width .3s cubic-bezier(.4,0,.2,1), min-width .3s cubic-bezier(.4,0,.2,1)",
       position: "relative",
       zIndex: 100,
@@ -250,18 +263,21 @@ export default function Sidebar({
       position: "absolute",
       top: 18,
       right: -14,
-      width: 28,
-      height: 28,
+      width: 30,
+      height: 30,
       borderRadius: "50%",
       background: P.accent,
-      border: "none",
+      // Borde del color del fondo de la página: recorta el círculo contra el
+      // contenido y hace que se lea como un control, no como un adorno pegado.
+      border: "2px solid var(--bg-body, #0f1117)",
       cursor: "pointer",
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
       color: "#fff",
-      zIndex: 10,
-      boxShadow: "0 2px 8px rgba(99,102,241,.4)",
+      // Por encima del contenido de la página, que tiene su propio apilamiento.
+      zIndex: 300,
+      boxShadow: "0 2px 10px rgba(0,0,0,.35)",
       transition: "transform .2s",
     },
     header: {

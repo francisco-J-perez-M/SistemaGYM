@@ -6,6 +6,7 @@
  */
 import { useState, useEffect, useRef, useCallback } from "react";
 import { FiCamera, FiSearch, FiUsers, FiCheck } from "react-icons/fi";
+import DetalleUsuarioModal, { fechaFicha } from "../../components/compartido/DetalleUsuarioModal";
 import {
   getMiembros, createMiembro, updateMiembro,
   deleteMiembro, reactivateMiembro,
@@ -407,7 +408,33 @@ function MiembroForm({ initial, onSave, onCancel }) {
 }
 
 // ── Card de miembro ───────────────────────────────────────────────────────────
-function MemberCard({ m, inactivos, onEdit, onDelete, onReactivate }) {
+/** Traduce un miembro de la API a la ficha genérica del modal de detalle. */
+export function miembroADetalle(m) {
+  return {
+    nombre:    m.nombre,
+    email:     m.email,
+    telefono:  m.telefono,
+    foto:      m.foto_perfil,
+    activo:    m.activo !== false,
+    subtitulo: m.membresia?.nombre ?? m.membresia_activa ?? null,
+    datos: [
+      { icono: "membresia",  etiqueta: "Membresía",     valor: m.membresia?.nombre ?? m.membresia_activa },
+      { icono: "vence",      etiqueta: "Vence",         valor: fechaFicha(m.membresia?.fecha_fin) },
+      { icono: "ingreso",    etiqueta: "Ingreso",       valor: fechaFicha(m.registrationDate ?? m.fecha_registro) },
+      { icono: "nacimiento", etiqueta: "Nacimiento",    valor: fechaFicha(m.birthDate) },
+      { icono: "generico",   etiqueta: "Sexo",          valor: m.sexo },
+      { icono: "peso",       etiqueta: "Peso inicial",  valor: m.peso_inicial ? `${m.peso_inicial} kg` : null },
+      { icono: "generico",   etiqueta: "Estatura",      valor: m.estatura ? `${m.estatura} m` : null },
+      { icono: "objetivo",   etiqueta: "Objetivo",      valor: m.objetivo },
+      { icono: "peso",       etiqueta: "Peso meta",     valor: m.peso_objetivo ? `${m.peso_objetivo} kg` : null },
+      { icono: "estado",     etiqueta: "Última sesión", valor: fechaFicha(m.ultima_sesion) },
+      { icono: "correo",     etiqueta: "Correo",        valor: m.email },
+      { icono: "telefono",   etiqueta: "Teléfono",      valor: m.telefono },
+    ],
+  };
+}
+
+function MemberCard({ m, inactivos, onView, onEdit, onDelete, onReactivate }) {
   const imcVal  = imc(m.peso_inicial, m.estatura);
   const imcMeta = imcLabel(imcVal);
 
@@ -467,6 +494,13 @@ function MemberCard({ m, inactivos, onEdit, onDelete, onReactivate }) {
 
       {/* Acciones */}
       <div style={{ padding: "10px 14px", display: "flex", gap: 8 }}>
+        <button
+          onClick={() => onView(m)}
+          title="Ver ficha completa"
+          style={{ flex: 1, padding: "7px 0", borderRadius: 8, border: "none", background: `${C.accent}1A`, color: C.accent, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+        >
+          Ver
+        </button>
         <button
           onClick={() => onEdit(m)}
           style={{ flex: 1, padding: "7px 0", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", color: C.t2, fontSize: 12, fontWeight: 600, cursor: "pointer" }}
@@ -539,6 +573,8 @@ export default function MiembrosDashboard() {
   const [total,      setTotal]      = useState(0);
   const [search,     setSearch]     = useState("");
   const [inactivos,  setInactivos]  = useState(false);
+  // Miembro cuya ficha completa se está viendo; null cierra el modal.
+  const [detalle,    setDetalle]    = useState(null);
   const [modal,      setModal]      = useState(null);   // null | {} | {miembro}
   const [confirm,    setConfirm]    = useState(null);   // null | {title,msg,fn,danger}
 
@@ -685,6 +721,7 @@ export default function MiembrosDashboard() {
               key={m.id}
               m={m}
               inactivos={inactivos}
+              onView={setDetalle}
               onEdit={handleEdit}
               onDelete={handleDelete}
               onReactivate={handleReactivate}
@@ -707,6 +744,12 @@ export default function MiembrosDashboard() {
           </button>
         </div>
       )}
+
+      <DetalleUsuarioModal
+        usuario={detalle ? miembroADetalle(detalle) : null}
+        onClose={() => setDetalle(null)}
+        titulo="Detalle del miembro"
+      />
 
       <style>{`
         @keyframes pulse { 0%,100%{opacity:.4} 50%{opacity:.8} }

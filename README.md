@@ -484,6 +484,9 @@ SistemaGYM/
 
 | Síntoma | Causa probable | Solución |
 |---|---|---|
+| `exec /app/entrypoint.sh: no such file or directory` | Finales de línea de Windows (CRLF) en el script | Ya resuelto en el repositorio; ver el recuadro de abajo |
+| `host not found in upstream "api"` en el contenedor `web` | La API está en bucle de reinicio, no es un problema de red | Resolver primero el error de `api`: `docker compose logs api` |
+| `permission denied` al guardar respaldos o fotos de perfil | Las carpetas `backups/` o `uploads/` las creó Docker como `root` | Ya resuelto con `.gitkeep`; si persiste: `sudo chown -R 1000:1000 backups uploads` |
 | `port is already allocated` | Otro proceso ocupa 8080, 5000 o 5433 | Liberar el puerto o cambiar el mapeo en `docker-compose.yml` |
 | El contenedor `api` queda en `unhealthy` | Falló una migración o falta una variable | `docker compose logs api` |
 | Las fechas se guardan con un día de diferencia | Falta `APP_TIMEZONE` | Añadirla a `api/.env` y `docker compose up -d --build api` |
@@ -491,6 +494,59 @@ SistemaGYM/
 | La app móvil no conecta con la API | Teléfono en otra red, o la IP no coincide | Misma WiFi; ver [mobile/README.md](mobile/README.md) |
 | `docker: command not found` en WSL | El servicio no está arrancado | `sudo service docker start` |
 | Falta espacio en disco | Imágenes y capas huérfanas | `docker system prune -a` (no toca los volúmenes de datos) |
+
+## 10.1 Por qué el proyecto no arrancaba en algunas computadoras
+
+Durante un tiempo el mismo commit levantaba los contenedores en una computadora
+y fallaba en otra. El síntoma eran dos errores encadenados:
+
+```
+api  | exec /app/entrypoint.sh: no such file or directory
+web  | host not found in upstream "api" in /etc/nginx/conf.d/app.conf:50
+```
+
+El segundo era una consecuencia: nginx no podía resolver un contenedor que
+estaba reiniciándose sin parar. El verdadero problema era el primero, y el
+mensaje engañaba, porque el archivo sí existía y `chmod +x` funcionaba.
+
+La causa era el final de línea. Al descargar el proyecto en Windows, Git podía
+convertir `entrypoint.sh` a CRLF (`\r\n`). El kernel de Linux entonces lee el
+shebang como `#!/bin/sh\r`, busca un intérprete llamado `sh\r` que no existe y
+aborta con ese mensaje de "archivo no encontrado".
+
+Queda resuelto en el repositorio con tres defensas, **no hay que hacer nada al
+clonar**:
+
+1. **`.gitattributes`** declara `* text=auto` y fuerza LF en `.sh`, `Dockerfile`,
+   `.yml` y `.conf`. Así el resultado de `git clone` ya no depende de la
+   configuración personal de `core.autocrlf` de cada quien.
+2. **`api/Dockerfile`** normaliza el archivo durante el build
+   (`sed -i 's/\r$//' /app/entrypoint.sh`). Esto cubre lo que el punto anterior
+   no puede: `docker build` copia desde el disco, no desde Git, así que un
+   editor que guarde el archivo con CRLF rompería el arranque aun con el
+   repositorio correcto.
+3. **`web/nginx.conf`** resuelve `api` en tiempo de ejecución con
+   `resolver 127.0.0.11` en lugar de exigirlo al iniciar, de modo que el
+   contenedor `web` ya no muere si la API tarda en levantar.
+
+Si alguna vez vuelves a ver ese error, comprueba los finales de línea así:
+
+```powershell
+# Windows (PowerShell)
+Get-Content .\api\entrypoint.sh -Raw | Select-String "`r"
+```
+
+```bash
+# Git Bash, macOS o Linux — debe decir "LF", no "CRLF"
+file api/entrypoint.sh
+```
+
+Si aparece CRLF, basta con volver a normalizar y reconstruir:
+
+```bash
+git add --renormalize .
+docker compose up -d --build api
+```
 
 ---
 
