@@ -15,4 +15,4 @@ API.interceptors.request.use((config) => {
 /* ================= MIEMBRO - MEMBRESÍAS ================= */
 
 export const getMembresiasPorExpirar = (dias = 7) =>
-  API.get(`/miembro-membresias/expiran?dias=${dias}`);
+  API.get(`/miembro-membresias/expiran?dias=${dias}`).then(r => r.data);
