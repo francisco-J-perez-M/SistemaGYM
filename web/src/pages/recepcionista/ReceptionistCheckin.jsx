@@ -1,15 +1,23 @@
 /**
  * ReceptionistCheckin.jsx
- * Check-in manual (búsqueda + botón) y QR (generar código por miembro,
- * escanear con cámara usando BarcodeDetector API).
+ * Check-in de miembros:
+ *   - QR GENERAL del gimnasio: el recepcionista lo muestra en pantalla (se
+ *     renueva solo cada ~50s) y el MIEMBRO lo escanea con su propia app
+ *     móvil para registrar su propia entrada. Reemplaza el QR por-persona
+ *     anterior (uno fijo por miembro, escaneado por la cámara de
+ *     recepción): ese esquema podía fotografiarse y compartirse para
+ *     "entrar" sin pisar el gimnasio. Este expira en segundos, así que una
+ *     foto deja de servir casi de inmediato.
+ *   - Búsqueda + botón manual: se mantiene como respaldo para cuando el
+ *     miembro no trae su celular o no tiene la app.
  * Máx 3 check-ins por día por miembro (validado en backend).
  */
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import {
-  FiUserCheck, FiSearch, FiCamera, FiX, FiRefreshCw,
-  FiCheckCircle, FiAlertCircle, FiUser, FiClock,
+  FiUserCheck, FiSearch, FiX, FiRefreshCw,
+  FiCheckCircle, FiAlertCircle, FiClock,
 } from "react-icons/fi";
 import { MdQrCode2 } from "react-icons/md";
 import "../../css/CSSUnificado.css";
@@ -27,10 +35,14 @@ const MEM_COLOR = {
 
 // ─── QR image via free API (no dep) ──────────────────────────────────────────
 const qrUrl = (data) =>
-  `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(data)}&bgcolor=ffffff&color=1a1a2e&margin=10`;
+  `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(data)}&bgcolor=ffffff&color=1a1a2e&margin=10`;
+
+// Se pide un token nuevo un poco antes de que venza el anterior (el backend
+// hoy lo emite con 60s de vigencia) para que nunca se muestre un QR vencido.
+const QR_REFRESCO_MS = 50_000;
 
 export default function ReceptionistCheckin() {
-  // ── State ─────────────────────────────────────────────────────────────────
+  // ── State ────────────────────────────────────────────────────────────────
   const [members,    setMembers]    = useState([]);
   const [search,     setSearch]     = useState("");
   const [filtered,   setFiltered]   = useState([]);
@@ -38,14 +50,12 @@ export default function ReceptionistCheckin() {
   const [loading,    setLoading]    = useState(true);
   const [saving,     setSaving]     = useState(null);   // id_usuario_pg en proceso
   const [toast,      setToast]      = useState(null);   // { msg, type }
-  const [qrMember,   setQrMember]   = useState(null);   // miembro cuyo QR se muestra
-  const [scanning,   setScanning]   = useState(false);  // cámara activa
-  const [camError,   setCamError]   = useState(null);
 
-  const videoRef   = useRef(null);
-  const streamRef  = useRef(null);
-  const rafRef     = useRef(null);
-  const canvasRef  = useRef(document.createElement("canvas"));
+  // QR general del gimnasio
+  const [qrAbierto,  setQrAbierto]  = useState(false);
+  const [qrToken,    setQrToken]    = useState(null);
+  const [qrError,    setQrError]    = useState(null);
+  const qrIntervalRef = useRef(null);
 
   // ── Fetch lista miembros + checkins de hoy ────────────────────────────────
   const fetchAll = useCallback(async () => {
@@ -66,13 +76,14 @@ export default function ReceptionistCheckin() {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  // ── Filtro de búsqueda ────────────────────────────────────────────────────
+  // ── Filtro de búsqueda (nombre, correo o ID) ─────────────────────────────
   useEffect(() => {
     const q = search.toLowerCase().trim();
     setFiltered(q
       ? members.filter(m =>
           (m.nombre || "").toLowerCase().includes(q) ||
-          (m.email  || "").toLowerCase().includes(q)
+          (m.email  || "").toLowerCase().includes(q) ||
+          String(m.id_usuario_pg ?? "").includes(q)
         )
       : members
     );
@@ -84,7 +95,7 @@ export default function ReceptionistCheckin() {
     setTimeout(() => setToast(null), 3500);
   };
 
-  // ── Registrar check-in ────────────────────────────────────────────────────
+  // ── Registrar check-in manual ─────────────────────────────────────────────
   const doCheckin = async (id_usuario_pg, nombre) => {
     setSaving(id_usuario_pg);
     try {
@@ -99,91 +110,45 @@ export default function ReceptionistCheckin() {
     }
   };
 
-  // ── QR Scanner (BarcodeDetector + fallback canvas loop) ───────────────────
-  const startScanner = async () => {
-    setCamError(null);
-    setScanning(true);
+  // ── QR general: pedir token y refrescarlo mientras el panel está abierto ──
+  const pedirQrToken = useCallback(async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
-
-      // Intentar BarcodeDetector (Chrome/Edge)
-      if ("BarcodeDetector" in window) {
-        const detector = new window.BarcodeDetector({ formats: ["qr_code"] });
-        const scan = async () => {
-          if (!videoRef.current || !scanning) return;
-          try {
-            const codes = await detector.detect(videoRef.current);
-            if (codes.length > 0) {
-              handleQrResult(codes[0].rawValue);
-              return;
-            }
-          } catch {}
-          rafRef.current = requestAnimationFrame(scan);
-        };
-        rafRef.current = requestAnimationFrame(scan);
-      } else {
-        // Fallback: usar canvas + jsQR desde CDN
-        if (!window.jsQR) {
-          await new Promise((res, rej) => {
-            const s = document.createElement("script");
-            s.src = "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js";
-            s.onload = res; s.onerror = rej;
-            document.head.appendChild(s);
-          });
-        }
-        const scan = () => {
-          if (!videoRef.current) return;
-          const video = videoRef.current;
-          const canvas = canvasRef.current;
-          canvas.width  = video.videoWidth  || 320;
-          canvas.height = video.videoHeight || 240;
-          const ctx = canvas.getContext("2d");
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          const code = window.jsQR(imageData.data, canvas.width, canvas.height);
-          if (code) { handleQrResult(code.data); return; }
-          rafRef.current = requestAnimationFrame(scan);
-        };
-        rafRef.current = requestAnimationFrame(scan);
-      }
+      const { data } = await axios.get(`${API}/checkin-qr/token`, { headers: headers() });
+      setQrToken(data.token);
+      setQrError(null);
     } catch (e) {
-      setCamError("No se pudo acceder a la cámara. Verifica los permisos.");
-      setScanning(false);
+      setQrError("No se pudo generar el QR. Intenta de nuevo.");
+    }
+  }, []);
+
+  const abrirQr = async () => {
+    setQrAbierto(true);
+    await pedirQrToken();
+    qrIntervalRef.current = setInterval(pedirQrToken, QR_REFRESCO_MS);
+  };
+
+  const cerrarQr = () => {
+    setQrAbierto(false);
+    setQrToken(null);
+    if (qrIntervalRef.current) {
+      clearInterval(qrIntervalRef.current);
+      qrIntervalRef.current = null;
     }
   };
 
-  const stopScanner = () => {
-    cancelAnimationFrame(rafRef.current);
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(t => t.stop());
-      streamRef.current = null;
-    }
-    setScanning(false);
-    setCamError(null);
-  };
+  useEffect(() => () => {
+    if (qrIntervalRef.current) clearInterval(qrIntervalRef.current);
+  }, []);
 
-  useEffect(() => () => stopScanner(), []);
-
-  const handleQrResult = (raw) => {
-    stopScanner();
-    // El QR contiene el id_usuario_pg del miembro
-    const id = parseInt(raw, 10);
-    if (!isNaN(id)) {
-      const m = members.find(x => x.id_usuario_pg === id);
-      if (m) {
-        doCheckin(m.id_usuario_pg, m.nombre);
-      } else {
-        showToast("Miembro no reconocido en este gimnasio", "error");
-      }
-    } else {
-      showToast("QR inválido", "error");
-    }
-  };
+  // Si hay nuevos check-ins mientras el QR está abierto (miembros
+  // escaneando con su propia app), refresca la lista de "Entradas de hoy"
+  // al mismo ritmo que el token, sin que el recepcionista tenga que hacer
+  // nada.
+  useEffect(() => {
+    if (!qrAbierto) return;
+    const id = setInterval(fetchAll, QR_REFRESCO_MS);
+    return () => clearInterval(id);
+  }, [qrAbierto, fetchAll]);
 
   // ── Cuántos check-ins tiene un miembro hoy ────────────────────────────────
   const checkinsTodayCount = (nombre) =>
@@ -211,9 +176,9 @@ export default function ReceptionistCheckin() {
         )}
       </AnimatePresence>
 
-      {/* Modal QR */}
+      {/* Modal QR general del gimnasio */}
       <AnimatePresence>
-        {qrMember && (
+        {qrAbierto && (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             style={{
@@ -221,19 +186,20 @@ export default function ReceptionistCheckin() {
               background: "rgba(0,0,0,0.7)", display: "flex",
               alignItems: "center", justifyContent: "center",
             }}
-            onClick={() => setQrMember(null)}>
+            onClick={cerrarQr}>
             <motion.div
               initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.85, opacity: 0 }}
               onClick={e => e.stopPropagation()}
               style={{
+                position: "relative",
                 background: "var(--bg-card-dark)", borderRadius: 16,
-                padding: 32, textAlign: "center",
+                padding: 32, textAlign: "center", maxWidth: 320,
                 border: "1px solid var(--border-dark)",
                 boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
               }}>
               <button
-                onClick={() => setQrMember(null)}
+                onClick={cerrarQr}
                 style={{
                   position: "absolute", top: 12, right: 12,
                   background: "none", border: "none", cursor: "pointer",
@@ -245,29 +211,39 @@ export default function ReceptionistCheckin() {
                 width: 44, height: 44, borderRadius: "50%",
                 background: "var(--accent)", color: "var(--bg-input)",
                 display: "flex", alignItems: "center", justifyContent: "center",
-                fontWeight: 700, fontSize: 18, margin: "0 auto 12px",
+                margin: "0 auto 12px",
               }}>
-                {qrMember.nombre?.[0] || "?"}
+                <MdQrCode2 size={22} />
               </div>
               <p style={{ margin: "0 0 4px", fontWeight: 700, fontSize: 17 }}>
-                {qrMember.nombre}
+                Código de entrada del gimnasio
               </p>
               <p style={{ margin: "0 0 20px", color: "var(--text-secondary)", fontSize: 13 }}>
-                ID: {qrMember.id_usuario_pg}
+                El código cambia solo cada minuto, por seguridad
               </p>
               <div style={{
                 background: "#fff", padding: 12, borderRadius: 12,
-                display: "inline-block", marginBottom: 16,
+                marginBottom: 16, minHeight: 220,
+                minWidth: 220, display: "flex", alignItems: "center", justifyContent: "center",
               }}>
-                <img
-                  src={qrUrl(String(qrMember.id_usuario_pg))}
-                  alt={`QR ${qrMember.nombre}`}
-                  width={180} height={180}
-                  style={{ display: "block" }}
-                />
+                {qrError ? (
+                  <div style={{ color: "var(--error-color)", padding: 12, maxWidth: 190 }}>
+                    <FiAlertCircle size={22} style={{ marginBottom: 6 }} />
+                    <p style={{ margin: 0, fontSize: 12 }}>{qrError}</p>
+                  </div>
+                ) : qrToken ? (
+                  <img
+                    src={qrUrl(qrToken)}
+                    alt="QR de entrada del gimnasio"
+                    width={220} height={220}
+                    style={{ display: "block" }}
+                  />
+                ) : (
+                  <p style={{ color: "#333", margin: 0, fontSize: 12 }}>Generando...</p>
+                )}
               </div>
               <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>
-                El miembro muestra este código en recepción
+                El miembro lo escanea desde la app con "Registrar entrada"
               </p>
             </motion.div>
           </motion.div>
@@ -289,53 +265,18 @@ export default function ReceptionistCheckin() {
         <div style={{ display: "flex", gap: 10 }}>
           <button
             className="btn-outline-small"
-            onClick={scanning ? stopScanner : startScanner}
+            onClick={abrirQr}
             style={{
               display: "flex", alignItems: "center", gap: 6,
-              color: scanning ? "var(--error-color)" : "var(--accent-soft)",
-              borderColor: scanning ? "var(--error-color)" : "var(--accent)",
+              color: "var(--accent-soft)", borderColor: "var(--accent)",
             }}>
-            {scanning ? <><FiX size={14} /> Cerrar cámara</> : <><FiCamera size={14} /> Escanear QR</>}
+            <MdQrCode2 size={15} /> Mostrar QR del gimnasio
           </button>
           <button className="btn-outline-small" onClick={fetchAll}>
             <FiRefreshCw size={13} />
           </button>
         </div>
       </motion.div>
-
-      {/* Visor de cámara QR */}
-      <AnimatePresence>
-        {scanning && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            style={{ overflow: "hidden", marginBottom: 20 }}>
-            <div style={{
-              background: "var(--bg-card-dark)", border: "1px solid var(--accent)",
-              borderRadius: 12, padding: 16, textAlign: "center",
-            }}>
-              <p style={{ margin: "0 0 12px", fontSize: 13, color: "var(--text-secondary)" }}>
-                Apunta la cámara al código QR del miembro
-              </p>
-              {camError ? (
-                <div style={{ color: "var(--error-color)", padding: 20 }}>
-                  <FiAlertCircle size={24} style={{ marginBottom: 8 }} />
-                  <p style={{ margin: 0 }}>{camError}</p>
-                </div>
-              ) : (
-                <video
-                  ref={videoRef}
-                  style={{
-                    width: "100%", maxWidth: 400, borderRadius: 10,
-                    border: "2px solid var(--accent)",
-                  }}
-                  muted playsInline
-                />
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 20, alignItems: "start" }}>
         {/* Panel izquierdo: búsqueda + tabla miembros */}
@@ -348,7 +289,7 @@ export default function ReceptionistCheckin() {
             }} />
             <input
               type="text"
-              placeholder="Buscar miembro por nombre o correo..."
+              placeholder="Buscar miembro por nombre, correo o ID..."
               value={search}
               onChange={e => setSearch(e.target.value)}
               style={{
@@ -405,6 +346,9 @@ export default function ReceptionistCheckin() {
                           }}>
                             {mem.label}
                           </span>
+                          <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+                            ID: {m.id_usuario_pg ?? "—"}
+                          </span>
                           {count > 0 && (
                             <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>
                               <FiClock size={10} style={{ marginRight: 3 }} />
@@ -416,18 +360,6 @@ export default function ReceptionistCheckin() {
 
                       {/* Acciones */}
                       <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-                        <motion.button
-                          onClick={() => setQrMember(m)}
-                          style={{
-                            padding: "7px 10px", borderRadius: 8,
-                            background: "var(--bg-input-dark)",
-                            border: "1px solid var(--border-dark)",
-                            cursor: "pointer", color: "var(--text-secondary)",
-                          }}
-                          whileHover={{ scale: 1.05, color: "var(--accent-soft)" }}
-                          title="Ver QR del miembro">
-                          <MdQrCode2 size={18} />
-                        </motion.button>
                         <motion.button
                           onClick={() => !maxed && doCheckin(m.id_usuario_pg, m.nombre)}
                           disabled={saving === m.id_usuario_pg || maxed}
@@ -488,7 +420,14 @@ export default function ReceptionistCheckin() {
                     {(c.nombre || "?")[0].toUpperCase()}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>{c.nombre}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>
+                      {c.nombre}
+                      {c.id_usuario_pg != null && (
+                        <span style={{ fontWeight: 400, color: "var(--text-secondary)" }}>
+                          {" "}· ID: {c.id_usuario_pg}
+                        </span>
+                      )}
+                    </div>
                     <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>
                       {c.hora_entrada}
                       {c.hora_salida ? ` — ${c.hora_salida}` : ""}
