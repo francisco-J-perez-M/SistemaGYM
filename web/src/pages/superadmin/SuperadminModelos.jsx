@@ -25,12 +25,17 @@ import {
 } from "react-icons/fi";
 import { getGimnasios } from "../../api/superadmin";
 import { TabKMeans, TabRegresion, TabModelos } from "../owner_gym/AdminAnalytics";
+import {
+  COLORES_GRAFICO, COLOR_REJILLA, ejeX, ejeY,
+} from "../../components/compartido/InfoGrafico";
 
 const API_BASE = "";
-const ACCENT   = "#fbe379";
-const SUCCESS  = "#4cd964";
-const INFO     = "#38bdf8";
-const DANGER   = "#ff6b9d";
+// Tonos de la paleta compartida: los anteriores eran pasteles que sobre el tema
+// claro se confundían con el fondo de la tarjeta.
+const ACCENT   = COLORES_GRAFICO.ingresos;
+const SUCCESS  = COLORES_GRAFICO.real;
+const INFO     = COLORES_GRAFICO.asistencia;
+const DANGER   = COLORES_GRAFICO.baja;
 const PURPLE   = "#a78bfa";
 
 const card = (extra = {}) => ({
@@ -96,11 +101,13 @@ function TabCodoSilueta({ gymId }) {
         <div style={card()}>
           <h3 style={hStyle}>Metodo del Codo (inercia por k)</h3>
           <p style={pStyle}>El "codo" marca el punto donde agregar mas grupos deja de reducir significativamente la inercia.</p>
-          <ResponsiveContainer width="100%" height={240}>
-            <LineChart data={resultados} margin={{ top: 8, right: 12, bottom: 4, left: -8 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-              <XAxis dataKey="k" stroke="var(--text-secondary)" fontSize={12} />
-              <YAxis stroke="var(--text-secondary)" fontSize={12} />
+          <ResponsiveContainer width="100%" height={275}>
+            <LineChart data={resultados} margin={{ top: 8, right: 12, bottom: 26, left: 6 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />
+              <XAxis dataKey="k" stroke="var(--text-secondary)" fontSize={12}
+                label={ejeX("Número de grupos (k)")} />
+              <YAxis stroke="var(--text-secondary)" fontSize={12}
+                label={ejeY("Inercia")} />
               <Tooltip contentStyle={tooltipStyle} />
               <Line type="monotone" dataKey="inercia" stroke={ACCENT} strokeWidth={2.5} dot={{ r: 4 }} />
             </LineChart>
@@ -110,11 +117,13 @@ function TabCodoSilueta({ gymId }) {
         <div style={card()}>
           <h3 style={hStyle}>Coeficiente de Silueta por k</h3>
           <p style={pStyle}>Mide que tan bien separados quedan los grupos (rango -1 a 1). El k con mayor silueta es el mas nitido.</p>
-          <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={resultados} margin={{ top: 8, right: 12, bottom: 4, left: -8 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-              <XAxis dataKey="k" stroke="var(--text-secondary)" fontSize={12} />
-              <YAxis stroke="var(--text-secondary)" fontSize={12} domain={[0, 1]} />
+          <ResponsiveContainer width="100%" height={275}>
+            <BarChart data={resultados} margin={{ top: 8, right: 12, bottom: 26, left: 6 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />
+              <XAxis dataKey="k" stroke="var(--text-secondary)" fontSize={12}
+                label={ejeX("Número de grupos (k)")} />
+              <YAxis stroke="var(--text-secondary)" fontSize={12} domain={[0, 1]}
+                label={ejeY("Coeficiente de silueta")} />
               <Tooltip contentStyle={tooltipStyle} />
               <Bar dataKey="silhouette" radius={[6, 6, 0, 0]}>
                 {resultados.map((r) => (

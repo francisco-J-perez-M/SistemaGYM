@@ -4,11 +4,15 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
 import "../../css/CSSUnificado.css";
-import InfoGrafico, { COLORES_GRAFICO } from "../../components/compartido/InfoGrafico";
+import InfoGrafico, {
+  COLORES_GRAFICO, SERIES_GRAFICO, COLOR_REJILLA, COLOR_ATENUADO, ejeX, ejeY,
+} from "../../components/compartido/InfoGrafico";
 
 const API_BASE = "";
 const DIAS_SEMANA = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
-const COLORS_PIE  = ["#fbe379", "#4cd964", "#38bdf8", "#ff6b9d", "#a78bfa"];
+// Se usa la secuencia compartida: la anterior arrancaba con un amarillo pálido
+// que sobre fondo claro apenas se distinguía del blanco de la tarjeta.
+const COLORS_PIE = SERIES_GRAFICO;
 
 const CustomTooltip = ({ active, payload, label, prefix = "", suffix = "" }) => {
   if (!active || !payload?.length) return null;
@@ -325,10 +329,12 @@ export default function AnalyticsMapReduce() {
             ]}
           />
           <ResponsiveContainer width="100%" height={220}>
-            <LineChart data={lineData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)"/>
-              <XAxis dataKey="mes" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false}/>
-              <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}/>
+            <LineChart data={lineData} margin={{ top: 5, right: 10, left: 6, bottom: 22 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA}/>
+              <XAxis dataKey="mes" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false}
+                label={ejeX("Mes")}/>
+              <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
+                label={ejeY("Ingresos (miles de MXN)")}/>
               <Tooltip content={<CustomTooltip prefix="$"/>}/>
               <Line type="monotone" dataKey="total" name="Ingresos" stroke={COLORES_GRAFICO.ingresos} strokeWidth={2.5} dot={{ r: 4, fill: COLORES_GRAFICO.ingresos, strokeWidth: 0 }} activeDot={{ r: 6 }}/>
             </LineChart>
@@ -400,15 +406,17 @@ export default function AnalyticsMapReduce() {
               "Sirve para decidir en qué días conviene reforzar personal o programar clases.",
             ]}
           />
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={asistenciaDiaOrdenada} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false}/>
-              <XAxis type="number" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false}/>
-              <YAxis type="category" dataKey="dia" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false} width={80}/>
+          <ResponsiveContainer width="100%" height={250}>
+            <BarChart data={asistenciaDiaOrdenada} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 22 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} horizontal={false}/>
+              <XAxis type="number" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false}
+                label={ejeX("Visitas promedio")}/>
+              <YAxis type="category" dataKey="dia" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false} width={80}
+                label={ejeY("Día de la semana")}/>
               <Tooltip content={<CustomTooltip suffix=" visitas"/>}/>
               <Bar dataKey="total" name="Asistencias" radius={[0, 4, 4, 0]}>
                 {asistenciaDiaOrdenada.map((entry, i) => (
-                  <Cell key={i} fill={entry.dia === diaTop ? "var(--accent)" : "rgba(251,227,121,0.2)"}/>
+                  <Cell key={i} fill={entry.dia === diaTop ? COLORES_GRAFICO.asistencia : COLOR_ATENUADO}/>
                 ))}
               </Bar>
             </BarChart>
@@ -430,15 +438,17 @@ export default function AnalyticsMapReduce() {
               "El mes en curso aparece incompleto hasta que termine, así que suele verse más bajo.",
             ]}
           />
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={asistenciaMesNorm} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)"/>
-              <XAxis dataKey="mes" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false}/>
-              <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false}/>
+          <ResponsiveContainer width="100%" height={250}>
+            <BarChart data={asistenciaMesNorm} margin={{ top: 5, right: 10, left: 6, bottom: 22 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA}/>
+              <XAxis dataKey="mes" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false}
+                label={ejeX("Mes")}/>
+              <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false}
+                label={ejeY("Visitas registradas")}/>
               <Tooltip content={<CustomTooltip suffix=" visitas"/>}/>
               <Bar dataKey="total" name="Asistencias" radius={[4, 4, 0, 0]}>
                 {asistenciaMesNorm.map((_, i) => (
-                  <Cell key={i} fill={i === asistenciaMesNorm.length - 1 ? "var(--accent)" : "rgba(251,227,121,0.25)"}/>
+                  <Cell key={i} fill={i === asistenciaMesNorm.length - 1 ? COLORES_GRAFICO.asistencia : COLOR_ATENUADO}/>
                 ))}
               </Bar>
             </BarChart>

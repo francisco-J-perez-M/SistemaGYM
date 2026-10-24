@@ -12,16 +12,22 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { FiDollarSign, FiUsers, FiTrendingUp, FiBell, FiClock, FiActivity } from "react-icons/fi";
+import {
+  COLORES_GRAFICO, SERIES_GRAFICO, COLOR_REJILLA, ejeX, ejeY,
+} from "../../components/compartido/InfoGrafico";
 import "../../css/CSSUnificado.css";
 
 const API_BASE   = "";
-const ACCENT     = "#fbe379";
-const SUCCESS    = "#4cd964";
-const INFO       = "#38bdf8";
-const DANGER     = "#ff6b9d";
-const WARNING    = "#ffbd2e";
-const PURPLE     = "#a78bfa";
-const PALETTE    = [ACCENT, SUCCESS, INFO, DANGER, WARNING, PURPLE, "#fb923c", "#34d399"];
+// Tonos tomados de la paleta compartida. Los anteriores eran pasteles claros
+// (#fbe379, #4cd964) que sobre el tema claro se confundían con el fondo, y
+// varios se distinguían solo por ser uno rojo y otro verde.
+const ACCENT     = COLORES_GRAFICO.ingresos;
+const SUCCESS    = COLORES_GRAFICO.real;
+const INFO       = COLORES_GRAFICO.asistencia;
+const DANGER     = COLORES_GRAFICO.baja;
+const WARNING    = COLORES_GRAFICO.pos;
+const PURPLE     = COLORES_GRAFICO.membresias;
+const PALETTE    = SERIES_GRAFICO;
 
 // Cuando el superadmin analiza un gimnasio concreto, guarda su id en
 // localStorage("sa_gym_id"). Este helper añade la cabecera X-Gym-ID sólo en ese
@@ -201,12 +207,14 @@ function TabMapReduce() {
       </div>
 
       <SectionTitle>Ingresos mensuales (últimos 12 meses)</SectionTitle>
-      <ResponsiveContainer width="100%" height={240}>
-        <BarChart data={ingresosAgrupados} margin={{ left: 10, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-dark)" />
-          <XAxis dataKey="periodo" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} />
+      <ResponsiveContainer width="100%" height={275}>
+        <BarChart data={ingresosAgrupados} margin={{ top: 5, right: 8, left: 10, bottom: 22 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />
+          <XAxis dataKey="periodo" tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
+                 label={ejeX("Periodo")} />
           <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
-                 tickFormatter={v => `$${(v/1000).toFixed(0)}k`} />
+                 tickFormatter={v => `$${(v/1000).toFixed(0)}k`}
+                 label={ejeY("Ingresos (miles de MXN)")} />
           <Tooltip content={<CustomTooltip prefix="$" />} />
           <Bar dataKey="total" name="Ingresos" fill={ACCENT} radius={[4,4,0,0]} />
         </BarChart>
@@ -228,12 +236,14 @@ function TabMapReduce() {
         </div>
         <div style={{ flex: 1, minWidth: 260 }}>
           <SectionTitle>Asistencia por día de la semana</SectionTitle>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={asistenciaDia} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-dark)" />
-              <XAxis type="number" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} />
+          <ResponsiveContainer width="100%" height={235}>
+            <BarChart data={asistenciaDia} layout="vertical" margin={{ top: 5, right: 8, left: 0, bottom: 22 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />
+              <XAxis type="number" tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
+                     label={ejeX("Visitas")} />
               <YAxis type="category" dataKey="dia" width={80}
-                     tick={{ fill: "var(--text-secondary)", fontSize: 11 }} />
+                     tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
+                     label={ejeY("Día")} />
               <Tooltip content={<CustomTooltip suffix=" visitas" />} />
               <Bar dataKey="visitas" name="Visitas" fill={SUCCESS} radius={[0,4,4,0]} />
             </BarChart>
@@ -344,7 +354,7 @@ export function TabKMeans() {
       <SectionTitle>Distribución de miembros por grupo</SectionTitle>
       <ResponsiveContainer width="100%" height={240}>
         <BarChart data={clusterBarData}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-dark)" />
+          <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />
           <XAxis dataKey="name" tick={{ fill: "var(--text-secondary)", fontSize: 10 }} />
           <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 11 }} />
           <Tooltip content={<CustomTooltip />} />
@@ -356,7 +366,7 @@ export function TabKMeans() {
       <SectionTitle>Métricas promedio por grupo</SectionTitle>
       <ResponsiveContainer width="100%" height={220}>
         <BarChart data={clusterBarData}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-dark)" />
+          <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />
           <XAxis dataKey="name" tick={{ fill: "var(--text-secondary)", fontSize: 10 }} />
           <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 11 }} />
           <Tooltip content={<CustomTooltip />} />
@@ -489,7 +499,7 @@ export function TabRegresion() {
           </p>
           <ResponsiveContainer width="100%" height={180}>
             <BarChart data={coeficientesArr.map(c => ({ ...c, feature: COEF_LABELS[c.feature] || c.feature }))} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-dark)" />
+              <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />
               <XAxis type="number" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} />
               <YAxis type="category" dataKey="feature" width={160} tick={{ fill: "var(--text-secondary)", fontSize: 11 }} />
               <Tooltip content={<CustomTooltip />} />
@@ -785,7 +795,7 @@ function TabCancelaciones() {
             </p>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={importancia} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-dark)" />
+                <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />
                 <XAxis type="number" tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
                        tickFormatter={v => `${(v * 100).toFixed(0)}%`} />
                 <YAxis type="category" dataKey="feature" width={180}
@@ -1082,7 +1092,7 @@ function TabFuerza() {
       <SectionTitle>Fuerza promedio estimada por ejercicio</SectionTitle>
       <ResponsiveContainer width="100%" height={Math.max(220, chart.length * 38)}>
         <BarChart data={chart} layout="vertical" margin={{ left: 10, right: 20 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-dark)" />
+          <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />
           <XAxis type="number" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} tickFormatter={v => `${v} kg`} />
           <YAxis type="category" dataKey="nombre" width={150} tick={{ fill: "var(--text-secondary)", fontSize: 11 }} />
           <Tooltip formatter={v => [`${v} kg estimados`, "Promedio"]} />
@@ -1232,7 +1242,7 @@ export function TabModelos() {
                 <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 6px" }}>Recta vs curva (peso estimado según el tiempo)</p>
                 <ResponsiveContainer width="100%" height={220}>
                   <LineChart data={reg.curva}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-dark)" />
+                    <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />
                     <XAxis dataKey="dias" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} tickFormatter={v => `${v}d`} />
                     <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 11 }} domain={["auto", "auto"]} />
                     <Tooltip />

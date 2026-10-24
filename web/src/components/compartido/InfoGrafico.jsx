@@ -189,15 +189,86 @@ export default function InfoGrafico({
  * Cada tono tiene un significado fijo en todo el sistema: el dinero siempre se
  * ve igual, lo predicho siempre se ve igual. Repartir colores al azar por
  * gráfico obliga a releer la leyenda en cada pantalla.
+ *
+ * Los tonos son de intensidad media-alta a propósito. El sistema tiene tema
+ * claro y oscuro, y un color pálido que se lee bien sobre fondo oscuro
+ * desaparece sobre blanco: los amarillos claros que había antes eran
+ * prácticamente invisibles en el tema claro.
+ *
+ * También están elegidos para distinguirse entre sí con daltonismo rojo-verde,
+ * que es el más común: no hay dos series que se diferencien solo por ser una
+ * roja y otra verde.
  */
 export const COLORES_GRAFICO = {
-  ingresos:    "#6366f1",   // dinero cobrado
-  pos:         "#f59e0b",   // punto de venta
-  membresias:  "#8b5cf6",   // planes
-  asistencia:  "#0ea5e9",   // visitas al gimnasio
-  real:        "#22c55e",   // dato medido
-  prediccion:  "#a855f7",   // dato proyectado por el modelo
-  alta:        "#22c55e",   // valor favorable
-  baja:        "#ef4444",   // valor desfavorable
-  neutro:      "#94a3b8",   // referencia o comparación
+  ingresos:    "#4F46E5",   // indigo — dinero cobrado
+  pos:         "#EA7317",   // naranja — punto de venta
+  membresias:  "#7C3AED",   // violeta — planes
+  asistencia:  "#0891B2",   // cian — visitas al gimnasio
+  real:        "#059669",   // verde — dato medido
+  prediccion:  "#C026D3",   // fucsia — dato proyectado por el modelo
+  alta:        "#059669",   // valor favorable
+  baja:        "#DC2626",   // valor desfavorable
+  neutro:      "#64748B",   // referencia o comparación
 };
+
+/**
+ * Secuencia para gráficos con un número variable de categorías, como el pastel
+ * de métodos de pago. El orden importa: dos colores consecutivos nunca son
+ * parecidos, para que dos porciones contiguas se distingan.
+ */
+export const SERIES_GRAFICO = [
+  "#4F46E5",   // indigo
+  "#EA7317",   // naranja
+  "#0891B2",   // cian
+  "#DB2777",   // rosa
+  "#059669",   // verde
+  "#CA8A04",   // ámbar oscuro
+  "#7C3AED",   // violeta
+  "#DC2626",   // rojo
+];
+
+/**
+ * Rejilla y elementos atenuados.
+ *
+ * La cuadrícula usaba `var(--border)`, que en el tema claro queda casi blanca y
+ * no da referencia para leer las alturas. Este gris intermedio se ve en ambos
+ * temas sin competir con los datos.
+ */
+export const COLOR_REJILLA = "rgba(148,163,184,0.35)";
+
+/**
+ * Relleno de las barras que NO están destacadas.
+ *
+ * Antes era un amarillo al 20 % de opacidad, invisible sobre fondo claro: en la
+ * gráfica de asistencia por día solo se distinguía la barra del día con más
+ * visitas y el resto parecía vacío.
+ */
+export const COLOR_ATENUADO = "rgba(100,116,139,0.35)";
+
+/**
+ * Props para rotular un eje en recharts.
+ *
+ * Un eje sin rótulo obliga a deducir qué mide: "8k" puede ser pesos, visitas o
+ * miembros. Se centraliza aquí para que todos los gráficos lo pongan igual.
+ *
+ *   <XAxis dataKey="mes" label={ejeX("Mes")} />
+ *   <YAxis label={ejeY("Pesos (MXN)")} />
+ */
+export const ejeX = (titulo) => ({
+  value: titulo,
+  position: "insideBottom",
+  offset: -4,
+  fill: "var(--text-secondary)",
+  fontSize: 11,
+  fontWeight: 600,
+});
+
+export const ejeY = (titulo) => ({
+  value: titulo,
+  angle: -90,
+  position: "insideLeft",
+  style: { textAnchor: "middle" },
+  fill: "var(--text-secondary)",
+  fontSize: 11,
+  fontWeight: 600,
+});

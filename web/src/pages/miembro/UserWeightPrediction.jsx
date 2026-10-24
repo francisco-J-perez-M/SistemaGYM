@@ -5,7 +5,9 @@ import {
   ResponsiveContainer, Scatter,
 } from "recharts";
 import { useMetricsHistory } from "../../hooks/useMetricsHistory";
-import InfoGrafico, { COLORES_GRAFICO } from "../../components/compartido/InfoGrafico";
+import InfoGrafico, {
+  COLORES_GRAFICO, COLOR_REJILLA, ejeX, ejeY,
+} from "../../components/compartido/InfoGrafico";
 import "../../css/CSSUnificado.css";
 
 const API_BASE = "";
@@ -425,19 +427,21 @@ export default function UserWeightPrediction() {
         </div>
 
         {chartData.length > 0 ? (
-          <ResponsiveContainer width="100%" height={280}>
-            <LineChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+          <ResponsiveContainer width="100%" height={315}>
+            <LineChart data={chartData} margin={{ top: 5, right: 20, left: 6, bottom: 24 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />
               <XAxis
                 dataKey="label"
                 tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
                 axisLine={false} tickLine={false}
+                label={ejeX("Fecha")}
               />
               <YAxis
                 tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
                 axisLine={false} tickLine={false}
                 tickFormatter={(v) => `${v.toFixed(0)} kg`}
                 domain={["auto", "auto"]}
+                label={ejeY("Tu peso (kg)")}
               />
               <Tooltip content={<CustomTooltip />} />
               <Line

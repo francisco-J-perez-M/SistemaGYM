@@ -3,11 +3,13 @@ import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
+import { SERIES_GRAFICO, COLOR_REJILLA } from "../../components/compartido/InfoGrafico";
 import "../../css/CSSUnificado.css";
 
 const API_BASE = "";
 const DIAS_SEMANA = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
-const COLORS_PIE  = ["#fbe379", "#4cd964", "#38bdf8", "#ff6b9d", "#a78bfa"];
+// Secuencia compartida: la anterior arrancaba con un amarillo pálido.
+const COLORS_PIE = SERIES_GRAFICO;
 
 const CustomTooltip = ({ active, payload, label, prefix = "", suffix = "" }) => {
   if (!active || !payload?.length) return null;
@@ -293,7 +295,7 @@ export default function AnalyticsMapReduce() {
           </div>
           <ResponsiveContainer width="100%" height={220}>
             <LineChart data={lineData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)"/>
+              <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA}/>
               <XAxis dataKey="mes" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false}/>
               <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}/>
               <Tooltip content={<CustomTooltip prefix="$"/>}/>
@@ -339,7 +341,7 @@ export default function AnalyticsMapReduce() {
           <div className="chart-header"><h3>Asistencia por día de la semana</h3></div>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={asistenciaDiaOrdenada} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false}/>
+              <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} horizontal={false}/>
               <XAxis type="number" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false}/>
               <YAxis type="category" dataKey="dia" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false} width={80}/>
               <Tooltip content={<CustomTooltip suffix=" visitas"/>}/>
@@ -356,7 +358,7 @@ export default function AnalyticsMapReduce() {
           <div className="chart-header"><h3>Asistencia por mes</h3></div>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={asistenciaMesNorm} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)"/>
+              <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA}/>
               <XAxis dataKey="mes" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false}/>
               <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false}/>
               <Tooltip content={<CustomTooltip suffix=" visitas"/>}/>

@@ -11,7 +11,9 @@ import {
   Tooltip, Legend, ResponsiveContainer,
 } from "recharts";
 import { getOwnerDashboard, getOwnerIngresos, getOwnerActividad, getOwnerAlertas } from "../../api/owner_gym";
-import InfoGrafico, { COLORES_GRAFICO } from "../../components/compartido/InfoGrafico";
+import InfoGrafico, {
+  COLORES_GRAFICO, COLOR_REJILLA, ejeX, ejeY,
+} from "../../components/compartido/InfoGrafico";
 
 // ─── helpers ───────────────────────────────────────────────────────────────
 const fmt = (n) =>
@@ -282,15 +284,21 @@ export default function OwnerDashboard() {
               "Un mes sin cobros aparece en cero, no como un hueco en la línea.",
             ]}
           />
-          <ResponsiveContainer width="100%" height={220}>
-            <LineChart data={ingresos} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-              <XAxis dataKey="label" tick={{ fill: "var(--text-tertiary)", fontSize: 11 }} />
-              <YAxis tick={{ fill: "var(--text-tertiary)", fontSize: 11 }} tickFormatter={(v) => `$${(v/1000).toFixed(0)}k`} />
+          <ResponsiveContainer width="100%" height={260}>
+            <LineChart data={ingresos} margin={{ top: 4, right: 8, left: 6, bottom: 22 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />
+              <XAxis dataKey="label" tick={{ fill: "var(--text-tertiary)", fontSize: 11 }}
+                label={ejeX("Mes")} />
+              <YAxis tick={{ fill: "var(--text-tertiary)", fontSize: 11 }} tickFormatter={(v) => `$${(v/1000).toFixed(0)}k`}
+                label={ejeY("Ingresos (miles de MXN)")} />
               <Tooltip content={<CustomTooltip />} />
-              <Legend wrapperStyle={{ fontSize: 12, color: "var(--text-secondary)" }} />
-              <Line type="monotone" dataKey="pagos"  name="Membresías" stroke={COLORES_GRAFICO.ingresos} strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="ventas" name="POS"         stroke={COLORES_GRAFICO.pos} strokeWidth={2} dot={false} />
+              <Legend wrapperStyle={{ fontSize: 12, color: "var(--text-secondary)", paddingTop: 8 }} verticalAlign="top" />
+              {/* Punto visible en cada mes: con la línea sola no se distingue
+                  dónde acaba un mes y empieza el siguiente. */}
+              <Line type="monotone" dataKey="pagos"  name="Membresías" stroke={COLORES_GRAFICO.ingresos} strokeWidth={2.5}
+                dot={{ r: 3, fill: COLORES_GRAFICO.ingresos, strokeWidth: 0 }} />
+              <Line type="monotone" dataKey="ventas" name="POS"         stroke={COLORES_GRAFICO.pos} strokeWidth={2.5}
+                dot={{ r: 3, fill: COLORES_GRAFICO.pos, strokeWidth: 0 }} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -311,11 +319,13 @@ export default function OwnerDashboard() {
               "La altura de la barra es dinero cobrado, no facturado: solo cuenta lo que ya entró.",
             ]}
           />
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={ingresos} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-              <XAxis dataKey="label" tick={{ fill: "var(--text-tertiary)", fontSize: 11 }} />
-              <YAxis tick={{ fill: "var(--text-tertiary)", fontSize: 11 }} tickFormatter={(v) => `$${(v/1000).toFixed(0)}k`} />
+          <ResponsiveContainer width="100%" height={250}>
+            <BarChart data={ingresos} margin={{ top: 4, right: 8, left: 6, bottom: 22 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />
+              <XAxis dataKey="label" tick={{ fill: "var(--text-tertiary)", fontSize: 11 }}
+                label={ejeX("Mes")} />
+              <YAxis tick={{ fill: "var(--text-tertiary)", fontSize: 11 }} tickFormatter={(v) => `$${(v/1000).toFixed(0)}k`}
+                label={ejeY("Ingresos (miles de MXN)")} />
               <Tooltip content={<CustomTooltip />} />
               <Bar dataKey="total" name="Total" fill={COLORES_GRAFICO.ingresos} radius={[4, 4, 0, 0]} />
             </BarChart>

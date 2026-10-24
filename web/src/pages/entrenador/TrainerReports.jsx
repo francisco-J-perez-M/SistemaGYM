@@ -28,6 +28,9 @@ import {
 } from "react-icons/fi";
 import axios from "axios";
 import trainerService from "../../services/entrenador/trainerService";
+import {
+  COLORES_GRAFICO, SERIES_GRAFICO, COLOR_REJILLA, ejeX, ejeY,
+} from "../../components/compartido/InfoGrafico";
 import "../../css/CSSUnificado.css";
 
 const MESES_CORTOS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun",
@@ -55,21 +58,24 @@ const CFG = {
 };
 
 // ─── Paleta de colores ────────────────────────────────────────────────────────
+// Los tonos de las gráficas vienen de la paleta compartida y no de variables
+// CSS del tema: `var(--accent)` y `var(--success)` cambian con el tema elegido
+// y en algunos quedaban tan parecidos que dos series no se distinguían.
 const COLORS = {
-  primary:   "var(--accent)",
-  success:   "var(--success)",
-  warning:   "var(--warning)",
-  danger:    "var(--danger)",
-  muted:     "var(--text-tertiary)",
-  personal:  "var(--accent)",
-  grupal:    "var(--success)",
-  consulta:  "var(--warning)",
+  primary:   COLORES_GRAFICO.ingresos,
+  success:   COLORES_GRAFICO.real,
+  warning:   COLORES_GRAFICO.pos,
+  danger:    COLORES_GRAFICO.baja,
+  muted:     COLORES_GRAFICO.neutro,
+  personal:  COLORES_GRAFICO.ingresos,
+  grupal:    COLORES_GRAFICO.real,
+  consulta:  COLORES_GRAFICO.pos,
 };
 
 const TYPE_COLORS = {
   Personal: COLORS.personal,
   Grupal:   COLORS.grupal,
-  Consulta: COLORS.warning,
+  Consulta: COLORS.consulta,
 };
 
 const RANGE_LABELS = {
@@ -457,8 +463,10 @@ export default function TrainerReports() {
 
   const rangeLabel = RANGE_LABELS[timeRange] || timeRange;
 
+  // Los tipos conocidos conservan su color fijo; los demás toman el siguiente
+  // de la secuencia compartida, que garantiza que dos contiguos no se parezcan.
   const typeColors = sessionTypes.map((t, i) =>
-    TYPE_COLORS[t.tipo] || [COLORS.primary, COLORS.success, COLORS.warning, COLORS.muted][i % 4]
+    TYPE_COLORS[t.tipo] || SERIES_GRAFICO[i % SERIES_GRAFICO.length]
   );
 
   return (
@@ -719,14 +727,19 @@ export default function TrainerReports() {
               </div>
 
               {monthlyData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={monthlyData} barGap={4} barCategoryGap="28%">
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false}/>
-                    <XAxis dataKey="month" tick={{ fontSize:11, fill:"var(--text-secondary)" }} axisLine={false} tickLine={false}/>
-                    <YAxis tick={{ fontSize:10, fill:"var(--text-secondary)" }} axisLine={false} tickLine={false} allowDecimals={false}/>
+                <ResponsiveContainer width="100%" height={235}>
+                  <BarChart data={monthlyData} barGap={4} barCategoryGap="28%"
+                    margin={{ top: 5, right: 8, left: 6, bottom: 22 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} vertical={false}/>
+                    <XAxis dataKey="month" tick={{ fontSize:11, fill:"var(--text-secondary)" }} axisLine={false} tickLine={false}
+                      label={ejeX("Mes")}/>
+                    <YAxis tick={{ fontSize:10, fill:"var(--text-secondary)" }} axisLine={false} tickLine={false} allowDecimals={false}
+                      label={ejeY("Sesiones")}/>
                     <RechartTooltip content={<CustomTooltip/>}/>
-                    <Bar dataKey="sessions" name="Completadas" fill={COLORS.primary} radius={[4,4,0,0]}/>
-                    <Bar dataKey="cancelled" name="Canceladas" fill={COLORS.danger} radius={[4,4,0,0]}/>
+                    {/* Verde y naranja en lugar de azul y rojo: se distinguen
+                        también con daltonismo rojo-verde, que es el más común. */}
+                    <Bar dataKey="sessions" name="Completadas" fill={COLORES_GRAFICO.real} radius={[4,4,0,0]}/>
+                    <Bar dataKey="cancelled" name="Canceladas" fill={COLORES_GRAFICO.pos} radius={[4,4,0,0]}/>
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
@@ -811,11 +824,14 @@ export default function TrainerReports() {
 
               {sessionTypes.length > 0 ? (
                 <>
-                  <ResponsiveContainer width="100%" height={140}>
-                    <BarChart data={sessionTypes} layout="vertical" barSize={22}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false}/>
-                      <XAxis type="number" tick={{ fontSize:10, fill:"var(--text-secondary)" }} axisLine={false} tickLine={false} allowDecimals={false}/>
-                      <YAxis type="category" dataKey="tipo" tick={{ fontSize:11, fill:"var(--text-secondary)" }} axisLine={false} tickLine={false} width={70}/>
+                  <ResponsiveContainer width="100%" height={175}>
+                    <BarChart data={sessionTypes} layout="vertical" barSize={22}
+                      margin={{ top: 5, right: 8, left: 0, bottom: 22 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} horizontal={false}/>
+                      <XAxis type="number" tick={{ fontSize:10, fill:"var(--text-secondary)" }} axisLine={false} tickLine={false} allowDecimals={false}
+                        label={ejeX("Sesiones completadas")}/>
+                      <YAxis type="category" dataKey="tipo" tick={{ fontSize:11, fill:"var(--text-secondary)" }} axisLine={false} tickLine={false} width={70}
+                        label={ejeY("Modalidad")}/>
                       <RechartTooltip content={<CustomTooltip/>}/>
                       <Bar dataKey="count" name="Sesiones" radius={[0,4,4,0]}>
                         {sessionTypes.map((_, i) => (

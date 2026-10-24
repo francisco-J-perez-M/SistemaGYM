@@ -172,6 +172,44 @@ Si el tiempo no alcanza para todo, el orden que recomiendo es:
 
 ---
 
+## v1.3 — Ejes rotulados y colores que se distinguen · 8 de agosto de 2026
+
+**Colores de las gráficas** · Completo
+
+- Paleta única y accesible en `InfoGrafico.jsx`, aplicada a los doce archivos con
+  gráficas del sistema y al generador de PDF. Los tonos anteriores eran pasteles
+  claros —`#fbe379`, `#4cd964`— pensados para fondo oscuro: sobre el tema claro se
+  confundían con el blanco de la tarjeta.
+- Las barras no destacadas de "Asistencia por día" y "Asistencia por mes" usaban un
+  amarillo al 20 % de opacidad. Solo se veía la barra del día con más visitas y el
+  resto parecía vacío; ahora usan un gris con cuerpo suficiente.
+- Ninguna pareja de series se distingue solo por ser una roja y otra verde, que es
+  la confusión más común de daltonismo. En el reporte del entrenador, "Completadas"
+  y "Canceladas" pasaron de azul/rojo a verde/naranja.
+- La cuadrícula usaba `var(--border)`, casi blanca en el tema claro y sin dar
+  referencia para leer las alturas. Ahora es un gris intermedio visible en ambos
+  temas sin competir con los datos.
+- Los colores dejan de venir de variables CSS del tema: `var(--accent)` y
+  `var(--success)` cambian con el tema elegido y en algunos quedaban tan parecidos
+  que dos series se solapaban visualmente.
+
+**Rótulos de los ejes** · Completo
+
+- Cada gráfico dice qué mide cada eje y en qué unidad. Un "8k" en el eje vertical
+  podía ser pesos, visitas o miembros, y había que deducirlo del título.
+- Helpers `ejeX()` y `ejeY()` compartidos, para que todos los gráficos lo pongan
+  igual en lugar de que cada pantalla lo resuelva a su manera.
+- En los PDF los ejes se rotulan con `_rotular_ejes()`: el vertical girado 90° junto
+  al margen, como es costumbre. ReportLab no ofrece rótulo de eje propiamente dicho,
+  así que se dibuja como texto sobre el lienzo.
+- Los gráficos ganaron altura para dar sitio a los rótulos sin comprimir el área de
+  trazado.
+
+> Bloque escrito sin poder ejecutar el código: el entorno de pruebas siguió caído.
+> Revisión manual únicamente.
+
+---
+
 ## v1.2 — Reportes con identidad y gráficas que informan · 8 de agosto de 2026
 
 **Diseño de los reportes en PDF** · Completo

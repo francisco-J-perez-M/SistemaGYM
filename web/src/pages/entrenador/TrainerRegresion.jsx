@@ -14,7 +14,9 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import InfoGrafico, { COLORES_GRAFICO } from "../../components/compartido/InfoGrafico";
+import InfoGrafico, {
+  COLORES_GRAFICO, COLOR_REJILLA, ejeX, ejeY,
+} from "../../components/compartido/InfoGrafico";
 import "../../css/CSSUnificado.css";
 
 const API_BASE       = "";
@@ -287,11 +289,13 @@ function PredictionModal({ member, onClose }) {
               </div>
 
               {/* Gráfico */}
-              <ResponsiveContainer width="100%" height={240}>
-                <LineChart data={chartData} margin={{ top: 5, right: 16, left: 0, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                  <XAxis dataKey="label" tick={{ fill: "var(--text-secondary)", fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => `${v.toFixed(0)} kg`} />
+              <ResponsiveContainer width="100%" height={275}>
+                <LineChart data={chartData} margin={{ top: 5, right: 16, left: 6, bottom: 24 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />
+                  <XAxis dataKey="label" tick={{ fill: "var(--text-secondary)", fontSize: 10 }} axisLine={false} tickLine={false}
+                    label={ejeX("Fecha de la medición")} />
+                  <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => `${v.toFixed(0)} kg`}
+                    label={ejeY("Peso corporal (kg)")} />
                   <Tooltip content={<ChartTooltip />} />
                   <Line type="monotone" dataKey="real" name="Historial" stroke={COLORES_GRAFICO.real} strokeWidth={2.5}
                     dot={{ r: 3, fill: COLORES_GRAFICO.real, strokeWidth: 0 }} connectNulls={false} />
@@ -552,11 +556,13 @@ export default function TrainerRegresion() {
             <p style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 12 }}>
               Evolución histórica del peso corporal promedio de todos los miembros.
             </p>
-            <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={tendenciaGlobal} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="mes" tick={{ fill: "var(--text-secondary)", fontSize: 10 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => `${v.toFixed(0)} kg`} />
+            <ResponsiveContainer width="100%" height={235}>
+              <LineChart data={tendenciaGlobal} margin={{ top: 5, right: 10, left: 6, bottom: 24 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />
+                <XAxis dataKey="mes" tick={{ fill: "var(--text-secondary)", fontSize: 10 }} axisLine={false} tickLine={false}
+                  label={ejeX("Mes")} />
+                <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => `${v.toFixed(0)} kg`}
+                  label={ejeY("Peso promedio (kg)")} />
                 <Tooltip content={<ChartTooltip />} />
                 <Line type="monotone" dataKey="peso" name="Promedio" stroke={COLORES_GRAFICO.real} strokeWidth={2.5}
                   dot={{ r: 3.5, fill: COLORES_GRAFICO.real, strokeWidth: 0 }} connectNulls={false} />
