@@ -133,8 +133,9 @@ const MENUS = {
     {
       id: "sa-ops", label: "Operaciones", icon: <FiSettings />,
       children: [
-        { id: "sa-backups",   label: "Backups",   icon: <FiServer />        },
-        { id: "sa-analytics", label: "Analytics", icon: <FiBarChart2 />     },
+        { id: "sa-backups",   label: "Backups",       icon: <FiServer />        },
+        { id: "sa-analytics", label: "Analytics",     icon: <FiBarChart2 />     },
+        { id: "sa-modelos",   label: "Laboratorio ML", icon: <FiCpu />          },
       ],
     },
   ],

@@ -23,6 +23,14 @@ const WARNING    = "#ffbd2e";
 const PURPLE     = "#a78bfa";
 const PALETTE    = [ACCENT, SUCCESS, INFO, DANGER, WARNING, PURPLE, "#fb923c", "#34d399"];
 
+// Cuando el superadmin analiza un gimnasio concreto, guarda su id en
+// localStorage("sa_gym_id"). Este helper añade la cabecera X-Gym-ID sólo en ese
+// caso; para un usuario de gimnasio (sin sa_gym_id) no cambia nada.
+export const gymHeader = () => {
+  const g = typeof localStorage !== "undefined" ? localStorage.getItem("sa_gym_id") : null;
+  return g ? { "X-Gym-ID": g } : {};
+};
+
 // ─── Tooltip personalizado ────────────────────────────────────────────────────
 const CustomTooltip = ({ active, payload, label, prefix = "", suffix = "" }) => {
   if (!active || !payload?.length) return null;
@@ -119,7 +127,7 @@ function TabMapReduce() {
   const [trainMsg, setTrainMsg]   = useState(null);
 
   const token = localStorage.getItem("token");
-  const headers = { Authorization: `Bearer ${token}` };
+  const headers = { Authorization: `Bearer ${token}`, ...gymHeader() };
 
   const fetchData = useCallback(async () => {
     setLoading(true); setError(null); setTrainMsg(null);
@@ -246,7 +254,7 @@ function TabMapReduce() {
 // ─────────────────────────────────────────────────────────────────────────────
 // TAB: K-Means
 // ─────────────────────────────────────────────────────────────────────────────
-function TabKMeans() {
+export function TabKMeans() {
   const [kValue, setKValue]       = useState(3);
   const [data, setData]           = useState(null);
   const [loading, setLoading]     = useState(true);
@@ -255,7 +263,7 @@ function TabKMeans() {
   const [trainMsg, setTrainMsg]   = useState(null);
 
   const token   = localStorage.getItem("token");
-  const headers = { Authorization: `Bearer ${token}` };
+  const headers = { Authorization: `Bearer ${token}`, ...gymHeader() };
 
   const fetchData = useCallback(async (k) => {
     setLoading(true); setError(null); setTrainMsg(null);
@@ -408,7 +416,7 @@ const COEF_LABELS = {
   intercepto:     "Base del modelo",
 };
 
-function TabRegresion() {
+export function TabRegresion() {
   const [data, setData]           = useState(null);
   const [loading, setLoading]     = useState(true);
   const [trainLoading, setTL]     = useState(false);
@@ -416,7 +424,7 @@ function TabRegresion() {
   const [trainMsg, setTrainMsg]   = useState(null);
 
   const token   = localStorage.getItem("token");
-  const headers = { Authorization: `Bearer ${token}` };
+  const headers = { Authorization: `Bearer ${token}`, ...gymHeader() };
 
   const fetchData = useCallback(async () => {
     setLoading(true); setError(null);
@@ -541,7 +549,7 @@ function TabCancelaciones() {
   const [trainMsg, setTrainMsg] = useState(null);
 
   const token   = localStorage.getItem("token");
-  const headers = { Authorization: `Bearer ${token}` };
+  const headers = { Authorization: `Bearer ${token}`, ...gymHeader() };
 
   const fetchData = useCallback(async () => {
     setLoading(true); setError(null);
@@ -859,7 +867,7 @@ function TabHeatmap() {
     setLoading(true); setError(null);
     try {
       const token = localStorage.getItem("token");
-      const r = await fetch(`${API_BASE}/api/analytics/heatmap-asistencia`, { headers: { Authorization: `Bearer ${token}` } });
+      const r = await fetch(`${API_BASE}/api/analytics/heatmap-asistencia`, { headers: { Authorization: `Bearer ${token}`, ...gymHeader() } });
       if (!r.ok) throw new Error(`Error ${r.status}`);
       setData(await r.json());
     } catch (e) { setError(e.message); }
@@ -942,7 +950,7 @@ function TabRFM() {
     setLoading(true); setError(null);
     try {
       const token = localStorage.getItem("token");
-      const r = await fetch(`${API_BASE}/api/analytics/rfm`, { headers: { Authorization: `Bearer ${token}` } });
+      const r = await fetch(`${API_BASE}/api/analytics/rfm`, { headers: { Authorization: `Bearer ${token}`, ...gymHeader() } });
       if (!r.ok) throw new Error(`Error ${r.status}`);
       setData(await r.json());
     } catch (e) { setError(e.message); }
@@ -1038,7 +1046,7 @@ function TabFuerza() {
     setLoading(true); setError(null);
     try {
       const token = localStorage.getItem("token");
-      const r = await fetch(`${API_BASE}/api/analytics/fuerza`, { headers: { Authorization: `Bearer ${token}` } });
+      const r = await fetch(`${API_BASE}/api/analytics/fuerza`, { headers: { Authorization: `Bearer ${token}`, ...gymHeader() } });
       if (!r.ok) throw new Error(`Error ${r.status}`);
       setData(await r.json());
     } catch (e) { setError(e.message); }
@@ -1135,7 +1143,7 @@ const ConfusionMatrix = ({ matrix, clases }) => {
   );
 };
 
-function TabModelos() {
+export function TabModelos() {
   const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState(null);
@@ -1145,7 +1153,7 @@ function TabModelos() {
     setLoading(true); setError(null);
     try {
       const token = localStorage.getItem("token");
-      const r = await fetch(`${API_BASE}/api/analytics/modelos`, { headers: { Authorization: `Bearer ${token}` } });
+      const r = await fetch(`${API_BASE}/api/analytics/modelos`, { headers: { Authorization: `Bearer ${token}`, ...gymHeader() } });
       if (!r.ok) throw new Error(`Error ${r.status}`);
       setData(await r.json());
     } catch (e) { setError(e.message); }
@@ -1156,7 +1164,7 @@ function TabModelos() {
     setTL(true); setError(null);
     try {
       const token = localStorage.getItem("token");
-      const r = await fetch(`${API_BASE}/api/analytics/modelos/train`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+      const r = await fetch(`${API_BASE}/api/analytics/modelos/train`, { method: "POST", headers: { Authorization: `Bearer ${token}`, ...gymHeader() } });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || "Error");
       setData(j);
@@ -1361,15 +1369,16 @@ const IconModelos = () => (
   </svg>
 );
 
+// Pestañas de negocio para el owner del gimnasio. Los módulos técnicos de ML
+// (K-Means, Regresión y Laboratorio de Modelos) se movieron al panel de
+// superadmin (web/src/pages/superadmin/SuperadminModelos.jsx), donde se reutilizan
+// los componentes exportados TabKMeans / TabRegresion / TabModelos.
 const TABS = [
-  { id: "mapreduce",     label: "Finanzas y Flujo",    Icon: IconMapReduce,     Component: TabMapReduce     },
-  { id: "kmeans",        label: "Grupos de Miembros",  Icon: IconKMeans,        Component: TabKMeans        },
-  { id: "regresion",     label: "Tendencias de Peso",  Icon: IconRegresion,     Component: TabRegresion     },
-  { id: "cancelaciones", label: "Riesgo de Abandono",  Icon: IconCancelaciones, Component: TabCancelaciones },
-  { id: "heatmap",       label: "Horarios Concurridos", Icon: IconHeatmap,      Component: TabHeatmap       },
-  { id: "rfm",           label: "Clientes por Valor",  Icon: IconRFM,           Component: TabRFM           },
-  { id: "fuerza",        label: "Fuerza de Miembros",  Icon: IconFuerza,        Component: TabFuerza        },
-  { id: "modelos",       label: "Laboratorio de Modelos", Icon: IconModelos,    Component: TabModelos       },
+  { id: "mapreduce",     label: "Finanzas y Flujo",     Icon: IconMapReduce,     Component: TabMapReduce     },
+  { id: "cancelaciones", label: "Riesgo de Abandono",   Icon: IconCancelaciones, Component: TabCancelaciones },
+  { id: "heatmap",       label: "Horarios Concurridos", Icon: IconHeatmap,       Component: TabHeatmap       },
+  { id: "rfm",           label: "Clientes por Valor",   Icon: IconRFM,           Component: TabRFM           },
+  { id: "fuerza",        label: "Fuerza de Miembros",   Icon: IconFuerza,        Component: TabFuerza        },
 ];
 
 export default function AdminAnalytics() {

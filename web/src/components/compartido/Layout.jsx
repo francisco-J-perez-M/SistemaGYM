@@ -79,6 +79,7 @@ const ROUTE_MAP = {
     "/superadmin/usuarios":        "sa-usuarios",
     "/superadmin/backups":         "sa-backups",
     "/superadmin/analytics":       "sa-analytics",
+    "/superadmin/modelos":         "sa-modelos",
   },
 };
 
@@ -149,6 +150,7 @@ const NAV_MAP = {
     "sa-usuarios":     "/superadmin/usuarios",
     "sa-backups":      "/superadmin/backups",
     "sa-analytics":    "/superadmin/analytics",
+    "sa-modelos":      "/superadmin/modelos",
   },
 };
 
