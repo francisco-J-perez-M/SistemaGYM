@@ -12,6 +12,7 @@ import PrivacyPolicy  from "./pages/publico/PrivacyPolicy";
 import OwnerOnboarding    from "./pages/owner_gym/OwnerOnboarding";
 import OwnerDashboard     from "./pages/owner_gym/OwnerDashboard";
 import OwnerStaff         from "./pages/owner_gym/OwnerStaff";
+import OwnerSucursales    from "./pages/owner_gym/OwnerSucursales";
 import OwnerMemberships   from "./pages/owner_gym/OwnerMemberships";
 import OwnerProfile       from "./pages/owner_gym/OwnerProfile";
 import OwnerMiPerfil      from "./pages/owner_gym/OwnerMiPerfil";
@@ -94,13 +95,14 @@ function App() {
           <Route path="/pago/cancelado" element={<PagoResultado resultado="cancelado" />} />
 
           {/* 2. RUTAS OWNER GYM */}
-          <Route element={<Layout role="owner_gym" />}>
+          <Route element={<Layout role="owner_gym" key="owner_gym" />}>
             <Route path="/owner"               element={<OwnerDashboard />}   />
             <Route path="/owner/members"       element={<MiembrosDashboard />} />
             <Route path="/owner/payments"      element={<PagosDashboard />}   />
             <Route path="/owner/cobrar"        element={<CobrarMembresia />}  />
             <Route path="/owner/pos"           element={<PointOfSale />}      />
             <Route path="/owner/staff"         element={<OwnerStaff />}       />
+            <Route path="/owner/sucursales"    element={<OwnerSucursales />}  />
             <Route path="/owner/memberships"   element={<OwnerMemberships />} />
             <Route path="/owner/profile"       element={<OwnerProfile />}     />
             <Route path="/owner/mi-perfil"     element={<OwnerMiPerfil />}    />
@@ -115,7 +117,7 @@ function App() {
           </Route>
 
           {/* 3. RUTAS USUARIO (MIEMBRO) */}
-          <Route element={<Layout role="user" />}>
+          <Route element={<Layout role="user" key="user" />}>
             <Route path="/user/dashboard"    element={<UserDashboard />} />
             <Route path="/user/routine"      element={<UserRoutineCreator />} />
             <Route path="/user/workout-log"  element={<UserWorkoutLog />} />
@@ -136,7 +138,7 @@ function App() {
           </Route>
 
           {/* 4. RUTAS ENTRENADOR */}
-          <Route element={<Layout role="trainer" />}>
+          <Route element={<Layout role="trainer" key="trainer" />}>
             <Route path="/trainer-dashboard"         element={<TrainerDashboard />} />
             <Route path="/trainer/clients"           element={<TrainerClients />} />
             <Route path="/trainer/schedule"          element={<TrainerSchedule />} />
@@ -152,7 +154,7 @@ function App() {
           </Route>
 
           {/* 5. RUTAS RECEPCIONISTA */}
-          <Route element={<Layout role="receptionist" />}>
+          <Route element={<Layout role="receptionist" key="receptionist" />}>
             <Route path="/receptionist-dashboard"    element={<ReceptionistDashboard />} />
             <Route path="/receptionist/checkins"     element={<ReceptionistCheckin />} />
             <Route path="/receptionist/pos"          element={<PointOfSale />} />
@@ -168,7 +170,7 @@ function App() {
           </Route>
 
           {/* 6. RUTAS SUPERADMIN */}
-          <Route element={<Layout role="superadmin" />}>
+          <Route element={<Layout role="superadmin" key="superadmin" />}>
             <Route path="/superadmin"               element={<SuperadminDashboard />}     />
             <Route path="/superadmin/gimnasios"     element={<SuperadminGimnasios />}     />
             <Route path="/superadmin/suscripciones" element={<SuperadminSuscripciones />} />
