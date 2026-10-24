@@ -223,7 +223,7 @@ export default function UserMembershipRenewal() {
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: 16 }}>
             {plans.map((plan, i) => {
-              const isSelected = selectedPlan?.id_membresia === plan.id_membresia;
+              const isSelected = selectedPlan === plan;
               return (
                 <motion.div
                   key={plan.id_membresia}
