@@ -92,7 +92,17 @@ export function matchesSearch(item: any, keys: string[], term: string): boolean 
  * Garantiza que un valor devuelto por la API sea un array.
  * Si el API devuelve un objeto envolvente ({ data: [...] }) o null/undefined,
  * devuelve siempre un array vacío.
+ *
+ * El genérico usa `T = any` por defecto a propósito. Sin ese valor por defecto,
+ * una llamada sin tipo explícito —`toArray(venta.items)`— infiere `unknown[]`,
+ * y cualquier acceso posterior (`it.nombre`) es un error de compilación. Como
+ * la mitad de las llamadas del proyecto son sobre respuestas sin tipar, eso
+ * generaba cientos de errores en pantallas que funcionan perfectamente.
+ *
+ * Donde sí interesa el tipado se sigue pasando el genérico, y ahí TypeScript
+ * comprueba igual que antes:
+ *     toArray<Movimiento>(data?.movimientos)
  */
-export function toArray<T>(val: T[] | null | undefined | any): T[] {
+export function toArray<T = any>(val: T[] | null | undefined | any): T[] {
   return Array.isArray(val) ? val : [];
 }

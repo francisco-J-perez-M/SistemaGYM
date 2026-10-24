@@ -140,8 +140,8 @@ export default function POSScreen() {
     useFetch<VentasResponse>(consultaVentas);
 
   const loading   = tab === 'productos' ? loadingP : loadingV;
-  const productos = toArray(prodData?.productos ?? (Array.isArray(prodData) ? prodData : []));
-  const ventas    = toArray(ventasData?.ventas   ?? (Array.isArray(ventasData) ? ventasData : []));
+  const productos = toArray<Producto>(prodData?.productos ?? (Array.isArray(prodData) ? prodData : []));
+  const ventas    = toArray<VentaItem>(ventasData?.ventas ?? (Array.isArray(ventasData) ? ventasData : []));
 
   const handleRefresh = () => { tab === 'productos' ? refetchP() : refetchV(); };
 

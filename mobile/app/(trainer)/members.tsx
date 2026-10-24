@@ -58,7 +58,7 @@ export default function TrainerMembersScreen() {
   const [search, setSearch] = useState('');
   const [detalle, setDetalle] = useState<UsuarioDetalle | null>(null);
 
-  const allClients = toArray(data?.clients);
+  const allClients = toArray<TrainerClientAPI>(data?.clients);
   const filtered   = allClients.filter((c) => {
     if (!search) return true;
     const term = search.toLowerCase();

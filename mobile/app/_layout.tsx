@@ -67,10 +67,10 @@ function AppContent() {
 
   return (
     <>
-      <StatusBar
-        style={resolvedTheme === 'light' ? 'dark' : 'light'}
-        backgroundColor={colors.background}
-      />
+      {/* backgroundColor se retiró: expo-status-bar dejó de aceptarlo y en
+          Android 15 el sistema lo ignora (la barra siempre es transparente).
+          El color de los iconos sigue saliendo de la paleta vía `style`. */}
+      <StatusBar style={resolvedTheme === 'light' ? 'dark' : 'light'} />
       <Stack
         screenOptions={{
           headerShown: false,

@@ -35,7 +35,7 @@ export default function ProgressScreen() {
   const [cadera,  setCadera]  = useState('');
   const [saving,  setSaving]  = useState(false);
 
-  const sorted = [...toArray(records)].sort(
+  const sorted = [...toArray<BodyProgress>(records)].sort(
     (a, b) => new Date(a.fecha_registro).getTime() - new Date(b.fecha_registro).getTime()
   );
 

@@ -120,9 +120,11 @@ export default function TrainingScreen() {
     useFetch<{ solicitudes: PTSolicitud[] }>(ENDPOINTS.USER_PT_REQUEST);
 
   const rutinas     = toArray(rutinaData?.rutinas);
-  const allTrainers = toArray(Array.isArray(trainersData) ? trainersData : (trainersData as any)?.trainers ?? []);
+  const allTrainers = toArray<Trainer>(
+    Array.isArray(trainersData) ? trainersData : (trainersData as any)?.trainers ?? [],
+  );
   const assignedIds = new Set(
-    toArray(ptData?.solicitudes)
+    toArray<PTSolicitud>(ptData?.solicitudes)
       .filter((s) => s.estado === 'aceptada')
       .map((s) => s.id_entrenador_pg),
   );
@@ -130,7 +132,7 @@ export default function TrainingScreen() {
   // no cargó pero sí hay solicitud aceptada, caemos a los datos de la solicitud.
   const trainers: Trainer[] = allTrainers.filter((t) => assignedIds.has((t.id ?? t._id) as number));
   if (trainers.length === 0 && assignedIds.size > 0) {
-    toArray(ptData?.solicitudes)
+    toArray<PTSolicitud>(ptData?.solicitudes)
       .filter((s) => s.estado === 'aceptada')
       .forEach((s) => trainers.push({ id: s.id_entrenador_pg, nombre: s.nombre_entrenador }));
   }
