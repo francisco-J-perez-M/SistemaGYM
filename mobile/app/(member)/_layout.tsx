@@ -59,6 +59,14 @@ export default function MemberLayout() {
           }}
         />
       ))}
+      {/* Rutas del filesystem que no deben aparecer en el drawer */}
+      {['progress', 'routines'].map((name) => (
+        <Drawer.Screen
+          key={name}
+          name={name}
+          options={{ drawerItemStyle: { display: 'none' }, title: name }}
+        />
+      ))}
     </Drawer>
   );
 }
