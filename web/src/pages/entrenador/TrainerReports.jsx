@@ -33,6 +33,8 @@ import {
 } from "react-icons/fi";
 import axios from "axios";
 import trainerService from "../../services/entrenador/trainerService";
+import { useFuncionesPlan } from "../../hooks/useFuncionesPlan";
+import BloqueoFuncionPlan from "../../components/compartido/BloqueoFuncionPlan";
 import {
   COLORES_GRAFICO, SERIES_GRAFICO, COLOR_REJILLA, ejeX, ejeY,
 } from "../../components/compartido/InfoGrafico";
@@ -175,6 +177,15 @@ function Avatar({ name, size = 36, color = COLORS.primary }) {
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 export default function TrainerReports() {
+  // SCRUM-224: el KPI/gráficas de esta pantalla vienen de
+  // trainerService.getReports() (sin bloqueo por plan) -- lo único
+  // restringido es la descarga de PDF (@require_funcion_plan("reportes_pdf")
+  // en reportes_entrenador.py), así que solo esa parte del modal "Reporte a
+  // la medida" se desenfoca, no toda la pantalla. El Entrenador no
+  // administra la suscripción, de ahí que no se ofrezca el botón de mejorar
+  // plan aquí (igual que en TrainerRoutines.jsx).
+  const funcionesPlan = useFuncionesPlan();
+  const reportesPdfPermitido = funcionesPlan.reportes_pdf !== false;
   const [timeRange, setTimeRange] = useState("month");
   const [data, setData]           = useState(null);
   const [loading, setLoading]     = useState(true);
@@ -360,6 +371,11 @@ export default function TrainerReports() {
                 ×
               </button>
             </div>
+            <BloqueoFuncionPlan
+              permitido={reportesPdfPermitido}
+              nombreFuncion="Exportación de reportes en PDF"
+              planSugerido="Básico"
+            >
             <p style={{ fontSize:12.5, color:"var(--text-secondary)", margin:"0 0 18px" }}>
               Elige el periodo y qué incluir. El documento lo genera el servidor.
             </p>
@@ -437,6 +453,7 @@ export default function TrainerReports() {
               <FiDownload size={15} />
               {generando ? "Generando…" : "Descargar PDF"}
             </button>
+            </BloqueoFuncionPlan>
           </div>
         </>
       )}

@@ -16,6 +16,14 @@ import {
 import {
   getPasarelas, guardarPasarela, probarPasarela, togglePasarela, eliminarPasarela,
 } from "../../api/pagosOnline";
+import { normalizarRol, ROL_ADMINISTRADOR } from "../../constants/roles";
+
+// SCRUM-221 / HU-50: solo el propietario puede cambiar la cuenta de cobro --
+// el Administrador de sucursal la ve (enmascarada) pero no puede tocarla.
+// Mismo criterio que usa Sidebar.jsx para decidir qué mostrarle.
+const leerUsuario = () => {
+  try { return JSON.parse(localStorage.getItem("user") || "{}"); } catch { return {}; }
+};
 
 const card = (extra = {}) => ({
   background: "var(--bg-card)", border: "1px solid var(--border)",
@@ -41,11 +49,14 @@ const btn = (variant = "primary") => {
 const alerta = (icon, title, text) =>
   Swal.fire({ icon, title, text, background: "var(--bg-card)", color: "var(--text-primary)" });
 
-function TarjetaPasarela({ pasarela, onRecargar }) {
+function TarjetaPasarela({ pasarela, onRecargar, soloLectura }) {
   const [form, setForm]   = useState({});
   const [modo, setModo]   = useState(pasarela.modo || "sandbox");
   const [moneda, setMoneda] = useState(pasarela.moneda || "MXN");
   const [titular, setTitular] = useState(pasarela.titular_cuenta || "");
+  // SCRUM-221 / HU-50, criterio 3: cambiar la cuenta pide la contraseña del
+  // propietario otra vez, aunque la sesión ya esté abierta.
+  const [passwordActual, setPasswordActual] = useState("");
   const [guardando, setGuardando] = useState(false);
   const [probando, setProbando]   = useState(false);
 
@@ -56,16 +67,26 @@ function TarjetaPasarela({ pasarela, onRecargar }) {
     setForm({});
   }, [pasarela]);
 
+  const cambiaCredenciales = Object.values(form).some((v) => String(v || "").trim());
+
   const guardar = async () => {
+    if (cambiaCredenciales && !passwordActual) {
+      alerta("warning", "Confirma tu contraseña",
+        "Para cambiar la cuenta de cobro, captura tu contraseña actual.");
+      return;
+    }
     setGuardando(true);
     try {
       await guardarPasarela(pasarela.proveedor, {
         credenciales: form, modo, moneda, titular_cuenta: titular,
+        password_actual: passwordActual,
       });
       setForm({});
+      setPasswordActual("");
       await onRecargar();
-      alerta("success", "Configuración guardada",
-        "Ahora prueba la conexión para confirmar que las credenciales funcionan.");
+      alerta("success", "Configuración guardada", cambiaCredenciales
+        ? "Te avisamos por correo del cambio. Ahora prueba la conexión para confirmar que las credenciales funcionan."
+        : "Ahora prueba la conexión para confirmar que las credenciales funcionan.");
     } catch (e) {
       alerta("error", "No se pudo guardar", e?.response?.data?.msg || "Error inesperado");
     } finally { setGuardando(false); }
@@ -96,18 +117,22 @@ function TarjetaPasarela({ pasarela, onRecargar }) {
   };
 
   const borrar = async () => {
-    const { isConfirmed } = await Swal.fire({
+    const { value: pwd } = await Swal.fire({
       title: `Eliminar credenciales de ${pasarela.nombre}`,
-      text: "Se borrarán las credenciales guardadas y dejarás de cobrar con este método.",
+      html: "Se borrarán las credenciales guardadas y dejarás de cobrar con este método.<br>" +
+            "Confirma tu contraseña para continuar.",
+      input: "password",
+      inputPlaceholder: "Tu contraseña",
       icon: "warning", showCancelButton: true, confirmButtonText: "Eliminar",
       cancelButtonText: "Cancelar", confirmButtonColor: "var(--danger)",
       background: "var(--bg-card)", color: "var(--text-primary)",
+      inputValidator: (v) => (!v ? "Captura tu contraseña" : undefined),
     });
-    if (!isConfirmed) return;
+    if (!pwd) return;
     try {
-      await eliminarPasarela(pasarela.proveedor);
+      await eliminarPasarela(pasarela.proveedor, pwd);
       await onRecargar();
-      alerta("success", "Credenciales eliminadas", "");
+      alerta("success", "Credenciales eliminadas", "Te avisamos por correo del cambio.");
     } catch (e) {
       alerta("error", "No se pudo eliminar", e?.response?.data?.msg || "Error inesperado");
     }
@@ -167,6 +192,19 @@ function TarjetaPasarela({ pasarela, onRecargar }) {
         </div>
       )}
 
+      {/* SCRUM-221 / HU-50, criterio 1: el Administrador ve la configuración
+          pero no puede tocarla — solo el Propietario cambia la cuenta de cobro. */}
+      {soloLectura && (
+        <div style={{
+          display: "flex", alignItems: "center", gap: 8, marginBottom: 14,
+          padding: "10px 12px", borderRadius: 8, fontSize: 12.5,
+          background: "rgba(148,163,184,.10)", color: "var(--text-secondary)",
+        }}>
+          <FiLock />
+          <span>Solo el propietario puede cambiar la cuenta de cobro. Tú puedes ver esta configuración, pero no editarla.</span>
+        </div>
+      )}
+
       {/* Campos de credenciales */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
         {pasarela.campos.map((campo) => (
@@ -180,24 +218,43 @@ function TarjetaPasarela({ pasarela, onRecargar }) {
               onChange={(e) => setForm((f) => ({ ...f, [campo.clave]: e.target.value }))}
               placeholder={listo ? "Guardado — escribe para reemplazar" : campo.etiqueta}
               autoComplete="off"
-              style={inputStyle}
+              disabled={soloLectura}
+              style={soloLectura ? { ...inputStyle, opacity: 0.6, cursor: "not-allowed" } : inputStyle}
             />
           </div>
         ))}
       </div>
 
+      {/* SCRUM-221 / HU-50, criterio 3: reautenticación -- solo aparece cuando
+          realmente se está reemplazando alguna credencial. */}
+      {!soloLectura && cambiaCredenciales && (
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ display: "block", fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>
+            Tu contraseña (confirma el cambio de cuenta) <FiLock style={{ verticalAlign: "-1px" }} />
+          </label>
+          <input
+            type="password"
+            value={passwordActual}
+            onChange={(e) => setPasswordActual(e.target.value)}
+            placeholder="Tu contraseña actual"
+            autoComplete="current-password"
+            style={inputStyle}
+          />
+        </div>
+      )}
+
       {/* Ajustes */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 2fr", gap: 12, marginBottom: 16 }}>
         <div>
           <label style={{ display: "block", fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>Modo</label>
-          <select value={modo} onChange={(e) => setModo(e.target.value)} style={inputStyle}>
+          <select value={modo} onChange={(e) => setModo(e.target.value)} disabled={soloLectura} style={inputStyle}>
             <option value="sandbox">Pruebas (sandbox)</option>
             <option value="live">Producción (dinero real)</option>
           </select>
         </div>
         <div>
           <label style={{ display: "block", fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>Moneda</label>
-          <select value={moneda} onChange={(e) => setMoneda(e.target.value)} style={inputStyle}>
+          <select value={moneda} onChange={(e) => setMoneda(e.target.value)} disabled={soloLectura} style={inputStyle}>
             <option value="MXN">MXN — Peso mexicano</option>
             <option value="USD">USD — Dólar</option>
           </select>
@@ -207,24 +264,27 @@ function TarjetaPasarela({ pasarela, onRecargar }) {
             Titular de la cuenta (informativo)
           </label>
           <input value={titular} onChange={(e) => setTitular(e.target.value)}
-                 placeholder="Nombre o correo de la cuenta receptora" style={inputStyle} />
+                 placeholder="Nombre o correo de la cuenta receptora" disabled={soloLectura} style={inputStyle} />
         </div>
       </div>
 
-      {/* Acciones */}
+      {/* Acciones -- Guardar/Activar/Eliminar quedan ocultos en solo lectura;
+          "Probar conexión" no escribe nada, así que se deja disponible. */}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <button style={btn("primary")} onClick={guardar} disabled={guardando}>
-          <FiSave /> {guardando ? "Guardando…" : "Guardar"}
-        </button>
+        {!soloLectura && (
+          <button style={btn("primary")} onClick={guardar} disabled={guardando}>
+            <FiSave /> {guardando ? "Guardando…" : "Guardar"}
+          </button>
+        )}
         <button style={btn("ghost")} onClick={probar} disabled={!listo || probando}>
           <FiRefreshCw /> {probando ? "Probando…" : "Probar conexión"}
         </button>
-        {listo && (
+        {listo && !soloLectura && (
           <button style={btn(pasarela.activo ? "ghost" : "success")} onClick={alternar}>
             {pasarela.activo ? "Desactivar" : "Activar cobros"}
           </button>
         )}
-        {listo && (
+        {listo && !soloLectura && (
           <button style={btn("danger")} onClick={borrar}>
             <FiTrash2 /> Eliminar
           </button>
@@ -238,6 +298,10 @@ export default function OwnerPagos() {
   const [pasarelas, setPasarelas] = useState([]);
   const [cifrado, setCifrado]     = useState(true);
   const [loading, setLoading]     = useState(true);
+  // SCRUM-221 / HU-50, criterio 1: el Administrador de sucursal ve esta
+  // pantalla en solo lectura -- el backend ya rechaza sus escrituras, esto
+  // solo evita que intente y se encuentre con un 403.
+  const esAdministrador = normalizarRol(leerUsuario().role) === ROL_ADMINISTRADOR;
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -286,7 +350,7 @@ export default function OwnerPagos() {
         <p style={{ color: "var(--text-secondary)", fontSize: 14 }}>Cargando configuración…</p>
       ) : (
         pasarelas.map((p) => (
-          <TarjetaPasarela key={p.proveedor} pasarela={p} onRecargar={cargar} />
+          <TarjetaPasarela key={p.proveedor} pasarela={p} onRecargar={cargar} soloLectura={esAdministrador} />
         ))
       )}
     </div>

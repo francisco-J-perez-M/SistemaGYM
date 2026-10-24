@@ -23,6 +23,9 @@ import ProductoModal       from "./POSProductoModal";
 import ProductoDetailModal from "./POSProductoDetailModal";
 import CheckoutModal       from "./POSCheckoutModal";
 import TicketModal         from "./POSTicketModal";
+import { useFuncionesPlan } from "../../hooks/useFuncionesPlan";
+import BloqueoFuncionPlan from "../../components/compartido/BloqueoFuncionPlan";
+import { normalizarRol, ROL_PROPIETARIO, ROL_ADMINISTRADOR } from "../../constants/roles";
 
 /* ── Helpers ─────────────────────────────── */
 const fmt = (n) => `$${Number(n).toLocaleString("es-MX", { minimumFractionDigits: 2 })}`;
@@ -33,6 +36,16 @@ function getIsMiembro() {
   try {
     const u = JSON.parse(localStorage.getItem("user") || "{}");
     return u.role === "Miembro" || u.role === "user";
+  } catch { return false; }
+}
+
+/* Helper: solo Propietario/Administrador administra la suscripcion -- ver
+   el mismo criterio en BloqueoFuncionPlan (Sidebar.jsx, AdminAnalytics.jsx) */
+function getPuedeMejorarPlan() {
+  try {
+    const u   = JSON.parse(localStorage.getItem("user") || "{}");
+    const rol = normalizarRol(u.role);
+    return rol === ROL_PROPIETARIO || rol === ROL_ADMINISTRADOR;
   } catch { return false; }
 }
 
@@ -806,6 +819,16 @@ export default function PointOfSale() {
   const [tab, setTab] = useState("venta");
   const isMiembro = getIsMiembro();
 
+  // SCRUM-224: "pos" es una bandera por gimnasio (PlanSuscripcion.limites),
+  // no por rol -- se bloquea la pantalla completa para cualquiera que la
+  // abra (Propietario, Administrador, Recepcionista, Entrenador o el
+  // propio Miembro) si el plan contratado no la incluye. El backend ya
+  // bloquea /api/ventas (POST y GET) con @require_funcion_plan("pos") --
+  // ver routes/owner_gym/ventas.py.
+  const funcionesPlan = useFuncionesPlan();
+  const posPermitido = funcionesPlan.pos !== false;
+  const puedeMejorarPlan = getPuedeMejorarPlan();
+
   const tabBtn = (active) => ({
     padding: "7px 18px", borderRadius: 8, border: "none", cursor: "pointer",
     fontSize: 13, fontWeight: 600,
@@ -814,6 +837,12 @@ export default function PointOfSale() {
   });
 
   return (
+    <BloqueoFuncionPlan
+      permitido={posPermitido}
+      nombreFuncion="Punto de Venta"
+      planSugerido="Básico"
+      puedeMejorarPlan={puedeMejorarPlan}
+    >
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden", background: "var(--bg-input)" }}>
       <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 28px", borderBottom: "1px solid var(--border)", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -845,5 +874,6 @@ export default function PointOfSale() {
         {tab === "historial" && <TabHistorial />}
       </div>
     </div>
+    </BloqueoFuncionPlan>
   );
 }

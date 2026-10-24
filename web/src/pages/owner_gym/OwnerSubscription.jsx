@@ -27,6 +27,23 @@ const diasRestantes = (iso) => {
 const fechaCorta = (iso) =>
   iso ? new Date(iso).toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 
+// SCRUM-224: el precio depende del ciclo elegido -- vacío/null en
+// precio_anual_mxn significa "cobra 12x el mensual" (igual que
+// billing._monto_para_ciclo en el backend; se replica aquí porque el
+// precio se muestra antes de mandar nada al servidor).
+const montoParaCiclo = (plan, ciclo) => {
+  if (!plan) return 0;
+  if (ciclo === "anual") {
+    return plan.precio_anual_mxn != null ? plan.precio_anual_mxn : plan.precio_mensual_mxn * 12;
+  }
+  return plan.precio_mensual_mxn;
+};
+const precioDisplayParaCiclo = (plan, ciclo) => {
+  const centavos = montoParaCiclo(plan, ciclo);
+  if (!centavos) return "Gratis";
+  return `$${(centavos / 100).toLocaleString("es-MX", { minimumFractionDigits: 2 })} MXN/${ciclo === "anual" ? "año" : "mes"}`;
+};
+
 const ESTADO_META = {
   active:    { label: "Activa",            color: "var(--success)" },
   trialing:  { label: "Período de prueba", color: "var(--info)" },
@@ -49,8 +66,12 @@ export default function OwnerSubscription() {
   const [loading, setLoading] = useState(true);
   const [msg, setMsg]         = useState(null);
 
+  // SCRUM-224: ciclo de facturación elegido para renovar o cambiar de plan.
+  // Arranca en el ciclo de la suscripción actual una vez que carga.
+  const [ciclo, setCiclo]     = useState("mensual");
+
   // Modal de pago demo
-  const [pay, setPay]         = useState(null); // { plan, modo:"renovar"|"mejorar" }
+  const [pay, setPay]         = useState(null); // { plan, modo:"renovar"|"mejorar", ciclo }
   const [metodo, setMetodo]   = useState("tarjeta");
   const [processing, setProcessing] = useState(false);
 
@@ -63,6 +84,7 @@ export default function OwnerSubscription() {
         fetch("/api/billing/facturas?limit=10", { headers: authHeaders() }).then(r => r.json()),
       ]);
       setSub(s?.suscripcion || null);
+      if (s?.suscripcion?.ciclo_facturacion) setCiclo(s.suscripcion.ciclo_facturacion);
       setPlanes(Array.isArray(p) ? p : []);
       setFacturas(f?.facturas || []);
     } catch { setMsg({ type: "error", text: "No se pudo cargar tu suscripción." }); }
@@ -165,7 +187,7 @@ export default function OwnerSubscription() {
   const confirmarPago = async () => {
     setProcessing(true); setMsg(null);
     try {
-      const body = {};
+      const body = { ciclo: pay?.ciclo || "mensual" };
       if (pay?.modo === "mejorar" && pay?.plan) body.id_plan = pay.plan.id;
       const r = await fetch("/api/billing/suscripcion/renovar", {
         method: "POST", headers: authHeaders(), body: JSON.stringify(body),
@@ -214,8 +236,15 @@ export default function OwnerSubscription() {
                     {planActual?.nombre || "Plan"}
                   </h2>
                   <span style={{ ...S.badge, background: `${est.color}22`, color: est.color }}>{est.label}</span>
+                  {sub?.ciclo_facturacion && (
+                    <span style={{ ...S.badge, background: "var(--accent-dim, rgba(51,119,255,.15))", color: "var(--accent)" }}>
+                      {sub.ciclo_facturacion === "anual" ? "Anual" : "Mensual"}
+                    </span>
+                  )}
                 </div>
-                <p style={{ color: "var(--accent)", fontWeight: 700, fontSize: 18, margin: "6px 0 0" }}>{planActual?.precio_display}</p>
+                <p style={{ color: "var(--accent)", fontWeight: 700, fontSize: 18, margin: "6px 0 0" }}>
+                  {sub?.ciclo_facturacion === "anual" ? precioDisplayParaCiclo(planActual, "anual") : planActual?.precio_display}
+                </p>
                 {planActual?.max_miembros != null && (
                   <p style={{ color: "var(--text-secondary)", fontSize: 13, margin: "4px 0 0" }}>Hasta {planActual.max_miembros} miembros</p>
                 )}
@@ -317,10 +346,23 @@ export default function OwnerSubscription() {
               );
             })()}
 
-            <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
-              <button style={S.primaryBtn} onClick={() => { setMetodo("tarjeta"); setPay({ modo: "renovar", plan: planActual }); }}>
-                <FiRefreshCw size={15} /> Renovar 30 días
+            <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap", alignItems: "center" }}>
+              <button style={S.primaryBtn} onClick={() => { setMetodo("tarjeta"); setPay({ modo: "renovar", plan: planActual, ciclo }); }}>
+                <FiRefreshCw size={15} /> Renovar {ciclo === "anual" ? "1 año" : "30 días"}
               </button>
+              {/* SCRUM-224: este selector también decide con qué ciclo se renueva
+                  el plan actual o se cambia a otro de los de abajo. */}
+              <div style={{ display: "inline-flex", border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden" }}>
+                {["mensual", "anual"].map(c => (
+                  <button key={c} onClick={() => setCiclo(c)} style={{
+                    padding: "8px 14px", fontSize: 12.5, fontWeight: 700, border: "none", cursor: "pointer",
+                    background: ciclo === c ? "var(--accent)" : "transparent",
+                    color: ciclo === c ? "#fff" : "var(--text-secondary)",
+                  }}>
+                    {c === "anual" ? "Anual" : "Mensual"}
+                  </button>
+                ))}
+              </div>
             </div>
           </>
         )}
@@ -371,13 +413,18 @@ export default function OwnerSubscription() {
                 </p>
               )}
 
-              {/* Precio */}
-              <div style={{ display: "flex", alignItems: "baseline", gap: 5, margin: "10px 0 4px" }}>
+              {/* Precio -- SCRUM-224: sigue el ciclo elegido arriba */}
+              <div style={{ display: "flex", alignItems: "baseline", gap: 5, margin: "10px 0 4px", flexWrap: "wrap" }}>
                 <span style={{ color: "var(--text-primary)", fontWeight: 800, fontSize: 30, letterSpacing: "-0.5px" }}>
-                  {p.precio_mensual_mxn === 0 ? "Gratis" : `$${(p.precio_mensual_mxn / 100).toLocaleString("es-MX")}`}
+                  {montoParaCiclo(p, ciclo) === 0 ? "Gratis" : `$${(montoParaCiclo(p, ciclo) / 100).toLocaleString("es-MX")}`}
                 </span>
-                {p.precio_mensual_mxn > 0 && (
-                  <span style={{ fontSize: 12.5, color: "var(--text-secondary)", fontWeight: 600 }}>MXN /mes</span>
+                {montoParaCiclo(p, ciclo) > 0 && (
+                  <span style={{ fontSize: 12.5, color: "var(--text-secondary)", fontWeight: 600 }}>MXN /{ciclo === "anual" ? "año" : "mes"}</span>
+                )}
+                {ciclo === "anual" && p.ahorro_anual_pct > 0 && (
+                  <span style={{ ...S.badge, background: "rgba(0,230,118,.15)", color: "var(--success)" }}>
+                    Ahorra {p.ahorro_anual_pct}%
+                  </span>
                 )}
               </div>
 
@@ -404,7 +451,7 @@ export default function OwnerSubscription() {
               )}
 
               <button disabled={actual}
-                onClick={() => { setMetodo("tarjeta"); setPay({ modo: "mejorar", plan: p }); }}
+                onClick={() => { setMetodo("tarjeta"); setPay({ modo: "mejorar", plan: p, ciclo }); }}
                 style={{
                   ...S.planBtn,
                   background: actual ? "var(--bg-input)" : (p.destacado ? "var(--accent)" : "var(--bg-input)"),
@@ -417,12 +464,12 @@ export default function OwnerSubscription() {
               </button>
 
               {/* Pago en línea del plan (lo cobra la plataforma) */}
-              {!actual && p.precio_mensual_mxn > 0 && (
+              {!actual && montoParaCiclo(p, ciclo) > 0 && (
                 <div style={{ marginTop: 10 }}>
                   <BotonesPago
                     contexto="suscripcion"
-                    monto={Number((p.precio_mensual_mxn / 100).toFixed(2))}
-                    descripcion={`Suscripción GymPro — plan ${p.nombre}`}
+                    monto={Number((montoParaCiclo(p, ciclo) / 100).toFixed(2))}
+                    descripcion={`Suscripción GymPro — plan ${p.nombre} (${ciclo})`}
                     referenciaLocal={sub?.id ?? null}
                   />
                 </div>
@@ -469,7 +516,8 @@ export default function OwnerSubscription() {
               <button onClick={() => !processing && setPay(null)} style={S.iconBtn}><FiX /></button>
             </div>
             <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 6px" }}>
-              {pay.plan?.nombre} — <strong style={{ color: "var(--accent)" }}>{pay.plan?.precio_display}</strong>
+              {pay.plan?.nombre} — <strong style={{ color: "var(--accent)" }}>{precioDisplayParaCiclo(pay.plan, pay.ciclo || "mensual")}</strong>
+              {" "}<span style={{ fontSize: 11 }}>({(pay.ciclo || "mensual") === "anual" ? "ciclo anual" : "ciclo mensual"})</span>
             </p>
             <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--text-secondary)",
               background: "var(--bg-input)", borderRadius: 8, padding: "7px 10px", marginBottom: 14 }}>

@@ -16,9 +16,11 @@ import { useEffect, useMemo, useState } from "react";
 import Swal from "sweetalert2";
 import {
   FiFileText, FiDownload, FiCheckSquare, FiSquare, FiCalendar,
-  FiBarChart2, FiRefreshCw, FiAlertCircle, FiTrendingUp, FiPieChart,
+  FiBarChart2, FiRefreshCw, FiAlertCircle, FiTrendingUp, FiPieChart, FiMapPin,
 } from "react-icons/fi";
-import { getReporteOpciones, descargarReportePdf } from "../../api/owner_gym";
+import { getReporteOpciones, getReporteSucursales, descargarReportePdf } from "../../api/owner_gym";
+import { useFuncionesPlan } from "../../hooks/useFuncionesPlan";
+import BloqueoFuncionPlan from "../../components/compartido/BloqueoFuncionPlan";
 
 const C = {
   card:   "var(--bg-card)",
@@ -60,12 +62,25 @@ const swalTema = () => {
 };
 
 export default function OwnerReportes() {
+  // SCRUM-224: GET /api/owner_gym/reportes/opciones (arriba) no está
+  // bloqueado por plan -- solo alimenta los filtros -- así que se sigue
+  // pidiendo igual; lo que se bloquea es la descarga del PDF en sí
+  // (@require_funcion_plan("reportes_pdf") en reportes_negocio.py). El
+  // Owner sí administra la suscripción, de ahí puedeMejorarPlan.
+  const funcionesPlan = useFuncionesPlan();
+  const reportesPdfPermitido = funcionesPlan.reportes_pdf !== false;
   const hoy = useMemo(() => new Date(), []);
 
   const [opciones, setOpciones] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [error,    setError]    = useState(false);
   const [generando, setGenerando] = useState(false);
+
+  // Ajuste (Lote 2): reporte de otra sucursal de la organización, no
+  // solo la propia -- null = "mi sucursal" (la del token). El selector
+  // se oculta si solo hay una fila (nada que elegir).
+  const [sucursales, setSucursales] = useState([]);
+  const [idGimnasio, setIdGimnasio] = useState(null);
 
   const [anio, setAnio] = useState(hoy.getFullYear());
   const [mes,  setMes]  = useState(hoy.getMonth() + 1);   // 0 = año completo
@@ -78,9 +93,16 @@ export default function OwnerReportes() {
   ]);
 
   useEffect(() => {
+    getReporteSucursales()
+      .then(({ data }) => setSucursales(Array.isArray(data) ? data : []))
+      .catch(() => setSucursales([])); // sin selector si falla -- no bloquea el reporte propio
+  }, []);
+
+  useEffect(() => {
+    setCargando(true);
     (async () => {
       try {
-        const { data } = await getReporteOpciones();
+        const { data } = await getReporteOpciones(idGimnasio);
         setOpciones(data);
         // Si el año en curso no tiene datos, se abre en el más reciente que sí.
         if (Array.isArray(data?.anios) && data.anios.length &&
@@ -93,7 +115,7 @@ export default function OwnerReportes() {
         setCargando(false);
       }
     })();
-  }, [hoy]);
+  }, [hoy, idGimnasio]);
 
   const alternarSeccion = (id) =>
     setSecciones((prev) =>
@@ -115,6 +137,7 @@ export default function OwnerReportes() {
         secciones: secciones.join(","),
         ...(comparar ? { comparar: 1 } : {}),
         ...(graficas ? { graficas: 1 } : {}),
+        ...(idGimnasio ? { id_gimnasio: idGimnasio } : {}),
       });
 
       // El backend ya arma el nombre del archivo (gimnasio + periodo, sin
@@ -171,6 +194,12 @@ export default function OwnerReportes() {
   const catalogoSecciones = opciones?.secciones ?? [];
 
   return (
+    <BloqueoFuncionPlan
+      permitido={reportesPdfPermitido}
+      nombreFuncion="Exportación de reportes en PDF"
+      planSugerido="Básico"
+      puedeMejorarPlan
+    >
     <div style={S.page}>
       <div style={{ display: "flex", alignItems: "center", gap: 15, marginBottom: 6 }}>
         <div style={{
@@ -191,6 +220,25 @@ export default function OwnerReportes() {
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 300px", gap: 20, marginTop: 26, alignItems: "start" }}>
         {/* Configuración */}
         <div style={S.card}>
+          {/* Sucursal -- solo si hay más de una entre las que el usuario
+              puede elegir (Propietario: todas las de su organización;
+              Administrador: solo las que tiene asignadas). */}
+          {sucursales.length > 1 && (
+            <>
+              <label style={S.label}><FiMapPin style={{ verticalAlign: -2 }} /> Sucursal</label>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 22 }}>
+                {sucursales.map((s) => {
+                  const activa = (idGimnasio ?? sucursales.find((x) => x.es_actual)?.id) === s.id;
+                  return (
+                    <button key={s.id} onClick={() => setIdGimnasio(s.id)} style={S.chip(activa)}>
+                      {s.nombre}{s.es_actual && " (esta)"}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
           {/* Periodo */}
           <label style={S.label}><FiCalendar style={{ verticalAlign: -2 }} /> Año</label>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 22 }}>
@@ -341,5 +389,6 @@ export default function OwnerReportes() {
         </div>
       </div>
     </div>
+    </BloqueoFuncionPlan>
   );
 }

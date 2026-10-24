@@ -15,6 +15,8 @@ import { FiDollarSign, FiUsers, FiTrendingUp, FiBell, FiClock, FiActivity } from
 import {
   COLORES_GRAFICO, SERIES_GRAFICO, COLOR_REJILLA, ejeX, ejeY, ImporteExtremos,
 } from "../../components/compartido/InfoGrafico";
+import { useFuncionesPlan } from "../../hooks/useFuncionesPlan";
+import BloqueoFuncionPlan from "../../components/compartido/BloqueoFuncionPlan";
 import "../../css/CSSUnificado.css";
 
 const API_BASE   = "";
@@ -552,6 +554,11 @@ const ACCION_POR_RIESGO = {
 };
 
 function TabCancelaciones() {
+  // SCRUM-224: el Owner/Administrador sí administra la suscripción, así
+  // que aquí el overlay SÍ ofrece el botón de mejorar plan (a diferencia
+  // del mismo patrón en TrainerRoutines.jsx, donde el Entrenador no puede).
+  const funcionesPlan = useFuncionesPlan();
+  const analiticasIaPermitido = funcionesPlan.analiticas_ia !== false;
   const [data, setData]         = useState(null);
   const [loading, setLoading]   = useState(true);
   const [trainLoading, setTL]   = useState(false);
@@ -704,7 +711,9 @@ function TabCancelaciones() {
     win.onload = () => win.print();
   };
 
-  useEffect(() => { fetchData(page); }, [fetchData, page]);
+  useEffect(() => {
+    if (analiticasIaPermitido) fetchData(page);
+  }, [fetchData, page, analiticasIaPermitido]);
 
   const distribucion = [
     { name: "Atención urgente",   value: data?.resumen?.riesgo_alto  || 0, fill: DANGER  },
@@ -721,6 +730,31 @@ function TabCancelaciones() {
   // Página actual de miembros en riesgo (alto + medio), ya paginada por el servidor
   const enRiesgo = data?.predicciones_pagina || [];
   const totalPaginas = data?.paginas || 1;
+
+  if (!analiticasIaPermitido) {
+    return (
+      <BloqueoFuncionPlan
+        permitido={false}
+        nombreFuncion="Analítica de riesgo de abandono con IA"
+        planSugerido="Pro"
+        puedeMejorarPlan
+      >
+        <div>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
+            <StatCard label="Atención urgente"   value={0} color={DANGER}  />
+            <StatCard label="Hacer seguimiento"  value={0} color={WARNING} />
+            <StatCard label="Activos y estables" value={0} color={SUCCESS} />
+            <StatCard label="Total analizados"   value={0} color={INFO}    />
+          </div>
+          <NoDataBox
+            icon={<FiBell />}
+            title="Análisis de riesgo de abandono"
+            description="Detecta qué miembros están en riesgo de dejar el gimnasio."
+          />
+        </div>
+      </BloqueoFuncionPlan>
+    );
+  }
 
   if (loading) return <LoadingSpinner />;
   if (error || !data || data.error) return (
