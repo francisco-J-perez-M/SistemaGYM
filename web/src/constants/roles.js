@@ -19,9 +19,15 @@
 // "Propietario" en la base. Se conserva como alias PERMANENTE más abajo
 // -- no es legado a limpiar -- porque un token ya emitido (refresh de
 // hasta 90 días) puede seguir trayendo el valor viejo en el claim "role".
+//
+// Migración 020 (backend, HU-45): "Administrador" es un rol nuevo y real
+// -- alcance de una sucursal, no de la organización completa como
+// Propietario. Reutiliza el panel owner_gym (misma UI, scope distinto
+// resuelto en el backend vía AsignacionUsuario); ver utils/alcance.py.
 
 export const ROL_SUPERADMIN = "superadmin";
 export const ROL_PROPIETARIO = "Propietario"; // antes ROL_OWNER_GYM = "owner_gym"
+export const ROL_ADMINISTRADOR = "Administrador"; // nuevo, HU-45 (migración 020)
 export const ROL_ENTRENADOR = "Entrenador";
 export const ROL_RECEPCIONISTA = "Recepcionista";
 export const ROL_MIEMBRO = "Miembro";
@@ -29,16 +35,16 @@ export const ROL_MIEMBRO = "Miembro";
 // Variantes legadas/informales → identificador canónico (en minúsculas,
 // porque normalizarRol() minuscula antes de buscar).
 //
-// OJO (HU-45): "administrador"/"admin"/"owner" son sinónimos de
-// Propietario solo hasta que exista un rol "Administrador" de sucursal
-// real y distinto en el catálogo -- ahí hay que quitarlos de aquí.
+// Migración 020 (HU-45): "Administrador" ya es un rol real y distinto de
+// Propietario -- "administrador"/"admin" dejan de ser sinónimos de
+// Propietario y apuntan al rol nuevo. "owner" sigue siendo Propietario.
 const ALIASES = {
   superadmin: ROL_SUPERADMIN,
   owner_gym: ROL_PROPIETARIO,
   propietario: ROL_PROPIETARIO,
-  administrador: ROL_PROPIETARIO,
-  admin: ROL_PROPIETARIO,
   owner: ROL_PROPIETARIO,
+  administrador: ROL_ADMINISTRADOR,
+  admin: ROL_ADMINISTRADOR,
   entrenador: ROL_ENTRENADOR,
   trainer: ROL_ENTRENADOR,
   recepcionista: ROL_RECEPCIONISTA,
@@ -60,6 +66,7 @@ export function normalizarRol(valor) {
 export const ROL_LABEL = {
   [ROL_SUPERADMIN]: "Superadmin",
   [ROL_PROPIETARIO]: "Propietario",
+  [ROL_ADMINISTRADOR]: "Administrador",
   [ROL_ENTRENADOR]: "Entrenador",
   [ROL_RECEPCIONISTA]: "Recepcionista",
   [ROL_MIEMBRO]: "Miembro",
@@ -70,6 +77,7 @@ export const ROL_LABEL = {
 export const ROL_BADGE = {
   [ROL_SUPERADMIN.toLowerCase()]: "info",
   [ROL_PROPIETARIO.toLowerCase()]: "warn",
+  [ROL_ADMINISTRADOR.toLowerCase()]: "warn",
   [ROL_ENTRENADOR.toLowerCase()]: "pos",
   [ROL_RECEPCIONISTA.toLowerCase()]: "purple",
   [ROL_MIEMBRO.toLowerCase()]: "ghost",
@@ -79,6 +87,7 @@ export const ROL_BADGE = {
 export const ROUTE_FOR_ROLE = {
   [ROL_SUPERADMIN.toLowerCase()]: "/superadmin",
   [ROL_PROPIETARIO.toLowerCase()]: "/owner",
+  [ROL_ADMINISTRADOR.toLowerCase()]: "/owner",
   [ROL_ENTRENADOR.toLowerCase()]: "/trainer-dashboard",
   [ROL_RECEPCIONISTA.toLowerCase()]: "/receptionist-dashboard",
   [ROL_MIEMBRO.toLowerCase()]: "/user/dashboard",
@@ -93,7 +102,9 @@ export const ROLES_PERMITIDOS_POR_PANEL = {
   // cambios); valores = variantes de ROL aceptadas -- "propietario" es la
   // que de verdad llega ahora en sesion.rol tras la migración 019,
   // "owner_gym" se queda como compatibilidad con sesiones ya iniciadas.
-  owner_gym: ["propietario", "owner_gym", "admin", "administrador", "owner"],
+  // "administrador"/"admin" (HU-45) entran al mismo panel: el backend
+  // acota lo que ven por sucursal activa, no la ruta del frontend.
+  owner_gym: ["propietario", "owner_gym", "owner", "administrador", "admin"],
   trainer: ["trainer", "entrenador"],
   receptionist: ["receptionist", "recepcionista"],
   user: ["user", "miembro"],
