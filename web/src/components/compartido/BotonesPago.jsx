@@ -8,6 +8,10 @@
  * Uso:
  *   <BotonesPago contexto="membresia" monto={499} descripcion="Membresía mensual"
  *                referenciaLocal={idMiembro} onAntesDePagar={guardarBorrador} />
+ *
+ * contexto="suscripcion" y contexto="lote_capacidad" cobran con las
+ * credenciales de la PLATAFORMA (métodos de getMetodosPlataforma), no las
+ * del gimnasio -- ver pagos_online.py::_CONTEXTOS_PLATAFORMA en el backend.
  */
 import { useState, useEffect } from "react";
 import { FiCreditCard, FiLoader } from "react-icons/fi";
@@ -19,12 +23,15 @@ const COLORES = {
   mercadopago: { bg: "#00b1ea", fg: "#ffffff" },
 };
 
+const CONTEXTOS_PLATAFORMA = ["suscripcion", "lote_capacidad"];
+
 export default function BotonesPago({
   contexto = "membresia",
   monto = 0,
   descripcion = "",
   referenciaLocal = null,
   emailPagador = null,
+  metadatos = null,
   onAntesDePagar = null,
   deshabilitado = false,
 }) {
@@ -36,8 +43,9 @@ export default function BotonesPago({
     let vivo = true;
     (async () => {
       try {
-        // La suscripción SaaS la cobra la plataforma; el resto, el gimnasio.
-        const { data } = contexto === "suscripcion"
+        // La suscripción SaaS y los lotes de capacidad los cobra la
+        // plataforma; el resto (membresía, producto), el gimnasio.
+        const { data } = CONTEXTOS_PLATAFORMA.includes(contexto)
           ? await getMetodosPlataforma()
           : await getMetodosPago();
         if (vivo) setMetodos(data.metodos || []);
@@ -65,6 +73,7 @@ export default function BotonesPago({
         descripcion: descripcion || "Pago GymPro",
         referencia_local: referenciaLocal,
         email_pagador: emailPagador,
+        ...(metadatos ? { metadatos } : {}),
       });
       // pagarYRedirigir cambia window.location; si vuelve, hubo algo raro
     } catch (e) {
@@ -85,8 +94,8 @@ export default function BotonesPago({
         background: "var(--bg-input)", borderRadius: 8, padding: "12px 14px",
         fontSize: 12.5, color: "var(--text-secondary)", borderLeft: "3px solid var(--warning)",
       }}>
-        {contexto === "suscripcion"
-          ? "El pago en línea de la suscripción no está disponible por ahora. Contacta al administrador de la plataforma."
+        {CONTEXTOS_PLATAFORMA.includes(contexto)
+          ? "El pago en línea no está disponible por ahora. Contacta al administrador de la plataforma."
           : "Este gimnasio aún no tiene activados los pagos en línea. El dueño puede configurarlos en Configuración → Cobros en línea."}
       </div>
     );
