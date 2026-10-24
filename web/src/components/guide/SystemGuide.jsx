@@ -1,151 +1,154 @@
 /**
- * SystemGuide.jsx — Guía interactiva del sistema, paso a paso, por rol.
+ * SystemGuide.jsx — Guía contextual INMERSIVA por vista (estilo spotlight).
  *
- * - <GuideProvider role>: se monta en el Layout (no superadmin). Maneja el estado
- *   del modal y la apertura automática en el primer inicio de sesión (localStorage).
- * - useGuide(): hook para abrir la guía desde cualquier parte (p. ej. el dashboard).
- * - <GuideButton/>: botón listo para colocar en el dashboard.
- *
- * Solo iconos (react-icons), sin emojis.
+ * Para cada paso, si la vista tiene etiquetado el componente (data-guide), la
+ * guía lo RESALTA y oscurece/difumina el resto de la pantalla, colocando la
+ * explicación junto al elemento. Si el paso no tiene objetivo (o no se encuentra
+ * en el DOM), cae a una tarjeta centrada. Solo iconos, sin emojis.
  */
-import { createContext, useContext, useEffect, useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import {
-  FiHelpCircle, FiX, FiArrowLeft, FiArrowRight, FiCheck, FiExternalLink, FiBookOpen,
-} from "react-icons/fi";
-import { GUIDES, GUIDE_TITLES } from "./guideData";
+import { useEffect, useState, useLayoutEffect, useCallback } from "react";
+import { FiX, FiArrowLeft, FiArrowRight, FiCheck, FiBookOpen } from "react-icons/fi";
+import { resolveGuide } from "./viewGuides";
 
-const GuideContext = createContext({ available: false, openGuide: () => {} });
+const PAD = 8;          // margen alrededor del elemento resaltado
+const TIP_W = 380;      // ancho del globo de explicación
 
-export function useGuide() {
-  return useContext(GuideContext);
-}
-
-const seenKey = (role) => `gympro_guide_seen_${role}`;
-
-export function GuideProvider({ role, children }) {
-  const steps = GUIDES[role] || [];
-  const available = steps.length > 0;
-
-  const [open, setOpen] = useState(false);
+export default function SystemGuide({ open, path, onClose }) {
+  const guide = resolveGuide(path);
+  const steps = guide.steps || [];
   const [idx, setIdx] = useState(0);
+  const [rect, setRect] = useState(null);
 
-  const markSeen = useCallback(() => {
-    try { localStorage.setItem(seenKey(role), "1"); } catch { /* ignore */ }
-  }, [role]);
+  useEffect(() => { if (open) setIdx(0); }, [open, path]);
 
-  const openGuide = useCallback(() => { setIdx(0); setOpen(true); }, []);
-  const closeGuide = useCallback(() => { setOpen(false); markSeen(); }, [markSeen]);
+  const step = steps.length ? steps[Math.min(idx, steps.length - 1)] : null;
 
-  // Apertura automática en el primer inicio de sesión del rol.
-  useEffect(() => {
-    if (!available) return;
-    let seen = "1";
-    try { seen = localStorage.getItem(seenKey(role)); } catch { /* ignore */ }
-    if (!seen) {
-      const t = setTimeout(() => { setIdx(0); setOpen(true); }, 700);
-      return () => clearTimeout(t);
+  // Localiza y mide el elemento objetivo del paso actual.
+  const measure = useCallback(() => {
+    if (!open || !step) return;
+    const el = step.target ? document.querySelector(step.target) : null;
+    if (el) {
+      const r = el.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0) { setRect({ top: r.top, left: r.left, width: r.width, height: r.height }); return; }
     }
-  }, [available, role]);
+    setRect(null);
+  }, [open, step]);
 
-  return (
-    <GuideContext.Provider value={{ available, openGuide }}>
-      {children}
-      {open && available && (
-        <GuideModal
-          role={role}
-          steps={steps}
-          idx={idx}
-          setIdx={setIdx}
-          onClose={closeGuide}
-        />
-      )}
-    </GuideContext.Provider>
-  );
-}
+  // Al cambiar de paso: lleva el elemento al centro y mide tras el scroll.
+  useLayoutEffect(() => {
+    if (!open || !step) return;
+    const el = step.target ? document.querySelector(step.target) : null;
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+    const t = setTimeout(measure, el ? 360 : 0);
+    return () => clearTimeout(t);
+  }, [open, idx, path, step, measure]);
 
-function GuideModal({ role, steps, idx, setIdx, onClose }) {
-  const navigate = useNavigate();
-  const step = steps[idx];
+  // Recalcula al redimensionar o hacer scroll.
+  useEffect(() => {
+    if (!open) return;
+    const fn = () => measure();
+    window.addEventListener("resize", fn);
+    window.addEventListener("scroll", fn, true);
+    return () => { window.removeEventListener("resize", fn); window.removeEventListener("scroll", fn, true); };
+  }, [open, measure]);
+
+  if (!open || !step) return null;
+
   const Icon = step.icon;
   const isFirst = idx === 0;
   const isLast = idx === steps.length - 1;
   const pct = Math.round(((idx + 1) / steps.length) * 100);
-
   const next = () => (isLast ? onClose() : setIdx((i) => Math.min(i + 1, steps.length - 1)));
   const prev = () => setIdx((i) => Math.max(i - 1, 0));
-  const goSection = () => { if (step.route) navigate(step.route); };
 
-  return (
-    <div style={S.overlay} role="dialog" aria-modal="true" aria-label="Guía del sistema">
-      <div style={S.card}>
-        {/* Header */}
-        <div style={S.header}>
-          <div style={S.headerLeft}>
-            <span style={S.headerIcon}><FiBookOpen /></span>
-            <div>
-              <h2 style={S.title}>{GUIDE_TITLES[role] || "Guía del sistema"}</h2>
-              <span style={S.stepCount}>Paso {idx + 1} de {steps.length}</span>
-            </div>
+  // Contenido del globo / tarjeta (compartido entre los dos modos).
+  const content = (
+    <>
+      <div style={S.header}>
+        <div style={S.headerLeft}>
+          <span style={S.headerIcon}><FiBookOpen /></span>
+          <div>
+            <h2 style={S.title}>{guide.title}</h2>
+            <span style={S.stepCount}>Paso {idx + 1} de {steps.length}</span>
           </div>
-          <button style={S.iconBtn} onClick={onClose} aria-label="Cerrar guía"><FiX size={20} /></button>
         </div>
-
-        {/* Progreso */}
-        <div style={S.progressTrack}>
-          <div style={{ ...S.progressFill, width: `${pct}%` }} />
-        </div>
-
-        {/* Contenido del paso */}
-        <div style={S.body}>
-          <div style={S.stepIcon}><Icon size={34} /></div>
-          <h3 style={S.stepTitle}>{step.title}</h3>
-          <p style={S.stepBody}>{step.body}</p>
-          {step.route && (
-            <button style={S.sectionBtn} onClick={goSection}>
-              <FiExternalLink /> Ver esta sección
-            </button>
-          )}
-        </div>
-
-        {/* Puntos de navegación */}
-        <div style={S.dots}>
-          {steps.map((_, i) => (
-            <button
-              key={i}
-              onClick={() => setIdx(i)}
-              aria-label={`Ir al paso ${i + 1}`}
-              style={{ ...S.dot, ...(i === idx ? S.dotActive : {}) }}
-            />
-          ))}
-        </div>
-
-        {/* Footer */}
-        <div style={S.footer}>
-          <button style={S.skipBtn} onClick={onClose}>Saltar guía</button>
-          <div style={S.footerRight}>
-            <button style={{ ...S.navBtn, opacity: isFirst ? 0.4 : 1, cursor: isFirst ? "default" : "pointer" }}
-              onClick={prev} disabled={isFirst}>
-              <FiArrowLeft /> Anterior
-            </button>
-            <button style={S.primaryBtn} onClick={next}>
-              {isLast ? (<><FiCheck /> Finalizar</>) : (<>Siguiente <FiArrowRight /></>)}
-            </button>
-          </div>
+        <button style={S.iconBtn} onClick={onClose} aria-label="Cerrar guía"><FiX size={20} /></button>
+      </div>
+      <div style={S.progressTrack}><div style={{ ...S.progressFill, width: `${pct}%` }} /></div>
+      <div style={S.body}>
+        <div style={S.stepIcon}><Icon size={28} /></div>
+        <h3 style={S.stepTitle}>{step.title}</h3>
+        <p style={S.stepBody}>{step.body}</p>
+      </div>
+      <div style={S.dots}>
+        {steps.map((_, i) => (
+          <button key={i} onClick={() => setIdx(i)} aria-label={`Paso ${i + 1}`}
+            style={{ ...S.dot, ...(i === idx ? S.dotActive : {}) }} />
+        ))}
+      </div>
+      <div style={S.footer}>
+        <button style={S.skipBtn} onClick={onClose}>Saltar guía</button>
+        <div style={S.footerRight}>
+          <button style={{ ...S.navBtn, opacity: isFirst ? 0.4 : 1, cursor: isFirst ? "default" : "pointer" }}
+            onClick={prev} disabled={isFirst}>
+            <FiArrowLeft /> Anterior
+          </button>
+          <button style={S.primaryBtn} onClick={next}>
+            {isLast ? (<><FiCheck /> Entendido</>) : (<>Siguiente <FiArrowRight /></>)}
+          </button>
         </div>
       </div>
-    </div>
+    </>
   );
-}
 
-/** Botón para abrir la guía — colócalo en el dashboard. */
-export function GuideButton({ style = {} }) {
-  const { available, openGuide } = useGuide();
-  if (!available) return null;
+  // ── Modo tarjeta centrada (sin objetivo o no encontrado) ───────────────────
+  if (!rect) {
+    return (
+      <div style={S.overlay} role="dialog" aria-modal="true">
+        <div style={S.card}>{content}</div>
+      </div>
+    );
+  }
+
+  // ── Modo spotlight (resalta el elemento, difumina el resto) ────────────────
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const R = {
+    top: Math.max(0, rect.top - PAD),
+    left: Math.max(0, rect.left - PAD),
+    width: rect.width + PAD * 2,
+    height: rect.height + PAD * 2,
+  };
+  const panel = { position: "fixed", background: "rgba(8,10,16,0.62)", backdropFilter: "blur(3px)", WebkitBackdropFilter: "blur(3px)", zIndex: 9998 };
+
+  // Coloca el globo debajo del elemento si hay espacio; si no, arriba.
+  const roomBelow = vh - (R.top + R.height);
+  const placeBelow = roomBelow > 300;
+  const tipVert = placeBelow ? { top: R.top + R.height + 14 } : { top: undefined, bottom: vh - R.top + 14 };
+  let tipLeft = rect.left + rect.width / 2 - TIP_W / 2;
+  tipLeft = Math.max(16, Math.min(tipLeft, vw - TIP_W - 16));
+
   return (
-    <button style={{ ...S.launchBtn, ...style }} onClick={openGuide} aria-label="Abrir guía del sistema">
-      <FiHelpCircle size={18} /> Guía del sistema
-    </button>
+    <div style={{ position: "fixed", inset: 0, zIndex: 9998 }} role="dialog" aria-modal="true">
+      {/* 4 paneles que oscurecen y difuminan todo MENOS el elemento */}
+      <div style={{ ...panel, top: 0, left: 0, right: 0, height: R.top }} />
+      <div style={{ ...panel, top: R.top + R.height, left: 0, right: 0, bottom: 0 }} />
+      <div style={{ ...panel, top: R.top, left: 0, width: R.left, height: R.height }} />
+      <div style={{ ...panel, top: R.top, left: R.left + R.width, right: 0, height: R.height }} />
+
+      {/* Anillo resaltado alrededor del elemento */}
+      <div style={{
+        position: "fixed", top: R.top, left: R.left, width: R.width, height: R.height,
+        border: "2px solid var(--accent, #6c63ff)", borderRadius: 12,
+        boxShadow: "0 0 0 3px rgba(108,99,255,.35), 0 0 26px rgba(108,99,255,.55)",
+        pointerEvents: "none", zIndex: 9999, transition: "all .25s ease",
+      }} />
+
+      {/* Globo de explicación junto al elemento */}
+      <div style={{ position: "fixed", left: tipLeft, width: TIP_W, maxWidth: "calc(100vw - 32px)", zIndex: 10000, ...tipVert, ...S.tip }}>
+        {content}
+      </div>
+    </div>
   );
 }
 
@@ -161,68 +164,61 @@ const S = {
     boxShadow: "0 24px 60px rgba(0,0,0,0.45)", overflow: "hidden",
     display: "flex", flexDirection: "column", maxHeight: "92vh",
   },
+  tip: {
+    background: "var(--bg-card, #161a23)", border: "1px solid var(--accent, #6c63ff)",
+    borderRadius: 16, boxShadow: "0 18px 50px rgba(0,0,0,0.5)", overflow: "hidden",
+    display: "flex", flexDirection: "column",
+  },
   header: {
     display: "flex", alignItems: "center", justifyContent: "space-between",
-    padding: "18px 20px", borderBottom: "1px solid var(--border, #2d3748)",
+    padding: "14px 18px", borderBottom: "1px solid var(--border, #2d3748)",
   },
-  headerLeft: { display: "flex", alignItems: "center", gap: 12 },
+  headerLeft: { display: "flex", alignItems: "center", gap: 10 },
   headerIcon: {
-    width: 38, height: 38, borderRadius: 10, display: "inline-flex",
+    width: 34, height: 34, borderRadius: 9, display: "inline-flex",
     alignItems: "center", justifyContent: "center",
-    background: "var(--accent-dim, rgba(108,99,255,.15))", color: "var(--accent, #6c63ff)", fontSize: 18,
+    background: "var(--accent-dim, rgba(108,99,255,.15))", color: "var(--accent, #6c63ff)", fontSize: 16,
   },
-  title: { margin: 0, fontSize: 16, fontWeight: 700, color: "var(--text-primary, #fff)" },
-  stepCount: { fontSize: 12, color: "var(--text-secondary, #94a3b8)" },
+  title: { margin: 0, fontSize: 15, fontWeight: 700, color: "var(--text-primary, #fff)" },
+  stepCount: { fontSize: 11.5, color: "var(--text-secondary, #94a3b8)" },
   iconBtn: {
     background: "transparent", border: "none", color: "var(--text-secondary, #94a3b8)",
     cursor: "pointer", padding: 4, display: "inline-flex",
   },
   progressTrack: { height: 4, background: "var(--bg-input, #0f1117)" },
   progressFill: { height: "100%", background: "var(--accent, #6c63ff)", transition: "width .3s ease" },
-  body: { padding: "26px 24px 8px", textAlign: "center", overflowY: "auto" },
+  body: { padding: "20px 22px 6px", textAlign: "center" },
   stepIcon: {
-    width: 70, height: 70, borderRadius: 20, margin: "0 auto 16px",
+    width: 60, height: 60, borderRadius: 18, margin: "0 auto 14px",
     display: "flex", alignItems: "center", justifyContent: "center",
     background: "var(--accent-dim, rgba(108,99,255,.15))", color: "var(--accent, #6c63ff)",
   },
-  stepTitle: { margin: "0 0 10px", fontSize: 19, fontWeight: 700, color: "var(--text-primary, #fff)" },
-  stepBody: { margin: "0 auto", maxWidth: 420, fontSize: 14, lineHeight: 1.7, color: "var(--text-secondary, #94a3b8)" },
-  sectionBtn: {
-    marginTop: 18, display: "inline-flex", alignItems: "center", gap: 7,
-    background: "var(--accent-dim, rgba(108,99,255,.12))", color: "var(--accent, #6c63ff)",
-    border: "1px solid var(--accent, #6c63ff)", borderRadius: 10, padding: "8px 16px",
-    fontSize: 13, fontWeight: 600, cursor: "pointer",
-  },
-  dots: { display: "flex", justifyContent: "center", gap: 6, padding: "16px 0 4px", flexWrap: "wrap" },
+  stepTitle: { margin: "0 0 8px", fontSize: 17, fontWeight: 700, color: "var(--text-primary, #fff)" },
+  stepBody: { margin: "0 auto", maxWidth: 420, fontSize: 13.5, lineHeight: 1.65, color: "var(--text-secondary, #94a3b8)" },
+  dots: { display: "flex", justifyContent: "center", gap: 6, padding: "14px 0 4px", flexWrap: "wrap" },
   dot: {
-    width: 8, height: 8, borderRadius: 99, border: "none", padding: 0, cursor: "pointer",
+    width: 7, height: 7, borderRadius: 99, border: "none", padding: 0, cursor: "pointer",
     background: "var(--border, #2d3748)", transition: "all .2s",
   },
-  dotActive: { width: 22, background: "var(--accent, #6c63ff)" },
+  dotActive: { width: 20, background: "var(--accent, #6c63ff)" },
   footer: {
     display: "flex", alignItems: "center", justifyContent: "space-between",
-    padding: "16px 20px", borderTop: "1px solid var(--border, #2d3748)", gap: 10,
+    padding: "14px 18px", borderTop: "1px solid var(--border, #2d3748)", gap: 10,
   },
   footerRight: { display: "flex", alignItems: "center", gap: 8 },
   skipBtn: {
     background: "transparent", border: "none", color: "var(--text-secondary, #94a3b8)",
-    fontSize: 13, cursor: "pointer", fontWeight: 500,
+    fontSize: 12.5, cursor: "pointer", fontWeight: 500,
   },
   navBtn: {
     display: "inline-flex", alignItems: "center", gap: 5,
     background: "var(--bg-input, #1e293b)", color: "var(--text-secondary, #cbd5e1)",
-    border: "1px solid var(--border, #2d3748)", borderRadius: 10, padding: "8px 14px",
-    fontSize: 13, fontWeight: 600,
+    border: "1px solid var(--border, #2d3748)", borderRadius: 9, padding: "7px 12px",
+    fontSize: 12.5, fontWeight: 600,
   },
   primaryBtn: {
     display: "inline-flex", alignItems: "center", gap: 6,
     background: "var(--accent, #6c63ff)", color: "#fff", border: "none",
-    borderRadius: 10, padding: "8px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer",
-  },
-  launchBtn: {
-    display: "inline-flex", alignItems: "center", gap: 7,
-    background: "var(--accent-dim, rgba(108,99,255,.12))", color: "var(--accent, #6c63ff)",
-    border: "1px solid var(--accent, #6c63ff)", borderRadius: 10, padding: "9px 16px",
-    fontSize: 13, fontWeight: 600, cursor: "pointer",
+    borderRadius: 9, padding: "7px 16px", fontSize: 12.5, fontWeight: 700, cursor: "pointer",
   },
 };

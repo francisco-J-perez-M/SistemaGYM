@@ -7,7 +7,6 @@ import {
   FiUser, FiHeart, FiBarChart2, FiBook, FiCoffee, FiDollarSign,
   FiMoon, FiShield,
 } from "react-icons/fi";
-import { GuideButton } from "../../components/guide/SystemGuide";
 import "../../css/CSSUnificado.css";
 
 const DIAS = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
@@ -116,7 +115,7 @@ export default function UserDashboard() {
 
       <div className="main-wrapper">
         {/* ── Header ───────────────────────────────── */}
-        <header className="top-header">
+        <header className="top-header" data-guide="us-header">
           <div>
             <h2 className="page-title" style={{ marginBottom:2 }}>
               Hola, {user?.nombre?.split(" ")[0] ?? "Miembro"}
@@ -127,9 +126,8 @@ export default function UserDashboard() {
           </div>
 
           <div style={{ display:"flex", gap:10, alignItems:"center" }}>
-            <GuideButton />
             {/* Avatar */}
-            <div style={{
+            <div data-guide="us-avatar" style={{
               width:38, height:38, borderRadius:"50%", overflow:"hidden",
               background:"var(--bg-input)", border:"2px solid var(--border)",
               display:"flex", alignItems:"center", justifyContent:"center",
@@ -390,7 +388,7 @@ export default function UserDashboard() {
 
               {/* Membresía status */}
               {membership && (
-                <div style={{ marginTop:14, padding:"12px 16px", background:"var(--bg-input)", borderRadius:10 }}>
+                <div data-guide="us-membership" style={{ marginTop:14, padding:"12px 16px", background:"var(--bg-input)", borderRadius:10 }}>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                     <div>
                       <div style={{ fontSize:11, color:"var(--text-secondary)", marginBottom:2 }}>Membresía</div>
@@ -413,6 +411,7 @@ export default function UserDashboard() {
 
           {/* ── Accesos rápidos ──────────────────────── */}
           <motion.div
+            data-guide="us-quicklinks"
             initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }} transition={{ delay:.35 }}
             style={{ marginBottom:24 }}
           >
