@@ -30,6 +30,21 @@ function seriesFrom(ej) {
   return Array.from({ length: n }, () => ({ repeticiones: reps, peso }));
 }
 
+// ── Auto-detección del día por la fecha de hoy ──────────────────────────────
+const WEEKDAYS_ES = ["domingo", "lunes", "martes", "miercoles", "jueves", "viernes", "sabado"];
+const normTxt = (s) =>
+  (s ?? "").toString().toLowerCase()
+    .replace(/á/g, "a").replace(/é/g, "e").replace(/í/g, "i")
+    .replace(/ó/g, "o").replace(/ú/g, "u").replace(/ü/g, "u").trim();
+const todayName = () => WEEKDAYS_ES[new Date().getDay()];
+// ¿El nombre del día de la rutina (p.ej. "Martes", "Día 2 · Martes") coincide con hoy?
+const dayMatchesToday = (d) => normTxt(d?.dia).includes(todayName());
+// Selecciona el día que cae hoy; si ninguno coincide, usa el primero.
+const pickTodayOrFirst = (dias) => (dias || []).find(dayMatchesToday) || (dias || [])[0] || null;
+// Ejercicios editables de un día (nombres fijos de la rutina, series por defecto).
+const exercisesFromDay = (day) =>
+  (day?.ejercicios || []).filter(e => e.nombre).map(e => ({ nombre: e.nombre, series: seriesFrom(e) }));
+
 export default function UserWorkoutLog() {
   const navigate = useNavigate();
 
@@ -71,26 +86,32 @@ export default function UserWorkoutLog() {
 
   useEffect(() => { loadRoutines(); loadHist(); }, [loadRoutines, loadHist]);
 
-  // Carga los ejercicios de un día (con sus series por defecto).
-  const loadDay = (day) => {
-    const exs = (day?.ejercicios || []).filter(e => e.nombre);
-    setExercises(exs.map(e => ({ nombre: e.nombre, series: seriesFrom(e) })));
-  };
-
-  const onRoutineChange = (id) => {
-    setRoutineId(id);
-    const rut = routines.find(r => r.id === id);
-    setDuracion(rut?.duracion_minutos ? String(rut.duracion_minutos) : "");
-    const firstDay = rut?.dias?.[0];
-    if (firstDay) { setDayId(firstDay.id); loadDay(firstDay); }
-    else { setDayId(""); setExercises([]); }
+  // Aplica una rutina: fija duración y preselecciona el día que cae HOY
+  // (o el primero si ninguno coincide), cargando sus ejercicios.
+  const applyRoutine = useCallback((rut) => {
+    if (!rut) { setRoutineId(""); setDayId(""); setExercises([]); return; }
+    setRoutineId(rut.id);
+    setDuracion(rut.duracion_minutos ? String(rut.duracion_minutos) : "");
+    const day = pickTodayOrFirst(rut.dias);
+    setDayId(day?.id || "");
+    setExercises(day ? exercisesFromDay(day) : []);
     setMsg(null);
-  };
+  }, []);
+
+  // Auto-selección inicial: primera rutina activa + día de hoy (una sola vez).
+  const [autoApplied, setAutoApplied] = useState(false);
+  useEffect(() => {
+    if (!autoApplied && !routineId && routines.length > 0) {
+      applyRoutine(routines.find(x => x.activa !== false) || routines[0]);
+      setAutoApplied(true);
+    }
+  }, [routines, autoApplied, routineId, applyRoutine]);
+
+  const onRoutineChange = (id) => applyRoutine(routines.find(r => r.id === id));
 
   const onDayChange = (id) => {
     setDayId(id);
-    const d = days.find(x => x.id === id);
-    loadDay(d);
+    setExercises(exercisesFromDay(days.find(x => x.id === id)));
   };
 
   // Series editables (solo reps/peso; los nombres vienen de la rutina).
@@ -133,7 +154,7 @@ export default function UserWorkoutLog() {
           (data.peso_registrado ? " Tu peso del día actualizó tus métricas." : ""),
       });
       // Recargar el día para volver a empezar con los valores de la rutina.
-      if (selectedDay) loadDay(selectedDay);
+      if (selectedDay) setExercises(exercisesFromDay(selectedDay));
       setPeso(""); setNotas("");
       loadHist();
     } catch (e) {
@@ -183,10 +204,17 @@ export default function UserWorkoutLog() {
 
               {days.length > 1 && (
                 <>
-                  <label style={S.label}>Día</label>
+                  <label style={S.label}>
+                    Día
+                    {selectedDay && dayMatchesToday(selectedDay) && (
+                      <span style={S.todayTag}><FiCalendar size={10} /> Hoy</span>
+                    )}
+                  </label>
                   <select style={S.input} value={dayId} onChange={e => onDayChange(e.target.value)}>
                     {days.map(d => (
-                      <option key={d.id} value={d.id}>{d.dia || "Día"}{d.grupo ? ` · ${d.grupo}` : ""}</option>
+                      <option key={d.id} value={d.id}>
+                        {d.dia || "Día"}{d.grupo ? ` · ${d.grupo}` : ""}{dayMatchesToday(d) ? " (hoy)" : ""}
+                      </option>
                     ))}
                   </select>
                 </>
@@ -322,6 +350,7 @@ const S = {
   cardTitle: { display: "flex", alignItems: "center", gap: 8, fontSize: 15, fontWeight: 700, color: "var(--text-primary)", margin: 0 },
   ghostBtn: { display: "inline-flex", alignItems: "center", gap: 6, background: "var(--bg-input)", border: "1px solid var(--border)", color: "var(--text-secondary)", borderRadius: 8, padding: "7px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer" },
   label: { display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: "var(--text-secondary)", margin: "12px 0 5px", fontWeight: 600 },
+  todayTag: { display: "inline-flex", alignItems: "center", gap: 4, marginLeft: 8, padding: "2px 8px", borderRadius: 20, background: "var(--accent-dim, rgba(108,99,255,.15))", color: "var(--accent)", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".4px" },
   input: { width: "100%", boxSizing: "border-box", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 9, padding: "9px 12px", color: "var(--text-primary)", fontSize: 14 },
   exCard: { background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 12, padding: 14 },
   serieHead: { display: "flex", gap: 8, fontSize: 11, color: "var(--text-tertiary, var(--text-secondary))", fontWeight: 600, marginBottom: 4, padding: "0 2px" },

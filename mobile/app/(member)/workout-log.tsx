@@ -4,7 +4,7 @@
  * desde ahí (no se escriben a mano). Solo ajusta reps y peso de cada serie.
  * Al guardar: queda en su bitácora, cuenta como asistencia y calcula calorías.
  */
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity,
   RefreshControl, Alert,
@@ -45,6 +45,21 @@ const seriesFrom = (e: RoutineEx): Serie[] => {
   return Array.from({ length: n }, () => ({ repeticiones: reps, peso }));
 };
 
+// ── Auto-detección del día por la fecha de hoy ──────────────────────────────
+const WEEKDAYS_ES = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+const normTxt = (s?: string) =>
+  (s ?? '').toString().toLowerCase()
+    .replace(/á/g, 'a').replace(/é/g, 'e').replace(/í/g, 'i')
+    .replace(/ó/g, 'o').replace(/ú/g, 'u').replace(/ü/g, 'u').trim();
+const todayName = () => WEEKDAYS_ES[new Date().getDay()];
+// ¿El día de la rutina (p.ej. "Martes") coincide con hoy?
+const dayMatchesToday = (d?: RoutineDay | null) => normTxt(d?.dia).includes(todayName());
+// Día que cae hoy; si ninguno coincide, el primero.
+const pickTodayOrFirst = (dias?: RoutineDay[]) =>
+  (dias || []).find(dayMatchesToday) || (dias || [])[0] || null;
+const exercisesFromDay = (day?: RoutineDay | null): Exercise[] =>
+  (day?.ejercicios || []).filter(e => e.nombre).map(e => ({ nombre: e.nombre, series: seriesFrom(e) }));
+
 export default function WorkoutLogScreen() {
   const colors = useColors();
   const fs = useFontScale();
@@ -68,18 +83,28 @@ export default function WorkoutLogScreen() {
   const days = selectedRoutine?.dias || [];
   const selectedDay = days.find(d => d.id === dayId) || null;
 
-  const loadDay = (day?: RoutineDay) => {
-    const exs = (day?.ejercicios || []).filter(e => e.nombre);
-    setExercises(exs.map(e => ({ nombre: e.nombre, series: seriesFrom(e) })));
-  };
-
-  const onRoutine = (r: Routine) => {
+  // Aplica una rutina: fija duración y preselecciona el día que cae HOY
+  // (o el primero si ninguno coincide), cargando sus ejercicios.
+  const applyRoutine = useCallback((r?: Routine | null) => {
+    if (!r) { setRoutineId(''); setDayId(''); setExercises([]); return; }
     setRoutineId(r.id);
     setDuracion(r.duracion_minutos ? String(r.duracion_minutos) : '');
-    const first = r.dias?.[0];
-    if (first) { setDayId(first.id); loadDay(first); } else { setDayId(''); setExercises([]); }
-  };
-  const onDay = (d: RoutineDay) => { setDayId(d.id); loadDay(d); };
+    const day = pickTodayOrFirst(r.dias);
+    setDayId(day?.id || '');
+    setExercises(exercisesFromDay(day));
+  }, []);
+
+  const onRoutine = (r: Routine) => applyRoutine(r);
+  const onDay = (d: RoutineDay) => { setDayId(d.id); setExercises(exercisesFromDay(d)); };
+
+  // Auto-selección inicial: primera rutina activa + día de hoy (una sola vez).
+  const [autoApplied, setAutoApplied] = useState(false);
+  useEffect(() => {
+    if (!autoApplied && !routineId && routines.length > 0) {
+      applyRoutine(routines.find(r => r.activa !== false) || routines[0]);
+      setAutoApplied(true);
+    }
+  }, [routines, autoApplied, routineId, applyRoutine]);
 
   const addSerie = (i: number) => setExercises(xs => xs.map((x, idx) => idx === i ? { ...x, series: [...x.series, emptySerie()] } : x));
   const removeSerie = (i: number, si: number) => setExercises(xs => xs.map((x, idx) =>
@@ -117,7 +142,7 @@ export default function WorkoutLogScreen() {
         `${res.total_ejercicios} ejercicios · ${res.total_series} series.\nQuemaste aproximadamente ${res.calorias_estimadas} kcal.` +
         (res.peso_registrado ? '\n\nTu peso del día actualizó tus métricas.' : ''),
       );
-      loadDay(selectedDay);
+      setExercises(exercisesFromDay(selectedDay));
       setPeso(''); setNotas('');
       refetch();
     } catch (e: any) {
@@ -175,7 +200,9 @@ export default function WorkoutLogScreen() {
                     return (
                       <TouchableOpacity key={d.id} onPress={() => onDay(d)}
                         style={[styles.chip, active && { backgroundColor: colors.accent, borderColor: colors.accent }]}>
-                        <Text style={[styles.chipTxt, active && { color: '#fff' }]}>{(d.dia || 'Día') + (d.grupo ? ` · ${d.grupo}` : '')}</Text>
+                        <Text style={[styles.chipTxt, active && { color: '#fff' }]}>
+                          {(d.dia || 'Día') + (d.grupo ? ` · ${d.grupo}` : '') + (dayMatchesToday(d) ? ' · hoy' : '')}
+                        </Text>
                       </TouchableOpacity>
                     );
                   })}
