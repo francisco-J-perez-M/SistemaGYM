@@ -90,6 +90,8 @@ services:
       POSTGRES_URI:       postgresql+psycopg2://${POSTGRES_USER:-gymuser}:${POSTGRES_PASSWORD:-gympassword}@postgres:5432/${POSTGRES_DB:-gymprodb}
       SPARK_ENABLED:      "true"
       PYTHONUNBUFFERED:   "1"
+    volumes:
+      - backup_data:/app/storage/backups
     depends_on:
       mongo:
         condition: service_healthy
@@ -127,6 +129,8 @@ volumes:
   mongo_data:
     driver: local
   pg_data:
+    driver: local
+  backup_data:
     driver: local
 
 # ── Red interna ──────────────────────────────────────────────────────────────

@@ -50,20 +50,17 @@ const FEATURES_DEFAULT = [
 
 function PlanForm({ plan, onSave, onCancel }) {
   const [form, setForm] = useState({
-    nombre:          plan?.nombre          || "",
-    precio_centavos: plan?.precio_centavos || 0,
-    descripcion:     plan?.descripcion     || "",
-    max_miembros:    plan?.max_miembros    || null,
-    features:        plan?.features        || FEATURES_DEFAULT,
+    nombre:             plan?.nombre             || "",
+    precio_mensual_mxn: plan?.precio_mensual_mxn || 0,
+    descripcion:        plan?.descripcion        || "",
+    max_miembros:       plan?.max_miembros       || null,
   });
-  const [featStr, setFeatStr] = useState((form.features || []).join("\n"));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const payload = { ...form, features: featStr.split("\n").map(s => s.trim()).filter(Boolean) };
     try {
-      if (plan?.id) await editarPlan(plan.id, payload);
-      else          await crearPlan(payload);
+      if (plan?.id) await editarPlan(plan.id, form);
+      else          await crearPlan(form);
       onSave();
     } catch (err) {
       const msg = err?.response?.data?.msg || "Error al guardar";
@@ -75,31 +72,27 @@ function PlanForm({ plan, onSave, onCancel }) {
     <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <div>
         <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary, #94a3b8)", marginBottom: 6 }}>Nombre del Plan</label>
-        <input style={INPUT} value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} required placeholder="Ej: Enterprise" />
+        <input style={INPUT} value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} required placeholder="Ej: enterprise" />
       </div>
       <div>
-        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary, #94a3b8)", marginBottom: 6 }}>Precio (centavos MXN)</label>
-        <input style={INPUT} type="number" min={0} value={form.precio_centavos} onChange={e => setForm(f => ({ ...f, precio_centavos: parseInt(e.target.value) || 0 }))} required placeholder="149900 = $1,499/mes" />
+        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary, #94a3b8)", marginBottom: 6 }}>Precio mensual (centavos MXN)</label>
+        <input style={INPUT} type="number" min={0} value={form.precio_mensual_mxn} onChange={e => setForm(f => ({ ...f, precio_mensual_mxn: parseInt(e.target.value) || 0 }))} required placeholder="149900 = $1,499/mes" />
         <p style={{ fontSize: 11, color: "var(--text-secondary, #94a3b8)", marginTop: 4 }}>
-          = ${((form.precio_centavos || 0) / 100).toFixed(2)} MXN/mes
+          = ${((form.precio_mensual_mxn || 0) / 100).toLocaleString("es-MX", { minimumFractionDigits: 2 })} MXN/mes
         </p>
       </div>
       <div>
         <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary, #94a3b8)", marginBottom: 6 }}>Descripción</label>
-        <input style={INPUT} value={form.descripcion} onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))} placeholder="Descripción corta del plan" />
-      </div>
-      <div>
-        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary, #94a3b8)", marginBottom: 6 }}>Máximo de miembros (dejar vacío = ilimitado)</label>
-        <input style={INPUT} type="number" min={1} value={form.max_miembros || ""} onChange={e => setForm(f => ({ ...f, max_miembros: e.target.value ? parseInt(e.target.value) : null }))} placeholder="Ej: 500" />
-      </div>
-      <div>
-        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary, #94a3b8)", marginBottom: 6 }}>Features (una por línea)</label>
         <textarea
-          style={{ ...INPUT, minHeight: 100, resize: "vertical", fontFamily: "inherit" }}
-          value={featStr}
-          onChange={e => setFeatStr(e.target.value)}
-          placeholder="Gestión de miembros&#10;Control de pagos&#10;Reportes avanzados"
+          style={{ ...INPUT, minHeight: 80, resize: "vertical", fontFamily: "inherit" }}
+          value={form.descripcion}
+          onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))}
+          placeholder="Describe las características del plan"
         />
+      </div>
+      <div>
+        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary, #94a3b8)", marginBottom: 6 }}>Máximo de miembros (vacío = ilimitado)</label>
+        <input style={INPUT} type="number" min={1} value={form.max_miembros || ""} onChange={e => setForm(f => ({ ...f, max_miembros: e.target.value ? parseInt(e.target.value) : null }))} placeholder="Ej: 500" />
       </div>
       <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
         <button type="button" style={btnStyle("ghost")} onClick={onCancel}>Cancelar</button>
@@ -110,7 +103,7 @@ function PlanForm({ plan, onSave, onCancel }) {
 }
 
 function PlanCard({ plan, onEdit, onToggle }) {
-  const precio = ((plan.precio_centavos || 0) / 100).toLocaleString("es-MX", { minimumFractionDigits: 2 });
+  const precio = ((plan.precio_mensual_mxn || 0) / 100).toLocaleString("es-MX", { minimumFractionDigits: 2 });
   return (
     <div style={{ ...card(), borderTop: `3px solid ${plan.activo ? "var(--accent, #6366f1)" : "rgba(100,116,139,.4)"}`, display: "flex", flexDirection: "column", gap: 12 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -132,19 +125,13 @@ function PlanCard({ plan, onEdit, onToggle }) {
         </p>
       )}
 
-      {plan.features?.length > 0 && (
-        <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 4 }}>
-          {plan.features.map((f, i) => (
-            <li key={i} style={{ fontSize: 12, color: "var(--text-secondary, #94a3b8)", display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ color: "#10b981", flexShrink: 0 }}>✓</span> {f}
-            </li>
-          ))}
-        </ul>
+      {plan.descripcion && (
+        <p style={{ fontSize: 12, color: "var(--text-secondary, #94a3b8)", lineHeight: 1.5 }}>{plan.descripcion}</p>
       )}
 
-      {plan.total_suscripciones != null && (
+      {plan.suscriptores_activos != null && (
         <p style={{ fontSize: 12, color: "var(--text-secondary, #94a3b8)", borderTop: "1px solid var(--border, rgba(255,255,255,.08))", paddingTop: 10 }}>
-          {plan.total_suscripciones} suscripciones activas
+          {plan.suscriptores_activos} suscripciones activas
         </p>
       )}
 
@@ -241,3 +228,4 @@ export default function SuperadminPlanes() {
     </div>
   );
 }
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
