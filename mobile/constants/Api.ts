@@ -8,9 +8,12 @@
  *    Expo codifica la IP del Metro bundler en el QR code que escanea el dispositivo.
  *    `hostUri` tiene la forma "192.168.x.x:8081", por lo que basta extraer el host
  *    para saber qué máquina está corriendo la API (misma máquina = mismo host).
- * 3. Fallback para emuladores:
+ * 3. Fallback para emuladores (solo en desarrollo, __DEV__):
  *    - Android emulator: 10.0.2.2 (alias del host en AVD)
  *    - iOS simulator:    localhost
+ * 4. Fallback de produccion (build sin EXPO_PUBLIC_API_BASE_URL definida):
+ *    https://api.gympro.lat/api -- localhost no tiene sentido en un
+ *    telefono real, asi que el fallback final es el dominio publico.
  */
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
@@ -46,7 +49,11 @@ function resolveApiUrl(): string {
     return 'http://localhost:8080/api';
   }
 
-  return 'http://localhost:8080/api';
+  // Build de produccion (EAS / TestFlight / Play Store) sin
+  // EXPO_PUBLIC_API_BASE_URL definida: localhost aqui apuntaria al propio
+  // telefono del usuario, no a ningun servidor -- por eso el fallback real
+  // de produccion es el dominio publico de la API, no localhost.
+  return 'https://api.gympro.lat/api';
 }
 
 export const API_BASE_URL = resolveApiUrl();
