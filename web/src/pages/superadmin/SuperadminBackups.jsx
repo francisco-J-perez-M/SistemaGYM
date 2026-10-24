@@ -4,6 +4,7 @@ import {
   getBackupStatus,
   triggerBackup,
   getBackupHistorial,
+  deleteBackupEntry,
   getSchedule,
   updateSchedule,
 } from "../../api/superadmin";
@@ -166,6 +167,27 @@ export default function SuperadminBackups() {
 
   const fmtDate = (d) => d ? new Date(d).toLocaleString("es-MX") : "—";
 
+  const handleDelete = async (job_id, label) => {
+    const { isConfirmed } = await Swal.fire({
+      title: `Eliminar ${label}`,
+      text: "Se borrará la entrada del historial y sus archivos en disco.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Eliminar",
+      confirmButtonColor: "#ef4444",
+      cancelButtonText: "Cancelar",
+      background: "var(--bg-card, #1e2233)",
+      color: "var(--text-primary, #f1f5f9)",
+    });
+    if (!isConfirmed) return;
+    try {
+      await deleteBackupEntry(job_id);
+      loadAll();
+    } catch (e) {
+      Swal.fire({ icon: "error", title: "Error", text: e?.response?.data?.msg || "No se pudo eliminar", background: "var(--bg-card, #1e2233)", color: "var(--text-primary, #f1f5f9)" });
+    }
+  };
+
   return (
     <div style={{ padding: "28px 32px", minHeight: "100vh", background: "var(--bg-dark, #0f1117)", fontFamily: "inherit" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
@@ -215,21 +237,31 @@ export default function SuperadminBackups() {
           <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 20, marginBottom: 20 }}>
             {/* Historial */}
             <div style={card({ padding: 0, overflow: "hidden" })}>
-              <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border, rgba(255,255,255,.08))", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border, rgba(255,255,255,.08))", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
                 <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary, #f1f5f9)" }}>Historial ({total})</h3>
-                <button style={btnStyle("ghost", { padding: "5px 10px", fontSize: 12 })} onClick={loadAll}>↺ Actualizar</button>
+                <div style={{ display: "flex", gap: 6 }}>
+                  {history.some(h => h.status === "error" || !h.status) && (
+                    <button
+                      style={btnStyle("danger", { padding: "5px 10px", fontSize: 12 })}
+                      onClick={() => handleDelete("__errors__", "todos los errores")}
+                    >
+                      🗑 Limpiar errores
+                    </button>
+                  )}
+                  <button style={btnStyle("ghost", { padding: "5px 10px", fontSize: 12 })} onClick={loadAll}>↺ Actualizar</button>
+                </div>
               </div>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                 <thead>
                   <tr style={{ background: "rgba(255,255,255,.03)" }}>
-                    {["Fecha", "Tipo", "Estado", "Tamaño", "Descargar"].map(h => (
+                    {["Fecha", "Tipo", "Estado", "Tamaño", "Descargar", ""].map(h => (
                       <th key={h} style={{ textAlign: "left", padding: "10px 16px", color: "var(--text-secondary, #94a3b8)", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: ".06em", borderBottom: "1px solid var(--border, rgba(255,255,255,.08))" }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {history.length === 0 ? (
-                    <tr><td colSpan={5} style={{ padding: 30, textAlign: "center", color: "var(--text-secondary, #94a3b8)" }}>Sin historial</td></tr>
+                    <tr><td colSpan={6} style={{ padding: 30, textAlign: "center", color: "var(--text-secondary, #94a3b8)" }}>Sin historial</td></tr>
                   ) : history.map((h, i) => (
                     <tr key={i} style={{ borderBottom: "1px solid var(--border, rgba(255,255,255,.04))" }}>
                       <td style={{ padding: "10px 16px", color: "var(--text-secondary, #94a3b8)", whiteSpace: "nowrap" }}>{fmtDate(h.date)}</td>
@@ -267,6 +299,17 @@ export default function SuperadminBackups() {
                           </div>
                         ) : (
                           <span style={{ color: "var(--text-secondary, #94a3b8)" }}>—</span>
+                        )}
+                      </td>
+                      <td style={{ padding: "10px 16px" }}>
+                        {h.job_id && (
+                          <button
+                            onClick={() => handleDelete(h.job_id, `backup ${h.type} del ${fmtDate(h.date)}`)}
+                            title="Eliminar entrada y archivos"
+                            style={{ border: "none", background: "rgba(239,68,68,.1)", color: "#ef4444", borderRadius: 6, padding: "4px 8px", fontSize: 13, cursor: "pointer" }}
+                          >
+                            🗑
+                          </button>
                         )}
                       </td>
                     </tr>
