@@ -74,7 +74,7 @@ function TabCodoSilueta({ gymId }) {
       setData(j);
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
-  }, [gymId]);
+  }, []); // el remontaje por key={gymId} en el padre dispara el refetch al cambiar de gimnasio
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -178,7 +178,7 @@ function TabEntrenamiento({ gymId }) {
       setData(j);
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
-  }, [gymId]);
+  }, []); // el remontaje por key={gymId} en el padre dispara el refetch al cambiar de gimnasio
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
