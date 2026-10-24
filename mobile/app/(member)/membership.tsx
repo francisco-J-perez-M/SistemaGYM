@@ -10,6 +10,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert,
+  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -31,6 +32,12 @@ import type {
   MembershipResponse, PlansResponse, MembershipPlan, MetodoPago,
 } from '../../types';
 
+// Carrusel de planes: la tarjeta no ocupa todo el ancho para que asome la
+// siguiente y se entienda que el listado se desliza en horizontal.
+const SCREEN_W  = Dimensions.get('window').width;
+const CARD_GAP  = 12;
+const CARD_W    = Math.min(300, SCREEN_W * 0.76);
+
 function estadoBadge(estado: string): { label: string; color: 'success' | 'warning' | 'error' } {
   if (estado === 'activa')     return { label: 'Activa',     color: 'success' };
   if (estado === 'por_vencer') return { label: 'Por vencer', color: 'warning' };
@@ -51,6 +58,7 @@ export default function MembershipScreen() {
   const [renewing, setRenewing] = useState(false);
   const [showRenew, setShowRenew] = useState(false);
   const [pagando, setPagando] = useState(false);
+  const [indiceActivo, setIndiceActivo] = useState(0);   // posición en el carrusel
   // Efectivo + las pasarelas activas del gimnasio (PayPal / Mercado Pago)
   const [pasarelas, setPasarelas] = useState<MetodoPagoDisponible[]>([]);
 
@@ -220,7 +228,23 @@ export default function MembershipScreen() {
           ) : planes.length === 0 ? (
             <Text style={styles.emptyText}>No hay planes disponibles en este gimnasio.</Text>
           ) : (
-            planes.map((plan) => {
+            <>
+            {/* Carrusel horizontal: se desliza de izquierda a derecha y se
+                detiene centrado en cada plan (snapToInterval). */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              decelerationRate="fast"
+              snapToInterval={CARD_W + CARD_GAP}
+              snapToAlignment="start"
+              contentContainerStyle={styles.carruselContent}
+              onScroll={(e) => {
+                const i = Math.round(e.nativeEvent.contentOffset.x / (CARD_W + CARD_GAP));
+                if (i !== indiceActivo) setIndiceActivo(i);
+              }}
+              scrollEventThrottle={16}
+            >
+            {planes.map((plan) => {
               const isSel   = selectedPlan?.id_membresia === plan.id_membresia;
               const esPromo = plan.tipo === 'promocion';
               return (
@@ -322,7 +346,21 @@ export default function MembershipScreen() {
                   )}
                 </TouchableOpacity>
               );
-            })
+            })}
+            </ScrollView>
+
+            {/* Indicadores de posición del carrusel */}
+            {planes.length > 1 && (
+              <View style={styles.dots}>
+                {planes.map((p, i) => (
+                  <View
+                    key={p.id_membresia}
+                    style={[styles.dot, i === indiceActivo && styles.dotActivo]}
+                  />
+                ))}
+              </View>
+            )}
+            </>
           )}
 
           {selectedPlan && (
@@ -421,10 +459,17 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
     sectionTitle: { color: colors.text, fontSize: 15 * fs, fontWeight: '700', marginBottom: 12 },
     emptyText:    { color: colors.textMuted, fontSize: 13 * fs },
 
+    // ── Carrusel de planes ───────────────────────────────────────────────
+    carruselContent: { paddingVertical: 4, paddingRight: 4 },
+    dots:     { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 12 },
+    dot:      { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.border },
+    dotActivo:{ backgroundColor: colors.accent, width: 18 },
+
     // ── Tarjetas de plan ─────────────────────────────────────────────────
     planCard: {
+      width: CARD_W, marginRight: CARD_GAP,
       borderWidth: 1, borderColor: colors.border, borderRadius: 14,
-      padding: 14, marginBottom: 12, backgroundColor: colors.inputBg,
+      padding: 14, backgroundColor: colors.inputBg,
     },
     planCardActive: {
       borderColor: colors.accent, borderWidth: 2,
