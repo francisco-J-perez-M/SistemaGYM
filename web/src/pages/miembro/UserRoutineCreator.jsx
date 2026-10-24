@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   FiPlus, FiTrash2, FiSave, FiCopy, FiAlertCircle, FiCheckCircle,
-  FiChevronDown, FiChevronUp, FiSearch, FiZap
+  FiChevronDown, FiChevronUp, FiSearch, FiZap, FiActivity, FiMoon
 } from "react-icons/fi";
 import "../../css/CSSUnificado.css";
 
@@ -12,16 +12,16 @@ const DIAS_SEMANA = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado",
 const DIAS_CORTO  = ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
 
 const GRUPOS = [
-  { id:"pecho",      label:"Pecho",           emoji:"🫁", color:"#ef4444" },
-  { id:"espalda",    label:"Espalda",          emoji:"🔙", color:"#6366f1" },
-  { id:"hombros",    label:"Hombros",          emoji:"🏋️", color:"#8b5cf6" },
-  { id:"biceps",     label:"Bíceps",           emoji:"💪", color:"#f59e0b" },
-  { id:"triceps",    label:"Tríceps",          emoji:"🦾", color:"#f97316" },
-  { id:"piernas",    label:"Piernas",          emoji:"🦵", color:"#22c55e" },
-  { id:"gluteos",    label:"Glúteos",          emoji:"🍑", color:"#ec4899" },
-  { id:"abdomen",    label:"Abdomen / Core",   emoji:"⚡", color:"#06b6d4" },
-  { id:"cardio",     label:"Cardio",           emoji:"🏃", color:"#84cc16" },
-  { id:"descanso",   label:"Descanso",         emoji:"😴", color:"#64748b" },
+  { id:"pecho",      label:"Pecho",           color:"#ef4444" },
+  { id:"espalda",    label:"Espalda",          color:"#6366f1" },
+  { id:"hombros",    label:"Hombros",          color:"#8b5cf6" },
+  { id:"biceps",     label:"Bíceps",           color:"#f59e0b" },
+  { id:"triceps",    label:"Tríceps",          color:"#f97316" },
+  { id:"piernas",    label:"Piernas",          color:"#22c55e" },
+  { id:"gluteos",    label:"Glúteos",          color:"#ec4899" },
+  { id:"abdomen",    label:"Abdomen / Core",   color:"#06b6d4" },
+  { id:"cardio",     label:"Cardio",           color:"#84cc16" },
+  { id:"descanso",   label:"Descanso",         color:"#64748b" },
 ];
 
 const SUGERENCIAS = {
@@ -76,7 +76,7 @@ function GrupoSelector({ value, onChange }) {
           whiteSpace:"nowrap",
         }}
       >
-        <span>{current.emoji}</span>
+        <span style={{ width:10, height:10, borderRadius:"50%", background:current.color, display:"inline-block", flexShrink:0 }}/>
         <span style={{ color:current.color, fontWeight:600 }}>{current.label}</span>
         {open ? <FiChevronUp size={12} /> : <FiChevronDown size={12} />}
       </button>
@@ -97,7 +97,7 @@ function GrupoSelector({ value, onChange }) {
                 color: g.id === value ? g.color : "var(--text-primary)",
               }}
             >
-              <span>{g.emoji}</span> {g.label}
+              <span style={{ width:8, height:8, borderRadius:"50%", background:g.color, display:"inline-block", flexShrink:0 }}/> {g.label}
             </div>
           ))}
         </div>
@@ -158,7 +158,7 @@ function EjercicioRow({ ej, idx, grupo, onUpdate, onDelete }) {
                 onMouseEnter={e => e.currentTarget.style.background = "var(--bg-input)"}
                 onMouseLeave={e => e.currentTarget.style.background = "transparent"}
               >
-                <span style={{ color:g.color, fontSize:11 }}>{g.emoji}</span>
+                <span style={{ width:7, height:7, borderRadius:"50%", background:g.color, display:"inline-block", flexShrink:0 }}/>
                 {s}
               </div>
             ))}
@@ -354,7 +354,7 @@ export default function UserRoutineCreator() {
               <motion.div key="err" initial={{opacity:0,y:-8}} animate={{opacity:1,y:0}} exit={{opacity:0}}
                 style={{ display:"flex", alignItems:"center", gap:10, padding:"11px 16px", background:"rgba(239,68,68,.1)", border:"1px solid rgba(239,68,68,.3)", borderRadius:9, marginBottom:16, color:"#f87171", fontSize:13 }}>
                 <FiAlertCircle /> {error}
-                <button onClick={() => setError(null)} style={{ marginLeft:"auto", background:"none", border:"none", color:"#f87171", cursor:"pointer" }}>✕</button>
+                <button onClick={() => setError(null)} style={{ marginLeft:"auto", background:"none", border:"none", color:"#f87171", cursor:"pointer", display:"flex" }}><FiX size={14}/></button>
               </motion.div>
             )}
             {success && (
@@ -385,7 +385,7 @@ export default function UserRoutineCreator() {
                       position:"relative",
                     }}
                   >
-                    <span style={{ fontSize:20 }}>{g.emoji}</span>
+                    <span style={{ width:12, height:12, borderRadius:"50%", background:g.color, display:"inline-block", flexShrink:0 }}/>
                     <span style={{ display:"flex", flexDirection:"column", lineHeight:1.3 }}>
                       <span style={{ fontSize:10, fontWeight:500, opacity:.75 }}>
                         {DIAS_CORTO[DIAS_SEMANA.indexOf(d.dia)] ?? d.dia.slice(0,3)}
@@ -469,12 +469,16 @@ export default function UserRoutineCreator() {
                 <div style={{ padding:"16px 20px" }}>
                   {current.grupo === "descanso" ? (
                     <div style={{ textAlign:"center", padding:"40px 0", color:"var(--text-secondary)" }}>
-                      <div style={{ fontSize:36, marginBottom:10 }}>😴</div>
+                      <div style={{ width:48, height:48, borderRadius:12, background:"rgba(100,116,139,.12)", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 10px" }}>
+                      <FiMoon size={22} color="#64748b"/>
+                    </div>
                       <p>Día de descanso — sin ejercicios.</p>
                     </div>
                   ) : current.ejercicios.length === 0 ? (
                     <div style={{ textAlign:"center", padding:"30px 0", color:"var(--text-secondary)" }}>
-                      <div style={{ fontSize:28, marginBottom:8 }}>🏋️</div>
+                      <div style={{ width:44, height:44, borderRadius:11, background:`${grupo?.color}18`, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 8px" }}>
+                        <FiActivity size={20} color={grupo?.color || "var(--accent)"}/>
+                      </div>
                       <p style={{ marginBottom:12 }}>No hay ejercicios todavía.</p>
                       <button onClick={() => addExercise(activeDay)} style={{ padding:"8px 16px", background:`${grupo?.color}22`, border:`1px solid ${grupo?.color}44`, borderRadius:8, cursor:"pointer", color:grupo?.color, fontWeight:600, fontSize:13, display:"inline-flex", alignItems:"center", gap:6 }}>
                         <FiPlus size={13} /> Agregar ejercicio
@@ -522,7 +526,9 @@ export default function UserRoutineCreator() {
                 borderRadius:16, color:"var(--text-secondary)",
               }}
             >
-              <div style={{ fontSize:48, marginBottom:16 }}>🏋️</div>
+              <div style={{ width:64, height:64, borderRadius:16, background:"rgba(99,102,241,.1)", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 16px" }}>
+                <FiActivity size={28} color="var(--accent)"/>
+              </div>
               <h3 style={{ fontSize:17, fontWeight:700, color:"var(--text-primary)", marginBottom:8 }}>
                 Esta rutina no tiene días aún
               </h3>
@@ -567,7 +573,7 @@ export default function UserRoutineCreator() {
               onClick={e => e.stopPropagation()}
               style={{ background:"var(--bg-card)", border:"1px solid var(--border)", borderRadius:16, padding:28, maxWidth:500, width:"100%" }}
             >
-              <h3 style={{ marginBottom:4, fontSize:18, fontWeight:700 }}>⚡ Plantillas de rutina</h3>
+              <h3 style={{ marginBottom:4, fontSize:18, fontWeight:700, display:"flex", alignItems:"center", gap:8 }}><FiZap color="var(--accent)"/> Plantillas de rutina</h3>
               <p style={{ fontSize:13, color:"var(--text-secondary)", marginBottom:20 }}>Elige una para empezar rápido. Podrás editarla después.</p>
               <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
                 {PLANTILLAS.map((tpl, i) => (
