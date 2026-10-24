@@ -1,214 +1,172 @@
 /**
  * CustomDrawer — Sidebar izquierda compartida para todos los roles.
- *
- * Recibe DrawerContentComponentProps de @react-navigation/drawer.
- * Lee las rutas activas del estado del navegador y llama a drawerIcon/drawerLabel
- * de cada descriptor para renderizar el ítem correspondiente.
+ * Incluye botón de accesibilidad (⚙) que abre AccessibilityPanel.
+ * Reacciona al tema activo vía useColors().
  */
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { DrawerContentComponentProps } from '@react-navigation/drawer';
-import { Colors } from '../../constants/Colors';
+import { useColors, useFontScale } from '../../hooks/useColors';
 import { useAuth } from '../../hooks/useAuth';
 import { toStr } from '../../utils/format';
-
-// ─── helpers ──────────────────────────────────────────────────────────────────
+import AccessibilityPanel from '../settings/AccessibilityPanel';
 
 function getRoleLabel(role?: string): string {
   switch (role) {
-    case 'owner_gym':   return 'Propietario';
-    case 'Admin':       return 'Administrador';
-    case 'superadmin':  return 'Super Admin';
-    case 'Entrenador':  return 'Entrenador';
+    case 'owner_gym':  return 'Propietario';
+    case 'Admin':      return 'Administrador';
+    case 'superadmin': return 'Super Admin';
+    case 'Entrenador': return 'Entrenador';
     case 'Miembro':
-    case 'user':        return 'Miembro';
-    default:            return 'Usuario';
+    case 'user':       return 'Miembro';
+    default:           return 'Usuario';
   }
 }
 
-// ─── componente ───────────────────────────────────────────────────────────────
-
 export default function CustomDrawer(props: DrawerContentComponentProps) {
   const { state, navigation, descriptors } = props;
-  const insets = useSafeAreaInsets();
+  const insets  = useSafeAreaInsets();
+  const colors  = useColors();
+  const fs      = useFontScale();
   const { user, logout } = useAuth();
 
-  const nombre   = toStr(user?.nombre, 'Usuario');
-  const initials = nombre.split(' ').slice(0, 2).map((n) => n[0]).join('').toUpperCase();
+  const [showA11y, setShowA11y] = useState(false);
+
+  const nombre    = toStr(user?.nombre, 'Usuario');
+  const initials  = nombre.split(' ').slice(0, 2).map((n) => n[0]).join('').toUpperCase();
   const roleLabel = getRoleLabel(user?.role);
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
+    <>
+      <View style={[styles.root, { backgroundColor: colors.background, paddingTop: insets.top }]}>
 
-      {/* ── Cabecera: avatar + nombre + rol ────────────────────────────────── */}
-      <View style={styles.header}>
-        <View style={styles.avatar}>
-          <Text style={styles.initials}>{initials}</Text>
-        </View>
-        <Text style={styles.name} numberOfLines={1}>{nombre}</Text>
-        <Text style={styles.email} numberOfLines={1}>{toStr(user?.email)}</Text>
-        <View style={styles.rolePill}>
-          <Text style={styles.roleText}>{roleLabel}</Text>
-        </View>
-      </View>
-
-      <View style={styles.divider} />
-
-      {/* ── Ítems de navegación ────────────────────────────────────────────── */}
-      <ScrollView
-        style={styles.navScroll}
-        contentContainerStyle={styles.navList}
-        showsVerticalScrollIndicator={false}
-      >
-        {state.routes.map((route: any, i: number) => {
-          const { options } = descriptors[route.key];
-          const isFocused = state.index === i;
-
-          // El label puede venir de drawerLabel (función o string) o de title
-          const rawLabel = options.drawerLabel ?? options.title ?? route.name;
-          const label = typeof rawLabel === 'function'
-            ? rawLabel({ focused: isFocused, color: isFocused ? Colors.accent : Colors.textSecondary })
-            : rawLabel;
-
-          const iconEl = options.drawerIcon?.({
-            focused: isFocused,
-            color:   isFocused ? Colors.accent : Colors.textSecondary,
-            size:    22,
-          });
-
-          return (
+        {/* ── Cabecera ──────────────────────────────────────────────────── */}
+        <View style={[styles.header, { borderBottomColor: colors.border }]}>
+          <View style={styles.headerTop}>
+            <View style={[styles.avatar, { backgroundColor: colors.accent }]}>
+              <Text style={styles.initials}>{initials}</Text>
+            </View>
+            {/* Botón accesibilidad */}
             <TouchableOpacity
-              key={route.key}
-              onPress={() => navigation.navigate(route.name)}
-              style={[styles.navItem, isFocused && styles.navItemActive]}
+              style={[styles.a11yBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+              onPress={() => setShowA11y(true)}
+              accessibilityLabel="Ajustes de accesibilidad"
               accessibilityRole="button"
-              accessibilityLabel={String(label)}
-              accessibilityState={{ selected: isFocused }}
             >
-              <View style={styles.navIcon}>{iconEl}</View>
-              <Text
-                style={[styles.navLabel, isFocused && styles.navLabelActive]}
-                numberOfLines={1}
-              >
-                {String(label)}
-              </Text>
-              {isFocused && <View style={styles.activeIndicator} />}
+              <Ionicons name="accessibility-outline" size={18} color={colors.textSecondary} />
             </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
-
-      {/* ── Footer: cerrar sesión ──────────────────────────────────────────── */}
-      <View style={[styles.footer, { paddingBottom: insets.bottom + 8 }]}>
-        <View style={styles.divider} />
-        <TouchableOpacity
-          onPress={logout}
-          style={styles.logoutBtn}
-          accessibilityLabel="Cerrar sesión"
-          accessibilityRole="button"
-        >
-          <View style={styles.logoutIcon}>
-            <Ionicons name="log-out-outline" size={20} color={Colors.error} />
           </View>
-          <Text style={styles.logoutText}>Cerrar sesión</Text>
-        </TouchableOpacity>
-        <Text style={styles.version}>GymPro v1.0.0</Text>
+          <Text style={[styles.name,  { color: colors.text,          fontSize: 16 * fs }]} numberOfLines={1}>{nombre}</Text>
+          <Text style={[styles.email, { color: colors.textSecondary, fontSize: 12 * fs }]} numberOfLines={1}>{toStr(user?.email)}</Text>
+          <View style={[styles.rolePill, { backgroundColor: colors.accent + '22' }]}>
+            <Text style={[styles.roleText, { color: colors.accent, fontSize: 11 * fs }]}>{roleLabel}</Text>
+          </View>
+        </View>
+
+        {/* ── Ítems de navegación ───────────────────────────────────────── */}
+        <ScrollView
+          style={styles.navScroll}
+          contentContainerStyle={styles.navList}
+          showsVerticalScrollIndicator={false}
+        >
+          {state.routes.map((route: any, i: number) => {
+            const { options } = descriptors[route.key];
+            const isFocused   = state.index === i;
+
+            const rawLabel = options.drawerLabel ?? options.title ?? route.name;
+            const label    = typeof rawLabel === 'function'
+              ? rawLabel({ focused: isFocused, color: isFocused ? colors.accent : colors.textSecondary })
+              : rawLabel;
+
+            const iconEl = options.drawerIcon?.({
+              focused: isFocused,
+              color:   isFocused ? colors.accent : colors.textSecondary,
+              size:    22,
+            });
+
+            // Ocultar ítems con display:none
+            const itemStyle = options.drawerItemStyle as any;
+            if (itemStyle?.display === 'none') return null;
+
+            return (
+              <TouchableOpacity
+                key={route.key}
+                onPress={() => navigation.navigate(route.name)}
+                style={[
+                  styles.navItem,
+                  { borderRadius: 12 },
+                  isFocused && { backgroundColor: colors.accent + '18' },
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel={String(label)}
+                accessibilityState={{ selected: isFocused }}
+              >
+                <View style={styles.navIcon}>{iconEl}</View>
+                <Text
+                  style={[
+                    styles.navLabel,
+                    { color: isFocused ? colors.accent : colors.textSecondary, fontSize: 14 * fs },
+                    isFocused && { fontWeight: '700' },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {String(label)}
+                </Text>
+                {isFocused && (
+                  <View style={[styles.activeIndicator, { backgroundColor: colors.accent }]} />
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+        {/* ── Footer ───────────────────────────────────────────────────── */}
+        <View style={[styles.footer, { paddingBottom: insets.bottom + 8, borderTopColor: colors.border }]}>
+          <TouchableOpacity
+            onPress={logout}
+            style={styles.logoutBtn}
+            accessibilityLabel="Cerrar sesión"
+            accessibilityRole="button"
+          >
+            <View style={[styles.logoutIcon, { backgroundColor: colors.errorBg }]}>
+              <Ionicons name="log-out-outline" size={20} color={colors.error} />
+            </View>
+            <Text style={[styles.logoutText, { color: colors.error, fontSize: 14 * fs }]}>Cerrar sesión</Text>
+          </TouchableOpacity>
+          <Text style={[styles.version, { color: colors.textMuted }]}>GymPro v1.0.0</Text>
+        </View>
       </View>
-    </View>
+
+      {/* Panel de accesibilidad */}
+      <AccessibilityPanel visible={showA11y} onClose={() => setShowA11y(false)} />
+    </>
   );
 }
 
-// ─── estilos ──────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
-  root: {
-    flex:            1,
-    backgroundColor: Colors.background,
-  },
-
-  /* Cabecera */
-  header: {
-    paddingHorizontal: 20,
-    paddingVertical:   20,
-    gap:               4,
-  },
-  avatar: {
-    width:           60,
-    height:          60,
-    borderRadius:    20,
-    backgroundColor: Colors.accent,
-    alignItems:      'center',
-    justifyContent:  'center',
-    marginBottom:    10,
-  },
+  root:      { flex: 1 },
+  header:    { paddingHorizontal: 20, paddingVertical: 16, gap: 4, borderBottomWidth: 1 },
+  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
+  avatar:    { width: 60, height: 60, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   initials:  { color: '#fff', fontSize: 24, fontWeight: '800' },
-  name:      { color: Colors.text, fontSize: 16, fontWeight: '700' },
-  email:     { color: Colors.textSecondary, fontSize: 12 },
-  rolePill: {
-    alignSelf:         'flex-start',
-    backgroundColor:   'rgba(108,99,255,0.15)',
-    paddingHorizontal: 10,
-    paddingVertical:   3,
-    borderRadius:      20,
-    marginTop:         6,
-  },
-  roleText: { color: Colors.accent, fontSize: 11, fontWeight: '600' },
-
-  divider: { height: 1, backgroundColor: Colors.border, marginHorizontal: 16 },
-
-  /* Nav */
+  a11yBtn:   { width: 36, height: 36, borderRadius: 10, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  name:      { fontWeight: '700' },
+  email:     {},
+  rolePill:  { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 20, marginTop: 4 },
+  roleText:  { fontWeight: '600' },
   navScroll: { flex: 1 },
   navList:   { paddingHorizontal: 12, paddingVertical: 8, gap: 2 },
-  navItem: {
-    flexDirection:  'row',
-    alignItems:     'center',
-    gap:            14,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius:   12,
-    position:       'relative',
-  },
-  navItemActive: { backgroundColor: 'rgba(108,99,255,0.10)' },
-  navIcon:  { width: 26, alignItems: 'center' },
-  navLabel: {
-    flex:       1,
-    color:      Colors.textSecondary,
-    fontSize:   14,
-    fontWeight: '500',
-  },
-  navLabelActive: { color: Colors.accent, fontWeight: '700' },
-  activeIndicator: {
-    position:     'absolute',
-    right:        0,
-    top:          '15%',
-    bottom:       '15%',
-    width:        3,
-    borderRadius: 2,
-    backgroundColor: Colors.accent,
-  },
-
-  /* Footer */
-  footer:    { paddingHorizontal: 12, paddingTop: 8, gap: 8 },
-  logoutBtn: {
-    flexDirection:     'row',
-    alignItems:        'center',
-    gap:               14,
-    paddingVertical:   12,
-    paddingHorizontal: 14,
-    borderRadius:      12,
-  },
-  logoutIcon: {
-    width:           36,
-    height:          36,
-    borderRadius:    10,
-    backgroundColor: Colors.errorBg,
-    alignItems:      'center',
-    justifyContent:  'center',
-  },
-  logoutText: { color: Colors.error, fontSize: 14, fontWeight: '600' },
-  version:    { color: Colors.textMuted, fontSize: 11, textAlign: 'center', paddingBottom: 4 },
+  navItem:   { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12, paddingHorizontal: 14, position: 'relative' },
+  navIcon:   { width: 26, alignItems: 'center' },
+  navLabel:  { flex: 1, fontWeight: '500' },
+  activeIndicator: { position: 'absolute', right: 0, top: '15%', bottom: '15%', width: 3, borderRadius: 2 },
+  footer:    { paddingHorizontal: 12, paddingTop: 8, gap: 6, borderTopWidth: 1 },
+  logoutBtn: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 12 },
+  logoutIcon:{ width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  logoutText:{ fontWeight: '600' },
+  version:   { fontSize: 11, textAlign: 'center', paddingBottom: 4 },
 });
