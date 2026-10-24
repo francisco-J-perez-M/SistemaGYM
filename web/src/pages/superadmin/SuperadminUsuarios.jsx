@@ -5,7 +5,7 @@ import { getUsuarios, toggleUsuario, impersonar } from "../../api/superadmin";
 import { FiUserCheck, FiInfo } from "react-icons/fi";
 // Catálogo único de roles (SCRUM-107): antes este archivo definía su propia
 // copia de ROL_BADGE/ROUTE_FOR_ROLE, que podía divergir de otras vistas.
-import { ROL_BADGE, ROUTE_FOR_ROLE } from "../../constants/roles";
+import { ROL_BADGE, ROUTE_FOR_ROLE, normalizarRol } from "../../constants/roles";
 
 const card = (extra = {}) => ({
   background: "var(--bg-card)",
@@ -117,7 +117,7 @@ export default function SuperadminUsuarios() {
       localStorage.setItem("token", access_token);
       localStorage.setItem("user",  JSON.stringify({ ...targetUser, _impersonated: true }));
 
-      const dest = ROUTE_FOR_ROLE[(targetUser.role || "").toLowerCase()] || "/owner";
+      const dest = ROUTE_FOR_ROLE[normalizarRol(targetUser.role).toLowerCase()] || "/owner";
       navigate(dest, { replace: true });
     } catch (e) {
       Swal.fire({ icon: "error", title: "Error", text: e?.response?.data?.msg || "No se pudo impersonar", background: "var(--bg-card)", color: "var(--text-primary)" });
@@ -152,6 +152,7 @@ export default function SuperadminUsuarios() {
           <option value="">Todos los roles</option>
           <option value="superadmin">Superadmin</option>
           <option value="Propietario">Propietario</option>
+          <option value="Administrador">Administrador</option>
           <option value="Entrenador">Entrenador</option>
           <option value="Recepcionista">Recepcionista</option>
           <option value="Miembro">Miembro</option>
