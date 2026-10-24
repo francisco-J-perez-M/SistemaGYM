@@ -11,7 +11,7 @@ WORKDIR /app
 # Si package.json no cambia, npm ci se saltea y reutiliza la capa anterior.
 COPY package.json package-lock.json ./
 
-RUN npm ci --legacy-peer-deps
+RUN npm install --legacy-peer-deps
 
 # Build arg para URL base de la API en tiempo de compilación.
 # CRA embebe las variables REACT_APP_* en el bundle estático.

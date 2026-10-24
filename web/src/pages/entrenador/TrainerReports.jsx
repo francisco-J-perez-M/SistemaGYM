@@ -1,168 +1,314 @@
+/**
+ * TrainerReports.jsx — Reportes y estadísticas del entrenador.
+ *
+ * Layout:
+ *   ┌──────────────────────────────────────────────────────────┐
+ *   │  Header + filtro de período + botones Exportar CSV / PDF │
+ *   ├────────────┬────────────┬────────────┬───────────────────┤
+ *   │ Sesiones   │ Asistencia │ Clientes   │ Calificación      │  ← KPIs
+ *   ├────────────────────────────┬─────────────────────────────┤
+ *   │ Gráfica de sesiones / mes  │ Top clientes                │
+ *   ├────────────────────────────┴─────────────────────────────┤
+ *   │ Tipos de sesión (barras)   │ Métricas detalladas         │
+ *   └──────────────────────────────────────────────────────────┘
+ *
+ * Dependencias: recharts (ya instalado), jspdf (ya instalado)
+ */
 import { useState, useEffect, useCallback } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip as RechartTooltip,
+  ResponsiveContainer, Cell, CartesianGrid, Legend,
+} from "recharts";
 import {
   FiBarChart2, FiTrendingUp, FiUsers, FiCalendar,
-  FiDollarSign, FiAward, FiDownload, FiFilter,
-  FiAlertCircle, FiX, FiLoader, FiRefreshCw,
+  FiAward, FiDownload, FiRefreshCw, FiAlertCircle, FiX,
+  FiCheckCircle, FiXCircle, FiTarget, FiStar, FiFileText,
+  FiLoader, FiClock,
 } from "react-icons/fi";
 import trainerService from "../../services/entrenador/trainerService";
 import "../../css/CSSUnificado.css";
 
-/* ─── helpers ─────────────────────────────────────────────── */
-const fadeUp  = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } };
-const stagger = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.06 } } };
+// ─── Paleta de colores ────────────────────────────────────────────────────────
+const COLORS = {
+  primary:   "#6366f1",
+  success:   "#22c55e",
+  warning:   "#f59e0b",
+  danger:    "#ef4444",
+  muted:     "#64748b",
+  personal:  "#6366f1",
+  grupal:    "#22c55e",
+  consulta:  "#f59e0b",
+};
 
-function formatMXN(n) {
-  return n.toLocaleString("es-MX", { minimumFractionDigits: 0 });
+const TYPE_COLORS = {
+  Personal: COLORS.personal,
+  Grupal:   COLORS.grupal,
+  Consulta: COLORS.warning,
+};
+
+const RANGE_LABELS = {
+  week:    "esta semana",
+  month:   "este mes",
+  quarter: "este trimestre",
+  year:    "este año",
+};
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function pct(n, total) {
+  if (!total) return 0;
+  return Math.round((n / total) * 100);
 }
 
-/* ─── sub-components ────────────────────────────────────────── */
+function initials(name = "") {
+  return name.split(" ").filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join("");
+}
 
-/** KPI card compacta */
-function StatCard({ icon, label, value, detail, growth, accentColor }) {
-  const isPositive = growth >= 0;
+// ─── PDF generator (jsPDF) ───────────────────────────────────────────────────
+async function generatePDF(data, trainerName, range) {
+  const { jsPDF } = await import("jspdf");
+  const doc = new jsPDF({ unit: "pt", format: "a4" });
+
+  const W      = doc.internal.pageSize.getWidth();
+  const margin = 48;
+  let   y      = 48;
+
+  const line = (text, size = 11, bold = false, color = [220,220,220]) => {
+    doc.setFontSize(size);
+    doc.setFont("helvetica", bold ? "bold" : "normal");
+    doc.setTextColor(...color);
+    doc.text(text, margin, y);
+    y += size * 1.5;
+  };
+
+  const divider = (marginY = 8) => {
+    y += marginY;
+    doc.setDrawColor(50, 50, 80);
+    doc.line(margin, y, W - margin, y);
+    y += marginY;
+  };
+
+  const kpiRow = (items) => {
+    const colW = (W - margin * 2) / items.length;
+    items.forEach((item, i) => {
+      const x = margin + i * colW;
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(140, 140, 170);
+      doc.text(item.label.toUpperCase(), x, y);
+      doc.setFontSize(18);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(180, 180, 255);
+      doc.text(String(item.value), x, y + 20);
+    });
+    y += 38;
+  };
+
+  // ── Fondo oscuro
+  doc.setFillColor(10, 10, 28);
+  doc.rect(0, 0, W, doc.internal.pageSize.getHeight(), "F");
+
+  // ── Header
+  doc.setFillColor(30, 30, 60);
+  doc.roundedRect(margin - 12, 24, W - (margin - 12) * 2, 56, 8, 8, "F");
+  doc.setFontSize(18);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(200, 200, 255);
+  doc.text("Reporte de Entrenador", margin, 54);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(140, 140, 180);
+  doc.text(`${trainerName}  ·  Período: ${RANGE_LABELS[range] || range}  ·  Generado: ${new Date().toLocaleDateString("es-MX")}`, margin, 70);
+  y = 108;
+
+  // ── KPIs
+  line("RESUMEN GENERAL", 10, true, [100, 100, 160]);
+  divider(4);
+  kpiRow([
+    { label: "Sesiones completadas", value: data.stats?.sessions ?? 0 },
+    { label: "Clientes activos",     value: data.stats?.clients  ?? 0 },
+    { label: "Asistencia",           value: `${data.metrics?.attendanceRate ?? 0}%` },
+    { label: "Calificación",         value: data.stats?.avgRating > 0 ? `${data.stats.avgRating}/5` : "N/A" },
+  ]);
+  divider(6);
+
+  // ── Sesiones por tipo
+  if (data.sessionTypes?.length) {
+    line("TIPOS DE SESIÓN", 10, true, [100, 100, 160]);
+    y += 4;
+    data.sessionTypes.forEach(t => {
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(180, 180, 220);
+      doc.text(`• ${t.tipo}`, margin + 8, y);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(160, 180, 255);
+      doc.text(String(t.count), margin + 160, y);
+      y += 16;
+    });
+    divider(6);
+  }
+
+  // ── Top clientes
+  if (data.clientProgress?.length) {
+    line("MIS MEJORES CLIENTES", 10, true, [100, 100, 160]);
+    y += 4;
+    data.clientProgress.forEach((c, i) => {
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(180, 180, 220);
+      doc.text(`${i + 1}. ${c.name}`, margin + 8, y);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(160, 200, 160);
+      doc.text(`${c.sessions} sesiones`, margin + 260, y);
+      y += 16;
+    });
+    divider(6);
+  }
+
+  // ── Evolución mensual
+  if (data.monthlyData?.length) {
+    line("EVOLUCIÓN MENSUAL (últimos 6 meses)", 10, true, [100, 100, 160]);
+    y += 4;
+
+    // Cabecera tabla
+    ["Mes", "Completadas", "Canceladas", "Total"].forEach((h, i) => {
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(120, 120, 160);
+      doc.text(h, margin + 8 + i * 120, y);
+    });
+    y += 14;
+
+    data.monthlyData.forEach(m => {
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(190, 190, 220);
+      [m.month, m.sessions, m.cancelled, m.total].forEach((v, i) => {
+        doc.text(String(v), margin + 8 + i * 120, y);
+      });
+      y += 15;
+      if (y > 750) { doc.addPage(); doc.setFillColor(10,10,28); doc.rect(0,0,W,800,"F"); y = 48; }
+    });
+    divider(6);
+  }
+
+  // ── Métricas adicionales
+  line("MÉTRICAS ADICIONALES", 10, true, [100, 100, 160]);
+  y += 4;
+  const met = data.metrics || {};
+  [
+    [`Tasa de asistencia:`,     `${met.attendanceRate ?? 0}%`],
+    [`Cancelaciones:`,          `${met.cancellationRate ?? 0}%`],
+    [`Sesiones por cliente:`,   `${met.sessionsPerClient ?? 0}`],
+    [`Sesiones programadas:`,   `${met.totalScheduled ?? 0}`],
+  ].forEach(([label, value]) => {
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(170, 170, 210);
+    doc.text(label, margin + 8, y);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(150, 200, 255);
+    doc.text(value, margin + 200, y);
+    y += 15;
+  });
+
+  // ── Pie de página
+  y = doc.internal.pageSize.getHeight() - 30;
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(80, 80, 110);
+  doc.text("Generado por GYM PRO  ·  Este reporte es de uso interno del entrenador", margin, y);
+
+  doc.save(`reporte_${range}_${new Date().toISOString().slice(0, 10)}.pdf`);
+}
+
+// ─── Sub-componentes ──────────────────────────────────────────────────────────
+
+/** KPI card principal */
+function KpiCard({ icon: Icon, label, value, sub, color, growth }) {
+  const isPos = growth === undefined || growth >= 0;
   return (
     <motion.div
       className="stat-card"
-      variants={fadeUp}
-      style={{ borderTop: `2px solid ${accentColor || "var(--accent)"}` }}
+      initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
+      style={{ borderTop: `3px solid ${color}`, padding: "16px 18px" }}
     >
-      <div className="stat-header">
-        <h3 style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          {icon}
-          {label}
-        </h3>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+        <div style={{
+          width: 36, height: 36, borderRadius: 10,
+          background: `${color}22`, display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <Icon size={18} style={{ color }} />
+        </div>
         {growth !== undefined && (
-          <span
-            className={`trend ${isPositive ? "positive" : "negative"}`}
-          >
-            {isPositive ? "+" : ""}{growth}%
+          <span style={{
+            fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 20,
+            background: isPos ? "rgba(34,197,94,.15)" : "rgba(239,68,68,.15)",
+            color: isPos ? COLORS.success : COLORS.danger,
+          }}>
+            {isPos ? "+" : ""}{growth}%
           </span>
         )}
       </div>
-      <p className="stat-value" style={{ color: accentColor }}>
-        {value}
-      </p>
-      <p className="stat-detail">{detail}</p>
-    </motion.div>
-  );
-}
-
-/** Barra de progreso con nombre y porcentaje */
-function ClientProgressBar({ rank, name, sessions, improvement, isTop }) {
-  const colorMap = [
-    "var(--success)",
-    "var(--accent-soft)",
-    "var(--warning)",
-    "var(--text-secondary)",
-    "var(--text-tertiary)",
-  ];
-  const color = improvement >= 85 ? "var(--success)" : colorMap[rank] || "var(--accent-soft)";
-
-  return (
-    <div
-      style={{
-        padding: "12px 14px",
-        background: "var(--bg-input)",
-        borderRadius: "var(--r-md)",
-        border: `1px solid ${isTop ? "var(--accent)" : "var(--border)"}`,
-        display: "flex",
-        flexDirection: "column",
-        gap: 6,
-      }}
-    >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div
-            style={{
-              width: 26, height: 26, borderRadius: "50%",
-              background: isTop ? "var(--accent)" : "var(--bg-card)",
-              color: isTop ? "var(--text-on-accent)" : "var(--text-primary)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontWeight: 700, fontSize: 12, flexShrink: 0,
-            }}
-          >
-            {rank + 1}
-          </div>
-          <div>
-            <div style={{ fontWeight: 600, fontSize: 13, color: "var(--text-primary)" }}>{name}</div>
-            <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>{sessions} sesiones completadas</div>
-          </div>
-        </div>
-        <span style={{ fontSize: 15, fontWeight: 700, color }}>{improvement}%</span>
-      </div>
-
-      <div style={{ height: 5, background: "var(--border)", borderRadius: 3, overflow: "hidden" }}>
-        <motion.div
-          style={{ height: "100%", background: color, borderRadius: 3 }}
-          initial={{ width: 0 }}
-          animate={{ width: `${improvement}%` }}
-          transition={{ delay: 0.5 + rank * 0.08, duration: 0.8, ease: "easeOut" }}
-        />
-      </div>
-    </div>
-  );
-}
-
-/** Tarjeta de métrica detallada */
-function MetricTile({ label, value, trend, color }) {
-  return (
-    <motion.div
-      variants={fadeUp}
-      whileHover={{ y: -3, borderColor: color }}
-      style={{
-        background: "var(--bg-input)",
-        padding: 18, borderRadius: "var(--r-md)",
-        border: "1px solid var(--border)",
-        transition: "border-color .2s, transform .2s",
-      }}
-    >
-      <div style={{ fontSize: 11, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 6 }}>
+      <div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--text-secondary)", marginBottom: 5 }}>
         {label}
       </div>
-      <div style={{ fontSize: 24, fontWeight: 700, color, marginBottom: 4 }}>{value}</div>
-      <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>{trend}</div>
+      <div style={{ fontSize: 28, fontWeight: 800, color, lineHeight: 1, marginBottom: 4 }}>
+        {value}
+      </div>
+      <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>{sub}</div>
     </motion.div>
   );
 }
 
-/** Selector de rango de tiempo */
-function RangeSelector({ value, onChange }) {
-  const options = [
-    { value: "week",    label: "Semana" },
-    { value: "month",   label: "Mes" },
-    { value: "quarter", label: "Trimestre" },
-    { value: "year",    label: "Año" },
-  ];
+/** Tooltip personalizado para recharts */
+function CustomTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null;
   return (
-    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-      <FiFilter size={16} style={{ color: "var(--text-secondary)" }} />
-      {options.map((o) => (
-        <motion.button
-          key={o.value}
-          onClick={() => onChange(o.value)}
-          className="btn-outline-small"
-          style={{
-            background:  value === o.value ? "var(--accent)"          : "transparent",
-            color:       value === o.value ? "var(--text-on-accent)"  : "var(--text-secondary)",
-            borderColor: value === o.value ? "var(--accent)"          : "var(--border)",
-          }}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-        >
-          {o.label}
-        </motion.button>
+    <div style={{
+      background: "var(--bg-card)", border: "1px solid var(--border)",
+      borderRadius: 8, padding: "10px 14px", fontSize: 12,
+    }}>
+      <p style={{ fontWeight: 700, marginBottom: 6, color: "var(--text-primary)" }}>{label}</p>
+      {payload.map(p => (
+        <p key={p.name} style={{ color: p.color, margin: "2px 0" }}>
+          {p.name}: <strong>{p.value}</strong>
+        </p>
       ))}
     </div>
   );
 }
 
-/* ─── MAIN COMPONENT ────────────────────────────────────────── */
+/** Avatar circular con iniciales */
+function Avatar({ name, size = 36, color = COLORS.primary }) {
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: "50%",
+      background: `${color}25`,
+      border: `2px solid ${color}60`,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      fontSize: size * 0.34, fontWeight: 800, color,
+      flexShrink: 0,
+    }}>
+      {initials(name) || "?"}
+    </div>
+  );
+}
+
+// ─── Componente principal ─────────────────────────────────────────────────────
 export default function TrainerReports() {
   const [timeRange, setTimeRange] = useState("month");
   const [data, setData]           = useState(null);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState(null);
+  const [exporting, setExporting] = useState(false);
+  const [trainerName, setTrainerName] = useState("Entrenador");
+
+  // Cargar nombre del trainer para el PDF
+  useEffect(() => {
+    trainerService.getProfile().then(p => { if (p?.name) setTrainerName(p.name); }).catch(() => {});
+  }, []);
 
   const loadReports = useCallback(async () => {
     try {
@@ -179,378 +325,420 @@ export default function TrainerReports() {
 
   useEffect(() => { loadReports(); }, [loadReports]);
 
-  const handleExport = () => {
+  // ── Exportar CSV ─────────────────────────────────────────────────────────
+  const handleCSV = () => {
     if (!data) return;
     const rows = [
-      ["Mes", "Ingresos", "Sesiones", "Clientes"],
-      ...(data.monthlyData || []).map((d) => [d.month, d.revenue, d.sessions, d.clients]),
+      ["Mes", "Sesiones Completadas", "Canceladas", "Total"],
+      ...(data.monthlyData || []).map(d => [d.month, d.sessions, d.cancelled, d.total]),
     ];
-    const csv  = rows.map((r) => r.join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const csv  = rows.map(r => r.join(",")).join("\n");
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
     const url  = URL.createObjectURL(blob);
-    const a    = Object.assign(document.createElement("a"), {
+    Object.assign(document.createElement("a"), {
       href: url,
       download: `reporte_${timeRange}_${new Date().toISOString().slice(0, 10)}.csv`,
-    });
-    a.click();
+    }).click();
     URL.revokeObjectURL(url);
   };
 
-  /* ── derived data ── */
-  const stats         = data?.stats         || {};
-  const growth        = stats.growth        || {};
-  const monthlyData   = data?.monthlyData   || [];
+  // ── Exportar PDF ──────────────────────────────────────────────────────────
+  const handlePDF = async () => {
+    if (!data) return;
+    setExporting(true);
+    try {
+      await generatePDF(data, trainerName, timeRange);
+    } catch (e) {
+      alert("Error al generar el PDF: " + e.message);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // ── Datos derivados ──────────────────────────────────────────────────────
+  const stats          = data?.stats          || {};
+  const growth         = stats.growth         || {};
+  const monthlyData    = data?.monthlyData    || [];
+  const sessionTypes   = data?.sessionTypes   || [];
   const clientProgress = data?.clientProgress || [];
-  const metrics       = data?.metrics       || {};
-  const maxRevenue    = Math.max(...monthlyData.map((d) => d.revenue), 1);
+  const metrics        = data?.metrics        || {};
+  const totalSchd      = metrics.totalScheduled || 0;
+  const attendanceRate = metrics.attendanceRate  || 0;
+  const cancelRate     = metrics.cancellationRate|| 0;
+
+  const rangeLabel = RANGE_LABELS[timeRange] || timeRange;
+
+  const typeColors = sessionTypes.map((t, i) =>
+    TYPE_COLORS[t.tipo] || [COLORS.primary, COLORS.success, COLORS.warning, COLORS.muted][i % 4]
+  );
 
   return (
     <div className="dashboard-content">
 
-      {/* ── WELCOME ── */}
-      <motion.div
-        className="welcome-section"
-        initial={{ opacity: 0, scale: 0.97 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.45 }}
-      >
-        <div className="welcome-content">
-          <div className="welcome-text">
-            <h2>Reportes y estadísticas</h2>
-            <p>Analiza tu desempeño y el progreso de tus clientes</p>
+      {/* ── Header ── */}
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:22, flexWrap:"wrap", gap:14 }}>
+        <div>
+          <h2 className="page-title" style={{ marginBottom:4 }}>Mis Reportes</h2>
+          <p style={{ fontSize:13, color:"var(--text-secondary)", margin:0 }}>
+            Aquí puedes ver cómo va tu trabajo como entrenador
+          </p>
+        </div>
+
+        {/* Acciones */}
+        <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
+          {/* Filtro de período */}
+          <div style={{ display:"flex", gap:4, background:"var(--bg-input)", padding:3, borderRadius:10, border:"1px solid var(--border)" }}>
+            {[{v:"week",l:"Semana"},{v:"month",l:"Mes"},{v:"quarter",l:"Trimestre"},{v:"year",l:"Año"}].map(o => (
+              <button
+                key={o.v}
+                onClick={() => setTimeRange(o.v)}
+                style={{
+                  padding:"6px 14px", borderRadius:8, border:"none", cursor:"pointer", fontSize:12, fontWeight:600,
+                  background: timeRange === o.v ? "var(--accent)" : "transparent",
+                  color: timeRange === o.v ? "#fff" : "var(--text-secondary)",
+                  transition:"all .15s",
+                }}
+              >
+                {o.l}
+              </button>
+            ))}
           </div>
-          <FiBarChart2 size={46} style={{ color: "var(--accent)", opacity: 0.8 }} />
-        </div>
-      </motion.div>
 
-      {/* ── ERROR BANNER ── */}
-      {error && (
-        <motion.div
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          style={{
-            marginTop: 16,
-            padding: "12px 16px",
-            background: "var(--danger-bg)",
-            border: "1px solid var(--danger)",
-            borderRadius: "var(--r-md)",
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            color: "var(--danger)",
-          }}
-        >
-          <FiAlertCircle />
-          <span style={{ flex: 1 }}>{error}</span>
-          <button
-            onClick={loadReports}
-            style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, fontSize: 13 }}
-          >
-            <FiRefreshCw size={14} /> Reintentar
+          <button className="icon-btn" onClick={loadReports} title="Actualizar">
+            <FiRefreshCw size={15} style={{ animation: loading ? "spin 1s linear infinite":"none" }} />
           </button>
-          <button
-            onClick={() => setError(null)}
-            style={{ background: "none", border: "none", color: "inherit", cursor: "pointer" }}
-          >
-            <FiX />
-          </button>
-        </motion.div>
-      )}
 
-      {/* ── TOOLBAR ── */}
-      <motion.div
-        className="chart-card"
-        style={{ marginTop: 20 }}
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.08 }}
-      >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            flexWrap: "wrap",
-            gap: 12,
-          }}
-        >
-          <RangeSelector value={timeRange} onChange={setTimeRange} />
-          <motion.button
-            className="btn-compact-primary"
-            onClick={handleExport}
+          <button
+            className="btn-outline-small"
+            onClick={handleCSV}
             disabled={loading || !data}
-            whileHover={{ scale: 1.04 }}
-            whileTap={{ scale: 0.96 }}
+            style={{ display:"flex", alignItems:"center", gap:6 }}
           >
-            <FiDownload size={15} /> Exportar CSV
-          </motion.button>
-        </div>
-      </motion.div>
+            <FiDownload size={14} /> CSV
+          </button>
 
-      {/* ── SPINNER ── */}
-      {loading && (
-        <div style={{ textAlign: "center", padding: "60px 0", color: "var(--text-secondary)" }}>
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-            style={{ display: "inline-block" }}
+          <button
+            className="btn-compact-primary"
+            onClick={handlePDF}
+            disabled={loading || !data || exporting}
+            style={{ display:"flex", alignItems:"center", gap:6 }}
           >
-            <FiLoader size={34} />
+            <FiFileText size={14} />
+            {exporting ? "Generando…" : "Descargar PDF"}
+          </button>
+        </div>
+      </div>
+
+      {/* ── Error ── */}
+      <AnimatePresence>
+        {error && (
+          <motion.div
+            initial={{ opacity:0, y:-8 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0 }}
+            style={{ background:"var(--danger-bg)", border:"1px solid var(--danger)", borderRadius:10,
+              padding:"12px 16px", marginBottom:18, color:"var(--danger)", fontSize:13,
+              display:"flex", gap:10, alignItems:"center" }}
+          >
+            <FiAlertCircle size={15}/> <span style={{ flex:1 }}>{error}</span>
+            <button onClick={loadReports} style={{ background:"none",border:"none",cursor:"pointer",color:"inherit",fontSize:12,display:"flex",gap:4,alignItems:"center" }}>
+              <FiRefreshCw size={12}/> Reintentar
+            </button>
+            <button onClick={() => setError(null)} style={{ background:"none",border:"none",cursor:"pointer",color:"inherit" }}><FiX/></button>
           </motion.div>
-          <p style={{ marginTop: 14 }}>Cargando estadísticas…</p>
+        )}
+      </AnimatePresence>
+
+      {/* ── Loading ── */}
+      {loading && (
+        <div style={{ textAlign:"center", padding:"60px 0", color:"var(--text-secondary)" }}>
+          <motion.div animate={{ rotate:360 }} transition={{ duration:1, repeat:Infinity, ease:"linear" }} style={{ display:"inline-block" }}>
+            <FiLoader size={34}/>
+          </motion.div>
+          <p style={{ marginTop:14 }}>Cargando estadísticas…</p>
         </div>
       )}
 
-      {/* ── CONTENT ── */}
+      {/* ── Contenido principal ── */}
       {!loading && data && (
         <>
-          {/* KPIs */}
-          <motion.div
-            className="kpi-grid"
-            style={{ marginTop: 22 }}
-            variants={stagger}
-            initial="hidden"
-            animate="visible"
-          >
-            <StatCard
-              icon={<FiDollarSign size={14} />}
-              label="Ingresos"
-              value={`$${formatMXN(stats.revenue || 0)}`}
-              detail="Este período"
-              growth={growth.revenue}
-              accentColor="var(--success)"
-            />
-            <StatCard
-              icon={<FiCalendar size={14} />}
-              label="Sesiones"
-              value={stats.sessions || 0}
-              detail="Completadas"
+          {/* ═══ KPIs ═══ */}
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:14, marginBottom:20 }}>
+            <KpiCard
+              icon={FiCalendar}
+              label={`Sesiones ${rangeLabel}`}
+              value={stats.sessions ?? 0}
+              sub={totalSchd > 0 ? `de ${totalSchd} programadas` : "completadas"}
+              color={COLORS.primary}
               growth={growth.sessions}
-              accentColor="var(--accent-soft)"
             />
-            <StatCard
-              icon={<FiUsers size={14} />}
-              label="Clientes"
-              value={stats.clients || 0}
-              detail="Activos"
-              accentColor="var(--text-secondary)"
+            <KpiCard
+              icon={FiCheckCircle}
+              label="Asistencia"
+              value={`${attendanceRate}%`}
+              sub="De las sesiones agendadas"
+              color={attendanceRate >= 70 ? COLORS.success : COLORS.warning}
             />
-            <StatCard
-              icon={<FiAward size={14} />}
+            <KpiCard
+              icon={FiUsers}
+              label="Mis clientes"
+              value={stats.clients ?? 0}
+              sub="Activos en el gym"
+              color="#a855f7"
+            />
+            <KpiCard
+              icon={FiStar}
               label="Calificación"
-              value={stats.avgRating ? `${stats.avgRating}/5` : "N/A"}
-              detail="Promedio general"
-              accentColor="var(--warning)"
+              value={stats.avgRating > 0 ? `${stats.avgRating}/5` : "N/A"}
+              sub="Promedio de evaluaciones"
+              color={COLORS.warning}
             />
-          </motion.div>
+          </div>
 
-          {/* Gráficas */}
-          <div className="charts-row" style={{ marginTop: 20 }}>
-            {/* Ingresos */}
+          {/* ═══ Fila principal: Gráfica + Top clientes ═══ */}
+          <div style={{ display:"grid", gridTemplateColumns:"2fr 1fr", gap:16, marginBottom:16 }}>
+
+            {/* Sesiones por mes */}
             <motion.div
-              className="chart-card"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.25 }}
+              className="stat-card"
+              initial={{ opacity:0, x:-16 }} animate={{ opacity:1, x:0 }}
+              style={{ padding:20 }}
             >
-              <div className="chart-header">
-                <h3>
-                  <FiTrendingUp style={{ marginRight: 7 }} />
-                  Evolución de ingresos
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16, paddingBottom:14, borderBottom:"1px solid var(--border)" }}>
+                <h3 style={{ fontSize:14, fontWeight:700, display:"flex", alignItems:"center", gap:8 }}>
+                  <FiTrendingUp size={15} style={{ color:COLORS.primary }}/> Sesiones por mes
                 </h3>
-                <div className="chart-legend">
-                  <div className="legend-item">
-                    <span className="color-box income" />
-                    Ingresos mensuales
-                  </div>
+                <div style={{ display:"flex", gap:14 }}>
+                  {[{color:COLORS.primary,label:"Completadas"},{color:COLORS.danger,label:"Canceladas"}].map(l => (
+                    <div key={l.label} style={{ display:"flex", alignItems:"center", gap:5, fontSize:11, color:"var(--text-secondary)" }}>
+                      <div style={{ width:10, height:10, borderRadius:2, background:l.color }}/>{l.label}
+                    </div>
+                  ))}
                 </div>
               </div>
 
               {monthlyData.length > 0 ? (
-                <>
-                  <div className="css-bar-chart" style={{ height: 200 }}>
-                    {monthlyData.map((d, idx) => (
-                      <div key={idx} className="bar-group">
-                        <motion.div
-                          className="bar income"
-                          initial={{ height: 0 }}
-                          animate={{ height: `${Math.round((d.revenue / maxRevenue) * 100)}%` }}
-                          transition={{ delay: 0.35 + idx * 0.07, duration: 0.55 }}
-                        >
-                          <span className="tooltip">${formatMXN(d.revenue)}</span>
-                        </motion.div>
-                        <div className="bar-label">{d.month}</div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr 1fr",
-                      gap: 10,
-                      marginTop: 14,
-                      paddingTop: 12,
-                      borderTop: "1px solid var(--border)",
-                    }}
-                  >
-                    {[
-                      {
-                        label: "Promedio mensual",
-                        value: `$${formatMXN(Math.round(monthlyData.reduce((a, d) => a + d.revenue, 0) / monthlyData.length))}`,
-                        color: "var(--accent-soft)",
-                      },
-                      {
-                        label: "Crecimiento",
-                        value: `${growth.revenue >= 0 ? "+" : ""}${growth.revenue || 0}%`,
-                        color: (growth.revenue || 0) >= 0 ? "var(--success)" : "var(--danger)",
-                      },
-                    ].map((s) => (
-                      <div key={s.label} style={{ background: "var(--bg-input)", borderRadius: "var(--r-md)", padding: "10px 14px" }}>
-                        <div style={{ fontSize: 11, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: ".04em", marginBottom: 4 }}>
-                          {s.label}
-                        </div>
-                        <div style={{ fontSize: 18, fontWeight: 700, color: s.color }}>{s.value}</div>
-                      </div>
-                    ))}
-                  </div>
-                </>
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={monthlyData} barGap={4} barCategoryGap="28%">
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,.06)" vertical={false}/>
+                    <XAxis dataKey="month" tick={{ fontSize:11, fill:"var(--text-secondary)" }} axisLine={false} tickLine={false}/>
+                    <YAxis tick={{ fontSize:10, fill:"var(--text-secondary)" }} axisLine={false} tickLine={false} allowDecimals={false}/>
+                    <RechartTooltip content={<CustomTooltip/>}/>
+                    <Bar dataKey="sessions" name="Completadas" fill={COLORS.primary} radius={[4,4,0,0]}/>
+                    <Bar dataKey="cancelled" name="Canceladas" fill={COLORS.danger} radius={[4,4,0,0]}/>
+                  </BarChart>
+                </ResponsiveContainer>
               ) : (
-                <div style={{ textAlign: "center", padding: "40px 0", color: "var(--text-secondary)" }}>
-                  Sin datos de ingresos para este período
+                <div style={{ textAlign:"center", padding:"40px 0", color:"var(--text-secondary)" }}>
+                  <FiBarChart2 size={30} style={{ opacity:.25, display:"block", margin:"0 auto 10px" }}/>
+                  Sin sesiones registradas en los últimos 6 meses
+                </div>
+              )}
+
+              {/* Mini stats bajo gráfica */}
+              {monthlyData.length > 0 && (
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10, marginTop:14, paddingTop:14, borderTop:"1px solid var(--border)" }}>
+                  {[
+                    { label:"Total completadas", value: monthlyData.reduce((a,d)=>a+d.sessions,0), color:COLORS.primary },
+                    { label:"Total canceladas",  value: monthlyData.reduce((a,d)=>a+d.cancelled,0), color:COLORS.danger },
+                    { label:"Por cliente",       value: metrics.sessionsPerClient || 0,              color:"#a855f7" },
+                  ].map(s => (
+                    <div key={s.label} style={{ background:"var(--bg-input)", borderRadius:8, padding:"10px 12px" }}>
+                      <div style={{ fontSize:10, color:"var(--text-secondary)", textTransform:"uppercase", letterSpacing:".05em", marginBottom:4 }}>{s.label}</div>
+                      <div style={{ fontSize:20, fontWeight:800, color:s.color }}>{s.value}</div>
+                    </div>
+                  ))}
                 </div>
               )}
             </motion.div>
 
             {/* Top clientes */}
             <motion.div
-              className="chart-card"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.25 }}
+              className="stat-card"
+              initial={{ opacity:0, x:16 }} animate={{ opacity:1, x:0 }}
+              style={{ padding:20 }}
             >
-              <div className="chart-header">
-                <h3>
-                  <FiAward style={{ marginRight: 7 }} />
-                  Top clientes por asistencia
-                </h3>
-              </div>
+              <h3 style={{ fontSize:14, fontWeight:700, marginBottom:16, paddingBottom:14, borderBottom:"1px solid var(--border)", display:"flex", alignItems:"center", gap:8 }}>
+                <FiAward size={15} style={{ color:COLORS.warning }}/> Clientes más activos
+              </h3>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 10 }}>
-                {clientProgress.length > 0 ? (
-                  clientProgress.map((client, idx) => (
-                    <ClientProgressBar
-                      key={idx}
-                      rank={idx}
-                      name={client.name}
-                      sessions={client.sessions}
-                      improvement={client.improvement}
-                      isTop={idx === 0}
-                    />
-                  ))
-                ) : (
-                  <div style={{ textAlign: "center", padding: "40px 0", color: "var(--text-secondary)" }}>
-                    Sin datos de clientes para este período
+              {clientProgress.length > 0 ? (
+                <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                  {clientProgress.map((c, i) => (
+                    <div key={i} style={{ display:"flex", alignItems:"center", gap:10 }}>
+                      <Avatar name={c.name} size={36} color={i === 0 ? COLORS.warning : COLORS.primary}/>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontSize:12, fontWeight:700, color:"var(--text-primary)", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                          {c.name}
+                        </div>
+                        <div style={{ height:4, background:"var(--border)", borderRadius:2, marginTop:4, overflow:"hidden" }}>
+                          <motion.div
+                            style={{ height:"100%", background: i===0 ? COLORS.warning : COLORS.primary, borderRadius:2 }}
+                            initial={{ width:0 }}
+                            animate={{ width:`${c.improvement}%` }}
+                            transition={{ delay:0.4 + i*0.07, duration:0.7, ease:"easeOut" }}
+                          />
+                        </div>
+                      </div>
+                      <div style={{ fontSize:12, fontWeight:800, color:"var(--text-secondary)", flexShrink:0 }}>
+                        {c.sessions} ses.
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ textAlign:"center", padding:"30px 0", color:"var(--text-secondary)", fontSize:13 }}>
+                  <FiUsers size={28} style={{ opacity:.25, display:"block", margin:"0 auto 10px" }}/>
+                  Sin sesiones registradas {rangeLabel}
+                </div>
+              )}
+            </motion.div>
+          </div>
+
+          {/* ═══ Fila secundaria: Tipos de sesión + Métricas ═══ */}
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:16 }}>
+
+            {/* Tipos de sesión */}
+            <motion.div
+              className="stat-card"
+              initial={{ opacity:0, y:14 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.1 }}
+              style={{ padding:20 }}
+            >
+              <h3 style={{ fontSize:14, fontWeight:700, marginBottom:16, paddingBottom:14, borderBottom:"1px solid var(--border)", display:"flex", alignItems:"center", gap:8 }}>
+                <FiTarget size={15} style={{ color:"#a855f7" }}/> Tipo de sesiones {rangeLabel}
+              </h3>
+
+              {sessionTypes.length > 0 ? (
+                <>
+                  <ResponsiveContainer width="100%" height={140}>
+                    <BarChart data={sessionTypes} layout="vertical" barSize={22}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,.05)" horizontal={false}/>
+                      <XAxis type="number" tick={{ fontSize:10, fill:"var(--text-secondary)" }} axisLine={false} tickLine={false} allowDecimals={false}/>
+                      <YAxis type="category" dataKey="tipo" tick={{ fontSize:11, fill:"var(--text-secondary)" }} axisLine={false} tickLine={false} width={70}/>
+                      <RechartTooltip content={<CustomTooltip/>}/>
+                      <Bar dataKey="count" name="Sesiones" radius={[0,4,4,0]}>
+                        {sessionTypes.map((_, i) => (
+                          <Cell key={i} fill={typeColors[i]}/>
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+
+                  <div style={{ display:"flex", gap:10, flexWrap:"wrap", marginTop:10, paddingTop:12, borderTop:"1px solid var(--border)" }}>
+                    {sessionTypes.map((t, i) => (
+                      <div key={i} style={{ display:"flex", alignItems:"center", gap:6, fontSize:11 }}>
+                        <div style={{ width:10, height:10, borderRadius:2, background:typeColors[i] }}/>
+                        <span style={{ color:"var(--text-secondary)" }}>{t.tipo}:</span>
+                        <span style={{ color:"var(--text-primary)", fontWeight:700 }}>{t.count}</span>
+                      </div>
+                    ))}
                   </div>
-                )}
+                </>
+              ) : (
+                <div style={{ textAlign:"center", padding:"30px 0", color:"var(--text-secondary)", fontSize:13 }}>
+                  <FiTarget size={28} style={{ opacity:.25, display:"block", margin:"0 auto 10px" }}/>
+                  Sin sesiones completadas {rangeLabel}
+                </div>
+              )}
+            </motion.div>
+
+            {/* Métricas detalladas en lenguaje llano */}
+            <motion.div
+              className="stat-card"
+              initial={{ opacity:0, y:14 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.15 }}
+              style={{ padding:20 }}
+            >
+              <h3 style={{ fontSize:14, fontWeight:700, marginBottom:16, paddingBottom:14, borderBottom:"1px solid var(--border)", display:"flex", alignItems:"center", gap:8 }}>
+                <FiBarChart2 size={15} style={{ color:COLORS.primary }}/> Cómo va tu trabajo
+              </h3>
+
+              <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                {[
+                  {
+                    icon: FiCheckCircle,
+                    label: "Tus clientes asisten bien",
+                    value: `${attendanceRate}%`,
+                    sub: `${stats.sessions ?? 0} de ${totalSchd} sesiones realizadas`,
+                    color: attendanceRate >= 70 ? COLORS.success : COLORS.warning,
+                    good: attendanceRate >= 70,
+                  },
+                  {
+                    icon: FiXCircle,
+                    label: "Sesiones canceladas",
+                    value: `${cancelRate}%`,
+                    sub: `${metrics.totalCancelled ?? 0} cancelaciones en el período`,
+                    color: cancelRate <= 10 ? COLORS.success : COLORS.danger,
+                    good: cancelRate <= 10,
+                  },
+                  {
+                    icon: FiClock,
+                    label: "Sesiones por cliente",
+                    value: `${metrics.sessionsPerClient ?? 0}`,
+                    sub: "Promedio de sesiones completadas",
+                    color: COLORS.primary,
+                    good: true,
+                  },
+                  {
+                    icon: FiStar,
+                    label: "Calificación recibida",
+                    value: stats.avgRating > 0 ? `${stats.avgRating}/5` : "Sin calificaciones",
+                    sub: stats.avgRating > 0 ? (stats.avgRating >= 4 ? "¡Excelente desempeño!" : "Hay oportunidad de mejorar") : "Aún no tienes evaluaciones",
+                    color: stats.avgRating >= 4 ? COLORS.success : stats.avgRating > 0 ? COLORS.warning : COLORS.muted,
+                    good: stats.avgRating >= 4,
+                  },
+                ].map(({ icon: Icon, label, value, sub, color, good }) => (
+                  <div key={label} style={{
+                    display:"flex", gap:12, alignItems:"center",
+                    padding:"11px 14px", background:"var(--bg-input)",
+                    borderRadius:10, border:`1px solid ${good ? "rgba(34,197,94,.15)" : "var(--border)"}`,
+                  }}>
+                    <div style={{
+                      width:38, height:38, borderRadius:9,
+                      background:`${color}18`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0,
+                    }}>
+                      <Icon size={17} style={{ color }}/>
+                    </div>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:12, fontWeight:600, color:"var(--text-primary)" }}>{label}</div>
+                      <div style={{ fontSize:11, color:"var(--text-secondary)", marginTop:1 }}>{sub}</div>
+                    </div>
+                    <div style={{ fontSize:18, fontWeight:800, color, flexShrink:0 }}>{value}</div>
+                  </div>
+                ))}
               </div>
             </motion.div>
           </div>
 
-          {/* Métricas detalladas */}
-          <motion.div
-            className="chart-card"
-            style={{ marginTop: 18 }}
-            initial={{ opacity: 0, y: 18 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-          >
-            <div className="chart-header">
-              <h3>Métricas detalladas</h3>
-            </div>
-
-            <motion.div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-                gap: 12,
-                marginTop: 16,
-              }}
-              variants={stagger}
-              initial="hidden"
-              animate="visible"
-            >
-              {[
-                { label: "Tasa de asistencia", value: `${metrics.attendanceRate || 0}%`,              trend: "Del período actual",         color: "var(--success)"       },
-                { label: "Satisfacción",        value: metrics.satisfaction ? `${metrics.satisfaction}/5` : "N/A", trend: "Promedio evaluaciones", color: "var(--accent-soft)"   },
-                { label: "Retención",           value: `${metrics.retentionRate || 0}%`,              trend: "Clientes que regresan",     color: "var(--success)"       },
-                { label: "Sesiones / cliente",  value: metrics.sessionsPerClient || 0,                trend: "Promedio del período",      color: "var(--accent-soft)"   },
-                { label: "Nuevos clientes",     value: metrics.newClients || 0,                       trend: "Este período",              color: "var(--warning)"       },
-                {
-                  label: "Cancelaciones",
-                  value: `${metrics.cancellationRate || 0}%`,
-                  trend: "Del total programado",
-                  color: (metrics.cancellationRate || 0) > 10 ? "var(--danger)" : "var(--success)",
-                },
-              ].map((m) => (
-                <MetricTile key={m.label} {...m} />
-              ))}
-            </motion.div>
-          </motion.div>
-
-          {/* Tabla resumen mensual */}
+          {/* ═══ Tabla resumen mensual ═══ */}
           {monthlyData.length > 0 && (
             <motion.div
-              className="chart-card"
-              style={{ marginTop: 18 }}
-              initial={{ opacity: 0, y: 18 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 }}
+              className="stat-card"
+              initial={{ opacity:0, y:14 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.2 }}
+              style={{ padding:20 }}
             >
-              <div className="chart-header">
-                <h3>Resumen mensual</h3>
-              </div>
-
-              <div style={{ marginTop: 14, overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <h3 style={{ fontSize:14, fontWeight:700, marginBottom:14, paddingBottom:14, borderBottom:"1px solid var(--border)" }}>
+                Historial mes a mes (últimos 6 meses)
+              </h3>
+              <div style={{ overflowX:"auto" }}>
+                <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
                   <thead>
                     <tr>
-                      {["Mes", "Ingresos", "Sesiones", "Clientes"].map((col) => (
-                        <th
-                          key={col}
-                          style={{
-                            textAlign: "left",
-                            padding: "9px 14px",
-                            borderBottom: "1px solid var(--border)",
-                            color: "var(--text-secondary)",
-                            fontWeight: 700,
-                            fontSize: 11,
-                            textTransform: "uppercase",
-                            letterSpacing: ".06em",
-                          }}
-                        >
-                          {col}
+                      {["Mes","Completadas","Canceladas","Total programadas"].map(h => (
+                        <th key={h} style={{ textAlign:"left", padding:"8px 14px", borderBottom:"1px solid var(--border)", color:"var(--text-secondary)", fontSize:10, fontWeight:700, textTransform:"uppercase", letterSpacing:".06em" }}>
+                          {h}
                         </th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {monthlyData.map((row, idx) => (
+                    {monthlyData.map((row, i) => (
                       <motion.tr
-                        key={idx}
-                        initial={{ opacity: 0, x: -8 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.6 + idx * 0.04 }}
-                        style={{
-                          borderBottom: idx < monthlyData.length - 1 ? "1px solid var(--border)" : "none",
-                        }}
+                        key={i}
+                        initial={{ opacity:0, x:-6 }} animate={{ opacity:1, x:0 }} transition={{ delay:0.3 + i*0.04 }}
+                        style={{ borderBottom: i < monthlyData.length-1 ? "1px solid var(--border)":"none" }}
                       >
-                        <td style={{ padding: "11px 14px", fontWeight: 600 }}>{row.month}</td>
-                        <td style={{ padding: "11px 14px", color: "var(--accent-soft)", fontWeight: 700 }}>
-                          ${formatMXN(row.revenue)}
-                        </td>
-                        <td style={{ padding: "11px 14px" }}>{row.sessions}</td>
-                        <td style={{ padding: "11px 14px" }}>{row.clients}</td>
+                        <td style={{ padding:"11px 14px", fontWeight:700 }}>{row.month}</td>
+                        <td style={{ padding:"11px 14px", color:COLORS.primary, fontWeight:700 }}>{row.sessions}</td>
+                        <td style={{ padding:"11px 14px", color:row.cancelled > 0 ? COLORS.danger : "var(--text-secondary)" }}>{row.cancelled}</td>
+                        <td style={{ padding:"11px 14px", color:"var(--text-secondary)" }}>{row.total}</td>
                       </motion.tr>
                     ))}
                   </tbody>
@@ -563,12 +751,14 @@ export default function TrainerReports() {
 
       {/* Empty state */}
       {!loading && !data && !error && (
-        <div style={{ textAlign: "center", padding: "60px 0", color: "var(--text-secondary)" }}>
-          <FiBarChart2 size={44} style={{ opacity: 0.25, marginBottom: 14 }} />
-          <h3 style={{ marginBottom: 8 }}>No hay datos disponibles</h3>
-          <p>Aún no se han registrado sesiones o pagos en este período.</p>
+        <div style={{ textAlign:"center", padding:"60px 0", color:"var(--text-secondary)" }}>
+          <FiBarChart2 size={44} style={{ opacity:.2, marginBottom:14, display:"block", margin:"0 auto 14px" }}/>
+          <h3 style={{ marginBottom:8 }}>Sin datos por el momento</h3>
+          <p style={{ fontSize:13 }}>Cuando empieces a registrar sesiones, aquí verás tus estadísticas.</p>
         </div>
       )}
+
+      <style>{`@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }`}</style>
     </div>
   );
 }

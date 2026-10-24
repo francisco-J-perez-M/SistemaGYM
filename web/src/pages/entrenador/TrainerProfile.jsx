@@ -1,151 +1,170 @@
+/**
+ * TrainerProfile.jsx — Perfil completo del entrenador.
+ *
+ * Layout:
+ *   ┌──────────────────────────────────────────────────────────┐
+ *   │  Avatar · Nombre · Rol · KPIs rápidos (clientes, sesiones, rating) │
+ *   └──────────────────────────────────────────────────────────┘
+ *   ┌─────────────────────────┬────────────────────────────────┐
+ *   │  Información Personal   │  Información Profesional       │
+ *   └─────────────────────────┴────────────────────────────────┘
+ *   ┌──────────────────────────────────────────────────────────┐
+ *   │  Logros (si los hay)                                     │
+ *   └──────────────────────────────────────────────────────────┘
+ */
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import { 
-  FiUser, 
-  FiMail,
-  FiPhone,
-  FiMapPin,
-  FiEdit,
-  FiSave,
-  FiX,
-  FiAward,
-  FiCalendar,
-  FiDollarSign,
-  FiAlertCircle
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  FiUser, FiMail, FiPhone, FiMapPin,
+  FiEdit, FiSave, FiX, FiAward,
+  FiAlertCircle, FiStar, FiUsers, FiCheckCircle,
+  FiClock, FiBookOpen, FiMessageSquare,
 } from "react-icons/fi";
 import trainerService from "../../services/entrenador/trainerService";
 import "../../css/CSSUnificado.css";
 
+// ─── Field row (view / edit) ──────────────────────────────────────────────────
+function ProfileField({ icon: Icon, label, value, name, editing, onChange, type = "text", multiline = false }) {
+  return (
+    <div>
+      <label style={{
+        display: "flex", alignItems: "center", gap: 6,
+        fontSize: 11, fontWeight: 600, color: "var(--text-secondary)",
+        textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 6,
+      }}>
+        {Icon && <Icon size={12} />}
+        {label}
+      </label>
+
+      {editing ? (
+        multiline ? (
+          <textarea
+            name={name}
+            value={value}
+            onChange={onChange}
+            className="input-compact"
+            rows={4}
+            style={{ resize: "vertical", fontFamily: "inherit" }}
+          />
+        ) : (
+          <input
+            type={type}
+            name={name}
+            value={value}
+            onChange={onChange}
+            className="input-compact"
+          />
+        )
+      ) : (
+        <div style={{
+          padding: "11px 14px",
+          background: "var(--bg-input)",
+          borderRadius: 8,
+          fontSize: 14,
+          color: value ? "var(--text-primary)" : "var(--text-tertiary)",
+          minHeight: multiline ? 90 : "auto",
+          lineHeight: multiline ? 1.6 : "normal",
+          whiteSpace: multiline ? "pre-wrap" : "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        }}>
+          {value || "—"}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Main ─────────────────────────────────────────────────────────────────────
 export default function TrainerProfile() {
   const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    address: "",
-    specialization: "",
-    experience: "",
-    certifications: "",
-    bio: ""
+  const [formData, setFormData]   = useState({
+    name: "", email: "", phone: "", address: "",
+    specialization: "", experience: "", certifications: "", bio: "",
   });
-  const [stats, setStats] = useState({
-    totalClients: 0,
-    totalSessions: 0,
-    totalEarnings: 0,
-    avgRating: 0,
-    yearsActive: 0,
-    certifications: 0
+  const [stats, setStats]             = useState({
+    totalClients: 0, totalSessions: 0, totalEarnings: 0,
+    avgRating: 0, yearsActive: 0, certifications: 0,
   });
   const [achievements, setAchievements] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [saving, setSaving] = useState(false);
+  const [loading, setLoading]           = useState(true);
+  const [error, setError]               = useState(null);
+  const [saving, setSaving]             = useState(false);
 
-  // Cargar perfil al montar el componente
-  useEffect(() => {
-    loadProfile();
-  }, []);
+  useEffect(() => { loadProfile(); }, []);
 
   const loadProfile = async () => {
     try {
       setLoading(true);
       setError(null);
-      const profileData = await trainerService.getProfile();
-      
+      const p = await trainerService.getProfile();
+
       setFormData({
-        name: profileData.name || "",
-        email: profileData.email || "",
-        phone: profileData.phone || "",
-        address: profileData.address || "",
-        specialization: profileData.specialization || "",
-        experience: profileData.experience || "",
-        certifications: profileData.certifications || "",
-        bio: profileData.bio || ""
+        name:           p.name           || "",
+        email:          p.email          || "",
+        phone:          p.phone          || "",
+        address:        p.address        || "",
+        specialization: p.specialization || "",
+        experience:     p.experience     || "",
+        certifications: p.certifications || "",
+        bio:            p.bio            || "",
       });
-      
-      setStats(profileData.stats || {
-        totalClients: 0,
-        totalSessions: 0,
-        totalEarnings: 0,
-        avgRating: 0,
-        yearsActive: 0,
-        certifications: 0
+
+      setStats({
+        totalClients:  p.stats?.totalClients  ?? 0,
+        totalSessions: p.stats?.totalSessions ?? 0,
+        totalEarnings: p.stats?.totalEarnings ?? 0,
+        avgRating:     p.stats?.avgRating     ?? 0,
+        yearsActive:   p.stats?.yearsActive   ?? 0,
+        certifications:p.stats?.certifications ?? 0,
       });
-      
-      // Convertir achievements al formato esperado con iconos
-      const achievementsWithIcons = (profileData.achievements || []).map(achievement => ({
-        title: achievement.title,
-        date: achievement.date,
-        icon: <FiAward />
-      }));
-      setAchievements(achievementsWithIcons);
-      
+
+      setAchievements((p.achievements || []).map(a => ({ ...a })));
     } catch (err) {
-      setError(err.message || 'Error al cargar el perfil');
-      console.error('Error loading profile:', err);
+      setError(err.message || "Error al cargar el perfil");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
-  };
+  const handleChange = e => setFormData(f => ({ ...f, [e.target.name]: e.target.value }));
 
   const handleSave = async () => {
     try {
       setSaving(true);
       setError(null);
-      
       await trainerService.updateProfile(formData);
-      
-      // Recargar el perfil para obtener los datos actualizados
       await loadProfile();
-      
       setIsEditing(false);
     } catch (err) {
-      setError(err.message || 'Error al guardar el perfil');
-      console.error('Error saving profile:', err);
+      setError(err.message || "Error al guardar el perfil");
     } finally {
       setSaving(false);
     }
   };
 
-  const handleCancel = () => {
-    // Recargar datos originales
-    loadProfile();
-    setIsEditing(false);
-  };
+  const handleCancel = () => { loadProfile(); setIsEditing(false); };
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { staggerChildren: 0.05 }
-    }
-  };
+  // Initials for avatar
+  const initials = formData.name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(n => n[0].toUpperCase())
+    .join("");
 
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0 }
-  };
+  const ratingStars = Math.round(stats.avgRating);
 
-  // Loading state
+  // ── Loading ────────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <div className="dashboard-content">
-        <div className="loading-container">
-          <motion.div 
-            className="spinner"
-            animate={{ rotate: 360 }}
-            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-          />
-          <p style={{ marginTop: '20px', color: 'var(--text-secondary)' }}>
-            Cargando perfil...
-          </p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 20, marginTop: 20 }}>
+          <div className="skeleton" style={{ height: 160, borderRadius: 16 }} />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+            <div className="skeleton" style={{ height: 360, borderRadius: 16 }} />
+            <div className="skeleton" style={{ height: 360, borderRadius: 16 }} />
+          </div>
         </div>
       </div>
     );
@@ -153,460 +172,252 @@ export default function TrainerProfile() {
 
   return (
     <div className="dashboard-content">
-      <motion.div 
-        className="welcome-section"
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5 }}
-      >
-        <div className="welcome-content">
-          <div className="welcome-text">
-            <h2>Mi Perfil</h2>
-            <p>Gestiona tu información personal y profesional</p>
-          </div>
-          <FiUser size={50} style={{ color: 'var(--accent)', opacity: 0.8 }} />
-        </div>
-      </motion.div>
 
-      {/* Mensaje de error */}
-      {error && (
-        <motion.div 
-          className="alert-error"
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          style={{ 
-            marginTop: '20px',
-            padding: '15px',
-            background: 'rgba(239, 68, 68, 0.1)',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
-            borderRadius: '8px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            color: 'var(--error-color)'
-          }}
-        >
-          <FiAlertCircle size={20} />
-          <span>{error}</span>
-          <button 
-            onClick={() => setError(null)}
+      {/* ── Page header ── */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 22, flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <h2 className="page-title" style={{ marginBottom: 4 }}>Mi Perfil</h2>
+          <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0 }}>
+            Gestiona tu información personal y profesional
+          </p>
+        </div>
+
+        <div style={{ display: "flex", gap: 8 }}>
+          {isEditing ? (
+            <>
+              <button className="btn-outline-small" onClick={handleCancel} disabled={saving}>
+                <FiX size={14} /> Cancelar
+              </button>
+              <button className="btn-compact-primary" onClick={handleSave} disabled={saving}>
+                <FiSave size={14} /> {saving ? "Guardando…" : "Guardar cambios"}
+              </button>
+            </>
+          ) : (
+            <button className="btn-compact-primary" onClick={() => setIsEditing(true)}>
+              <FiEdit size={14} /> Editar perfil
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* ── Error ── */}
+      <AnimatePresence>
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
             style={{
-              marginLeft: 'auto',
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--error-color)',
-              cursor: 'pointer'
+              background: "rgba(239,68,68,.1)", border: "1px solid rgba(239,68,68,.3)",
+              borderRadius: 10, padding: "12px 16px", marginBottom: 18,
+              color: "var(--danger)", fontSize: 13, display: "flex", gap: 10, alignItems: "center",
             }}
           >
-            <FiX size={18} />
-          </button>
-        </motion.div>
-      )}
+            <FiAlertCircle size={15} /> {error}
+            <button onClick={() => setError(null)}
+              style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "var(--danger)" }}>
+              <FiX size={16} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* Estadísticas del Perfil */}
-      <motion.div 
-        className="kpi-grid" 
-        style={{ marginTop: '25px', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
+      {/* ══════════════════════ TOP CARD: avatar + KPIs ══════════════════════ */}
+      <motion.div
+        className="stat-card"
+        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+        style={{ padding: 24, marginBottom: 20 }}
       >
-        <motion.div className="stat-card" variants={itemVariants}>
-          <div className="stat-header">
-            <h3>Total Clientes</h3>
-          </div>
-          <div className="stat-value highlight">{stats.totalClients}</div>
-          <div className="stat-detail">Clientes activos</div>
-        </motion.div>
+        <div style={{ display: "flex", alignItems: "center", gap: 24, flexWrap: "wrap" }}>
 
-        <motion.div className="stat-card" variants={itemVariants}>
-          <div className="stat-header">
-            <h3>Sesiones</h3>
-          </div>
-          <div className="stat-value">{stats.totalSessions}</div>
-          <div className="stat-detail">Total completadas</div>
-        </motion.div>
-
-        <motion.div className="stat-card" variants={itemVariants}>
-          <div className="stat-header">
-            <h3>Ingresos</h3>
-          </div>
-          <div className="stat-value">${(stats.totalEarnings / 1000).toFixed(0)}k</div>
-          <div className="stat-detail">Total generado</div>
-        </motion.div>
-
-        <motion.div className="stat-card" variants={itemVariants}>
-          <div className="stat-header">
-            <h3>Calificación</h3>
-          </div>
-          <div className="stat-value highlight">{stats.avgRating}</div>
-          <div className="stat-detail">Promedio de {stats.totalClients} clientes</div>
-        </motion.div>
-
-        <motion.div className="stat-card" variants={itemVariants}>
-          <div className="stat-header">
-            <h3>Experiencia</h3>
-          </div>
-          <div className="stat-value">{stats.yearsActive}</div>
-          <div className="stat-detail">Años en el gym</div>
-        </motion.div>
-
-        <motion.div className="stat-card" variants={itemVariants}>
-          <div className="stat-header">
-            <h3>Certificaciones</h3>
-          </div>
-          <div className="stat-value highlight">{stats.certifications}</div>
-          <div className="stat-detail">Acreditaciones</div>
-        </motion.div>
-      </motion.div>
-
-      <div className="charts-row" style={{ marginTop: '25px' }}>
-        {/* Información Personal */}
-        <motion.div 
-          className="chart-card"
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.3 }}
-        >
-          <div className="chart-header">
-            <h3>Información Personal</h3>
-            {!isEditing ? (
-              <motion.button
-                className="btn-compact-primary"
-                onClick={() => setIsEditing(true)}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <FiEdit size={16} />
-                Editar
-              </motion.button>
-            ) : (
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <motion.button
-                  className="btn-compact-primary"
-                  onClick={handleSave}
-                  disabled={saving}
-                  whileHover={{ scale: saving ? 1 : 1.05 }}
-                  whileTap={{ scale: saving ? 1 : 0.95 }}
-                >
-                  <FiSave size={16} />
-                  {saving ? 'Guardando...' : 'Guardar'}
-                </motion.button>
-                <motion.button
-                  className="btn-outline-small"
-                  onClick={handleCancel}
-                  disabled={saving}
-                  whileHover={{ scale: saving ? 1 : 1.05 }}
-                  whileTap={{ scale: saving ? 1 : 0.95 }}
-                >
-                  <FiX size={16} />
-                  Cancelar
-                </motion.button>
+          {/* Avatar */}
+          <div style={{ position: "relative", flexShrink: 0 }}>
+            <div style={{
+              width: 80, height: 80, borderRadius: "50%",
+              background: "linear-gradient(135deg, var(--accent), var(--accent-hover))",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 28, fontWeight: 800, color: "#fff",
+              border: "3px solid var(--border)",
+              boxShadow: "0 0 0 4px rgba(99,102,241,.15)",
+            }}>
+              {initials || <FiUser size={32} />}
+            </div>
+            {isEditing && (
+              <div style={{
+                position: "absolute", bottom: 0, right: 0,
+                width: 26, height: 26, borderRadius: "50%",
+                background: "var(--accent)", color: "#fff", border: "2px solid var(--bg-card)",
+                display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
+              }}>
+                <FiEdit size={12} />
               </div>
             )}
           </div>
 
-          <div style={{ marginTop: '20px' }}>
-            {/* Avatar */}
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'center',
-              marginBottom: '25px'
-            }}>
-              <div style={{ position: 'relative' }}>
-                <div className="avatar" style={{ 
-                  width: '100px', 
-                  height: '100px', 
-                  fontSize: '36px',
-                  border: '3px solid var(--accent)'
-                }}>
-                  {formData.name.split(' ').map(n => n[0]).join('')}
+          {/* Name + role + stars */}
+          <div style={{ flex: 1, minWidth: 160 }}>
+            <div style={{ fontSize: 20, fontWeight: 800, color: "var(--text-primary)", lineHeight: 1.2 }}>
+              {formData.name || "—"}
+            </div>
+            <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 3, marginBottom: 8 }}>
+              {formData.specialization ? `Entrenador · ${formData.specialization}` : "Entrenador Personal"}
+            </div>
+            {/* Rating stars */}
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              {[1,2,3,4,5].map(i => (
+                <FiStar key={i} size={13}
+                  style={{ color: i <= ratingStars ? "#f59e0b" : "var(--border)",
+                    fill: i <= ratingStars ? "#f59e0b" : "none" }} />
+              ))}
+              <span style={{ fontSize: 12, color: "var(--text-secondary)", marginLeft: 4 }}>
+                {stats.avgRating > 0 ? stats.avgRating.toFixed(1) : "Sin calificaciones"}
+              </span>
+            </div>
+          </div>
+
+          {/* KPI chips */}
+          <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
+            {[
+              { icon: FiUsers,        value: stats.totalClients,  label: "Clientes",    color: "#6366f1" },
+              { icon: FiCheckCircle,  value: stats.totalSessions, label: "Sesiones",    color: "#22c55e" },
+              { icon: FiClock,        value: `${stats.yearsActive} años`, label: "Experiencia", color: "#f59e0b" },
+              { icon: FiAward,        value: stats.certifications,label: "Certificaciones", color: "#a855f7" },
+            ].map(({ icon: Icon, value, label, color }) => (
+              <div key={label} style={{
+                display: "flex", flexDirection: "column", alignItems: "center",
+                padding: "12px 18px", background: "var(--bg-input)",
+                borderRadius: 12, border: "1px solid var(--border)",
+                minWidth: 90, textAlign: "center",
+              }}>
+                <Icon size={16} style={{ color, marginBottom: 6 }} />
+                <div style={{ fontSize: 20, fontWeight: 800, color, lineHeight: 1 }}>{value}</div>
+                <div style={{ fontSize: 10, color: "var(--text-secondary)", marginTop: 4, textTransform: "uppercase", letterSpacing: ".05em" }}>
+                  {label}
                 </div>
-                {isEditing && (
-                  <motion.button
-                    style={{
-                      position: 'absolute',
-                      bottom: 0,
-                      right: 0,
-                      width: '32px',
-                      height: '32px',
-                      borderRadius: '50%',
-                      background: 'var(--accent)',
-                      color: 'var(--text-on-accent)',
-                      border: 'none',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer'
-                    }}
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                  >
-                    <FiEdit size={14} />
-                  </motion.button>
-                )}
               </div>
-            </div>
+            ))}
+          </div>
+        </div>
+      </motion.div>
 
-            {/* Formulario */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <div>
-                <label className="form-label-compact">
-                  <FiUser size={14} style={{ marginRight: 6 }} />
-                  Nombre Completo
-                </label>
-                {isEditing ? (
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    className="input-compact"
-                  />
-                ) : (
-                  <div style={{ 
-                    padding: '12px',
-                    background: 'var(--input-bg-dark)',
-                    borderRadius: '8px',
-                    marginTop: '6px'
-                  }}>
-                    {formData.name || '-'}
-                  </div>
-                )}
-              </div>
+      {/* ══════════════════════ TWO-COLUMN FORMS ══════════════════════ */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
 
-              <div>
-                <label className="form-label-compact">
-                  <FiMail size={14} style={{ marginRight: 6 }} />
-                  Email
-                </label>
-                {isEditing ? (
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    className="input-compact"
-                  />
-                ) : (
-                  <div style={{ 
-                    padding: '12px',
-                    background: 'var(--input-bg-dark)',
-                    borderRadius: '8px',
-                    marginTop: '6px'
-                  }}>
-                    {formData.email || '-'}
-                  </div>
-                )}
-              </div>
+        {/* ── Left: Información Personal ── */}
+        <motion.div
+          className="stat-card"
+          initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.05 }}
+          style={{ padding: 22 }}
+        >
+          <div style={{
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+            marginBottom: 20, paddingBottom: 14, borderBottom: "1px solid var(--border)",
+          }}>
+            <h3 style={{ fontSize: 15, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
+              <FiUser size={15} style={{ color: "var(--accent)" }} />
+              Información Personal
+            </h3>
+          </div>
 
-              <div>
-                <label className="form-label-compact">
-                  <FiPhone size={14} style={{ marginRight: 6 }} />
-                  Teléfono
-                </label>
-                {isEditing ? (
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    className="input-compact"
-                  />
-                ) : (
-                  <div style={{ 
-                    padding: '12px',
-                    background: 'var(--input-bg-dark)',
-                    borderRadius: '8px',
-                    marginTop: '6px'
-                  }}>
-                    {formData.phone || '-'}
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className="form-label-compact">
-                  <FiMapPin size={14} style={{ marginRight: 6 }} />
-                  Dirección
-                </label>
-                {isEditing ? (
-                  <input
-                    type="text"
-                    name="address"
-                    value={formData.address}
-                    onChange={handleChange}
-                    className="input-compact"
-                  />
-                ) : (
-                  <div style={{ 
-                    padding: '12px',
-                    background: 'var(--input-bg-dark)',
-                    borderRadius: '8px',
-                    marginTop: '6px'
-                  }}>
-                    {formData.address || '-'}
-                  </div>
-                )}
-              </div>
-            </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+            <ProfileField icon={FiUser}   label="Nombre completo" name="name"    value={formData.name}    editing={isEditing} onChange={handleChange} />
+            <ProfileField icon={FiMail}   label="Correo electrónico" name="email"  value={formData.email}   editing={isEditing} onChange={handleChange} type="email" />
+            <ProfileField icon={FiPhone}  label="Teléfono"        name="phone"   value={formData.phone}   editing={isEditing} onChange={handleChange} type="tel" />
+            <ProfileField icon={FiMapPin} label="Dirección"       name="address" value={formData.address} editing={isEditing} onChange={handleChange} />
           </div>
         </motion.div>
 
-        {/* Información Profesional */}
-        <motion.div 
-          className="chart-card"
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.3 }}
+        {/* ── Right: Información Profesional ── */}
+        <motion.div
+          className="stat-card"
+          initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.05 }}
+          style={{ padding: 22 }}
         >
-          <div className="chart-header">
-            <h3>Información Profesional</h3>
+          <div style={{
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+            marginBottom: 20, paddingBottom: 14, borderBottom: "1px solid var(--border)",
+          }}>
+            <h3 style={{ fontSize: 15, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
+              <FiAward size={15} style={{ color: "var(--accent)" }} />
+              Información Profesional
+            </h3>
           </div>
 
-          <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <div>
-              <label className="form-label-compact">Especialización</label>
-              {isEditing ? (
-                <input
-                  type="text"
-                  name="specialization"
-                  value={formData.specialization}
-                  onChange={handleChange}
-                  className="input-compact"
-                />
-              ) : (
-                <div style={{ 
-                  padding: '12px',
-                  background: 'var(--input-bg-dark)',
-                  borderRadius: '8px',
-                  marginTop: '6px'
-                }}>
-                  {formData.specialization || '-'}
-                </div>
-              )}
-            </div>
-
-            <div>
-              <label className="form-label-compact">Experiencia</label>
-              <div style={{ 
-                padding: '12px',
-                background: 'var(--input-bg-dark)',
-                borderRadius: '8px',
-                marginTop: '6px'
-              }}>
-                {formData.experience || '-'}
-              </div>
-            </div>
-
-            <div>
-              <label className="form-label-compact">Certificaciones</label>
-              <div style={{ 
-                padding: '12px',
-                background: 'var(--input-bg-dark)',
-                borderRadius: '8px',
-                marginTop: '6px'
-              }}>
-                {formData.certifications || '-'}
-              </div>
-            </div>
-
-            <div>
-              <label className="form-label-compact">Biografía</label>
-              {isEditing ? (
-                <textarea
-                  name="bio"
-                  value={formData.bio}
-                  onChange={handleChange}
-                  className="input-compact"
-                  rows="4"
-                  style={{ resize: 'vertical', fontFamily: 'inherit' }}
-                />
-              ) : (
-                <div style={{ 
-                  padding: '12px',
-                  background: 'var(--input-bg-dark)',
-                  borderRadius: '8px',
-                  marginTop: '6px',
-                  lineHeight: '1.6'
-                }}>
-                  {formData.bio || '-'}
-                </div>
-              )}
-            </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+            <ProfileField
+              icon={FiBookOpen} label="Especialización" name="specialization"
+              value={formData.specialization} editing={isEditing} onChange={handleChange}
+            />
+            <ProfileField
+              icon={FiClock} label="Experiencia" name="experience"
+              value={formData.experience} editing={isEditing} onChange={handleChange}
+            />
+            <ProfileField
+              icon={FiAward} label="Certificaciones" name="certifications"
+              value={formData.certifications} editing={isEditing} onChange={handleChange}
+            />
+            <ProfileField
+              icon={FiMessageSquare} label="Biografía / Descripción" name="bio"
+              value={formData.bio} editing={isEditing} onChange={handleChange}
+              multiline
+            />
           </div>
         </motion.div>
       </div>
 
-      {/* Logros y Reconocimientos */}
-      {achievements.length > 0 && (
-        <motion.div 
-          className="chart-card"
-          style={{ marginTop: '20px' }}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-        >
-          <div className="chart-header">
-            <h3><FiAward style={{ marginRight: 8 }} />Logros y Reconocimientos</h3>
-          </div>
-
-          <motion.div 
-            style={{ 
-              marginTop: '20px',
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
-              gap: '15px'
-            }}
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
+      {/* ══════════════════════ LOGROS (si los hay) ══════════════════════ */}
+      <AnimatePresence>
+        {achievements.length > 0 && (
+          <motion.div
+            className="stat-card"
+            initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+            transition={{ delay: 0.1 }}
+            style={{ padding: 22 }}
           >
-            {achievements.map((achievement, idx) => (
-              <motion.div
-                key={idx}
-                variants={itemVariants}
-                style={{
-                  background: 'var(--input-bg-dark)',
-                  padding: '20px',
-                  borderRadius: '12px',
-                  border: '1px solid var(--border-dark)',
-                  display: 'flex',
-                  gap: '15px',
-                  alignItems: 'center'
-                }}
-                whileHover={{ 
-                  borderColor: 'var(--accent)',
-                  transform: 'translateY(-3px)'
-                }}
-              >
-                <div style={{
-                  width: '50px',
-                  height: '50px',
-                  background: 'var(--accent)',
-                  color: 'var(--text-on-accent)',
-                  borderRadius: '12px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '24px',
-                  flexShrink: 0
-                }}>
-                  {achievement.icon}
-                </div>
-                <div>
-                  <h4 style={{ fontSize: '15px', fontWeight: '600', marginBottom: '4px' }}>
-                    {achievement.title}
-                  </h4>
-                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                    {achievement.date}
-                  </p>
-                </div>
-              </motion.div>
-            ))}
+            <h3 style={{
+              fontSize: 15, fontWeight: 700, marginBottom: 16,
+              paddingBottom: 14, borderBottom: "1px solid var(--border)",
+              display: "flex", alignItems: "center", gap: 8,
+            }}>
+              <FiAward size={15} style={{ color: "#f59e0b" }} />
+              Logros y Reconocimientos
+            </h3>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 12 }}>
+              {achievements.map((a, idx) => (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: idx * 0.04 }}
+                  style={{
+                    display: "flex", gap: 14, alignItems: "center",
+                    padding: "14px 16px",
+                    background: "var(--bg-input)",
+                    borderRadius: 12, border: "1px solid var(--border)",
+                  }}
+                  whileHover={{ borderColor: "#f59e0b" }}
+                >
+                  <div style={{
+                    width: 44, height: 44, borderRadius: 10,
+                    background: "rgba(245,158,11,.15)",
+                    display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                  }}>
+                    <FiAward size={20} style={{ color: "#f59e0b" }} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>{a.title}</div>
+                    {a.description && (
+                      <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>{a.description}</div>
+                    )}
+                    {a.date && (
+                      <div style={{ fontSize: 10, color: "var(--text-tertiary)", marginTop: 3 }}>{a.date}</div>
+                    )}
+                  </div>
+                </motion.div>
+              ))}
+            </div>
           </motion.div>
-        </motion.div>
-      )}
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }
