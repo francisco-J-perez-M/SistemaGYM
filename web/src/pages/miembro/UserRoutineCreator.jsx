@@ -108,6 +108,7 @@ function GrupoSelector({ value, onChange }) {
 
 function EjercicioRow({ ej, idx, grupo, onUpdate, onDelete }) {
   const [showSug, setShowSug] = useState(false);
+  const g    = GRUPOS.find(g => g.id === grupo) || GRUPOS[0];
   const sugs = (SUGERENCIAS[grupo] || []).filter(s =>
     ej.nombre === "" || s.toLowerCase().includes(ej.nombre.toLowerCase())
   );
@@ -119,46 +120,70 @@ function EjercicioRow({ ej, idx, grupo, onUpdate, onDelete }) {
   }, []);
 
   return (
-    <div ref={ref} style={{ position:"relative", display:"grid", gridTemplateColumns:"1fr auto auto auto", gap:8, alignItems:"center", padding:"10px 12px", background:"var(--bg-input)", borderRadius:9, marginBottom:8 }}>
+    <div ref={ref} style={{
+      position:"relative", display:"grid",
+      gridTemplateColumns:"24px 1fr 60px 60px 32px",
+      gap:8, alignItems:"center",
+      padding:"8px 10px", background:"var(--bg-input)", borderRadius:9, marginBottom:6,
+    }}>
+      {/* Número */}
+      <div style={{
+        width:22, height:22, borderRadius:6,
+        background:`${g.color}22`, color:g.color,
+        display:"flex", alignItems:"center", justifyContent:"center",
+        fontSize:10, fontWeight:800, flexShrink:0,
+      }}>{idx + 1}</div>
+
       <div style={{ position:"relative" }}>
         <input
           placeholder="Nombre del ejercicio…"
           value={ej.nombre}
           onChange={e => { onUpdate("nombre", e.target.value); setShowSug(true); }}
           onFocus={() => setShowSug(true)}
-          style={{ width:"100%", padding:"8px 10px", background:"var(--bg-card)", border:"1px solid var(--border)", borderRadius:7, color:"var(--text-primary)", fontSize:13 }}
+          style={{ width:"100%", padding:"7px 10px", background:"var(--bg-card)",
+            border:"1px solid var(--border)", borderRadius:7,
+            color:"var(--text-primary)", fontSize:13, boxSizing:"border-box" }}
         />
         {showSug && sugs.length > 0 && ej.nombre.length < 20 && (
           <div style={{
             position:"absolute", top:"calc(100% + 4px)", left:0, right:0, zIndex:40,
             background:"var(--bg-card)", border:"1px solid var(--border)",
             borderRadius:8, maxHeight:160, overflowY:"auto",
-            boxShadow:"0 6px 20px rgba(0,0,0,.2)",
+            boxShadow:"0 8px 24px rgba(0,0,0,.3)",
           }}>
             {sugs.slice(0,6).map(s => (
               <div key={s} onClick={() => { onUpdate("nombre", s); setShowSug(false); }}
-                style={{ padding:"8px 12px", cursor:"pointer", fontSize:13, color:"var(--text-primary)" }}
+                style={{ padding:"9px 12px", cursor:"pointer", fontSize:13, color:"var(--text-primary)",
+                  display:"flex", alignItems:"center", gap:8 }}
                 onMouseEnter={e => e.currentTarget.style.background = "var(--bg-input)"}
                 onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-              >{s}</div>
+              >
+                <span style={{ color:g.color, fontSize:11 }}>{g.emoji}</span>
+                {s}
+              </div>
             ))}
           </div>
         )}
       </div>
 
-      <input
-        placeholder="Series"
-        value={ej.series}
+      <input placeholder="Series" value={ej.series}
         onChange={e => onUpdate("series", e.target.value)}
-        style={{ width:60, padding:"8px 10px", background:"var(--bg-card)", border:"1px solid var(--border)", borderRadius:7, color:"var(--text-primary)", fontSize:13, textAlign:"center" }}
+        style={{ padding:"7px 4px", background:"var(--bg-card)", border:"1px solid var(--border)",
+          borderRadius:7, color:"var(--text-primary)", fontSize:13, textAlign:"center",
+          width:"100%", boxSizing:"border-box" }}
       />
-      <input
-        placeholder="Reps"
-        value={ej.reps}
+      <input placeholder="Reps" value={ej.reps}
         onChange={e => onUpdate("reps", e.target.value)}
-        style={{ width:60, padding:"8px 10px", background:"var(--bg-card)", border:"1px solid var(--border)", borderRadius:7, color:"var(--text-primary)", fontSize:13, textAlign:"center" }}
+        style={{ padding:"7px 4px", background:"var(--bg-card)", border:"1px solid var(--border)",
+          borderRadius:7, color:"var(--text-primary)", fontSize:13, textAlign:"center",
+          width:"100%", boxSizing:"border-box" }}
       />
-      <button onClick={onDelete} style={{ padding:8, background:"none", border:"none", color:"var(--text-secondary)", cursor:"pointer" }}>
+      <button onClick={onDelete}
+        style={{ padding:6, background:"none", border:"none", color:"var(--text-secondary)",
+          cursor:"pointer", borderRadius:6, display:"flex", alignItems:"center", justifyContent:"center" }}
+        onMouseEnter={e => { e.currentTarget.style.color = "#f87171"; e.currentTarget.style.background = "rgba(239,68,68,.1)"; }}
+        onMouseLeave={e => { e.currentTarget.style.color = "var(--text-secondary)"; e.currentTarget.style.background = "none"; }}
+      >
         <FiTrash2 size={14} />
       </button>
     </div>
@@ -258,35 +283,66 @@ export default function UserRoutineCreator() {
   const current = routine.dias[activeDay];
   const grupo   = current ? (GRUPOS.find(g => g.id === current.grupo) || GRUPOS[0]) : null;
 
+  // Totales para el header info
+  const totalDias = routine.dias.filter(d => d.grupo !== "descanso").length;
+  const totalEjs  = routine.dias.reduce((acc, d) => acc + (d.ejercicios?.filter(e=>e.nombre.trim()).length ?? 0), 0);
+
   return (
     <div className="dashboard-layout">
       <div className="main-wrapper">
         <header className="top-header">
-          <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-            <input
-              value={routine.nombre}
-              onChange={e => setRoutine(r => ({ ...r, nombre:e.target.value }))}
-              style={{
-                background:"transparent", border:"none", fontSize:20, fontWeight:700,
-                color:"var(--text-primary)", outline:"none", maxWidth:300,
-              }}
-              placeholder="Nombre de la rutina"
-            />
+          <div style={{ display:"flex", alignItems:"center", gap:12, flex:1, minWidth:0 }}>
+            <div style={{
+              width:40, height:40, borderRadius:12, flexShrink:0,
+              background:"linear-gradient(135deg,var(--accent),#7c3aed)",
+              display:"flex", alignItems:"center", justifyContent:"center",
+            }}>
+              <FiSave size={18} color="#fff" />
+            </div>
+            <div style={{ flex:1, minWidth:0 }}>
+              <input
+                value={routine.nombre}
+                onChange={e => setRoutine(r => ({ ...r, nombre:e.target.value }))}
+                style={{
+                  background:"transparent", border:"none", fontSize:18, fontWeight:700,
+                  color:"var(--text-primary)", outline:"none", width:"100%",
+                  overflow:"hidden", textOverflow:"ellipsis",
+                }}
+                placeholder="Nombre de la rutina"
+              />
+              <div style={{ display:"flex", gap:8, marginTop:2 }}>
+                <span style={{ fontSize:11, color:"var(--text-secondary)" }}>
+                  {totalDias} día{totalDias !== 1 ? "s" : ""} de entrenamiento
+                </span>
+                {totalEjs > 0 && (
+                  <span style={{ fontSize:11, color:"var(--text-secondary)" }}>
+                    · {totalEjs} ejercicio{totalEjs !== 1 ? "s" : ""}
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
-          <div style={{ display:"flex", gap:10 }}>
+          <div style={{ display:"flex", gap:8, flexShrink:0 }}>
             <motion.button
               whileHover={{ scale:1.04 }} whileTap={{ scale:.97 }}
               onClick={() => setShowTpl(true)}
-              style={{ display:"flex", alignItems:"center", gap:7, padding:"8px 14px", background:"var(--bg-input)", border:"1px solid var(--border)", borderRadius:8, color:"var(--text-secondary)", cursor:"pointer", fontSize:13, fontWeight:600 }}
+              style={{ display:"flex", alignItems:"center", gap:7, padding:"8px 14px",
+                background:"var(--bg-input)", border:"1px solid var(--border)",
+                borderRadius:8, color:"var(--text-secondary)", cursor:"pointer", fontSize:13, fontWeight:600 }}
             >
               <FiZap size={13} /> Plantillas
             </motion.button>
             <motion.button
               whileHover={{ scale:1.04 }} whileTap={{ scale:.97 }}
               onClick={save} disabled={saving}
-              style={{ display:"flex", alignItems:"center", gap:7, padding:"8px 16px", background: saving ? "var(--bg-input)" : "var(--accent)", border:"none", borderRadius:8, color:"#fff", cursor: saving ? "not-allowed" : "pointer", fontSize:13, fontWeight:700, opacity: saving ? .7 : 1 }}
+              style={{ display:"flex", alignItems:"center", gap:7, padding:"8px 16px",
+                background: saving ? "var(--bg-input)" : "var(--accent)",
+                border:"none", borderRadius:8, color: saving ? "var(--text-secondary)" : "#fff",
+                cursor: saving ? "not-allowed" : "pointer", fontSize:13, fontWeight:700 }}
             >
-              {saving ? <><div className="dashboard-spinner" style={{ width:14,height:14,borderWidth:2 }} /> Guardando…</> : <><FiSave size={13} /> Guardar</>}
+              {saving
+                ? <><div className="dashboard-spinner" style={{width:14,height:14,borderWidth:2}}/> Guardando…</>
+                : <><FiSave size={13}/> Guardar</>}
             </motion.button>
           </div>
         </header>
@@ -310,37 +366,59 @@ export default function UserRoutineCreator() {
           </AnimatePresence>
 
           {/* Week bar */}
-          <div style={{ display:"flex", gap:8, marginBottom:20, flexWrap:"wrap" }}>
-            {routine.dias.map((d, i) => {
-              const g = GRUPOS.find(g => g.id === d.grupo) || GRUPOS[0];
-              const isActive = i === activeDay;
-              return (
-                <motion.div
-                  key={i} whileHover={{ scale:1.04 }} onClick={() => setActiveDay(i)}
-                  style={{
-                    padding:"8px 14px", borderRadius:10, cursor:"pointer", fontSize:13, fontWeight:600,
-                    background: isActive ? `${g.color}22` : "var(--bg-card)",
-                    border:`2px solid ${isActive ? g.color : "var(--border)"}`,
-                    color: isActive ? g.color : "var(--text-secondary)",
-                    display:"flex", alignItems:"center", gap:6, transition:"all .2s",
-                  }}
-                >
-                  <span>{g.emoji}</span>
-                  <span style={{ display:"flex", flexDirection:"column", lineHeight:1.2 }}>
-                    <span style={{ fontSize:11, fontWeight:400 }}>{DIAS_CORTO[DIAS_SEMANA.indexOf(d.dia)] ?? d.dia.slice(0,3)}</span>
-                    <span>{g.label}</span>
-                  </span>
-                </motion.div>
-              );
-            })}
+          {routine.dias.length > 0 && (
+            <div style={{ display:"flex", gap:8, marginBottom:20, flexWrap:"wrap" }}>
+              {routine.dias.map((d, i) => {
+                const g = GRUPOS.find(g => g.id === d.grupo) || GRUPOS[0];
+                const isActive = i === activeDay;
+                const ejCount  = (d.ejercicios || []).filter(e => e.nombre.trim()).length;
+                return (
+                  <motion.div
+                    key={i} whileHover={{ scale:1.03, y:-1 }} whileTap={{ scale:.97 }}
+                    onClick={() => setActiveDay(i)}
+                    style={{
+                      padding:"10px 16px", borderRadius:12, cursor:"pointer",
+                      background: isActive ? `${g.color}1a` : "var(--bg-card)",
+                      border:`2px solid ${isActive ? g.color : "var(--border)"}`,
+                      color: isActive ? g.color : "var(--text-secondary)",
+                      display:"flex", alignItems:"center", gap:8, transition:"all .2s",
+                      position:"relative",
+                    }}
+                  >
+                    <span style={{ fontSize:20 }}>{g.emoji}</span>
+                    <span style={{ display:"flex", flexDirection:"column", lineHeight:1.3 }}>
+                      <span style={{ fontSize:10, fontWeight:500, opacity:.75 }}>
+                        {DIAS_CORTO[DIAS_SEMANA.indexOf(d.dia)] ?? d.dia.slice(0,3)}
+                      </span>
+                      <span style={{ fontSize:13, fontWeight:700 }}>{g.label}</span>
+                    </span>
+                    {ejCount > 0 && (
+                      <span style={{
+                        position:"absolute", top:-6, right:-6,
+                        width:18, height:18, borderRadius:"50%",
+                        background: g.color, color:"#fff",
+                        fontSize:10, fontWeight:700,
+                        display:"flex", alignItems:"center", justifyContent:"center",
+                      }}>{ejCount}</span>
+                    )}
+                  </motion.div>
+                );
+              })}
 
-            {routine.dias.length < 7 && (
-              <motion.div whileHover={{ scale:1.04 }} onClick={addDay}
-                style={{ padding:"8px 14px", borderRadius:10, cursor:"pointer", fontSize:13, fontWeight:600, background:"var(--bg-card)", border:"2px dashed var(--border)", color:"var(--text-secondary)", display:"flex", alignItems:"center", gap:6 }}>
-                <FiPlus size={14} /> Día
-              </motion.div>
-            )}
-          </div>
+              {routine.dias.length < 7 && (
+                <motion.div
+                  whileHover={{ scale:1.03 }} whileTap={{ scale:.97 }}
+                  onClick={addDay}
+                  style={{ padding:"10px 16px", borderRadius:12, cursor:"pointer",
+                    background:"var(--bg-card)", border:"2px dashed var(--border)",
+                    color:"var(--text-secondary)", display:"flex", alignItems:"center", gap:6,
+                    fontSize:13, fontWeight:600 }}
+                >
+                  <FiPlus size={14} /> Día
+                </motion.div>
+              )}
+            </div>
+          )}
 
           {/* Day editor */}
           {current ? (
@@ -405,12 +483,17 @@ export default function UserRoutineCreator() {
                   ) : (
                     <>
                       {/* Header row */}
-                      <div style={{ display:"grid", gridTemplateColumns:"1fr 60px 60px 32px", gap:8, padding:"0 12px 8px", fontSize:11, fontWeight:700, color:"var(--text-secondary)", textTransform:"uppercase", letterSpacing:".06em" }}>
-                        <span>Ejercicio</span><span style={{textAlign:"center"}}>Series</span><span style={{textAlign:"center"}}>Reps</span><span></span>
+                      <div style={{ display:"grid", gridTemplateColumns:"24px 1fr 60px 60px 32px", gap:8, padding:"0 8px 8px", fontSize:11, fontWeight:700, color:"var(--text-secondary)", textTransform:"uppercase", letterSpacing:".06em" }}>
+                        <span></span><span>Ejercicio</span><span style={{textAlign:"center"}}>Series</span><span style={{textAlign:"center"}}>Reps</span><span></span>
                       </div>
                       <AnimatePresence>
                         {current.ejercicios.map((ej, ei) => (
-                          <motion.div key={ei} initial={{ opacity:0, x:-10 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:10 }}>
+                          <motion.div
+                            key={ei}
+                            initial={{ opacity:0, x:-10 }}
+                            animate={{ opacity:1, x:0 }}
+                            exit={{ opacity:0, x:10, height:0 }}
+                          >
                             <EjercicioRow
                               ej={ej} idx={ei} grupo={current.grupo}
                               onUpdate={(f,v) => updateExercise(activeDay, ei, f, v)}
@@ -431,13 +514,42 @@ export default function UserRoutineCreator() {
               </motion.div>
             </AnimatePresence>
           ) : (
-            <div style={{ textAlign:"center", padding:"60px 0", color:"var(--text-secondary)" }}>
-              <div style={{ fontSize:36, marginBottom:12 }}>📋</div>
-              <p>Crea un día para empezar.</p>
-              <button onClick={addDay} style={{ marginTop:12, padding:"9px 18px", background:"var(--accent)", border:"none", borderRadius:9, color:"#fff", fontWeight:700, cursor:"pointer", display:"inline-flex", alignItems:"center", gap:6 }}>
-                <FiPlus /> Agregar día
-              </button>
-            </div>
+            <motion.div
+              initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }}
+              style={{
+                textAlign:"center", padding:"48px 24px",
+                background:"var(--bg-card)", border:"1px dashed var(--border)",
+                borderRadius:16, color:"var(--text-secondary)",
+              }}
+            >
+              <div style={{ fontSize:48, marginBottom:16 }}>🏋️</div>
+              <h3 style={{ fontSize:17, fontWeight:700, color:"var(--text-primary)", marginBottom:8 }}>
+                Esta rutina no tiene días aún
+              </h3>
+              <p style={{ fontSize:13, lineHeight:1.6, maxWidth:320, margin:"0 auto 20px" }}>
+                Agrega días de entrenamiento con sus ejercicios,<br/>o carga una plantilla para empezar rápido.
+              </p>
+              <div style={{ display:"flex", gap:10, justifyContent:"center", flexWrap:"wrap" }}>
+                <motion.button
+                  whileHover={{ scale:1.04 }} whileTap={{ scale:.97 }}
+                  onClick={() => setShowTpl(true)}
+                  style={{ padding:"10px 20px", background:"var(--bg-input)", border:"1px solid var(--border)",
+                    borderRadius:10, color:"var(--text-secondary)", cursor:"pointer", fontWeight:600, fontSize:13,
+                    display:"flex", alignItems:"center", gap:7 }}
+                >
+                  <FiZap size={13}/> Usar plantilla
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale:1.04 }} whileTap={{ scale:.97 }}
+                  onClick={addDay}
+                  style={{ padding:"10px 20px", background:"var(--accent)", border:"none",
+                    borderRadius:10, color:"#fff", cursor:"pointer", fontWeight:700, fontSize:13,
+                    display:"flex", alignItems:"center", gap:7 }}
+                >
+                  <FiPlus size={13}/> Agregar día
+                </motion.button>
+              </div>
+            </motion.div>
           )}
         </main>
       </div>

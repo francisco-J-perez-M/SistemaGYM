@@ -12,10 +12,196 @@ import {
   FiCheck, FiX, FiClock, FiAlertCircle, FiCheckCircle,
   FiMessageSquare, FiEdit2, FiZap, FiToggleLeft, FiToggleRight,
   FiChevronDown, FiChevronUp, FiRefreshCw, FiStar,
+  FiChevronLeft, FiChevronRight, FiImage, FiInfo,
 } from "react-icons/fi";
 import { GiMuscleUp } from "react-icons/gi";
 import { motion, AnimatePresence } from "framer-motion";
 import "../../css/CSSUnificado.css";
+
+/* ── Video helper (same as TrainerRoutines) ─────────────────── */
+const videoCache = new Map();
+function getVideoBlobUrl(b64, exerciseId) {
+  if (!b64) return null;
+  const cacheKey = (exerciseId ?? "u") + "_" + b64.slice(-24);
+  if (videoCache.has(cacheKey)) return videoCache.get(cacheKey);
+  try {
+    const [header, data] = b64.split(",");
+    const mime   = header.match(/:(.*?);/)?.[1] || "video/webm";
+    const binary = atob(data);
+    const bytes  = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const url = URL.createObjectURL(new Blob([bytes], { type: mime }));
+    videoCache.set(cacheKey, url);
+    return url;
+  } catch { return null; }
+}
+
+/* ── ExerciseDetailModal (read-only) ────────────────────────── */
+function ExerciseDetailModal({ exercise, seriesReps, onClose }) {
+  const [imgIdx, setImgIdx] = useState(0);
+  const blobUrl = exercise?.video ? getVideoBlobUrl(exercise.video, exercise.id) : null;
+  const imgs    = exercise?.imagenes || [];
+  if (!exercise) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      style={{
+        position: "fixed", inset: 0, zIndex: 10100,
+        background: "rgba(0,0,0,0.82)", backdropFilter: "blur(6px)",
+        display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
+      }}
+      onClick={e => e.target === e.currentTarget && onClose()}
+    >
+      <motion.div
+        initial={{ scale: 0.92, y: 18 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.92, y: 18 }}
+        style={{
+          background: "var(--bg-card)", border: "1px solid var(--border)",
+          borderRadius: 18, width: "100%", maxWidth: 540,
+          maxHeight: "92vh", overflowY: "auto",
+          display: "flex", flexDirection: "column",
+        }}
+      >
+        {/* Header */}
+        <div style={{
+          padding: "20px 24px 16px", borderBottom: "1px solid var(--border)",
+          display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexShrink: 0,
+        }}>
+          <div>
+            <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>{exercise.nombre}</h3>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {exercise.grupo_muscular && (
+                <span style={{ padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600,
+                  background: "var(--accent)22", color: "var(--accent)" }}>
+                  {exercise.grupo_muscular}
+                </span>
+              )}
+              {exercise.tipo && (
+                <span style={{ padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600,
+                  background: "var(--bg-input)", color: "var(--text-secondary)" }}>
+                  {exercise.tipo}
+                </span>
+              )}
+              {seriesReps && (
+                <span style={{ padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600,
+                  background: "rgba(34,197,94,.15)", color: "#4ade80" }}>
+                  {seriesReps}
+                </span>
+              )}
+            </div>
+          </div>
+          <button onClick={onClose}
+            style={{ background: "none", border: "none", cursor: "pointer",
+              color: "var(--text-secondary)", padding: 4, borderRadius: 6, flexShrink: 0 }}>
+            <FiX size={20} />
+          </button>
+        </div>
+
+        <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 20 }}>
+          {/* Galería de imágenes */}
+          {imgs.length > 0 && (
+            <div>
+              <p style={{ fontSize: 11, fontWeight: 700, color: "var(--text-secondary)",
+                textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 10 }}>
+                Cómo ejecutarlo
+              </p>
+              <div style={{
+                width: "100%", aspectRatio: "16/9", borderRadius: 10, overflow: "hidden",
+                background: "var(--bg-input)", border: "1px solid var(--border)",
+                marginBottom: 8, position: "relative",
+              }}>
+                <img src={imgs[imgIdx]} alt={`paso ${imgIdx + 1}`}
+                  style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                {imgs.length > 1 && (
+                  <>
+                    <button onClick={() => setImgIdx(i => (i - 1 + imgs.length) % imgs.length)}
+                      style={{ position:"absolute",left:8,top:"50%",transform:"translateY(-50%)",
+                        background:"rgba(0,0,0,.55)",border:"none",borderRadius:6,
+                        color:"#fff",cursor:"pointer",padding:"6px 8px",lineHeight:0 }}>
+                      <FiChevronLeft size={16} />
+                    </button>
+                    <button onClick={() => setImgIdx(i => (i + 1) % imgs.length)}
+                      style={{ position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",
+                        background:"rgba(0,0,0,.55)",border:"none",borderRadius:6,
+                        color:"#fff",cursor:"pointer",padding:"6px 8px",lineHeight:0 }}>
+                      <FiChevronRight size={16} />
+                    </button>
+                    <div style={{ position:"absolute",bottom:8,left:"50%",transform:"translateX(-50%)",display:"flex",gap:4 }}>
+                      {imgs.map((_,i)=>(
+                        <button key={i} onClick={()=>setImgIdx(i)}
+                          style={{ width:i===imgIdx?18:6,height:6,borderRadius:3,
+                            background:i===imgIdx?"#fff":"rgba(255,255,255,.4)",
+                            border:"none",cursor:"pointer",padding:0,transition:"all .2s" }} />
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+              {imgs.length > 1 && (
+                <div style={{ display:"flex",gap:8 }}>
+                  {imgs.map((src,i)=>(
+                    <button key={i} onClick={()=>setImgIdx(i)}
+                      style={{ padding:0,border:`2px solid ${i===imgIdx?"var(--accent)":"var(--border)"}`,
+                        borderRadius:7,overflow:"hidden",cursor:"pointer",
+                        width:64,height:48,flexShrink:0,transition:"border-color .15s" }}>
+                      <img src={src} alt={`min ${i+1}`} style={{ width:"100%",height:"100%",objectFit:"cover" }} />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Video */}
+          {blobUrl && (
+            <div>
+              <p style={{ fontSize:11,fontWeight:700,color:"var(--text-secondary)",
+                textTransform:"uppercase",letterSpacing:".05em",marginBottom:10 }}>
+                Video demostrativo
+              </p>
+              <video src={blobUrl} controls playsInline preload="metadata"
+                style={{ width:"100%",borderRadius:10,border:"1px solid var(--border)",
+                  background:"#000",maxHeight:280,display:"block" }} />
+            </div>
+          )}
+
+          {/* Descripción */}
+          {exercise.descripcion && (
+            <div>
+              <p style={{ fontSize:11,fontWeight:700,color:"var(--text-secondary)",
+                textTransform:"uppercase",letterSpacing:".05em",marginBottom:8 }}>
+                Instrucciones
+              </p>
+              <p style={{ fontSize:13,color:"var(--text-primary)",lineHeight:1.65,
+                background:"var(--bg-input)",padding:"12px 14px",borderRadius:8,
+                border:"1px solid var(--border)" }}>
+                {exercise.descripcion}
+              </p>
+            </div>
+          )}
+
+          {/* Sin media */}
+          {imgs.length === 0 && !blobUrl && !exercise.descripcion && (
+            <div style={{ textAlign:"center",padding:"24px 0",color:"var(--text-secondary)" }}>
+              <FiImage size={32} style={{ opacity:.3,marginBottom:8 }} />
+              <p style={{ fontSize:13 }}>Este ejercicio no tiene imágenes ni video aún.</p>
+              <p style={{ fontSize:12,marginTop:4 }}>Pídele a tu entrenador que los agregue.</p>
+            </div>
+          )}
+        </div>
+
+        <div style={{ padding:"14px 24px",borderTop:"1px solid var(--border)",flexShrink:0 }}>
+          <button onClick={onClose}
+            style={{ width:"100%",padding:"10px 0",background:"var(--bg-input)",
+              border:"1px solid var(--border)",borderRadius:10,color:"var(--text-secondary)",
+              cursor:"pointer",fontWeight:600,fontSize:14 }}>
+            Cerrar
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
 
 /* ── API helper ─────────────────────────────────────────────── */
 const API = async (method, path, body) => {
@@ -84,6 +270,8 @@ function TabRutinas() {
   const [loadA,      setLoadA]      = useState(true);
   const [expanded,   setExpanded]   = useState(null);
   const [vista,      setVista]      = useState("propias"); // propias | asignadas
+  const [catalog,    setCatalog]    = useState({});         // nombre.lower -> ejercicio
+  const [selectedEj, setSelectedEj] = useState(null);      // { ejercicio, seriesReps }
 
   const cargarPropias = useCallback(async () => {
     setLoadP(true);
@@ -102,6 +290,32 @@ function TabRutinas() {
     } catch { /* silente */ }
     finally { setLoadA(false); }
   }, []);
+
+  // Cargar catálogo de ejercicios del gimnasio (una sola vez)
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    fetch("/api/catalogos/ejercicios", { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : [])
+      .then(list => {
+        const map = {};
+        (Array.isArray(list) ? list : []).forEach(e => {
+          map[(e.nombre || "").trim().toLowerCase()] = e;
+        });
+        setCatalog(map);
+      })
+      .catch(() => {});
+  }, []);
+
+  const openEjercicioModal = (ej) => {
+    const catalogEntry = catalog[(ej.nombre || "").trim().toLowerCase()] || null;
+    const merged = catalogEntry
+      ? { ...catalogEntry, nombre: ej.nombre }
+      : { nombre: ej.nombre, imagenes: [], video: null, descripcion: null };
+    const seriesReps = ej.series && ej.reps
+      ? `${ej.series} series × ${ej.reps} reps${ej.peso ? ` · ${ej.peso}` : ""}`
+      : null;
+    setSelectedEj({ ejercicio: merged, seriesReps });
+  };
 
   useEffect(() => { cargarPropias(); cargarAsignadas(); }, [cargarPropias, cargarAsignadas]);
 
@@ -191,19 +405,35 @@ function TabRutinas() {
                 {(rutina.dias || []).length > 0 && (
                   <div style={{ marginTop: 14 }}>
                     {(rutina.dias).map((dia, i) => (
-                      <div key={i} style={{ marginBottom: 10 }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: "var(--accent-soft)", marginBottom: 6 }}>
+                      <div key={i} style={{ marginBottom: 12 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: "var(--accent-soft)", marginBottom: 6,
+                          textTransform: "uppercase", letterSpacing: ".06em" }}>
                           {dia.dia} — {dia.grupo}
                         </div>
-                        {dia.ejercicios.map((ej, j) => (
-                          <div key={j} style={{
-                            display: "flex", gap: 10, padding: "7px 10px",
-                            background: "var(--bg-input)", borderRadius: 6, marginBottom: 4,
-                            fontSize: 12, color: "var(--text-primary)",
-                          }}>
-                            <span style={{ flex: 1 }}>{ej.nombre}</span>
-                            <span style={{ color: "var(--text-secondary)" }}>{ej.series}×{ej.reps}</span>
-                            {ej.peso && <span style={{ color: "var(--warning)" }}>{ej.peso}</span>}
+                        {(dia.ejercicios || []).map((ej, j) => (
+                          <div
+                            key={j}
+                            onClick={() => openEjercicioModal(ej)}
+                            style={{
+                              display: "flex", gap: 10, padding: "9px 12px",
+                              background: "var(--bg-input)", borderRadius: 8, marginBottom: 4,
+                              fontSize: 12, color: "var(--text-primary)", cursor: "pointer",
+                              alignItems: "center",
+                              transition: "background .15s",
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,.07)"}
+                            onMouseLeave={e => e.currentTarget.style.background = "var(--bg-input)"}
+                          >
+                            <span style={{ flex: 1, fontWeight: 500 }}>{ej.nombre}</span>
+                            <span style={{ color: "var(--text-secondary)", fontSize: 11 }}>
+                              {ej.series}×{ej.reps}
+                            </span>
+                            {ej.peso && (
+                              <span style={{ color: "var(--warning)", fontSize: 11, fontWeight: 600 }}>
+                                {ej.peso}
+                              </span>
+                            )}
+                            <FiInfo size={12} color="var(--accent)" style={{ flexShrink: 0, opacity: .7 }} />
                           </div>
                         ))}
                       </div>
@@ -284,6 +514,17 @@ function TabRutinas() {
       ) : (
         lista.map(r => <RutinaCard key={r.id} rutina={r} asignada={vista === "asignadas"} />)
       )}
+
+      {/* Modal detalle ejercicio */}
+      <AnimatePresence>
+        {selectedEj && (
+          <ExerciseDetailModal
+            exercise={selectedEj.ejercicio}
+            seriesReps={selectedEj.seriesReps}
+            onClose={() => setSelectedEj(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
