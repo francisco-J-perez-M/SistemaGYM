@@ -33,7 +33,6 @@ import UserProfile           from "./pages/miembro/UserProfile";
 import UserRoutineCreator    from "./pages/miembro/UserRoutineCreator";
 import UserBodyProgress      from "./pages/miembro/UserBodyProgress";
 import UserMealPlan          from "./pages/miembro/UserMealPlan";
-import UserRecipes           from "./pages/miembro/UserRecipes";
 import UserHealth            from "./pages/miembro/UserHealth";
 import UserHealthUpdate      from "./pages/miembro/UserHealthUpdate";
 import UserMembershipRenewal from "./pages/miembro/UserMembershipRenewal";

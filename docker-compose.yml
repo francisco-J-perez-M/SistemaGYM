@@ -82,6 +82,9 @@ services:
     build:
       context: ./api
       dockerfile: Dockerfile
+      # Sin attestations de provenance/SBOM: evita exportar manifests extra y la
+      # manifest-list, acelerando el export de la imagen en cada build.
+      provenance: false
     restart: unless-stopped
     # env_file en cascada: primero los valores por defecto de desarrollo
     # (.env.example SÍ está versionado, así que un clon recién hecho arranca sin
@@ -136,6 +139,7 @@ services:
       dockerfile: Dockerfile
       args:
         REACT_APP_API_URL: /api
+      provenance: false
     restart: unless-stopped
     ports:
       - "8080:80"
@@ -155,8 +159,9 @@ services:
   # Corre modelos open-source sin API externa ni costo.
   # Los pesos se persisten en ollama_models (~2 GB para phi3:mini).
   #
-  # Primera vez — descargar modelo (solo una vez, tarda ~2 min):
-  #   docker compose exec ollama ollama pull phi3:mini
+  # El modelo se descarga SOLO automáticamente en el primer arranque (ver command
+  # más abajo); tarda ~2 min la primera vez y queda cacheado en el volumen. Para
+  # forzar/cambiar el modelo: variable OLLAMA_MODEL en el .env o el entorno.
   #
   # Para GPU NVIDIA, descomentar el bloque "deploy":
   ollama:
@@ -164,6 +169,8 @@ services:
     restart: unless-stopped
     volumes:
       - ollama_models:/root/.ollama
+    environment:
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-phi3:mini}
     # deploy:
     #   resources:
     #     reservations:
@@ -171,8 +178,29 @@ services:
     #         - driver: nvidia
     #           count: all
     #           capabilities: [gpu]
+    #
+    # Entrypoint que descarga el modelo AUTOMÁTICAMENTE en el primer arranque, para
+    # que un integrante que levante el stack por primera vez no tenga que ejecutar
+    # manualmente `ollama pull`. Los pesos quedan en el volumen ollama_models, así que
+    # en arranques posteriores `ollama pull` detecta que ya existe y es un no-op.
+    # Los `$$` escapan la interpolación de Compose para que la expansión ocurra en el
+    # shell del contenedor (no en el host).
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        ollama serve &
+        pid=$$!
+        echo "==> Esperando a que el servidor Ollama responda..."
+        until ollama list >/dev/null 2>&1; do sleep 2; done
+        echo "==> Descargando modelo $${OLLAMA_MODEL:-phi3:mini} (solo la primera vez)..."
+        ollama pull "$${OLLAMA_MODEL:-phi3:mini}" || echo "AVISO: no se pudo descargar el modelo; se reintentará en el próximo arranque."
+        echo "==> Ollama listo."
+        wait $$pid
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:11434/api/tags || exit 1"]
+      # `ollama list` no depende de curl (que la imagen puede no incluir) y confirma
+      # que el servidor responde. Pasa a healthy en cuanto el server está arriba,
+      # aunque la descarga del modelo siga en curso en segundo plano.
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
       interval: 20s
       timeout: 10s
       retries: 8

@@ -4,14 +4,14 @@ import axios from "axios";
 import Swal from "sweetalert2";
 import {
   FiSun, FiMoon, FiStar, FiBarChart2, FiUsers, FiDollarSign,
-  FiSettings, FiUpload, FiDownload, FiClipboard, FiTrendingUp,
-  FiRefreshCw, FiUser, FiUserCheck, FiCalendar, FiClock,
-  FiFileText, FiMail, FiLogOut, FiActivity, FiLock, FiCreditCard,
+  FiSettings, FiUpload, FiClipboard, FiTrendingUp,
+  FiRefreshCw, FiUser, FiUserCheck, FiCalendar,
+  FiFileText, FiLogOut, FiActivity, FiLock, FiCreditCard,
   FiShoppingCart, FiBookOpen, FiCpu, FiPieChart, FiChevronDown,
   FiChevronLeft, FiChevronRight, FiGlobe, FiPackage, FiServer,
   FiSliders, FiHelpCircle,
 } from "react-icons/fi";
-import { GiMuscleUp, GiFruitBowl, GiMeal } from "react-icons/gi";
+import { GiMuscleUp, GiMeal } from "react-icons/gi";
 
 // ── Palette (sin CSS externo) ─────────────────────────────────
 // La barra lateral tiene fondo oscuro en todos los temas, por eso su texto,

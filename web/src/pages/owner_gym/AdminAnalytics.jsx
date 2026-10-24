@@ -68,15 +68,6 @@ const StatCard = ({ label, value, color = ACCENT, suffix = "" }) => (
   </div>
 );
 
-const ErrorBox = ({ msg }) => (
-  <div style={{
-    background: "rgba(255,77,77,0.1)", border: "1px solid var(--danger-color)",
-    borderRadius: 8, padding: "14px 18px", color: "var(--danger-color)", fontSize: 14,
-  }}>
-    {msg}
-  </div>
-);
-
 // Mensaje amigable cuando faltan datos (no es un error real del sistema)
 const NoDataBox = ({ icon, title, description, onRetry }) => (
   <div style={{ textAlign: "center", padding: "48px 24px", color: "var(--text-secondary)" }}>
@@ -137,6 +128,8 @@ function TabMapReduce() {
       setData(await r.json());
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
+  // headers deriva de localStorage (estable durante la sesión); no debe reactivar el callback
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleTrain = async () => {
@@ -273,6 +266,8 @@ export function TabKMeans() {
       setData(await r.json());
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
+  // headers deriva de localStorage (estable durante la sesión); no debe reactivar el callback
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleTrain = async () => {
@@ -434,6 +429,8 @@ export function TabRegresion() {
       setData(await r.json());
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
+  // headers deriva de localStorage (estable durante la sesión); no debe reactivar el callback
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleTrain = async () => {
@@ -559,6 +556,8 @@ function TabCancelaciones() {
       setData(await r.json());
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
+  // headers deriva de localStorage (estable durante la sesión); no debe reactivar el callback
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleTrain = async () => {
@@ -1326,19 +1325,6 @@ const IconMapReduce = () => (
     <rect x="2" y="2" width="20" height="20" rx="2"/><path d="M6 16V8m4 8v-4m4 4V6m4 10v-2"/>
   </svg>
 );
-const IconKMeans = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="6" cy="6" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="6" cy="18" r="2"/>
-    <circle cx="18" cy="18" r="2"/><circle cx="12" cy="12" r="3"/>
-    <line x1="8" y1="7" x2="10" y2="10"/><line x1="16" y1="7" x2="14" y2="10"/>
-    <line x1="8" y1="17" x2="10" y2="14"/><line x1="16" y1="17" x2="14" y2="14"/>
-  </svg>
-);
-const IconRegresion = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>
-  </svg>
-);
 const IconCancelaciones = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
@@ -1362,13 +1348,6 @@ const IconFuerza = () => (
     <path d="M18 22l4-4"/><path d="M2 6l4-4"/><path d="M3 10l7-7"/><path d="M14 21l7-7"/>
   </svg>
 );
-const IconModelos = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 2a3 3 0 0 0-3 3 3 3 0 0 0-3 3 3 3 0 0 0 0 6 3 3 0 0 0 3 3 3 3 0 0 0 6 0 3 3 0 0 0 3-3 3 3 0 0 0 0-6 3 3 0 0 0-3-3 3 3 0 0 0-3-3z"/>
-    <path d="M12 8v8M9 12h6"/>
-  </svg>
-);
-
 // Pestañas de negocio para el owner del gimnasio. Los módulos técnicos de ML
 // (K-Means, Regresión y Laboratorio de Modelos) se movieron al panel de
 // superadmin (web/src/pages/superadmin/SuperadminModelos.jsx), donde se reutilizan
