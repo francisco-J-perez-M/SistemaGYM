@@ -143,6 +143,15 @@ services:
       # fecha del día siguiente. APP_TIMEZONE la usa app/utils/timezone.py.
       TZ:                 ${APP_TIMEZONE:-America/Mexico_City}
       APP_TIMEZONE:       ${APP_TIMEZONE:-America/Mexico_City}
+      OLLAMA_MAX_CONCURRENT: ${OLLAMA_MAX_CONCURRENT:-1}
+    # ── Límites de recursos ──────────────────────────────────────────────────
+    # Sin esto, un pico del ETL de IA (pandas/pdfplumber sobre un PDF grande,
+    # o varios imports en paralelo) puede consumir toda la RAM/CPU del host
+    # -- en dev llegó a reiniciar la máquina completa justo después de un
+    # `docker compose up -d --build`. Ajustables por entorno según el tamaño
+    # real del servidor (ver API_MEM_LIMIT/API_CPU_LIMIT).
+    mem_limit: ${API_MEM_LIMIT:-2g}
+    cpus: "${API_CPU_LIMIT:-2}"
     volumes:
       - ./backups:/app/storage/backups
       - ./uploads:/app/storage/uploads
@@ -228,6 +237,15 @@ services:
         ollama pull "$${OLLAMA_MODEL:-phi3:mini}" || echo "AVISO: no se pudo descargar el modelo; se reintentará en el próximo arranque."
         echo "==> Ollama listo."
         wait $$pid
+    # ── Límites de recursos ──────────────────────────────────────────────────
+    # phi3:mini corre inferencia 100% CPU-bound sin límite propio: sin esto,
+    # una sola llamada larga puede acaparar todos los cores/RAM del host que
+    # corre el contenedor y dejar sin recursos al resto del stack (incluido
+    # el propio SO en dev vía Docker Desktop/WSL2). El límite de concurrencia
+    # real está en api/app/utils/etl_ollama.py (OLLAMA_MAX_CONCURRENT); esto
+    # acota además cuánta CPU/RAM puede tomar cada inferencia individual.
+    mem_limit: ${OLLAMA_MEM_LIMIT:-4g}
+    cpus: "${OLLAMA_CPU_LIMIT:-2}"
     healthcheck:
       # `ollama list` no depende de curl (que la imagen puede no incluir) y confirma
       # que el servidor responde. Pasa a healthy en cuanto el server está arriba,
