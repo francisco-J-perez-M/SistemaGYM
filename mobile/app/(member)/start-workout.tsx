@@ -32,6 +32,12 @@
  * tiene un campo de descanso configurable (ver api/app/routes/miembro/
  * user_routine.py) — se usa un valor por defecto razonable
  * (DESCANSO_DEFECTO_SEG) hasta que exista ese campo.
+ *
+ * Imágenes del ejercicio (retro de Miguel): se mostraba solo la primera
+ * (`imagenes[0]`) aunque un ejercicio admite hasta 3 (ver MAX_IMAGENES en
+ * FormularioEjercicio.tsx). Ahora se muestran TODAS las que tenga, en una
+ * fila dentro de la tarjeta expandida; si no tiene ninguna, no se muestra
+ * nada (igual que antes).
  */
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import {
@@ -399,7 +405,16 @@ export default function StartWorkoutScreen() {
             {abierto && (
               <View style={{ marginTop: 12 }}>
                 {!!ej.imagenes?.length && (
-                  <Image source={{ uri: ej.imagenes[0] }} style={styles.imagen} resizeMode="cover" />
+                  <View style={styles.galeriaRow}>
+                    {ej.imagenes.map((uri, i) => (
+                      <Image
+                        key={i}
+                        source={{ uri }}
+                        style={[styles.imagen, ej.imagenes!.length > 1 && styles.imagenMultiple]}
+                        resizeMode="cover"
+                      />
+                    ))}
+                  </View>
                 )}
                 {!!ej.video && (
                   <TouchableOpacity onPress={() => Linking.openURL(ej.video!)} style={styles.videoLink}>
@@ -483,7 +498,9 @@ function make_styles(colors: any, fs: number) {
     nombreEjercicio: { fontSize: 15 * fs, fontWeight: '700', color: colors.text },
     grupoEjercicio:  { fontSize: 12 * fs, color: colors.textSecondary, marginTop: 2 },
     contadorSeries: { fontSize: 12 * fs, color: colors.textMuted, fontWeight: '700' },
-    imagen: { width: '100%', height: 140, borderRadius: 12, marginBottom: 10 },
+    galeriaRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
+    imagen: { flex: 1, height: 140, borderRadius: 12 },
+    imagenMultiple: { height: 110 },
     videoLink: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
     notas: { fontSize: 13 * fs, color: colors.textMuted, marginBottom: 10, lineHeight: 19 },
     serieRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
