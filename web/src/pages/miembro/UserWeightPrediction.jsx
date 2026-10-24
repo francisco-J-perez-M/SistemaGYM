@@ -235,14 +235,23 @@ export default function UserWeightPrediction() {
           )}
         </div>
         <p style={{ color: "var(--text-secondary)", fontSize: 15, lineHeight: 1.7, marginBottom: 24 }}>
-          La predicción de peso utiliza tu historial de registros corporales.
-          Necesitas al menos <strong>3 registros</strong> en distintas fechas para que la IA pueda generar una predicción.
+          La predicción usa tu historial de peso. Necesitas al menos{" "}
+          <strong>{MIN_REGISTROS} anotaciones</strong> en fechas distintas.
+        </p>
+        {/* Hay dos caminos para anotar el peso y antes solo se mencionaba uno,
+            así que quien lo apuntaba al entrenar no entendía por qué seguía
+            sin predicción. */}
+        <p style={{ color: "var(--text-secondary)", fontSize: 13.5, lineHeight: 1.7, marginBottom: 24 }}>
+          Cuenta tanto lo que registras en <strong>Progreso Físico</strong> como el
+          peso que anotas al guardar un entrenamiento. Registrar el entrenamiento
+          por sí solo no basta: hay que apuntar el peso.
         </p>
         <div style={{ display: "flex", flexDirection: "column", gap: 12, textAlign: "left", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 14, padding: "20px 24px", marginBottom: 28 }}>
           {[
-            ["1", "Ve a", "Progreso Físico", "y registra tus medidas y peso"],
-            ["2", "Repite en", "días distintos", "(mínimo 3 registros)"],
-            ["3", "Regresa aquí", "y el modelo", "calculará tu tendencia"],
+            ["1", "Ve a", "Progreso Físico", "y anota tu peso"],
+            ["2", "O apúntalo al", "registrar un entrenamiento", "(el campo de peso corporal)"],
+            ["3", "Repite en", "días distintos", `(mínimo ${MIN_REGISTROS} anotaciones)`],
+            ["4", "Vuelve aquí", "y el modelo", "calculará tu tendencia"],
           ].map(([n, a, b, c]) => (
             <div key={n} style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <div style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--accent)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 13, flexShrink: 0 }}>{n}</div>
