@@ -763,4 +763,39 @@ export default function TrainerDiets(){
       )}
 
       {/* RECETAS */}
-      {t
+      {tab==="recetas"&&(
+        <>
+          <div style={{marginBottom:16}}>
+            <div style={{position:"relative",maxWidth:320}}>
+              <FiSearch size={12} style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:"var(--text-secondary)"}}/>
+              <input className="input-compact" placeholder="Buscar receta..." value={search} onChange={e=>setSearch(e.target.value)} style={{paddingLeft:28}}/>
+            </div>
+          </div>
+          {filteredRecipes.length===0?(
+            <div style={{textAlign:"center",padding:"60px 20px",background:"var(--bg-card)",borderRadius:16,border:"1px solid var(--border)"}}>
+              <GiCookingPot size={44} style={{color:"var(--text-secondary)",marginBottom:12,opacity:.3}}/>
+              <p style={{fontSize:14,color:"var(--text-secondary)"}}>{recipes.length===0?"Sin recetas. Crea la primera.":"Sin resultados."}</p>
+            </div>
+          ):(
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:14}}>
+              {filteredRecipes.map(r=>(
+                <RecetaCard key={r.id} recipe={r} deleting={deletingId===r.id}
+                  onEdit={rec=>{setEditRecipe(rec);setShowRecipe(true);}} onDelete={handleDeleteRecipe}/>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* IMPORTAR IA */}
+      {tab==="ia"&&<ImportarIATab clients={clients} onPlanExtracted={()=>loadAll()}/>}
+
+      <AnimatePresence>
+        {showPlan&&<PlanBuilderModal plan={editPlan} clients={clients} recipes={recipes} onSave={handleSavePlan} onClose={()=>{setShowPlan(false);setEditPlan(null);}} saving={saving}/>}
+      </AnimatePresence>
+      <AnimatePresence>
+        {showRecipe&&<RecetaFormModal recipe={editRecipe} onSave={handleSaveRecipe} onClose={()=>{setShowRecipe(false);setEditRecipe(null);}} saving={saving}/>}
+      </AnimatePresence>
+    </div>
+  );
+}

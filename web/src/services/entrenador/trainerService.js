@@ -257,4 +257,84 @@ export const trainerService = {
     });
   },
 
-  updateRoutine: async (
+  updateRoutine: async (routineId, routineData) => {
+    return await apiFetch(`${API_BASE_URL}/trainer/routines/${routineId}`, {
+      method: 'PUT',
+      body: JSON.stringify(routineData),
+    });
+  },
+
+  deleteRoutine: async (routineId) => {
+    return await apiFetch(`${API_BASE_URL}/trainer/routines/${routineId}`, { method: 'DELETE' });
+  },
+
+  duplicateRoutine: async (routineId) => {
+    return await apiFetch(`${API_BASE_URL}/trainer/routines/${routineId}/duplicate`, {
+      method: 'POST',
+    });
+  },
+
+  // ─── REPORTES Y ESTADÍSTICAS ───────────────────────────────────────────────
+
+  getReports: async (range = 'month') => {
+    const data = await apiFetch(`${API_BASE_URL}/trainer/reports?range=${range}`);
+    return data;
+  },
+
+  // ─── BIBLIOTECA DE EJERCICIOS ──────────────────────────────────────────────
+
+  getExercises: async ({ search = '', grupo_muscular = '' } = {}) => {
+    const params = new URLSearchParams({ search, grupo_muscular });
+    return await apiFetch(`${API_BASE_URL}/trainer/exercises?${params}`);
+  },
+
+  createExercise: async (data) => {
+    return await apiFetch(`${API_BASE_URL}/trainer/exercises`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  updateExercise: async (id, data) => {
+    return await apiFetch(`${API_BASE_URL}/trainer/exercises/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  deleteExercise: async (id) => {
+    return await apiFetch(`${API_BASE_URL}/trainer/exercises/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // ─── AI ETL — Importar rutinas/ejercicios (LLM local vía Ollama) ──────────
+
+  /**
+   * Verifica disponibilidad de Ollama para el módulo de rutinas.
+   * Devuelve { disponible, modelo_activo, modelo, modelos[] }
+   */
+  getRoutineAIStatus: async () => {
+    return await apiFetch(`${API_BASE_URL}/trainer/routines/ai-status`);
+  },
+
+  /**
+   * Sube un PDF/Excel y extrae rutinas + ejercicios con Ollama.
+   * Devuelve { success, rutinas[], ejercicios[], resumen }
+   */
+  importRoutinesAI: async (file) => {
+    const token = localStorage.getItem('token');
+    const form  = new FormData();
+    form.append('archivo', file);
+    const res = await fetch(`${API_BASE_URL}/trainer/routines/import-ai`, {
+      method:  'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body:    form,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || data.message || 'Error en la importación');
+    return data;
+  },
+};
+
+export default trainerService;
