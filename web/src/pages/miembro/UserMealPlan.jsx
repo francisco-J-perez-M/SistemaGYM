@@ -84,27 +84,33 @@ function MacroPill({ label, value, color }) {
 }
 
 /* ─── RecetaCard (grid tile) ──────────────────────────────────── */
-function RecetaCard({ rec, ownUserId, onEdit, onDelete, onConsume }) {
+function RecetaCard({ rec, ownUserId, onEdit, onDelete, onConsume, selectMode, selected, onToggleSelect }) {
   const [open, setOpen] = useState(false);
   const isOwn   = rec.id_creador_pg === ownUserId;
   const color   = CAT_COLOR[rec.categoria] || "#6366f1";
   const CatIcon = CAT_ICON[rec.categoria]  || FiGrid;
+  const selectable = selectMode && isOwn;
 
   return (
     <motion.div
       layout
       style={{
-        background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14,
+        background: "var(--bg-card)",
+        border: `1px solid ${selected ? "var(--accent)" : "var(--border)"}`,
+        boxShadow: selected ? "0 0 0 1px var(--accent)" : "none",
+        borderRadius: 14,
         overflow: "hidden", display: "flex", flexDirection: "column",
-        transition: "box-shadow .2s",
+        opacity: selectMode && !isOwn ? 0.55 : 1,
+        transition: "box-shadow .2s, border-color .2s",
       }}
-      whileHover={{ boxShadow: "0 4px 20px rgba(0,0,0,.18)" }}
+      whileHover={{ boxShadow: selected ? "0 0 0 1px var(--accent)" : "0 4px 20px rgba(0,0,0,.18)" }}
     >
       {/* Color top bar */}
       <div style={{ height: 4, background: rec.consumida_hoy ? "#22c55e" : color }} />
 
       {/* Body */}
-      <div style={{ padding: "16px 18px", flex: 1, cursor: "pointer" }} onClick={() => setOpen(o => !o)}>
+      <div style={{ padding: "16px 18px", flex: 1, cursor: "pointer" }}
+        onClick={() => selectable ? onToggleSelect(rec._id) : setOpen(o => !o)}>
         {/* Category chip + actions */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
           <span style={{
@@ -114,18 +120,30 @@ function RecetaCard({ rec, ownUserId, onEdit, onDelete, onConsume }) {
             <CatIcon size={11}/> {rec.categoria}
           </span>
           <div style={{ display: "flex", alignItems: "center", gap: 4 }} onClick={e => e.stopPropagation()}>
-            {rec.consumida_hoy && (
-              <span title="Consumida hoy" style={{ color: "#22c55e" }}><FiCheckCircle size={14} /></span>
-            )}
-            {isOwn && (
+            {selectable ? (
+              <button onClick={() => onToggleSelect(rec._id)} title={selected ? "Quitar selección" : "Seleccionar"}
+                style={{ background:"none", border:"none", cursor:"pointer", padding:4, display:"flex",
+                  color: selected ? "var(--accent)" : "var(--text-secondary)" }}>
+                {selected
+                  ? <FiCheckCircle size={18}/>
+                  : <span style={{ width:16, height:16, border:"2px solid var(--text-secondary)", borderRadius:5, display:"inline-block" }}/>}
+              </button>
+            ) : (
               <>
-                <button onClick={() => onEdit(rec)} style={{ background:"none",border:"none",color:"var(--text-secondary)",cursor:"pointer",padding:4 }}><FiEdit2 size={13}/></button>
-                <button onClick={() => onDelete(rec._id)} style={{ background:"none",border:"none",color:"#f87171",cursor:"pointer",padding:4 }}><FiTrash2 size={13}/></button>
+                {rec.consumida_hoy && (
+                  <span title="Consumida hoy" style={{ color: "#22c55e" }}><FiCheckCircle size={14} /></span>
+                )}
+                {isOwn && (
+                  <>
+                    <button onClick={() => onEdit(rec)} style={{ background:"none",border:"none",color:"var(--text-secondary)",cursor:"pointer",padding:4 }}><FiEdit2 size={13}/></button>
+                    <button onClick={() => onDelete(rec._id)} style={{ background:"none",border:"none",color:"#f87171",cursor:"pointer",padding:4 }}><FiTrash2 size={13}/></button>
+                  </>
+                )}
+                <span style={{ color:"var(--text-secondary)", paddingLeft:2 }}>
+                  {open ? <FiChevronUp size={14}/> : <FiChevronDown size={14}/>}
+                </span>
               </>
             )}
-            <span style={{ color:"var(--text-secondary)", paddingLeft:2 }}>
-              {open ? <FiChevronUp size={14}/> : <FiChevronDown size={14}/>}
-            </span>
           </div>
         </div>
 
@@ -604,6 +622,10 @@ export default function UserMealPlan() {
   const [recetaModal, setRecetaModal] = useState(null);
   const [dietaModal,  setDietaModal]  = useState(null);
 
+  // selección múltiple de recetas (solo recetas propias del miembro)
+  const [selectMode,      setSelectMode]      = useState(false);
+  const [selectedRecetas, setSelectedRecetas] = useState(() => new Set());
+
   const ownUserId = parseInt(JSON.parse(localStorage.getItem("user") || "{}").id_pg || "0");
 
   useEffect(() => {
@@ -654,6 +676,23 @@ export default function UserMealPlan() {
   const deleteReceta = async (id) => {
     if (!window.confirm("¿Eliminar esta receta?")) return;
     await fetch(`/api/user/nutrition/recetas/${id}`, { method:"DELETE", headers: authHdrs() });
+    loadAll();
+  };
+  const toggleSelectReceta = (id) => setSelectedRecetas(prev => {
+    const s = new Set(prev);
+    s.has(id) ? s.delete(id) : s.add(id);
+    return s;
+  });
+  const exitSelectMode = () => { setSelectMode(false); setSelectedRecetas(new Set()); };
+  const deleteSelectedRecetas = async () => {
+    if (selectedRecetas.size === 0) return;
+    if (!window.confirm(`¿Eliminar ${selectedRecetas.size} receta(s)? Esta acción no se puede deshacer.`)) return;
+    await Promise.all(
+      [...selectedRecetas].map(id =>
+        fetch(`/api/user/nutrition/recetas/${id}`, { method:"DELETE", headers: authHdrs() }).catch(() => {})
+      )
+    );
+    exitSelectMode();
     loadAll();
   };
   const consumirReceta = async (id, comida) => {
@@ -853,6 +892,44 @@ export default function UserMealPlan() {
                     </div>
                   )}
 
+                  {/* Barra de selección múltiple (solo recetas propias del miembro) */}
+                  {recetas.some(r => r.id_creador_pg === ownUserId) && (
+                    <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14, flexWrap:"wrap" }}>
+                      {!selectMode ? (
+                        <button onClick={() => setSelectMode(true)}
+                          style={{ display:"inline-flex", alignItems:"center", gap:7, padding:"7px 14px",
+                            background:"var(--bg-input)", border:"1px solid var(--border)", borderRadius:9,
+                            color:"var(--text-primary)", fontSize:12, fontWeight:600, cursor:"pointer" }}>
+                          <FiCheckCircle size={14}/> Seleccionar recetas
+                        </button>
+                      ) : (
+                        <>
+                          <span style={{ fontSize:12, color:"var(--text-secondary)", fontWeight:600 }}>
+                            {selectedRecetas.size} seleccionada{selectedRecetas.size !== 1 ? "s" : ""}
+                          </span>
+                          <button onClick={deleteSelectedRecetas} disabled={selectedRecetas.size === 0}
+                            style={{ display:"inline-flex", alignItems:"center", gap:7, padding:"7px 14px",
+                              background: selectedRecetas.size === 0 ? "var(--bg-input)" : "#ef4444",
+                              border:"none", borderRadius:9,
+                              color: selectedRecetas.size === 0 ? "var(--text-secondary)" : "#fff",
+                              fontSize:12, fontWeight:700,
+                              cursor: selectedRecetas.size === 0 ? "not-allowed" : "pointer" }}>
+                            <FiTrash2 size={13}/> Eliminar{selectedRecetas.size > 0 ? ` (${selectedRecetas.size})` : ""}
+                          </button>
+                          <button onClick={exitSelectMode}
+                            style={{ display:"inline-flex", alignItems:"center", gap:7, padding:"7px 14px",
+                              background:"var(--bg-input)", border:"1px solid var(--border)", borderRadius:9,
+                              color:"var(--text-secondary)", fontSize:12, fontWeight:600, cursor:"pointer" }}>
+                            <FiX size={13}/> Cancelar
+                          </button>
+                          <span style={{ fontSize:11, color:"var(--text-secondary)" }}>
+                            Solo puedes eliminar tus recetas propias.
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  )}
+
                   {recetasFilt.length === 0 ? (
                     <div style={{ textAlign:"center",padding:"70px 20px" }}>
                       <div style={{ width:64, height:64, borderRadius:16, background:"rgba(99,102,241,.1)",
@@ -883,6 +960,9 @@ export default function UserMealPlan() {
                           onEdit={r => setRecetaModal({ editing:r })}
                           onDelete={deleteReceta}
                           onConsume={consumirReceta}
+                          selectMode={selectMode}
+                          selected={selectedRecetas.has(r._id)}
+                          onToggleSelect={toggleSelectReceta}
                         />
                       ))}
                     </div>
