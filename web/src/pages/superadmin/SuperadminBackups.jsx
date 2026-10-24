@@ -7,6 +7,8 @@ import {
   deleteBackupEntry,
   getSchedule,
   updateSchedule,
+  restoreBackup,
+  restoreUpload,
 } from "../../api/superadmin";
 
 const card = (extra = {}) => ({
@@ -83,8 +85,18 @@ const FILE_LABELS = {
 };
 
 const TYPE_BADGE = {
-  full: "pos", incremental: "info", differential: "warn", restore: "purple",
+  full: "pos", incremental: "info", differential: "warn", restore: "warn",
 };
+
+// Artefactos que SÍ se pueden restaurar (reconstruyen una base de datos).
+// excel/pdf quedan fuera: son reportes, no respaldos restaurables.
+const RESTORE_LABELS = {
+  db_dump: { label: "MongoDB", color: "var(--success)" },
+  pg_dump: { label: "PostgreSQL", color: "var(--accent-soft)" },
+  json:    { label: "Mongo JSON", color: "var(--warning)" },
+};
+
+const RESTORE_EXTS = ".archive,.json,.dump";
 
 export default function SuperadminBackups() {
   const [status,   setStatus]   = useState(null);
@@ -94,6 +106,10 @@ export default function SuperadminBackups() {
   const [loading,  setLoading]  = useState(true);
   const [schedEditing, setSchedEditing] = useState(false);
   const [schedForm, setSchedForm] = useState(null);
+  const [restoreSel, setRestoreSel] = useState(0);   // índice del backup elegido en el historial
+  const [restoring, setRestoring]   = useState(false);
+  const [uploadPct, setUploadPct]   = useState(null);
+  const fileRef = useRef(null);
   const pollRef = useRef(null);
 
   const loadAll = () => {
@@ -166,6 +182,87 @@ export default function SuperadminBackups() {
   };
 
   const fmtDate = (d) => d ? new Date(d).toLocaleString("es-MX") : "—";
+
+  // ── Restauración ──────────────────────────────────────────────────────────
+  // Solo backups completados con artefactos restaurables
+  const restorables = history.filter(
+    h => h.status === "completado" && h.files &&
+      Object.keys(RESTORE_LABELS).some(k => h.files[k])
+  );
+
+  const confirmarRestore = async (titulo, detalle) => {
+    const { isConfirmed } = await Swal.fire({
+      title: titulo,
+      html: `<p style="font-size:14px;line-height:1.5">${detalle}</p>
+             <p style="font-size:12px;color:var(--warning);margin-top:10px">Esta acción modifica la base de datos activa. Asegúrate de tener un backup reciente antes de continuar.</p>`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Sí, restaurar",
+      confirmButtonColor: "var(--warning)",
+      cancelButtonText: "Cancelar",
+      background: "var(--bg-card)",
+      color: "var(--text-primary)",
+    });
+    return isConfirmed;
+  };
+
+  const handleRestoreHistory = async (filename, engineLabel) => {
+    if (!filename) return;
+    const ok = await confirmarRestore(
+      `Restaurar ${engineLabel}`,
+      `Se restaurará <b>${engineLabel}</b> desde el archivo <code>${filename}</code>.`
+    );
+    if (!ok) return;
+    setRestoring(true);
+    try {
+      const { data } = await restoreBackup(filename);
+      const w = data?.resultado?.warnings;
+      Swal.fire({
+        icon: "success",
+        title: "Restauración completada",
+        text: w ? `Completado con ${w} advertencia(s) de merge.` : "La base de datos se restauró correctamente.",
+        background: "var(--bg-card)", color: "var(--text-primary)",
+      });
+      loadAll();
+    } catch (e) {
+      Swal.fire({ icon: "error", title: "Error al restaurar", text: e?.response?.data?.detalle || e?.response?.data?.msg || "Fallo en la restauración", background: "var(--bg-card)", color: "var(--text-primary)" });
+    } finally {
+      setRestoring(false);
+    }
+  };
+
+  const handleRestoreUpload = async (file) => {
+    if (!file) return;
+    const okExt = /\.(archive|json|dump)$/i.test(file.name);
+    if (!okExt) {
+      Swal.fire({ icon: "error", title: "Formato inválido", text: "Solo se permiten archivos .archive, .json o .dump", background: "var(--bg-card)", color: "var(--text-primary)" });
+      return;
+    }
+    const ok = await confirmarRestore(
+      "Restaurar desde archivo externo",
+      `Se subirá y restaurará <code>${file.name}</code> (${(file.size / 1024 / 1024).toFixed(2)} MB).`
+    );
+    if (!ok) { if (fileRef.current) fileRef.current.value = ""; return; }
+    setRestoring(true);
+    setUploadPct(0);
+    try {
+      const { data } = await restoreUpload(file, setUploadPct);
+      const w = data?.resultado?.warnings;
+      Swal.fire({
+        icon: "success",
+        title: "Restauración completada",
+        text: w ? `Completado con ${w} advertencia(s) de merge.` : `Restaurado desde ${file.name}.`,
+        background: "var(--bg-card)", color: "var(--text-primary)",
+      });
+      loadAll();
+    } catch (e) {
+      Swal.fire({ icon: "error", title: "Error al restaurar", text: e?.response?.data?.detalle || e?.response?.data?.msg || "Fallo en la restauración", background: "var(--bg-card)", color: "var(--text-primary)" });
+    } finally {
+      setRestoring(false);
+      setUploadPct(null);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
 
   const handleDelete = async (job_id, label) => {
     const { isConfirmed } = await Swal.fire({
@@ -371,6 +468,94 @@ export default function SuperadminBackups() {
                   <button style={btnStyle("primary", { marginTop: 4 })} onClick={handleSaveSchedule}>Guardar</button>
                 </div>
               )}
+            </div>
+          </div>
+
+          {/* Restaurar */}
+          <div style={card()}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>Restaurar</h3>
+              <span style={badge("warn")}>Operación sensible</span>
+            </div>
+            <p style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 18 }}>
+              Reconstruye una base de datos desde un respaldo del historial o desde un archivo externo (otra laptop / servidor).
+            </p>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+              {/* Desde el historial */}
+              <div style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 16 }}>
+                <p style={{ fontSize: 12, fontWeight: 700, color: "var(--text-primary)", marginBottom: 12 }}>Desde el historial</p>
+
+                {restorables.length === 0 ? (
+                  <p style={{ fontSize: 12, color: "var(--text-secondary)" }}>No hay respaldos completados para restaurar.</p>
+                ) : (
+                  <>
+                    <select
+                      style={{ ...INPUT, width: "100%", marginBottom: 14 }}
+                      value={restoreSel}
+                      onChange={e => setRestoreSel(Number(e.target.value))}
+                      disabled={restoring}
+                    >
+                      {restorables.map((h, i) => (
+                        <option key={i} value={i}>
+                          {h.type} · {fmtDate(h.date)} · {h.size || "—"}
+                        </option>
+                      ))}
+                    </select>
+
+                    <p style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 8 }}>Restaurar motor:</p>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {Object.entries(RESTORE_LABELS).map(([key, meta]) => {
+                        const fname = restorables[restoreSel]?.files?.[key];
+                        return (
+                          <button
+                            key={key}
+                            disabled={!fname || restoring}
+                            onClick={() => handleRestoreHistory(fname, meta.label)}
+                            style={{
+                              border: `1px solid ${meta.color}`, borderRadius: 8, padding: "7px 14px",
+                              fontSize: 12, fontWeight: 700, cursor: fname && !restoring ? "pointer" : "not-allowed",
+                              background: `${meta.color}18`, color: meta.color,
+                              opacity: fname && !restoring ? 1 : 0.35,
+                            }}
+                            title={fname || "No disponible en este backup"}
+                          >
+                            ⟲ {meta.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Desde archivo externo */}
+              <div style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 16 }}>
+                <p style={{ fontSize: 12, fontWeight: 700, color: "var(--text-primary)", marginBottom: 12 }}>Desde archivo externo</p>
+                <p style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 12 }}>
+                  Sube un <code>.archive</code> (MongoDB), <code>.dump</code> (PostgreSQL) o <code>.json</code> (Mongo). Ideal para mover datos entre equipos.
+                </p>
+
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept={RESTORE_EXTS}
+                  disabled={restoring}
+                  onChange={e => handleRestoreUpload(e.target.files?.[0])}
+                  style={{ fontSize: 12, color: "var(--text-secondary)", width: "100%" }}
+                />
+
+                {uploadPct !== null && (
+                  <div style={{ marginTop: 14 }}>
+                    <p style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 5 }}>
+                      {uploadPct < 100 ? `Subiendo… ${uploadPct}%` : "Restaurando en el servidor…"}
+                    </p>
+                    <div style={{ height: 6, background: "var(--bg-input)", borderRadius: 99, overflow: "hidden" }}>
+                      <div style={{ width: `${uploadPct}%`, height: "100%", background: "var(--accent)", borderRadius: 99, transition: "width .3s ease" }} />
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </>
