@@ -51,7 +51,7 @@ const emptyRoutine = () => ({
 
 const emptyDay = () => ({
   day: "Lunes", muscleGroup: "",
-  exercises: [{ name: "", sets: "3", reps: "12", peso: "", notes: "", imagenes: [] }],
+  exercises: [{ name: "", sets: "3", reps: "12", peso: "", muscleGroup: "", unidad: "kg", notes: "", imagenes: [] }],
 });
 
 /* ── Caché de blob-URLs de video (vive mientras la pestaña esté abierta) ── */
@@ -1374,7 +1374,7 @@ export default function TrainerRoutines() {
     days[di] = {
       ...days[di],
       exercises: [...days[di].exercises,
-        { name: "", sets: "3", reps: "12", peso: "", notes: "", imagenes: [] }],
+        { name: "", sets: "3", reps: "12", peso: "", muscleGroup: days[di].muscleGroup || "", unidad: "kg", notes: "", imagenes: [] }],
     };
     return { ...f, days };
   });
@@ -2011,9 +2011,9 @@ export default function TrainerRoutines() {
                                     </button>
                                     <input className="input-compact" placeholder="Series"
                                       value={ex.sets} onChange={e => updateExercise(di, ei, "sets", e.target.value)} />
-                                    <input className="input-compact" placeholder="Reps"
+                                    <input className="input-compact" placeholder="12 o 7,7,7" title="Repeticiones. Para drop-set/pirámide separa con coma: 7,7,7"
                                       value={ex.reps} onChange={e => updateExercise(di, ei, "reps", e.target.value)} />
-                                    <input className="input-compact" placeholder="Peso"
+                                    <input className="input-compact" placeholder="Peso" title="Peso (opcional). Puedes poner varios: 10,20,30"
                                       value={ex.peso} onChange={e => updateExercise(di, ei, "peso", e.target.value)} />
                                     {/* Icono de biblioteca desplazado — ya integrado en el nombre */}
                                     <div style={{ width: 28 }} />
@@ -2024,7 +2024,21 @@ export default function TrainerRoutines() {
                                     </motion.button>
                                   </div>
 
-
+                                  {/* Segunda fila: grupo muscular del ejercicio + unidad de peso */}
+                                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
+                                    <span style={{ fontSize: 11, color: "var(--text-secondary)", flexShrink: 0 }}>Grupo:</span>
+                                    <select className="input-compact" style={{ flex: 1, maxWidth: 200 }}
+                                      value={ex.muscleGroup || day.muscleGroup || ""}
+                                      onChange={e => updateExercise(di, ei, "muscleGroup", e.target.value)}>
+                                      <option value="">Igual que el día</option>
+                                      {GRUPOS_MUSCULARES.map(g => <option key={g} value={g}>{g}</option>)}
+                                    </select>
+                                    <button type="button" onClick={() => updateExercise(di, ei, "unidad", (ex.unidad === "lb" ? "kg" : "lb"))}
+                                      title="Cambiar unidad de peso (kg / lb)"
+                                      style={{ padding: "5px 12px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 6, color: "var(--accent)", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
+                                      {ex.unidad || "kg"}
+                                    </button>
+                                  </div>
                                 </div>
                               ))}
                               <motion.button className="btn-outline-small" style={{ marginTop: 4 }}
