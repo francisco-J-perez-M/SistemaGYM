@@ -22,6 +22,7 @@ import { toStr, toArray, toDateStr } from '../../utils/format';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
+import RoutineDetailModal, { type RoutineForModal } from '../../components/routines/RoutineDetailModal';
 import api from '../../services/api';
 
 type Tab = 'rutina' | 'entrenador';
@@ -79,6 +80,7 @@ export default function TrainingScreen() {
   const [tab, setTab]                         = useState<Tab>('rutina');
   const [selectedTrainer, setSelectedTrainer] = useState<Trainer | null>(null);
   const [expandedRutina, setExpandedRutina]   = useState<string | null>(null);
+  const [selectedRutina, setSelectedRutina]   = useState<RoutineForModal | null>(null);
   const [msg, setMsg]     = useState('');
   const [sending, setSending] = useState(false);
   const flatRef = useRef<FlatList>(null);
@@ -181,6 +183,15 @@ export default function TrainingScreen() {
                       <Text style={styles.rutinaTrainer}>Por {r.nombre_entrenador}</Text>
                     ) : null}
                   </View>
+                  <TouchableOpacity
+                    style={mbS.verBtn}
+                    onPress={() => setSelectedRutina(r as RoutineForModal)}
+                    accessibilityLabel={`Ver detalle de ${r.nombre}`}
+                    accessibilityRole="button"
+                  >
+                    <Ionicons name="eye-outline" size={13} color="#fff" />
+                    <Text style={mbS.verBtnText}>Ver</Text>
+                  </TouchableOpacity>
                   <Ionicons
                     name={isOpen ? 'chevron-up' : 'chevron-down'}
                     size={18} color={Colors.textSecondary}
@@ -343,9 +354,20 @@ export default function TrainingScreen() {
           </View>
         </View>
       )}
+      <RoutineDetailModal
+        visible={!!selectedRutina}
+        routine={selectedRutina}
+        onClose={() => setSelectedRutina(null)}
+        mode="member"
+      />
     </KeyboardAvoidingView>
   );
 }
+
+const mbS = StyleSheet.create({
+  verBtn:     { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: Colors.accent, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 8 },
+  verBtnText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+});
 
 const styles = StyleSheet.create({
   screen:  { flex: 1, backgroundColor: Colors.background },
