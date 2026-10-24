@@ -11,7 +11,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer,
 } from "recharts";
-import { FiDollarSign, FiUsers, FiTrendingUp, FiBell } from "react-icons/fi";
+import { FiDollarSign, FiUsers, FiTrendingUp, FiBell, FiClock, FiActivity } from "react-icons/fi";
 import "../../css/CSSUnificado.css";
 
 const API_BASE   = "";
@@ -701,11 +701,11 @@ function TabCancelaciones() {
     .slice(0, 15);
 
   if (loading) return <LoadingSpinner />;
-  if (error || !data) return (
+  if (error || !data || data.error) return (
     <NoDataBox
       icon={<FiBell />}
-      title="Todavía no hay suficientes datos"
-      description="Para detectar qué miembros están en riesgo de cancelar necesitamos historial de asistencias y pagos. Cuando haya información suficiente, el análisis aparecerá aquí automáticamente."
+      title="Todavía no hay datos para mostrar"
+      description={data?.error || "Para detectar qué miembros están en riesgo de dejar el gimnasio necesitamos su historial de visitas y pagos. En cuanto haya miembros con actividad, el análisis aparecerá aquí automáticamente."}
       onRetry={fetchData}
     />
   );
@@ -791,55 +791,310 @@ function TabCancelaciones() {
         )}
       </div>
 
-      {/* Tabla de miembros en riesgo */}
+      {/* Lista priorizada de miembros en riesgo */}
       {enRiesgo.length > 0 && (
         <>
           <SectionTitle>Miembros que necesitan atención</SectionTitle>
-          <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "-8px 0 10px" }}>
+          <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "-8px 0 12px" }}>
             Ordenados por prioridad. Contacta primero a los de <strong style={{ color: DANGER }}>Atención urgente</strong>.
+            La barra muestra qué tan probable es que el miembro deje de venir.
           </p>
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-              <thead>
-                <tr style={{ background: "var(--bg-input)" }}>
-                  {["Miembro", "Sin visitar", "Membresía", "Estado", "Acción sugerida"].map(h => (
-                    <th key={h} style={{ padding: "8px 12px", textAlign: "left", color: "var(--text-secondary)", fontWeight: 500 }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {enRiesgo.map((p, i) => {
-                  const isAlto   = p.riesgo === "alto";
-                  const badgeBg  = isAlto ? "rgba(255,77,77,0.15)" : "rgba(255,189,46,0.15)";
-                  const badgeFg  = isAlto ? DANGER : WARNING;
-                  const badgeTxt = isAlto ? "URGENTE" : "ATENCIÓN";
-                  return (
-                    <tr key={i} style={{ borderBottom: "1px solid var(--border-dark)" }}>
-                      <td style={{ padding: "8px 12px", fontWeight: 600 }}>{p.nombre || p.id_miembro}</td>
-                      <td style={{ padding: "8px 12px", color: p.dias_sin_asistir > 21 ? DANGER : "var(--text-primary)" }}>
-                        {p.dias_sin_asistir != null ? `${p.dias_sin_asistir} días` : "—"}
-                      </td>
-                      <td style={{ padding: "8px 12px" }}>
-                        <span style={{ color: p.membresia_activa ? SUCCESS : DANGER, fontWeight: 600 }}>
-                          {p.membresia_activa ? "Vigente" : "Vencida"}
-                        </span>
-                      </td>
-                      <td style={{ padding: "8px 12px" }}>
-                        <span style={{ background: badgeBg, color: badgeFg, borderRadius: 6, padding: "3px 10px", fontWeight: 700, fontSize: 11 }}>
-                          {badgeTxt}
-                        </span>
-                      </td>
-                      <td style={{ padding: "8px 12px", color: badgeFg, fontWeight: 600 }}>
-                        {ACCION_POR_RIESGO[p.riesgo] || "—"}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {enRiesgo.map((p, i) => {
+              const isAlto = p.riesgo === "alto";
+              const col    = isAlto ? DANGER : WARNING;
+              const pct    = Math.round((p.probabilidad || 0) * 100);
+              return (
+                <div key={i} style={{
+                  display: "flex", alignItems: "center", gap: 14, padding: "12px 16px",
+                  background: "var(--bg-input)", borderRadius: 10, borderLeft: `3px solid ${col}`,
+                }}>
+                  <div style={{ width: 24, textAlign: "center", fontWeight: 800, color: col, fontSize: 15 }}>{i + 1}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      <span style={{ fontWeight: 700, color: "var(--text-primary)", fontSize: 14 }}>{p.nombre || p.id_miembro}</span>
+                      <span style={{
+                        background: isAlto ? "rgba(255,107,157,.15)" : "rgba(255,189,46,.15)",
+                        color: col, borderRadius: 6, padding: "2px 9px", fontWeight: 700, fontSize: 11,
+                      }}>
+                        {isAlto ? "Atención urgente" : "Hacer seguimiento"}
+                      </span>
+                    </div>
+                    <div style={{ display: "flex", gap: 14, marginTop: 5, fontSize: 12, color: "var(--text-secondary)", flexWrap: "wrap" }}>
+                      <span>{p.dias_sin_asistir != null ? `${p.dias_sin_asistir} días sin venir` : "Sin visitas registradas"}</span>
+                      <span>{p.asistencias_60d ?? 0} visitas en 60 días</span>
+                      <span style={{ color: p.membresia_activa ? SUCCESS : DANGER, fontWeight: 600 }}>
+                        {p.membresia_activa ? "Membresía vigente" : "Membresía vencida"}
+                      </span>
+                    </div>
+                    <div style={{ marginTop: 8, height: 6, background: "var(--border-dark)", borderRadius: 4, overflow: "hidden" }}>
+                      <div style={{ width: `${pct}%`, height: "100%", background: col, borderRadius: 4 }} />
+                    </div>
+                  </div>
+                  <div style={{ textAlign: "right", minWidth: 118 }}>
+                    <div style={{ color: col, fontWeight: 800, fontSize: 17 }}>{pct}%</div>
+                    <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>
+                      {ACCION_POR_RIESGO[p.riesgo] || "—"}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TAB: Horarios concurridos (mapa de calor de asistencia)
+// ─────────────────────────────────────────────────────────────────────────────
+function TabHeatmap() {
+  const [data, setData]       = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState(null);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true); setError(null);
+    try {
+      const token = localStorage.getItem("token");
+      const r = await fetch(`${API_BASE}/api/analytics/heatmap-asistencia`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) throw new Error(`Error ${r.status}`);
+      setData(await r.json());
+    } catch (e) { setError(e.message); }
+    finally { setLoading(false); }
+  }, []);
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  if (loading) return <LoadingSpinner />;
+  if (error || !data || data.error) return (
+    <NoDataBox icon={<FiClock />} title="Todavía no hay visitas para mostrar"
+      description={data?.error || "Cuando tus miembros registren entradas al gimnasio, aquí verás los horarios más concurridos."}
+      onRetry={fetchData} />
+  );
+
+  const { dias, franjas, celdas, max, pico, total_visitas, dia_mas_concurrido } = data;
+  const cellMap = {};
+  celdas.forEach(c => { cellMap[`${c.franja_idx}-${c.dia_idx}`] = c.total; });
+  const bg = (v) => {
+    if (!v) return "var(--bg-input)";
+    const a = 0.18 + 0.72 * (v / (max || 1));
+    return `rgba(56,189,248,${a.toFixed(2)})`;
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
+        <StatCard label="Visitas analizadas" value={total_visitas}        color={INFO}    />
+        <StatCard label="Día más concurrido" value={dia_mas_concurrido}    color={SUCCESS} />
+        <StatCard label="Franja pico"        value={pico ? pico.franja : "—"} color={ACCENT} />
+      </div>
+
+      <div style={{ background: "rgba(56,189,248,.07)", border: "1px solid rgba(56,189,248,.25)",
+        borderRadius: 10, padding: "12px 16px", marginBottom: 20, fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.7 }}>
+        <strong style={{ color: "var(--text-primary)" }}>¿Qué estás viendo?</strong>{" "}
+        Cada casilla indica cuántas personas vienen ese día a esa hora. Mientras más intenso el color, más llena está tu sala.
+        Útil para reforzar personal en las horas pico y crear promociones en las horas vacías.
+        {pico && <> Tu momento más concurrido es el <strong style={{ color: "var(--text-primary)" }}>{pico.dia}</strong> en la franja <strong style={{ color: "var(--text-primary)" }}>{pico.franja}</strong>.</>}
+      </div>
+
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ borderCollapse: "separate", borderSpacing: 4, width: "100%" }}>
+          <thead>
+            <tr>
+              <th style={{ width: 110 }} />
+              {dias.map(d => <th key={d} style={{ fontSize: 11, color: "var(--text-secondary)", fontWeight: 600, padding: "4px 2px" }}>{d.slice(0, 3)}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {franjas.map((f, fi) => (
+              <tr key={f}>
+                <td style={{ fontSize: 11, color: "var(--text-secondary)", whiteSpace: "nowrap", paddingRight: 8, textAlign: "right" }}>{f}</td>
+                {dias.map((d, di) => {
+                  const v = cellMap[`${fi}-${di}`] || 0;
+                  return (
+                    <td key={di} title={`${d} ${f}: ${v} visitas`}
+                      style={{ background: bg(v), borderRadius: 6, textAlign: "center", padding: "12px 0",
+                        fontSize: 12, fontWeight: 700, color: v > max * 0.5 ? "#06283d" : "var(--text-secondary)", minWidth: 40 }}>
+                      {v || ""}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TAB: Clientes por valor (RFM)
+// ─────────────────────────────────────────────────────────────────────────────
+function TabRFM() {
+  const [data, setData]       = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState(null);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true); setError(null);
+    try {
+      const token = localStorage.getItem("token");
+      const r = await fetch(`${API_BASE}/api/analytics/rfm`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) throw new Error(`Error ${r.status}`);
+      setData(await r.json());
+    } catch (e) { setError(e.message); }
+    finally { setLoading(false); }
+  }, []);
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  if (loading) return <LoadingSpinner />;
+  if (error || !data || data.error) return (
+    <NoDataBox icon={<FiUsers />} title="Todavía no hay datos para mostrar"
+      description={data?.error || "Cuando haya miembros con visitas y pagos, aquí verás cómo se reparten por valor."}
+      onRetry={fetchData} />
+  );
+
+  const { segmentos, miembros, total, promedios } = data;
+  const pie = segmentos.filter(s => s.total > 0).map(s => ({ name: s.nombre, value: s.total, fill: s.color }));
+  const money = (n) => `$${Number(n || 0).toLocaleString("es-MX", { maximumFractionDigits: 0 })}`;
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
+        <StatCard label="Miembros analizados"     value={total}                    color={INFO}    />
+        <StatCard label="Visitas promedio"        value={promedios.visitas}        color={SUCCESS} />
+        <StatCard label="Gasto promedio"          value={money(promedios.gastado)} color={ACCENT}  />
+        <StatCard label="Días sin venir (prom.)"  value={promedios.recency_dias}   color={WARNING} />
+      </div>
+
+      <div style={{ background: "rgba(167,139,250,.08)", border: "1px solid rgba(167,139,250,.28)",
+        borderRadius: 10, padding: "12px 16px", marginBottom: 20, fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.7 }}>
+        <strong style={{ color: "var(--text-primary)" }}>¿Qué estás viendo?</strong>{" "}
+        Agrupamos a tus miembros según qué tan reciente fue su última visita, cuántas veces vienen y cuánto han pagado.
+        Así sabes a quién premiar y a quién reactivar antes de que se vaya.
+      </div>
+
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 22 }}>
+        {segmentos.map(s => (
+          <div key={s.nombre} style={{ flex: 1, minWidth: 150, background: "var(--bg-input)",
+            borderRadius: 10, padding: "12px 14px", borderTop: `3px solid ${s.color}` }}>
+            <div style={{ color: s.color, fontSize: 22, fontWeight: 800 }}>{s.total}</div>
+            <div style={{ color: "var(--text-primary)", fontSize: 13, fontWeight: 700, margin: "2px 0 4px" }}>{s.nombre}</div>
+            <div style={{ color: "var(--text-secondary)", fontSize: 11, lineHeight: 1.5 }}>{s.descripcion}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: "flex", gap: 24, flexWrap: "wrap", alignItems: "flex-start" }}>
+        <div style={{ flex: 1, minWidth: 240 }}>
+          <SectionTitle>Reparto de tu base</SectionTitle>
+          <ResponsiveContainer width="100%" height={220}>
+            <PieChart>
+              <Pie data={pie} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={78}
+                   label={({ percent }) => `${(percent * 100).toFixed(0)}%`}>
+                {pie.map((d, i) => <Cell key={i} fill={d.fill} />)}
+              </Pie>
+              <Tooltip />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div style={{ flex: 1.4, minWidth: 300 }}>
+          <SectionTitle>Tus miembros</SectionTitle>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 320, overflowY: "auto" }}>
+            {miembros.slice(0, 40).map((m, i) => {
+              const seg = segmentos.find(s => s.nombre === m.segmento);
+              const col = seg ? seg.color : "var(--text-secondary)";
+              return (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "9px 12px",
+                  background: "var(--bg-input)", borderRadius: 8, borderLeft: `3px solid ${col}` }}>
+                  <span style={{ flex: 1, fontWeight: 600, color: "var(--text-primary)", fontSize: 13 }}>{m.nombre}</span>
+                  <span style={{ background: `${col}22`, color: col, borderRadius: 6, padding: "2px 9px", fontSize: 11, fontWeight: 700 }}>{m.segmento}</span>
+                  <span style={{ fontSize: 12, color: "var(--text-secondary)", minWidth: 70, textAlign: "right" }}>{m.visitas} visitas</span>
+                  <span style={{ fontSize: 12, color: "var(--text-secondary)", minWidth: 70, textAlign: "right" }}>{money(m.gastado)}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TAB: Fuerza estimada de los miembros (1RM)
+// ─────────────────────────────────────────────────────────────────────────────
+function TabFuerza() {
+  const [data, setData]       = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState(null);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true); setError(null);
+    try {
+      const token = localStorage.getItem("token");
+      const r = await fetch(`${API_BASE}/api/analytics/fuerza`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) throw new Error(`Error ${r.status}`);
+      setData(await r.json());
+    } catch (e) { setError(e.message); }
+    finally { setLoading(false); }
+  }, []);
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  if (loading) return <LoadingSpinner />;
+  if (error || !data || data.error) return (
+    <NoDataBox icon={<FiActivity />} title="Todavía no hay entrenamientos para mostrar"
+      description={data?.error || "Cuando tus miembros registren sus series (peso y repeticiones), aquí verás su fuerza estimada por ejercicio."}
+      onRetry={fetchData} />
+  );
+
+  const { ejercicios, mejor, total_series, ejercicios_distintos } = data;
+  const chart = ejercicios.map(e => ({ nombre: e.nombre, kg: e.prom_kg }));
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
+        <StatCard label="Ejercicios registrados" value={ejercicios_distintos} color={INFO}    />
+        <StatCard label="Series analizadas"       value={total_series}         color={SUCCESS} />
+        <StatCard label="Mejor levantamiento"     value={mejor ? `${mejor.kg} kg` : "—"} color={ACCENT} />
+      </div>
+
+      <div style={{ background: "rgba(76,217,100,.07)", border: "1px solid rgba(76,217,100,.25)",
+        borderRadius: 10, padding: "12px 16px", marginBottom: 20, fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.7 }}>
+        <strong style={{ color: "var(--text-primary)" }}>¿Qué estás viendo?</strong>{" "}
+        A partir del peso y las repeticiones que registran tus miembros, estimamos cuánto podrían levantar en un solo intento máximo.
+        Es una referencia para medir su progreso de fuerza.
+        {mejor && <> El mejor registro hasta ahora es de <strong style={{ color: "var(--text-primary)" }}>{mejor.miembro}</strong> en <strong style={{ color: "var(--text-primary)" }}>{mejor.ejercicio}</strong> con {mejor.kg} kg estimados.</>}
+      </div>
+
+      <SectionTitle>Fuerza promedio estimada por ejercicio</SectionTitle>
+      <ResponsiveContainer width="100%" height={Math.max(220, chart.length * 38)}>
+        <BarChart data={chart} layout="vertical" margin={{ left: 10, right: 20 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-dark)" />
+          <XAxis type="number" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} tickFormatter={v => `${v} kg`} />
+          <YAxis type="category" dataKey="nombre" width={150} tick={{ fill: "var(--text-secondary)", fontSize: 11 }} />
+          <Tooltip formatter={v => [`${v} kg estimados`, "Promedio"]} />
+          <Bar dataKey="kg" name="Promedio" fill={SUCCESS} radius={[0, 4, 4, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+
+      <SectionTitle>Detalle por ejercicio</SectionTitle>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {ejercicios.map((e, i) => (
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px",
+            background: "var(--bg-input)", borderRadius: 8 }}>
+            <span style={{ flex: 1, fontWeight: 600, color: "var(--text-primary)", fontSize: 13 }}>{e.nombre}</span>
+            <span style={{ fontSize: 12, color: "var(--text-secondary)", minWidth: 90, textAlign: "right" }}>Prom. {e.prom_kg} kg</span>
+            <span style={{ fontSize: 12, color: ACCENT, minWidth: 80, textAlign: "right", fontWeight: 600 }}>Máx. {e.max_kg} kg</span>
+            <span style={{ fontSize: 12, color: "var(--text-secondary)", minWidth: 80, textAlign: "right" }}>{e.miembros} {e.miembros === 1 ? "miembro" : "miembros"}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -873,11 +1128,31 @@ const IconCancelaciones = () => (
   </svg>
 );
 
+const IconHeatmap = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/>
+  </svg>
+);
+const IconRFM = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2l2.6 6.6L22 9.2l-5 4.6 1.4 7.2L12 17.8 5.6 21l1.4-7.2-5-4.6 7.4-.6z"/>
+  </svg>
+);
+const IconFuerza = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M6.5 6.5l11 11"/><path d="M21 21l-1-1"/><path d="M3 3l1 1"/>
+    <path d="M18 22l4-4"/><path d="M2 6l4-4"/><path d="M3 10l7-7"/><path d="M14 21l7-7"/>
+  </svg>
+);
+
 const TABS = [
   { id: "mapreduce",     label: "Finanzas y Flujo",    Icon: IconMapReduce,     Component: TabMapReduce     },
   { id: "kmeans",        label: "Grupos de Miembros",  Icon: IconKMeans,        Component: TabKMeans        },
   { id: "regresion",     label: "Tendencias de Peso",  Icon: IconRegresion,     Component: TabRegresion     },
   { id: "cancelaciones", label: "Riesgo de Abandono",  Icon: IconCancelaciones, Component: TabCancelaciones },
+  { id: "heatmap",       label: "Horarios Concurridos", Icon: IconHeatmap,      Component: TabHeatmap       },
+  { id: "rfm",           label: "Clientes por Valor",  Icon: IconRFM,           Component: TabRFM           },
+  { id: "fuerza",        label: "Fuerza de Miembros",  Icon: IconFuerza,        Component: TabFuerza        },
 ];
 
 export default function AdminAnalytics() {
