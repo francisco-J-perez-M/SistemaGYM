@@ -1,15 +1,15 @@
 import { useEffect, useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
 import {
   FiUsers, FiDollarSign, FiTrendingUp, FiTrendingDown,
   FiAlertTriangle, FiShoppingCart, FiUserCheck, FiRefreshCw,
-  FiAward, FiActivity,
+  FiAward, FiActivity, FiChevronLeft, FiChevronRight,
+  FiXCircle, FiCheckCircle, FiBell, FiCreditCard, FiUserPlus,
 } from "react-icons/fi";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer,
 } from "recharts";
-import { getOwnerDashboard, getOwnerIngresos, getOwnerActividad } from "../../api/owner_gym";
+import { getOwnerDashboard, getOwnerIngresos, getOwnerActividad, getOwnerAlertas } from "../../api/owner_gym";
 
 // ─── helpers ───────────────────────────────────────────────────────────────
 const fmt = (n) =>
@@ -106,24 +106,49 @@ function CustomTooltip({ active, payload, label }) {
   );
 }
 
+const ACT_PER_PAGE   = 6;
+const ALERT_PER_PAGE = 5;
+
+// ─── Mini paginador reutilizable ──────────────────────────────────────────────
+function Pager({ page, total, onChange }) {
+  if (total <= 1) return null;
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, marginTop: 12, paddingTop: 10, borderTop: "1px solid var(--border,rgba(255,255,255,.06))" }}>
+      <button onClick={() => onChange(page - 1)} disabled={page === 1}
+        style={{ background: "none", border: "1px solid var(--border,rgba(255,255,255,.1))", borderRadius: 6, color: page === 1 ? "#334155" : "#94a3b8", cursor: page === 1 ? "not-allowed" : "pointer", padding: "4px 8px", display: "flex", alignItems: "center" }}>
+        <FiChevronLeft size={13} />
+      </button>
+      <span style={{ fontSize: 12, color: "#64748b" }}>{page} / {total}</span>
+      <button onClick={() => onChange(page + 1)} disabled={page === total}
+        style={{ background: "none", border: "1px solid var(--border,rgba(255,255,255,.1))", borderRadius: 6, color: page === total ? "#334155" : "#94a3b8", cursor: page === total ? "not-allowed" : "pointer", padding: "4px 8px", display: "flex", alignItems: "center" }}>
+        <FiChevronRight size={13} />
+      </button>
+    </div>
+  );
+}
+
 export default function OwnerDashboard() {
-  const navigate = useNavigate();
   const [kpis,      setKpis]      = useState(null);
   const [ingresos,  setIngresos]  = useState([]);
   const [actividad, setActividad] = useState([]);
+  const [alertas,   setAlertas]   = useState([]);
   const [loading,   setLoading]   = useState(true);
+  const [actPage,   setActPage]   = useState(1);
+  const [alertPage, setAlertPage] = useState(1);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [kRes, iRes, aRes] = await Promise.all([
+      const [kRes, iRes, aRes, alRes] = await Promise.all([
         getOwnerDashboard(),
         getOwnerIngresos(6),
-        getOwnerActividad(8),
+        getOwnerActividad(20),
+        getOwnerAlertas(),
       ]);
       setKpis(kRes.data);
       setIngresos(iRes.data);
       setActividad(aRes.data);
+      setAlertas(alRes.data?.alertas || []);
     } catch (e) {
       console.error(e);
     } finally {
@@ -255,61 +280,132 @@ export default function OwnerDashboard() {
         </div>
       </div>
 
-      {/* Actividad reciente + accesos rápidos */}
+      {/* Actividad reciente + Alertas */}
       <div style={S.grid2}>
-        {/* Actividad */}
+
+        {/* ── Actividad Reciente (paginada) ── */}
         <div style={S.section}>
-          <div style={S.sectionTitle}>Actividad Reciente</div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+            <div style={S.sectionTitle}>Actividad Reciente</div>
+            {actividad.length > 0 && (
+              <span style={{ fontSize: 11, color: "#64748b" }}>{actividad.length} registros</span>
+            )}
+          </div>
           {loading
             ? [1,2,3,4].map(i => (
                 <div key={i} style={{ height: 44, background: "var(--bg-dark,#0f1117)", borderRadius: 6, marginBottom: 8, opacity: 0.5 }} />
               ))
             : actividad.length === 0
               ? <p style={{ color: "#64748b", fontSize: 13 }}>Sin actividad reciente</p>
-              : actividad.map((a, i) => (
-                <div key={i} style={{ ...S.actRow, borderBottom: i === actividad.length - 1 ? "none" : undefined }}>
-                  <div style={S.actIcon}>{a.icono}</div>
-                  <div style={{ flex: 1 }}>
-                    <div style={S.actText}>{a.texto}</div>
-                    {a.metodo && <div style={S.actDate}>{a.metodo}</div>}
-                  </div>
-                  <div style={S.actDate}>{a.fecha ? a.fecha.slice(0, 10) : ""}</div>
-                </div>
-              ))
+              : (() => {
+                  const totalPagesAct = Math.ceil(actividad.length / ACT_PER_PAGE);
+                  const slice = actividad.slice((actPage - 1) * ACT_PER_PAGE, actPage * ACT_PER_PAGE);
+                  const tipoMeta = (tipo) => {
+                    if (tipo === "pago")     return { bg: "rgba(99,102,241,.12)",  color: "#818cf8", icon: <FiCreditCard  size={16} />, prefix: ""              };
+                    if (tipo === "venta")    return { bg: "rgba(245,158,11,.12)",  color: "#f59e0b", icon: <FiShoppingCart size={16} />, prefix: ""              };
+                    /* registro */           return { bg: "rgba(16,185,129,.12)",  color: "#10b981", icon: <FiUserPlus    size={16} />, prefix: "Nuevo miembro: " };
+                  };
+                  return (
+                    <>
+                      {slice.map((a, i) => {
+                        const meta = tipoMeta(a.tipo);
+                        const showMonto = (a.tipo === "pago" || a.tipo === "venta") && a.monto != null;
+                        return (
+                          <div key={i} style={{ ...S.actRow, borderBottom: i === slice.length - 1 ? "none" : undefined }}>
+                            <div style={{ ...S.actIcon, background: meta.bg, color: meta.color }}>
+                              {meta.icon}
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ ...S.actText, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {meta.prefix}{a.titulo}
+                              </div>
+                              <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 2 }}>
+                                {showMonto && (
+                                  <span style={{ fontSize: 12, fontWeight: 700, color: "#10b981" }}>{fmt(a.monto)}</span>
+                                )}
+                                {a.sub && (
+                                  <span style={{ fontSize: 11, color: "#64748b", background: "rgba(255,255,255,.05)", borderRadius: 4, padding: "1px 6px" }}>{a.sub}</span>
+                                )}
+                              </div>
+                            </div>
+                            <div style={{ ...S.actDate, flexShrink: 0, textAlign: "right" }}>
+                              {a.fecha ? a.fecha.slice(0, 10) : ""}
+                            </div>
+                          </div>
+                        );
+                      })}
+                      <Pager page={actPage} total={totalPagesAct} onChange={setActPage} />
+                    </>
+                  );
+                })()
           }
         </div>
 
-        {/* Accesos rápidos */}
+        {/* ── Alertas del sistema (paginadas) ── */}
         <div style={S.section}>
-          <div style={S.sectionTitle}>Accesos Rápidos</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            {[
-              { label: "Ver Miembros",      path: "/owner/members",     color: "#6366f1", icon: <FiUsers /> },
-              { label: "Registrar Pago",    path: "/dashboard/payments", color: "#22c55e", icon: <FiDollarSign /> },
-              { label: "Punto de Venta",    path: "/dashboard/pos",      color: "#f59e0b", icon: <FiShoppingCart /> },
-              { label: "Staff",             path: "/owner/staff",        color: "#a855f7", icon: <FiAward /> },
-              { label: "Membresías",        path: "/owner/memberships",  color: "#14b8a6", icon: <FiActivity /> },
-              { label: "Perfil del Gym",    path: "/owner/profile",      color: "#0ea5e9", icon: <FiUserCheck /> },
-            ].map(({ label, path, color, icon }) => (
-              <button
-                key={path}
-                onClick={() => navigate(path)}
-                style={{
-                  background: `${color}11`, border: `1px solid ${color}33`,
-                  borderRadius: 10, padding: "14px 12px",
-                  cursor: "pointer", color,
-                  display: "flex", alignItems: "center", gap: 10,
-                  fontSize: 13, fontWeight: 600, transition: "all .2s",
-                }}
-                onMouseEnter={e => e.currentTarget.style.background = `${color}22`}
-                onMouseLeave={e => e.currentTarget.style.background = `${color}11`}
-              >
-                <span style={{ fontSize: 18 }}>{icon}</span>
-                {label}
-              </button>
-            ))}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <FiBell size={15} color={alertas.some(a => a.nivel === "error") ? "#ef4444" : "#eab308"} />
+              <span style={S.sectionTitle}>Alertas del Sistema</span>
+            </div>
+            {alertas.length > 0 && (
+              <span style={{
+                fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 99,
+                background: alertas.some(a => a.nivel === "error") ? "rgba(239,68,68,.15)" : "rgba(234,179,8,.15)",
+                color: alertas.some(a => a.nivel === "error") ? "#ef4444" : "#eab308",
+              }}>
+                {alertas.length} alerta{alertas.length !== 1 ? "s" : ""}
+              </span>
+            )}
           </div>
+
+          {loading
+            ? [1,2,3].map(i => (
+                <div key={i} style={{ height: 52, background: "var(--bg-dark,#0f1117)", borderRadius: 8, marginBottom: 8, opacity: 0.5 }} />
+              ))
+            : alertas.length === 0
+              ? (
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "32px 0", gap: 10, color: "#64748b" }}>
+                  <FiCheckCircle size={32} color="#22c55e" style={{ opacity: 0.6 }} />
+                  <p style={{ fontSize: 13, margin: 0, color: "#22c55e" }}>Todo en orden — sin alertas activas</p>
+                </div>
+              )
+              : (() => {
+                  const totalPagesAl = Math.ceil(alertas.length / ALERT_PER_PAGE);
+                  const slice = alertas.slice((alertPage - 1) * ALERT_PER_PAGE, alertPage * ALERT_PER_PAGE);
+                  return (
+                    <>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        {slice.map((al, i) => {
+                          const isError = al.nivel === "error";
+                          const color   = isError ? "#ef4444" : "#eab308";
+                          return (
+                            <div key={i} style={{
+                              display: "flex", alignItems: "flex-start", gap: 12,
+                              padding: "10px 12px", borderRadius: 10,
+                              background: isError ? "rgba(239,68,68,.07)" : "rgba(234,179,8,.07)",
+                              border: `1px solid ${isError ? "rgba(239,68,68,.2)" : "rgba(234,179,8,.2)"}`,
+                            }}>
+                              <span style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>{al.icono}</span>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ fontSize: 13, fontWeight: 600, color, marginBottom: 2 }}>{al.titulo}</div>
+                                <div style={{ fontSize: 11, color: "#64748b", lineHeight: 1.4 }}>{al.detalle}</div>
+                              </div>
+                              {isError
+                                ? <FiXCircle size={14} color="#ef4444" style={{ flexShrink: 0, marginTop: 2 }} />
+                                : <FiAlertTriangle size={14} color="#eab308" style={{ flexShrink: 0, marginTop: 2 }} />
+                              }
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <Pager page={alertPage} total={totalPagesAl} onChange={setAlertPage} />
+                    </>
+                  );
+                })()
+          }
         </div>
+
       </div>
 
       <style>{`

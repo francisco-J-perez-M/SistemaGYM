@@ -22,3 +22,19 @@ export const registrarPago = async (data) => {
   });
   return res.data;
 };
+
+export const getTodosMovimientos = async ({ page = 1, tipo = "todos", categoria = "" } = {}) => {
+  const params = new URLSearchParams({ page, tipo });
+  if (categoria) params.set("categoria", categoria);
+  const res = await axios.get(`${API_URL}/todos?${params}`, {
+    headers: authHeader(),
+  });
+  return res.data;
+};
+
+export const getCategoriasVentas = async () => {
+  const res = await axios.get(`${API_URL}/categorias`, {
+    headers: authHeader(),
+  });
+  return res.data;
+};

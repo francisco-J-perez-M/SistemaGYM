@@ -10,7 +10,8 @@ API.interceptors.request.use((config) => {
 // ── Dashboard ─────────────────────────────────────────────────────────────
 export const getOwnerDashboard   = ()           => API.get("/owner_gym/dashboard");
 export const getOwnerIngresos    = (meses = 6)  => API.get("/owner_gym/dashboard/ingresos", { params: { meses } });
-export const getOwnerActividad   = (limit = 10) => API.get("/owner_gym/dashboard/actividad", { params: { limit } });
+export const getOwnerActividad   = (limit = 20) => API.get("/owner_gym/dashboard/actividad", { params: { limit } });
+export const getOwnerAlertas     = ()           => API.get("/owner_gym/alertas");
 
 // ── Perfil del gimnasio ───────────────────────────────────────────────────
 export const getOwnerPerfil      = ()     => API.get("/owner_gym/perfil");
