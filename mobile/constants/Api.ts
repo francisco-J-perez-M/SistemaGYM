@@ -72,6 +72,8 @@ export const ENDPOINTS = {
   // ── Auth ──────────────────────────────────────────────────────────────────
   LOGIN:              '/auth/login',
   REGISTER:           '/auth/register',
+  FORGOT_PASSWORD:    '/auth/forgot-password',   // POST { email }
+  RESET_PASSWORD:     '/auth/reset-password',    // POST { email, code, new_password }
 
   // ── Miembro ───────────────────────────────────────────────────────────────
   USER_DASHBOARD:     '/user/dashboard',        // GET  /api/user/dashboard
