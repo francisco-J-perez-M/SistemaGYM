@@ -24,6 +24,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors, useFontScale } from '../../hooks/useColors';
 import { toStr } from '../../utils/format';
 import { esPdf } from '../../services/media';
+import VisorPdf from './VisorPdf';
 
 let FS: any = null;
 try { FS = require('expo-file-system/legacy'); }
@@ -131,30 +132,23 @@ export default function VisorCertificado({ certificado, onClose }: Props) {
             {!archivo ? (
               <Text style={styles.vacio}>Esta certificación no tiene documento adjunto.</Text>
             ) : pdf ? (
-              <View style={styles.pdfCaja}>
-                <Ionicons name="document-text-outline" size={54} color={colors.accent} />
-                <Text style={styles.pdfNombre} numberOfLines={2}>
-                  {toStr(certificado?.nombre_archivo, 'Documento PDF')}
-                </Text>
-                <Text style={styles.pdfAyuda}>
-                  {Platform.OS === 'android'
-                    ? 'Elige una carpeta para guardarlo y ábrelo desde ahí.'
-                    : 'Se abrirá con el lector de tu teléfono.'}
-                </Text>
+              <>
+                {/* El PDF se lee aquí mismo; guardarlo es solo una alternativa */}
+                <VisorPdf dataUrl={archivo} alto={430} />
                 <TouchableOpacity
-                  style={styles.abrirBtn}
+                  style={styles.descargarBtn}
                   onPress={abrirPdf}
                   disabled={abriendo}
                   accessibilityRole="button"
-                  accessibilityLabel="Guardar y abrir el documento"
+                  accessibilityLabel="Guardar una copia del documento"
                 >
                   <Ionicons name={abriendo ? 'hourglass-outline' : 'download-outline'}
-                            size={17} color={colors.onAccent} />
-                  <Text style={styles.abrirText}>
-                    {abriendo ? 'Guardando…' : (Platform.OS === 'android' ? 'Guardar y abrir' : 'Abrir documento')}
+                            size={16} color={colors.accent} />
+                  <Text style={styles.descargarText}>
+                    {abriendo ? 'Guardando…' : 'Guardar una copia'}
                   </Text>
                 </TouchableOpacity>
-              </View>
+              </>
             ) : (
               <Image
                 source={{ uri: archivo }}
@@ -195,18 +189,11 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
       width: '100%', height: 420, borderRadius: 14,
       backgroundColor: colors.surface,
     },
-    pdfCaja: {
-      alignItems: 'center', gap: 8, paddingVertical: 34,
-      backgroundColor: colors.surface, borderRadius: 14,
+    descargarBtn: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+      marginTop: 12, paddingVertical: 11, borderRadius: 12,
+      backgroundColor: colors.accentBg,
     },
-    pdfNombre: { color: colors.text, fontSize: 14 * fs, fontWeight: '700',
-                 textAlign: 'center', paddingHorizontal: 20 },
-    pdfAyuda:  { color: colors.textMuted, fontSize: 11.5 * fs, textAlign: 'center' },
-    abrirBtn: {
-      flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10,
-      backgroundColor: colors.accent, borderRadius: 12,
-      paddingHorizontal: 18, paddingVertical: 12,
-    },
-    abrirText: { color: colors.onAccent, fontSize: 14 * fs, fontWeight: '700' },
+    descargarText: { color: colors.accent, fontSize: 13 * fs, fontWeight: '700' },
   });
 }
