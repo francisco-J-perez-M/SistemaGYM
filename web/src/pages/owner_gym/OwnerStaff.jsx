@@ -135,6 +135,33 @@ function ConfirmDialog({ open, title, message, onConfirm, onCancel, danger }) {
   );
 }
 
+// ── Field / IcoWrap ──────────────────────────────────────────────────────────
+// Antes vivian DENTRO de StaffModal: al recrearse en cada render (cada
+// setForm por cada caracter escrito) React los veia como un tipo de
+// componente nuevo, desmontaba el <input> anterior y el campo perdia el foco
+// tras cada letra (SCRUM-202: "Alta de entrenador: el campo pierde el foco
+// tras cada caracter"). Se sacan a nivel de modulo para que conserven su
+// identidad entre renders, igual que Avatar y PhotoUploader.
+function Field({ label, required, children }) {
+  return (
+    <div style={{ flex: "1 1 calc(50% - 6px)", minWidth: 0 }}>
+      <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: C.t2, textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 5 }}>
+        {label}{required && <span style={{ color: C.accent, marginLeft: 2 }}>*</span>}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+function IcoWrap({ icon, children }) {
+  return (
+    <div style={{ position: "relative" }}>
+      <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: C.t3, display: "flex" }}>{icon}</span>
+      {children}
+    </div>
+  );
+}
+
 // ── Modal ─────────────────────────────────────────────────────────────────────
 const EMPTY_FORM = { nombre: "", email: "", password: "", rol: "", foto_base64: "" };
 
@@ -159,22 +186,6 @@ function StaffModal({ open, onClose, onSave, initial, saving }) {
     border: `1px solid ${C.border}`, borderRadius: 8,
     padding: "9px 12px 9px 32px", color: C.t1, fontSize: 13, outline: "none",
   };
-
-  const Field = ({ label, required, children }) => (
-    <div style={{ flex: "1 1 calc(50% - 6px)", minWidth: 0 }}>
-      <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: C.t2, textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 5 }}>
-        {label}{required && <span style={{ color: C.accent, marginLeft: 2 }}>*</span>}
-      </label>
-      {children}
-    </div>
-  );
-
-  const IcoWrap = ({ icon, children }) => (
-    <div style={{ position: "relative" }}>
-      <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: C.t3, display: "flex" }}>{icon}</span>
-      {children}
-    </div>
-  );
 
   return (
     <div onClick={e => e.target === e.currentTarget && onClose()}
