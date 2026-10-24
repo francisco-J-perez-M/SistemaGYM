@@ -468,7 +468,7 @@ function TabVenta() {
             {cart.length === 0 ? (
               <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "var(--text-secondary)", gap: 10, paddingTop: 40 }}>
                 <FiShoppingCart size={34} style={{ opacity: 0.2 }} />
-                <p style={{ fontSize: 12 }}>Carrito vacio</p>
+                <p style={{ fontSize: 12 }}>Carrito vacío</p>
               </div>
             ) : cart.map(item => (
               <div key={item.id} style={{ background: "var(--bg-input, rgba(255,255,255,.04))", borderRadius: 8, padding: "8px 10px" }}>
