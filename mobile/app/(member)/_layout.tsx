@@ -3,6 +3,7 @@ import { Drawer } from 'expo-router/drawer';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '../../hooks/useColors';
 import CustomDrawer from '../../components/navigation/CustomDrawer';
+import PerfilCompletoBadge from '../../components/navigation/PerfilCompletoBadge';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 interface Screen { name: string; title: string; icon: IconName; iconActive: IconName }
@@ -32,6 +33,10 @@ export default function MemberLayout() {
         headerTintColor:         colors.text,
         headerTitleStyle:        { fontWeight: '700', fontSize: 18, color: colors.text },
         headerShadowVisible:     false,
+        // SCRUM-102: indicador circular de pendientes, visible desde
+        // cualquier pantalla del rol Miembro (headerRight aplica a todas
+        // las Drawer.Screen de este layout).
+        headerRight:             () => <PerfilCompletoBadge />,
         drawerStyle:             { backgroundColor: colors.background, width: 280 },
         drawerActiveTintColor:   colors.accent,
         drawerInactiveTintColor: colors.textSecondary,
