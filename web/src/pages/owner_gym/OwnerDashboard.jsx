@@ -8,9 +8,13 @@ import {
 } from "react-icons/fi";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, Legend, ResponsiveContainer,
+  Tooltip, Legend, ResponsiveContainer, LabelList,
 } from "recharts";
 import { getOwnerDashboard, getOwnerIngresos, getOwnerActividad, getOwnerAlertas } from "../../api/owner_gym";
+import InfoGrafico, {
+  COLORES_GRAFICO, COLOR_REJILLA, ejeX, ejeY, rangoPeriodo, describirTendencia,
+  ImporteExtremos,
+} from "../../components/compartido/InfoGrafico";
 
 // ─── helpers ───────────────────────────────────────────────────────────────
 const fmt = (n) =>
@@ -159,7 +163,11 @@ export default function OwnerDashboard() {
 
   useEffect(() => { load(); }, [load]);
 
-  const variacion = kpis?.ingresos?.variacion_pct ?? 0;
+  // Sin ingresos el mes pasado no hay porcentaje que calcular: pintar "-100 %"
+  // o "0 %" haría creer que el negocio cayó cuando en realidad no hay base de
+  // comparación. El backend lo avisa con `sin_comparativa`, igual que el móvil.
+  const sinComparativa = kpis?.ingresos?.sin_comparativa ?? false;
+  const variacion = sinComparativa ? 0 : (kpis?.ingresos?.variacion_pct ?? 0);
   const varPositive = variacion >= 0;
 
   return (
@@ -190,18 +198,23 @@ export default function OwnerDashboard() {
           label="Ingresos del Mes"
           value={fmt(kpis?.ingresos?.mes_actual)}
           sub={
-            <span style={{ color: varPositive ? "var(--success)" : "var(--danger)" }}>
-              {varPositive ? "▲" : "▼"} {Math.abs(variacion)}% vs mes anterior
-            </span>
+            sinComparativa
+              ? <span style={{ color: "var(--text-tertiary)" }}>Membresías + POS · sin mes previo</span>
+              : (
+                <span style={{ color: varPositive ? "var(--success)" : "var(--danger)" }}>
+                  {varPositive ? "▲" : "▼"} {Math.abs(variacion)}% vs mes anterior
+                </span>
+              )
           }
           icon={<FiDollarSign />}
           accent="var(--success)"
           loading={loading}
         />
+        {/* El POS ya va sumado dentro de "Ingresos del Mes"; aquí se desglosa. */}
         <KpiCard
           label="Ventas POS (Mes)"
           value={fmt(kpis?.ventas_pos?.total_mes)}
-          sub={`${kpis?.ventas_pos?.transacciones ?? 0} transacciones`}
+          sub={`${kpis?.ventas_pos?.transacciones ?? 0} transacciones · incluidas arriba`}
           icon={<FiShoppingCart />}
           accent="var(--warning)"
           loading={loading}
@@ -252,30 +265,90 @@ export default function OwnerDashboard() {
       <div style={{ ...S.grid2, "@media(maxWidth:768px)": { gridTemplateColumns: "1fr" } }} data-guide="ow-ingresos">
         {/* Ingresos históricos */}
         <div style={S.section}>
-          <div style={S.sectionTitle}>Ingresos últimos 6 meses</div>
-          <ResponsiveContainer width="100%" height={220}>
-            <LineChart data={ingresos} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-              <XAxis dataKey="label" tick={{ fill: "var(--text-tertiary)", fontSize: 11 }} />
-              <YAxis tick={{ fill: "var(--text-tertiary)", fontSize: 11 }} tickFormatter={(v) => `$${(v/1000).toFixed(0)}k`} />
+          <InfoGrafico
+            titulo="Ingresos por origen, mes a mes"
+            periodo={rangoPeriodo(ingresos)}
+            subtitulo="De dónde vino el dinero en cada uno de los últimos seis meses."
+            comportamiento={describirTendencia(
+              ingresos.map((d) => (d.pagos || 0) + (d.ventas || 0)),
+              { esDinero: true },
+            )}
+            series={[
+              {
+                color: COLORES_GRAFICO.ingresos,
+                nombre: "Membresías",
+                descripcion: "Cobros de planes: altas, renovaciones y cambios de plan.",
+              },
+              {
+                color: COLORES_GRAFICO.pos,
+                nombre: "POS",
+                descripcion: "Ventas del punto de venta: suplementos, bebidas y accesorios.",
+              },
+            ]}
+            notas={[
+              "Cada punto es el total cobrado en ese mes. Las dos líneas se suman para dar el ingreso total.",
+              "Un mes sin cobros aparece en cero, no como un hueco en la línea.",
+            ]}
+          />
+          <ResponsiveContainer width="100%" height={260}>
+            {/* top: 26 reserva sitio para la etiqueta del importe máximo, que
+                se dibuja por encima del vértice más alto de la serie. */}
+            <LineChart data={ingresos} margin={{ top: 26, right: 8, left: 6, bottom: 22 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />
+              <XAxis dataKey="label" tick={{ fill: "var(--text-tertiary)", fontSize: 11 }}
+                label={ejeX("Mes")} />
+              <YAxis tick={{ fill: "var(--text-tertiary)", fontSize: 11 }} tickFormatter={(v) => `$${(v/1000).toFixed(0)}k`}
+                label={ejeY("Ingresos (miles de MXN)")} />
               <Tooltip content={<CustomTooltip />} />
-              <Legend wrapperStyle={{ fontSize: 12, color: "var(--text-secondary)" }} />
-              <Line type="monotone" dataKey="pagos"  name="Membresías" stroke="var(--accent)" strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="ventas" name="POS"         stroke="var(--warning)" strokeWidth={2} dot={false} />
+              <Legend wrapperStyle={{ fontSize: 12, color: "var(--text-secondary)", paddingTop: 8 }} verticalAlign="top" />
+              {/* Punto visible en cada mes: con la línea sola no se distingue
+                  dónde acaba un mes y empieza el siguiente. */}
+              <Line type="monotone" dataKey="pagos"  name="Membresías" stroke={COLORES_GRAFICO.ingresos} strokeWidth={2.5}
+                dot={{ r: 3, fill: COLORES_GRAFICO.ingresos, strokeWidth: 0 }}>
+                {/* El eje va en miles; el importe del pico y del valle se
+                    escribe completo para no obligar a estimarlo. */}
+                <LabelList content={<ImporteExtremos valores={ingresos.map((d) => d.pagos)} />} />
+              </Line>
+              <Line type="monotone" dataKey="ventas" name="POS"         stroke={COLORES_GRAFICO.pos} strokeWidth={2.5}
+                dot={{ r: 3, fill: COLORES_GRAFICO.pos, strokeWidth: 0 }}>
+                <LabelList content={<ImporteExtremos valores={ingresos.map((d) => d.ventas)} />} />
+              </Line>
             </LineChart>
           </ResponsiveContainer>
         </div>
 
         {/* Barras por mes */}
         <div style={S.section}>
-          <div style={S.sectionTitle}>Total por mes</div>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={ingresos} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-              <XAxis dataKey="label" tick={{ fill: "var(--text-tertiary)", fontSize: 11 }} />
-              <YAxis tick={{ fill: "var(--text-tertiary)", fontSize: 11 }} tickFormatter={(v) => `$${(v/1000).toFixed(0)}k`} />
+          <InfoGrafico
+            titulo="Ingreso total cobrado por mes"
+            periodo={rangoPeriodo(ingresos)}
+            subtitulo="Membresías y punto de venta sumados en una sola barra."
+            comportamiento={describirTendencia(
+              ingresos.map((d) => d.total || 0),
+              { esDinero: true },
+            )}
+            series={[
+              {
+                color: COLORES_GRAFICO.ingresos,
+                nombre: "Total del mes",
+                descripcion: "La suma de las dos líneas del gráfico anterior. Sirve para ver el volumen sin distinguir el origen.",
+              },
+            ]}
+            notas={[
+              "La altura de la barra es dinero cobrado, no facturado: solo cuenta lo que ya entró.",
+            ]}
+          />
+          <ResponsiveContainer width="100%" height={250}>
+            <BarChart data={ingresos} margin={{ top: 24, right: 8, left: 6, bottom: 22 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />
+              <XAxis dataKey="label" tick={{ fill: "var(--text-tertiary)", fontSize: 11 }}
+                label={ejeX("Mes")} />
+              <YAxis tick={{ fill: "var(--text-tertiary)", fontSize: 11 }} tickFormatter={(v) => `$${(v/1000).toFixed(0)}k`}
+                label={ejeY("Ingresos (miles de MXN)")} />
               <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="total" name="Total" fill="var(--accent)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="total" name="Total" fill={COLORES_GRAFICO.ingresos} radius={[4, 4, 0, 0]}>
+                <LabelList content={<ImporteExtremos valores={ingresos.map((d) => d.total)} />} />
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>

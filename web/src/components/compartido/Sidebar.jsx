@@ -9,9 +9,14 @@ import {
   FiFileText, FiLogOut, FiActivity, FiLock, FiCreditCard,
   FiShoppingCart, FiBookOpen, FiCpu, FiPieChart, FiChevronDown,
   FiChevronLeft, FiChevronRight, FiGlobe, FiPackage, FiServer,
-  FiSliders, FiHelpCircle,
+  FiSliders, FiHelpCircle, FiMapPin,
 } from "react-icons/fi";
 import { GiMuscleUp, GiMeal } from "react-icons/gi";
+// HU-45: para ocultar "Sucursales" a Administrador -- comparte el panel
+// owner_gym con Propietario pero el backend restringe ese módulo solo a
+// Propietario (ver routes/owner_gym/sucursales.py), así que aquí se evita
+// mostrar un enlace que de cualquier forma le devolvería 403.
+import { normalizarRol, ROL_ADMINISTRADOR } from "../../constants/roles";
 
 // ── Palette (sin CSS externo) ─────────────────────────────────
 // La barra lateral tiene fondo oscuro en todos los temas, por eso su texto,
@@ -39,6 +44,7 @@ const MENUS = {
     { id: "ow-pos",        label: "Punto de Venta",   icon: <FiShoppingCart /> },
     { type: "divider" },
     { id: "ow-staff",      label: "Staff",            icon: <FiUserCheck />    },
+    { id: "ow-sucursales", label: "Sucursales",       icon: <FiMapPin />       },
     { id: "ow-membresias", label: "Membresías",        icon: <FiCreditCard />   },
     { type: "divider" },
     {
@@ -51,10 +57,17 @@ const MENUS = {
       ],
     },
     {
+      id: "ow-reportes", label: "Reportes", icon: <FiFileText />,
+    },
+    {
       id: "ow-config", label: "Configuración", icon: <FiSettings />,
       children: [
-        { id: "ow-profile",      label: "Perfil del Gym",            icon: <FiUser />       },
+        // Mi Perfil = la persona; Perfil del Gym = el negocio. Son pantallas
+        // distintas y antes solo existía la segunda.
+        { id: "ow-mi-perfil",    label: "Mi Perfil",                 icon: <FiUser />       },
+        { id: "ow-profile",      label: "Perfil del Gym",            icon: <FiGlobe />      },
         { id: "ow-subscription", label: "Mi Suscripción",            icon: <FiCreditCard /> },
+        { id: "ow-pagos-online", label: "Cobros en línea",           icon: <FiDollarSign /> },
         { id: "ow-backups",      label: "Respaldos y Restauración", icon: <FiUpload /> },
       ],
     },
@@ -84,7 +97,11 @@ const MENUS = {
     { id: "profile", label: "Mi Perfil", icon: <FiUser /> },
   ],
   trainer: [
+    { id: "tr-dashboard", label: "Dashboard",    icon: <FiBarChart2 />    },
     { id: "clients",   label: "Mis Clientes",    icon: <FiUsers />        },
+    // Mensajes y solicitudes son cosas distintas: una es conversación con
+    // clientes actuales y la otra, peticiones de quienes aún no lo son.
+    { id: "messages",  label: "Mensajes",        icon: <FiActivity />     },
     { id: "requests",  label: "Solicitudes PT",  icon: <GiMuscleUp />     },
     { id: "schedule",  label: "Agenda",          icon: <FiCalendar />     },
     { id: "routines",  label: "Rutinas",         icon: <FiFileText />     },
@@ -210,7 +227,27 @@ export default function Sidebar({
   // para la demo. Restaurar con ["training", "health", "nutrition"] cuando
   // se ajuste la lógica de niveles de membresía.
   const BLOCKED = [];
-  const menu = MENUS[role] || MENUS.user;
+  // HU-45: Administrador comparte el panel owner_gym con Propietario,
+  // pero varias secciones son exclusivas del dueño real de la organización
+  // -- se filtran aquí para no mostrarle enlaces que terminarían en 403
+  // (o, para "Mi Suscripción"/billing SaaS, que no debería tocar aunque el
+  // backend hoy solo bloquee sus endpoints de escritura, no la lectura; ver
+  // SCRUM-221/HU-50, Lote 2, para el control formal de esa cuenta):
+  //   - "ow-sucursales"    -- alta de sucursales/administradores (sucursales.py, Propietario-only)
+  //   - "ow-subscription"  -- suscripción SaaS con GymPro (billing.py, afecta a TODA la organización)
+  //   - "ow-backups"       -- respaldos y restauración (tenant_backups_bp, Propietario-only)
+  // "ow-pagos-online" (Cobros en línea) SÍ se deja visible: pasarelas.py ya
+  // permite a un Administrador configurar el cobro de SU propia sucursal
+  // (ver _ROLES_ADMIN en ese archivo), a propósito.
+  const esAdministrador = normalizarRol(user.role) === ROL_ADMINISTRADOR;
+  const OCULTOS_PARA_ADMINISTRADOR = ["ow-sucursales", "ow-subscription", "ow-backups"];
+  // "ow-subscription" y "ow-backups" viven dentro de children (submenú
+  // "Configuración"), no al nivel raíz -- hay que filtrar ahí también, no
+  // solo el arreglo de primer nivel.
+  const filtrarOcultos = (items) => items
+    .filter((item) => !(esAdministrador && OCULTOS_PARA_ADMINISTRADOR.includes(item.id)))
+    .map((item) => item.children ? { ...item, children: filtrarOcultos(item.children) } : item);
+  const menu = filtrarOcultos(MENUS[role] || MENUS.user);
 
   const handleRestricted = (label) => {
     Swal.fire({
@@ -240,7 +277,10 @@ export default function Sidebar({
       background: P.bg,
       borderRight: `1px solid ${P.border}`,
       flexShrink: 0,
-      overflow: "hidden",
+      // overflow visible: el botón de colapsar sobresale del borde derecho
+      // (right: -14) y con "hidden" quedaba recortado, así que no se veía.
+      // El recorte que sí hace falta está en la lista de navegación.
+      overflow: "visible",
       transition: "width .3s cubic-bezier(.4,0,.2,1), min-width .3s cubic-bezier(.4,0,.2,1)",
       position: "relative",
       zIndex: 100,
@@ -249,18 +289,21 @@ export default function Sidebar({
       position: "absolute",
       top: 18,
       right: -14,
-      width: 28,
-      height: 28,
+      width: 30,
+      height: 30,
       borderRadius: "50%",
       background: P.accent,
-      border: "none",
+      // Borde del color del fondo de la página: recorta el círculo contra el
+      // contenido y hace que se lea como un control, no como un adorno pegado.
+      border: "2px solid var(--bg-body, #0f1117)",
       cursor: "pointer",
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
       color: "#fff",
-      zIndex: 10,
-      boxShadow: "0 2px 8px rgba(99,102,241,.4)",
+      // Por encima del contenido de la página, que tiene su propio apilamiento.
+      zIndex: 300,
+      boxShadow: "0 2px 10px rgba(0,0,0,.35)",
       transition: "transform .2s",
     },
     header: {
@@ -429,9 +472,11 @@ export default function Sidebar({
 
       {/* Header */}
       <div style={S.header}>
-        <div style={{ width: 32, height: 32, borderRadius: 8, background: P.accent, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <span style={{ color: "#fff", fontWeight: 800, fontSize: 14 }}>G</span>
-        </div>
+        <img
+          src="/logo64.png"
+          alt="GymPro"
+          style={{ width: 32, height: 32, borderRadius: 8, flexShrink: 0, objectFit: "cover" }}
+        />
         {!collapsed && (
           <>
             <span style={S.brandText}>GYM PRO</span>
@@ -553,7 +598,7 @@ export default function Sidebar({
         )}
 
         <a
-          href="/Terminos y Condiciones.pdf"
+          href="/privacidad"
           target="_blank"
           rel="noopener noreferrer"
           style={S.footerBtn}

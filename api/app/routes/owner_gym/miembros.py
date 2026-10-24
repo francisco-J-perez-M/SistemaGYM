@@ -8,6 +8,9 @@ from app.mongo import get_db
 from app.models.user import User
 from app.models.miembro import Miembro
 from app.utils.tenant import get_tenant_filter, require_tenant
+from app.utils.alcance import crear_asignacion
+from app.utils.capacidad import verificar_capacidad_miembro, LimiteDePlanExcedido
+from app.utils.busqueda import patron_insensible
 # PG — fuente de verdad desde Sprint 2
 from app.extensions import db as pg_db
 from app.models.pg.usuario import Usuario as UsuarioPG
@@ -46,10 +49,16 @@ def listar_miembros():
     }
 
     if search:
-        regex = re.compile(re.escape(search), re.IGNORECASE)
+        # SCRUM-105: el nombre se compara ignorando mayúsculas/acentos
+        # (patron_insensible, única fuente de esa lógica -- ver
+        # utils/busqueda.py; MongoDB no tiene un equivalente a unaccent,
+        # por eso el patrón se construye en Python en vez de delegarlo a
+        # la base). El email queda fuera de alcance a propósito
+        # (identificador técnico) y se sigue comparando tal cual.
+        regex_email = re.compile(re.escape(search), re.IGNORECASE)
         filtro_miembros["$or"] = [
-            {"nombre": regex},
-            {"email":  regex},
+            {"nombre": {"$regex": patron_insensible(search), "$options": "i"}},
+            {"email":  regex_email},
         ]
 
     skip            = (page - 1) * per_page
@@ -84,6 +93,13 @@ def crear_miembro():
     if not nombre or not email:
         return jsonify({"error": "Nombre y Email son obligatorios"}), 400
 
+    # SCRUM-222 (AC1): el tope de plan se verifica en el alta, antes de
+    # tocar la base -- nunca en una consulta de lectura (ver utils/capacidad.py).
+    try:
+        verificar_capacidad_miembro(gym_id)
+    except LimiteDePlanExcedido as e:
+        return jsonify({"error": str(e)}), 409
+
     # Verificar duplicado en PG y en Mongo
     if UsuarioPG.query.filter_by(email=email).first():
         return jsonify({"error": "El email ya está registrado"}), 400
@@ -106,6 +122,12 @@ def crear_miembro():
         pg_usuario.set_password(password if password else "gym123")
         pg_db.session.add(pg_usuario)
         pg_db.session.flush()
+
+        # 1b. Asignación de alcance del miembro (HU-41 / SCRUM-212). El
+        # gimnasio ya existe (es el tenant del token) -- crear_asignacion
+        # resuelve su organización con una consulta, sin cambiar nada del
+        # comportamiento actual de este endpoint.
+        crear_asignacion(pg_usuario)
 
         # 2. Foto: base64 almacenada directamente en MongoDB (sin filesystem)
         foto_perfil = _valid_foto(data.get("foto_base64"))
@@ -268,6 +290,82 @@ def reactivar_miembro(id):
                 u_mongo.save()
 
         return jsonify({"message": "Miembro reactivado correctamente"}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ==============================================================================
+# 6. HISTORIAL DE ASISTENCIAS DE UN MIEMBRO (PAGINADO)
+# ==============================================================================
+def _fecha_iso(valor):
+    """Normaliza la fecha de una asistencia a 'YYYY-MM-DD'.
+
+    La colección mezcla documentos legacy (fecha como string) con los nuevos
+    (datetime), así que se normaliza aquí para que el cliente reciba siempre
+    el mismo formato y pueda darle formato local sin adivinar.
+    """
+    if isinstance(valor, datetime):
+        return valor.strftime("%Y-%m-%d")
+    if isinstance(valor, str):
+        return valor[:10]
+    return None
+
+
+@miembros_bp.route("/api/miembros/<id>/asistencias", methods=["GET"])
+@jwt_required()
+@require_tenant
+def listar_asistencias_miembro(id):
+    """Días en los que el miembro asistió al gimnasio, del más reciente al más antiguo.
+
+    Query params:
+        page      (int) — página, base 1. Default 1.
+        per_page  (int) — registros por página, máximo 50. Default 10.
+
+    Aislamiento: se valida que el miembro pertenezca al gimnasio del token antes
+    de consultar sus asistencias; nunca se filtra sólo por id_miembro sin ese
+    chequeo previo.
+    """
+    import math
+    try:
+        db     = get_db()
+        gym_id = g.tenant_id
+
+        try:
+            oid = ObjectId(id)
+        except Exception:
+            return jsonify({"error": "Id de miembro inválido"}), 400
+
+        miembro = db.miembros.find_one({"_id": oid, "id_gimnasio_pg": gym_id}, {"_id": 1})
+        if not miembro:
+            return jsonify({"error": "Miembro no encontrado"}), 404
+
+        page     = max(request.args.get("page", 1, type=int), 1)
+        per_page = min(max(request.args.get("per_page", 10, type=int), 1), 50)
+        skip     = (page - 1) * per_page
+
+        filtro = {"id_miembro": oid}
+        total  = db.asistencias.count_documents(filtro)
+        cursor = (db.asistencias.find(filtro)
+                  .sort("fecha", -1)
+                  .skip(skip)
+                  .limit(per_page))
+
+        asistencias = [{
+            "id":           str(a["_id"]),
+            "fecha":        _fecha_iso(a.get("fecha")),
+            "hora_entrada": a.get("hora_entrada"),
+            "hora_salida":  a.get("hora_salida"),
+            "origen":       a.get("origen", "checkin"),
+        } for a in cursor]
+
+        return jsonify({
+            "asistencias":  asistencias,
+            "total":        total,
+            "pages":        math.ceil(total / per_page) if total else 0,
+            "current_page": page,
+            "per_page":     per_page,
+        }), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500

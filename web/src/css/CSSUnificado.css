@@ -958,6 +958,22 @@ ul, ol { list-style: none; }
   width: 100%;
 }
 
+.privacy-link {
+  text-align: center;
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.privacy-link a {
+  color: var(--text-secondary, rgba(255, 255, 255, 0.5));
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.privacy-link a:hover {
+  color: var(--accent-soft);
+}
+
 .login-theme-wrapper {
   position: fixed;
   top: 24px;

@@ -16,6 +16,7 @@ const SCREENS: Screen[] = [
   { name: 'analytics',   title: 'Analítica IA',    icon: 'sparkles-outline',      iconActive: 'sparkles'      },
   { name: 'staff',       title: 'Staff',           icon: 'person-circle-outline', iconActive: 'person-circle' },
   { name: 'membresias',  title: 'Membresías',      icon: 'card-outline',          iconActive: 'card'          },
+  { name: 'suscripcion', title: 'Mi Suscripción',  icon: 'diamond-outline',       iconActive: 'diamond'       },
   { name: 'profile',     title: 'Mi Perfil',       icon: 'person-outline',        iconActive: 'person'        },
   { name: 'gym-profile', title: 'Perfil del Gym',  icon: 'business-outline',      iconActive: 'business'      },
 ];
@@ -36,7 +37,7 @@ export default function AdminLayout() {
         drawerInactiveTintColor: colors.textSecondary,
         drawerItemStyle:         { borderRadius: 12 },
         drawerLabelStyle:        { fontSize: 14, fontWeight: '500', marginLeft: -4 },
-        overlayColor:            'rgba(0,0,0,0.55)',
+        overlayColor:            colors.overlay,
         swipeEnabled:            true,
         sceneStyle:              { backgroundColor: colors.background },
       }}

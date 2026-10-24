@@ -8,6 +8,7 @@ import {
   FiSun, FiMoon, FiStar, FiEye, FiEyeOff, FiAlertTriangle 
 } from "react-icons/fi";
 import { GiPineTree } from "react-icons/gi";
+import { normalizarRol, ROL_PROPIETARIO, ROL_MIEMBRO, ROL_ENTRENADOR, ROL_RECEPCIONISTA } from "../../constants/roles";
 
 export default function LoginForm() {
   const [email, setEmail] = useState("");
@@ -72,23 +73,27 @@ export default function LoginForm() {
       console.log("[LOGIN] Usuario guardado:", userData);
 
       // 4. LÓGICA DE VERIFICACIÓN DE PERFIL (SOLO PESO)
-      // Si es Miembro/User y NO tiene peso inicial registrado
-      if ((userData.role === "Miembro" || userData.role === "user") && !userData.peso_inicial) {
+      // Normalizado (SCRUM-107 + migración 019) -- ver AuthPage.jsx, que es
+      // el componente que de verdad se renderiza en "/"; este archivo no
+      // está ruteado en App.jsx, se mantiene en el mismo estándar por
+      // consistencia (ver bitácora técnica).
+      const userRole = normalizarRol(userData.role);
+
+      // Si es Miembro y NO tiene peso inicial registrado
+      if (userRole === ROL_MIEMBRO && !userData.peso_inicial) {
           console.warn("[LOGIN] Falta peso inicial. Redirigiendo a completar perfil...");
           navigate("/complete-profile");
           return; // DETENEMOS AQUÍ
       }
 
       // 5. Redirección normal según Rol
-      const userRole = userData.role;
-
       if (userRole === "superadmin") {
         navigate("/superadmin");
-      } else if (userRole === "Administrador" || userRole === "admin" || userRole === "owner_gym") {
+      } else if (userRole === ROL_PROPIETARIO) {
         navigate("/dashboard");
-      } else if (userRole === "Entrenador" || userRole === "trainer") {
+      } else if (userRole === ROL_ENTRENADOR) {
         navigate("/trainer-dashboard");
-      } else if (userRole === "Recepcionista" || userRole === "receptionist") {
+      } else if (userRole === ROL_RECEPCIONISTA) {
         navigate("/receptionist-dashboard");
       } else {
         // Usuario normal con perfil completo
@@ -219,6 +224,10 @@ export default function LoginForm() {
 
             <motion.p className="register-link" variants={itemVariants}>
               ¿No tienes una cuenta? <Link to="/register">Regístrate aquí</Link>
+            </motion.p>
+
+            <motion.p className="privacy-link" variants={itemVariants}>
+              <a href="/privacidad" target="_blank" rel="noopener noreferrer">Política de Privacidad</a>
             </motion.p>
           </form>
         </motion.div>

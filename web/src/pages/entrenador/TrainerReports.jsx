@@ -3,7 +3,7 @@
  *
  * Layout:
  *   ┌──────────────────────────────────────────────────────────┐
- *   │  Header + filtro de período + botones Exportar CSV / PDF │
+ *   │  Header + filtro de período + botón "Reporte a la medida"│
  *   ├────────────┬────────────┬────────────┬───────────────────┤
  *   │ Sesiones   │ Asistencia │ Clientes   │ Calificación      │  ← KPIs
  *   ├────────────────────────────┬─────────────────────────────┤
@@ -12,7 +12,12 @@
  *   │ Tipos de sesión (barras)   │ Métricas detalladas         │
  *   └──────────────────────────────────────────────────────────┘
  *
- * Dependencias: recharts (ya instalado), jspdf (ya instalado)
+ * El PDF se genera en el backend (ReportLab) con la misma plantilla que el
+ * reporte del propietario — ver app/utils/estilo_pdf.py. El CSV y el "PDF
+ * rápido" maquetado con jsPDF en el navegador se retiraron (SCRUM-95, 96):
+ * eran generadores duplicados con una identidad visual distinta a la oficial.
+ *
+ * Dependencias: recharts (ya instalado)
  */
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -23,28 +28,59 @@ import {
 import {
   FiBarChart2, FiTrendingUp, FiUsers, FiCalendar,
   FiAward, FiDownload, FiRefreshCw, FiAlertCircle, FiX,
-  FiCheckCircle, FiXCircle, FiTarget, FiStar, FiFileText,
-  FiLoader, FiClock,
+  FiCheckCircle, FiXCircle, FiTarget, FiStar,
+  FiLoader, FiClock, FiCheckSquare, FiSquare,
 } from "react-icons/fi";
+import axios from "axios";
 import trainerService from "../../services/entrenador/trainerService";
+import {
+  COLORES_GRAFICO, SERIES_GRAFICO, COLOR_REJILLA, ejeX, ejeY,
+} from "../../components/compartido/InfoGrafico";
 import "../../css/CSSUnificado.css";
 
+const MESES_CORTOS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun",
+                      "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+
+/** Cabecera con el JWT para las llamadas directas por axios. */
+const authHeaders = () => ({
+  Authorization: `Bearer ${localStorage.getItem("token")}`,
+});
+
+/** Estilos del panel de configuración del reporte a la medida. */
+const CFG = {
+  label: {
+    display: "block", fontSize: 11.5, fontWeight: 700, textTransform: "uppercase",
+    letterSpacing: ".05em", color: "var(--text-secondary)", marginBottom: 8,
+  },
+  chips: { display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 18 },
+  chip: (activo) => ({
+    padding: "7px 14px", borderRadius: 18, cursor: "pointer", fontSize: 12.5, fontWeight: 600,
+    border: `1px solid ${activo ? "var(--accent)" : "var(--border)"}`,
+    background: activo ? "var(--accent)" : "transparent",
+    color: activo ? "#fff" : "var(--text-secondary)",
+    transition: "all .15s",
+  }),
+};
+
 // ─── Paleta de colores ────────────────────────────────────────────────────────
+// Los tonos de las gráficas vienen de la paleta compartida y no de variables
+// CSS del tema: `var(--accent)` y `var(--success)` cambian con el tema elegido
+// y en algunos quedaban tan parecidos que dos series no se distinguían.
 const COLORS = {
-  primary:   "var(--accent)",
-  success:   "var(--success)",
-  warning:   "var(--warning)",
-  danger:    "var(--danger)",
-  muted:     "var(--text-tertiary)",
-  personal:  "var(--accent)",
-  grupal:    "var(--success)",
-  consulta:  "var(--warning)",
+  primary:   COLORES_GRAFICO.ingresos,
+  success:   COLORES_GRAFICO.real,
+  warning:   COLORES_GRAFICO.pos,
+  danger:    COLORES_GRAFICO.baja,
+  muted:     COLORES_GRAFICO.neutro,
+  personal:  COLORES_GRAFICO.ingresos,
+  grupal:    COLORES_GRAFICO.real,
+  consulta:  COLORES_GRAFICO.pos,
 };
 
 const TYPE_COLORS = {
   Personal: COLORS.personal,
   Grupal:   COLORS.grupal,
-  Consulta: COLORS.warning,
+  Consulta: COLORS.consulta,
 };
 
 const RANGE_LABELS = {
@@ -62,165 +98,6 @@ function pct(n, total) {
 
 function initials(name = "") {
   return name.split(" ").filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join("");
-}
-
-// ─── PDF generator (jsPDF) ───────────────────────────────────────────────────
-async function generatePDF(data, trainerName, range) {
-  const { jsPDF } = await import("jspdf");
-  const doc = new jsPDF({ unit: "pt", format: "a4" });
-
-  const W      = doc.internal.pageSize.getWidth();
-  const margin = 48;
-  let   y      = 48;
-
-  const line = (text, size = 11, bold = false, color = [220,220,220]) => {
-    doc.setFontSize(size);
-    doc.setFont("helvetica", bold ? "bold" : "normal");
-    doc.setTextColor(...color);
-    doc.text(text, margin, y);
-    y += size * 1.5;
-  };
-
-  const divider = (marginY = 8) => {
-    y += marginY;
-    doc.setDrawColor(50, 50, 80);
-    doc.line(margin, y, W - margin, y);
-    y += marginY;
-  };
-
-  const kpiRow = (items) => {
-    const colW = (W - margin * 2) / items.length;
-    items.forEach((item, i) => {
-      const x = margin + i * colW;
-      doc.setFontSize(9);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(140, 140, 170);
-      doc.text(item.label.toUpperCase(), x, y);
-      doc.setFontSize(18);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(180, 180, 255);
-      doc.text(String(item.value), x, y + 20);
-    });
-    y += 38;
-  };
-
-  // ── Fondo oscuro
-  doc.setFillColor(10, 10, 28);
-  doc.rect(0, 0, W, doc.internal.pageSize.getHeight(), "F");
-
-  // ── Header
-  doc.setFillColor(30, 30, 60);
-  doc.roundedRect(margin - 12, 24, W - (margin - 12) * 2, 56, 8, 8, "F");
-  doc.setFontSize(18);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(200, 200, 255);
-  doc.text("Reporte de Entrenador", margin, 54);
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(140, 140, 180);
-  doc.text(`${trainerName}  ·  Período: ${RANGE_LABELS[range] || range}  ·  Generado: ${new Date().toLocaleDateString("es-MX")}`, margin, 70);
-  y = 108;
-
-  // ── KPIs
-  line("RESUMEN GENERAL", 10, true, [100, 100, 160]);
-  divider(4);
-  kpiRow([
-    { label: "Sesiones completadas", value: data.stats?.sessions ?? 0 },
-    { label: "Clientes activos",     value: data.stats?.clients  ?? 0 },
-    { label: "Asistencia",           value: `${data.metrics?.attendanceRate ?? 0}%` },
-    { label: "Calificación",         value: data.stats?.avgRating > 0 ? `${data.stats.avgRating}/5` : "N/A" },
-  ]);
-  divider(6);
-
-  // ── Sesiones por tipo
-  if (data.sessionTypes?.length) {
-    line("TIPOS DE SESIÓN", 10, true, [100, 100, 160]);
-    y += 4;
-    data.sessionTypes.forEach(t => {
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(180, 180, 220);
-      doc.text(`• ${t.tipo}`, margin + 8, y);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(160, 180, 255);
-      doc.text(String(t.count), margin + 160, y);
-      y += 16;
-    });
-    divider(6);
-  }
-
-  // ── Top clientes
-  if (data.clientProgress?.length) {
-    line("MIS MEJORES CLIENTES", 10, true, [100, 100, 160]);
-    y += 4;
-    data.clientProgress.forEach((c, i) => {
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(180, 180, 220);
-      doc.text(`${i + 1}. ${c.name}`, margin + 8, y);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(160, 200, 160);
-      doc.text(`${c.sessions} sesiones`, margin + 260, y);
-      y += 16;
-    });
-    divider(6);
-  }
-
-  // ── Evolución mensual
-  if (data.monthlyData?.length) {
-    line("EVOLUCIÓN MENSUAL (últimos 6 meses)", 10, true, [100, 100, 160]);
-    y += 4;
-
-    // Cabecera tabla
-    ["Mes", "Completadas", "Canceladas", "Total"].forEach((h, i) => {
-      doc.setFontSize(9);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(120, 120, 160);
-      doc.text(h, margin + 8 + i * 120, y);
-    });
-    y += 14;
-
-    data.monthlyData.forEach(m => {
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(190, 190, 220);
-      [m.month, m.sessions, m.cancelled, m.total].forEach((v, i) => {
-        doc.text(String(v), margin + 8 + i * 120, y);
-      });
-      y += 15;
-      if (y > 750) { doc.addPage(); doc.setFillColor(10,10,28); doc.rect(0,0,W,800,"F"); y = 48; }
-    });
-    divider(6);
-  }
-
-  // ── Métricas adicionales
-  line("MÉTRICAS ADICIONALES", 10, true, [100, 100, 160]);
-  y += 4;
-  const met = data.metrics || {};
-  [
-    [`Tasa de asistencia:`,     `${met.attendanceRate ?? 0}%`],
-    [`Cancelaciones:`,          `${met.cancellationRate ?? 0}%`],
-    [`Sesiones por cliente:`,   `${met.sessionsPerClient ?? 0}`],
-    [`Sesiones programadas:`,   `${met.totalScheduled ?? 0}`],
-  ].forEach(([label, value]) => {
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(170, 170, 210);
-    doc.text(label, margin + 8, y);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(150, 200, 255);
-    doc.text(value, margin + 200, y);
-    y += 15;
-  });
-
-  // ── Pie de página
-  y = doc.internal.pageSize.getHeight() - 30;
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(80, 80, 110);
-  doc.text("Generado por GYM PRO  ·  Este reporte es de uso interno del entrenador", margin, y);
-
-  doc.save(`reporte_${range}_${new Date().toISOString().slice(0, 10)}.pdf`);
 }
 
 // ─── Sub-componentes ──────────────────────────────────────────────────────────
@@ -302,13 +179,6 @@ export default function TrainerReports() {
   const [data, setData]           = useState(null);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState(null);
-  const [exporting, setExporting] = useState(false);
-  const [trainerName, setTrainerName] = useState("Entrenador");
-
-  // Cargar nombre del trainer para el PDF
-  useEffect(() => {
-    trainerService.getProfile().then(p => { if (p?.name) setTrainerName(p.name); }).catch(() => {});
-  }, []);
 
   const loadReports = useCallback(async () => {
     try {
@@ -325,33 +195,79 @@ export default function TrainerReports() {
 
   useEffect(() => { loadReports(); }, [loadReports]);
 
-  // ── Exportar CSV ─────────────────────────────────────────────────────────
-  const handleCSV = () => {
-    if (!data) return;
-    const rows = [
-      ["Mes", "Sesiones Completadas", "Canceladas", "Total"],
-      ...(data.monthlyData || []).map(d => [d.month, d.sessions, d.cancelled, d.total]),
-    ];
-    const csv  = rows.map(r => r.join(",")).join("\n");
-    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
-    const url  = URL.createObjectURL(blob);
-    Object.assign(document.createElement("a"), {
-      href: url,
-      download: `reporte_${timeRange}_${new Date().toISOString().slice(0, 10)}.csv`,
-    }).click();
-    URL.revokeObjectURL(url);
-  };
+  // ── Reporte a la medida ───────────────────────────────────────────────────
+  // Único generador de PDF: lo arma el backend con ReportLab y la misma
+  // plantilla que usa el reporte del propietario (app/utils/estilo_pdf.py).
+  // El CSV y el "PDF rápido" maquetado en el navegador se retiraron: eran un
+  // segundo y tercer generador con una identidad visual distinta a la del
+  // reporte oficial, y el CSV expone datos crudos sin la identidad del
+  // gimnasio (ver SCRUM-95, SCRUM-96).
+  // Lo arma el backend con el periodo y las secciones que se elijan. Es el
+  // mismo documento que descarga la app móvil: al generarlo en el servidor, un
+  // reporte del navegador y otro del teléfono salen idénticos, cosa que no
+  // ocurriría maquetándolo dos veces en cada cliente.
+  const hoy = new Date();
+  const [cfgAbierta, setCfgAbierta] = useState(false);
+  const [opciones,   setOpciones]   = useState(null);
+  const [anio,       setAnio]       = useState(hoy.getFullYear());
+  const [mes,        setMes]        = useState(hoy.getMonth() + 1);  // 0 = año completo
+  const [secciones,  setSecciones]  = useState(["resumen", "sesiones", "clientes", "tipos"]);
+  const [generando,  setGenerando]  = useState(false);
+  const [graficas,   setGraficas]   = useState(true);
 
-  // ── Exportar PDF ──────────────────────────────────────────────────────────
-  const handlePDF = async () => {
-    if (!data) return;
-    setExporting(true);
+  useEffect(() => {
+    if (!cfgAbierta || opciones) return;
+    axios
+      .get("/api/trainer/reportes/opciones", { headers: authHeaders() })
+      .then((r) => {
+        setOpciones(r.data);
+        // Si el año en curso no tiene sesiones, se abre en el más reciente.
+        const anios = r.data?.anios;
+        if (Array.isArray(anios) && anios.length && !anios.includes(hoy.getFullYear())) {
+          setAnio(anios[0]);
+        }
+      })
+      .catch(() => setOpciones({ anios: [hoy.getFullYear()], secciones: [] }));
+  }, [cfgAbierta, opciones]); // eslint-disable-line
+
+  const alternarSeccion = (id) =>
+    setSecciones((prev) => prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]);
+
+  const descargarPersonalizado = async () => {
+    if (secciones.length === 0) {
+      alert("Elige al menos una sección: el reporte no puede ir vacío.");
+      return;
+    }
+    setGenerando(true);
     try {
-      await generatePDF(data, trainerName, timeRange);
+      // Va por axios y no por un enlace directo porque el endpoint exige el JWT,
+      // que el navegador no adjuntaría al seguir un href.
+      const resp = await axios.get("/api/trainer/reportes/pdf", {
+        params: { anio, mes, secciones: secciones.join(","), ...(graficas ? { graficas: 1 } : {}) },
+        headers: authHeaders(),
+        responseType: "blob",
+      });
+      // El backend ya arma el nombre (entrenador + periodo, sin acentos ni
+      // espacios) en el header Content-Disposition — mismo criterio que el
+      // reporte del propietario (SCRUM-94). Se respeta ese nombre en vez de
+      // inventar uno genérico aquí.
+      const disposicion = resp.headers?.["content-disposition"] || resp.headers?.["Content-Disposition"];
+      const match = /filename="?([^";]+)"?/i.exec(disposicion || "");
+      const nombreArchivo = match?.[1] || `Reporte_entrenador_${anio}-${String(mes).padStart(2, "0")}.pdf`;
+
+      const url = URL.createObjectURL(new Blob([resp.data], { type: "application/pdf" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = nombreArchivo;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setCfgAbierta(false);
     } catch (e) {
-      alert("Error al generar el PDF: " + e.message);
+      alert("No se pudo generar el reporte. Intenta de nuevo en un momento.");
     } finally {
-      setExporting(false);
+      setGenerando(false);
     }
   };
 
@@ -368,8 +284,10 @@ export default function TrainerReports() {
 
   const rangeLabel = RANGE_LABELS[timeRange] || timeRange;
 
+  // Los tipos conocidos conservan su color fijo; los demás toman el siguiente
+  // de la secuencia compartida, que garantiza que dos contiguos no se parezcan.
   const typeColors = sessionTypes.map((t, i) =>
-    TYPE_COLORS[t.tipo] || [COLORS.primary, COLORS.success, COLORS.warning, COLORS.muted][i % 4]
+    TYPE_COLORS[t.tipo] || SERIES_GRAFICO[i % SERIES_GRAFICO.length]
   );
 
   return (
@@ -409,25 +327,119 @@ export default function TrainerReports() {
           </button>
 
           <button
-            className="btn-outline-small"
-            onClick={handleCSV}
-            disabled={loading || !data}
-            style={{ display:"flex", alignItems:"center", gap:6 }}
-          >
-            <FiDownload size={14} /> CSV
-          </button>
-
-          <button
             className="btn-compact-primary"
-            onClick={handlePDF}
-            disabled={loading || !data || exporting}
+            onClick={() => setCfgAbierta(true)}
             style={{ display:"flex", alignItems:"center", gap:6 }}
+            title="Elegir periodo y secciones"
           >
-            <FiFileText size={14} />
-            {exporting ? "Generando…" : "Descargar PDF"}
+            <FiDownload size={14} /> Reporte a la medida
           </button>
         </div>
       </div>
+
+      {/* ── Configuración del reporte a la medida ── */}
+      {cfgAbierta && (
+        <>
+          <div
+            onClick={() => setCfgAbierta(false)}
+            style={{ position:"fixed", inset:0, zIndex:9990, background:"rgba(0,0,0,.6)" }}
+          />
+          <div style={{
+            position:"fixed", zIndex:9991, top:"50%", left:"50%", transform:"translate(-50%,-50%)",
+            width:"min(520px, calc(100vw - 40px))", maxHeight:"85vh", overflowY:"auto",
+            background:"var(--bg-card)", border:"1px solid var(--border)", borderRadius:14,
+            padding:"22px 24px",
+          }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+              <h3 style={{ margin:0, fontSize:18, fontWeight:800 }}>Reporte a la medida</h3>
+              <button
+                onClick={() => setCfgAbierta(false)}
+                style={{ background:"none", border:"none", color:"var(--text-secondary)", cursor:"pointer", fontSize:20 }}
+                aria-label="Cerrar"
+              >
+                ×
+              </button>
+            </div>
+            <p style={{ fontSize:12.5, color:"var(--text-secondary)", margin:"0 0 18px" }}>
+              Elige el periodo y qué incluir. El documento lo genera el servidor.
+            </p>
+
+            <label style={CFG.label}>Año</label>
+            <div style={CFG.chips}>
+              {(opciones?.anios?.length ? opciones.anios : [hoy.getFullYear()]).map((a) => (
+                <button key={a} onClick={() => setAnio(a)} style={CFG.chip(anio === a)}>{a}</button>
+              ))}
+            </div>
+
+            <label style={CFG.label}>Mes</label>
+            <div style={CFG.chips}>
+              <button onClick={() => setMes(0)} style={CFG.chip(mes === 0)}>Año completo</button>
+              {MESES_CORTOS.map((m, i) => (
+                <button key={m} onClick={() => setMes(i + 1)} style={CFG.chip(mes === i + 1)}>{m}</button>
+              ))}
+            </div>
+
+            <label style={CFG.label}>Formato</label>
+            <div
+              onClick={() => setGraficas((v) => !v)}
+              style={{
+                display: "flex", alignItems: "center", gap: 11, cursor: "pointer",
+                padding: "11px 13px", borderRadius: 10, marginBottom: 18,
+                background: "var(--bg-input)",
+                border: `1px solid ${graficas ? "var(--accent)" : "var(--border)"}`,
+              }}
+            >
+              <span style={{ color: graficas ? "var(--accent)" : "var(--text-secondary)", fontSize: 15 }}>
+                {graficas ? <FiCheckSquare size={17} /> : <FiSquare size={17} />}
+              </span>
+              <div>
+                <div style={{ fontSize: 13.5, fontWeight: 700 }}>Incluir gráficas</div>
+                <div style={{ fontSize: 11.5, color: "var(--text-secondary)" }}>
+                  Añade las barras de sesiones por mes, el ranking de clientes y el
+                  reparto por tipo de sesión.
+                </div>
+              </div>
+            </div>
+
+            <label style={CFG.label}>Qué incluir</label>
+            <div style={{ display:"grid", gap:8, marginBottom:20 }}>
+              {(opciones?.secciones ?? []).map((s) => {
+                const activa = secciones.includes(s.id);
+                return (
+                  <div
+                    key={s.id}
+                    onClick={() => alternarSeccion(s.id)}
+                    style={{
+                      display:"flex", alignItems:"center", gap:11, cursor:"pointer",
+                      padding:"11px 13px", borderRadius:10,
+                      background:"var(--bg-input)",
+                      border:`1px solid ${activa ? "var(--accent)" : "var(--border)"}`,
+                    }}
+                  >
+                    <span style={{ color: activa ? "var(--accent)" : "var(--text-secondary)", fontSize:15 }}>
+                      {activa ? <FiCheckSquare size={17} /> : <FiSquare size={17} />}
+                    </span>
+                    <div>
+                      <div style={{ fontSize:13.5, fontWeight:700 }}>{s.label}</div>
+                      <div style={{ fontSize:11.5, color:"var(--text-secondary)" }}>{s.descripcion}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <button
+              className="btn-compact-primary"
+              onClick={descargarPersonalizado}
+              disabled={generando}
+              style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"center", gap:8, opacity: generando ? .6 : 1 }}
+            >
+              <FiDownload size={15} />
+              {generando ? "Generando…" : "Descargar PDF"}
+            </button>
+          </div>
+        </>
+      )}
 
       {/* ── Error ── */}
       <AnimatePresence>
@@ -516,14 +528,19 @@ export default function TrainerReports() {
               </div>
 
               {monthlyData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={monthlyData} barGap={4} barCategoryGap="28%">
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false}/>
-                    <XAxis dataKey="month" tick={{ fontSize:11, fill:"var(--text-secondary)" }} axisLine={false} tickLine={false}/>
-                    <YAxis tick={{ fontSize:10, fill:"var(--text-secondary)" }} axisLine={false} tickLine={false} allowDecimals={false}/>
+                <ResponsiveContainer width="100%" height={235}>
+                  <BarChart data={monthlyData} barGap={4} barCategoryGap="28%"
+                    margin={{ top: 5, right: 8, left: 6, bottom: 22 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} vertical={false}/>
+                    <XAxis dataKey="month" tick={{ fontSize:11, fill:"var(--text-secondary)" }} axisLine={false} tickLine={false}
+                      label={ejeX("Mes")}/>
+                    <YAxis tick={{ fontSize:10, fill:"var(--text-secondary)" }} axisLine={false} tickLine={false} allowDecimals={false}
+                      label={ejeY("Sesiones")}/>
                     <RechartTooltip content={<CustomTooltip/>}/>
-                    <Bar dataKey="sessions" name="Completadas" fill={COLORS.primary} radius={[4,4,0,0]}/>
-                    <Bar dataKey="cancelled" name="Canceladas" fill={COLORS.danger} radius={[4,4,0,0]}/>
+                    {/* Verde y naranja en lugar de azul y rojo: se distinguen
+                        también con daltonismo rojo-verde, que es el más común. */}
+                    <Bar dataKey="sessions" name="Completadas" fill={COLORES_GRAFICO.real} radius={[4,4,0,0]}/>
+                    <Bar dataKey="cancelled" name="Canceladas" fill={COLORES_GRAFICO.pos} radius={[4,4,0,0]}/>
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
@@ -608,11 +625,14 @@ export default function TrainerReports() {
 
               {sessionTypes.length > 0 ? (
                 <>
-                  <ResponsiveContainer width="100%" height={140}>
-                    <BarChart data={sessionTypes} layout="vertical" barSize={22}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false}/>
-                      <XAxis type="number" tick={{ fontSize:10, fill:"var(--text-secondary)" }} axisLine={false} tickLine={false} allowDecimals={false}/>
-                      <YAxis type="category" dataKey="tipo" tick={{ fontSize:11, fill:"var(--text-secondary)" }} axisLine={false} tickLine={false} width={70}/>
+                  <ResponsiveContainer width="100%" height={175}>
+                    <BarChart data={sessionTypes} layout="vertical" barSize={22}
+                      margin={{ top: 5, right: 8, left: 0, bottom: 22 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} horizontal={false}/>
+                      <XAxis type="number" tick={{ fontSize:10, fill:"var(--text-secondary)" }} axisLine={false} tickLine={false} allowDecimals={false}
+                        label={ejeX("Sesiones completadas")}/>
+                      <YAxis type="category" dataKey="tipo" tick={{ fontSize:11, fill:"var(--text-secondary)" }} axisLine={false} tickLine={false} width={70}
+                        label={ejeY("Modalidad")}/>
                       <RechartTooltip content={<CustomTooltip/>}/>
                       <Bar dataKey="count" name="Sesiones" radius={[0,4,4,0]}>
                         {sessionTypes.map((_, i) => (

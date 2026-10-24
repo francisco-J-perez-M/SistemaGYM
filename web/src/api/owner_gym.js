@@ -16,6 +16,15 @@ export const getOwnerAlertas     = ()           => API.get("/owner_gym/alertas")
 // ── Perfil del gimnasio ───────────────────────────────────────────────────
 export const getOwnerPerfil      = ()     => API.get("/owner_gym/perfil");
 export const updateOwnerPerfil   = (data) => API.put("/owner_gym/perfil", data);
+// Datos de la PERSONA propietaria, distintos de los del gimnasio.
+export const updateOwnerPropietario = (data) =>
+  API.put("/owner_gym/perfil/propietario", data);
+
+// ── Reportes ejecutivos ───────────────────────────────────────────────────
+export const getReporteOpciones = () => API.get("/owner_gym/reportes/opciones");
+/** Descarga el PDF como blob; el navegador no puede seguir un enlace con JWT. */
+export const descargarReportePdf = (params) =>
+  API.get("/owner_gym/reportes/pdf", { params, responseType: "blob" });
 
 // ── Staff (entrenadores + recepcionistas) ─────────────────────────────────
 export const getStaff            = (params = {}) => API.get("/owner_gym/staff", { params });
@@ -47,3 +56,22 @@ export const crearProducto       = (data)        => API.post("/owner_gym/product
 export const editarProducto      = (id, data)    => API.put(`/owner_gym/productos/${id}`, data);
 export const toggleProducto      = (id)          => API.patch(`/owner_gym/productos/${id}/toggle`);
 export const eliminarProducto    = (id)          => API.delete(`/owner_gym/productos/${id}`);
+
+// ── Sucursales (HU-45 / SCRUM-222) ────────────────────────────────────────
+// Gestión exclusiva de Propietario: alta/edición/activación de sucursales
+// de su organización y su ocupación (miembros/staff) frente al plan.
+export const getSucursales         = ()        => API.get("/owner_gym/sucursales");
+export const getSucursalesCapacidad = ()       => API.get("/owner_gym/sucursales/capacidad");
+export const crearSucursal         = (data)     => API.post("/owner_gym/sucursales", data);
+export const editarSucursal        = (id, data) => API.put(`/owner_gym/sucursales/${id}`, data);
+export const toggleSucursal        = (id)       => API.patch(`/owner_gym/sucursales/${id}/toggle`);
+
+// ── Administradores de sucursal (HU-45 / SCRUM-222) ───────────────────────
+// A propósito viven aquí y no en Staff: un Administrador se da de alta ya
+// atado a una o varias sucursales de la organización, algo que el modal de
+// Staff no modela (ese alcance es de AsignacionUsuario, no un simple rol).
+export const getAdministradores        = ()            => API.get("/owner_gym/administradores");
+export const crearAdministrador         = (data)        => API.post("/owner_gym/administradores", data);
+export const reasignarSucursalesAdmin   = (id, sucursales) =>
+  API.put(`/owner_gym/administradores/${id}/sucursales`, { sucursales });
+export const toggleAdministrador        = (id)          => API.patch(`/owner_gym/administradores/${id}/toggle`);

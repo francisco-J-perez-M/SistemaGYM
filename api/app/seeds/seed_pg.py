@@ -32,6 +32,9 @@ from app.models.pg.factura_suscripcion import FacturaSuscripcion
 from app.models.pg.tipo_membresia      import TipoMembresia
 from app.models.pg.ejercicio           import Ejercicio
 from app.models.pg.tipo_clase          import TipoClase
+from app.models.pg.pasarela_pago       import ConfiguracionPasarela
+from app.utils.alcance                 import crear_organizacion_para_gimnasio
+from app.utils.crypto                  import cifrar_dict, CryptoNoConfigurado
 from app.mongo import get_db
 
 RNG = random.Random(42)
@@ -67,11 +70,28 @@ GIMNASIOS_CFG = [
         "objetivos": ["Fuerza maxima","Rendimiento deportivo","Perdida de peso",
                       "Acondicionamiento general","Competencia CrossFit"],
         "membresias": [
-            {"nombre":"Fundamentos",     "precio":450.0,  "duracion_meses":3, "descripcion":"Programa introductorio 3 meses"},
-            {"nombre":"CrossFit Rx",     "precio":900.0,  "duracion_meses":1, "descripcion":"Acceso ilimitado WOD"},
-            {"nombre":"Atleta",          "precio":1300.0, "duracion_meses":1, "descripcion":"WOD + clases especializadas + nutricion"},
-            {"nombre":"Competidor",      "precio":1800.0, "duracion_meses":1, "descripcion":"Programa elite para competencias"},
-            {"nombre":"Drop-in Semanal", "precio":400.0,  "duracion_meses":1, "descripcion":"Acceso una semana"},
+            {"nombre":"Fundamentos",     "precio":450.0,  "duracion_meses":3, "tipo":"estandar",
+             "descripcion":"Programa introductorio 3 meses",
+             "beneficios":["Curso de fundamentos CrossFit (4 semanas)","Acceso a clases Foundations",
+                           "Evaluacion inicial de movilidad","Casillero incluido"]},
+            {"nombre":"CrossFit Rx",     "precio":900.0,  "duracion_meses":1, "tipo":"estandar",
+             "descripcion":"Acceso ilimitado WOD",
+             "beneficios":["WOD ilimitado todos los dias","Acceso a Open Gym","App de seguimiento de marcas",
+                           "1 evaluacion fisica mensual"]},
+            {"nombre":"Atleta",          "precio":1300.0, "duracion_meses":1, "tipo":"estandar",
+             "descripcion":"WOD + clases especializadas + nutricion",
+             "beneficios":["Todo lo del plan CrossFit Rx","Clases de Olympic Lifting y Gymnastics",
+                           "Plan de nutricion personalizado","Prioridad de reserva en clases"]},
+            {"nombre":"Competidor",      "precio":1800.0, "duracion_meses":1, "tipo":"estandar",
+             "descripcion":"Programa elite para competencias",
+             "beneficios":["Todo lo del plan Atleta","Programacion de fuerza individualizada",
+                           "2 sesiones de coaching 1 a 1 al mes","Acceso a area de competencia",
+                           "Analisis de video de tecnica"]},
+            {"nombre":"Drop-in Semanal", "precio":400.0,  "duracion_meses":1, "tipo":"promocion",
+             "descripcion":"Acceso una semana",
+             "beneficios":["7 dias de acceso ilimitado","Ideal para visitantes y atletas de paso",
+                           "Sin permanencia"],
+             "fecha_fin_promo_dias": 45},
         ],
         "ejercicios": [
             ("Power Clean","Cuerpo completo","olimpico"),("Snatch","Cuerpo completo","olimpico"),
@@ -98,7 +118,14 @@ GIMNASIOS_CFG = [
     },
     {
         "nombre": "Zen Body Studio",
-        "plan": "pro",
+        # "starter" (SCRUM-106): el catalogo de planes (seed_pg_base) lo
+        # define desde SCRUM-163 y SuperadminGimnasios.jsx ya sabe
+        # mostrarlo (SCRUM-83), pero ninguno de los 5 gimnasios del seed lo
+        # usaba -- esa vista nunca lo mostraba en una demostracion con base
+        # limpia. Con basico en "Cardio and Dance Studio" y pro/enterprise
+        # en los otros tres, este es el que queda libre para representarlo
+        # sin dejar ningun plan comercial sin cubrir.
+        "plan": "starter",
         "email_contacto": "hola@zenbody.mx",
         "telefono": "+52-664-200-0002",
         "admin_email": "admin@zenbody.mx",
@@ -108,10 +135,23 @@ GIMNASIOS_CFG = [
         "objetivos": ["Flexibilidad y movilidad","Reduccion de estres","Bienestar integral",
                       "Tonificacion suave","Rehabilitacion y recovery"],
         "membresias": [
-            {"nombre":"Armonia",           "precio":350.0, "duracion_meses":1, "descripcion":"1 clase dia de yoga o pilates"},
-            {"nombre":"Bienestar Completo","precio":550.0, "duracion_meses":1, "descripcion":"Clases ilimitadas + meditacion"},
-            {"nombre":"Pilates Intensivo", "precio":700.0, "duracion_meses":1, "descripcion":"Reformer + mat ilimitado"},
-            {"nombre":"Retiro Mensual",    "precio":400.0, "duracion_meses":1, "descripcion":"4 sesiones de retiro + yoga"},
+            {"nombre":"Armonia",           "precio":350.0, "duracion_meses":1, "tipo":"estandar",
+             "descripcion":"1 clase dia de yoga o pilates",
+             "beneficios":["1 clase al dia (yoga o pilates)","Acceso a vestidores y regaderas",
+                           "Prestamo de tapete y bloques"]},
+            {"nombre":"Bienestar Completo","precio":550.0, "duracion_meses":1, "tipo":"estandar",
+             "descripcion":"Clases ilimitadas + meditacion",
+             "beneficios":["Clases ilimitadas de yoga y pilates","Sesiones de meditacion guiada",
+                           "Acceso a Aerial Yoga","Descuento en talleres especiales"]},
+            {"nombre":"Pilates Intensivo", "precio":700.0, "duracion_meses":1, "tipo":"estandar",
+             "descripcion":"Reformer + mat ilimitado",
+             "beneficios":["Pilates Reformer ilimitado","Pilates Mat ilimitado",
+                           "Evaluacion postural inicial","1 sesion privada al mes"]},
+            {"nombre":"Retiro Mensual",    "precio":400.0, "duracion_meses":1, "tipo":"promocion",
+             "descripcion":"4 sesiones de retiro + yoga",
+             "beneficios":["4 sesiones de retiro tematico","Te y snack saludable incluido",
+                           "Kit de bienvenida de aromaterapia"],
+             "fecha_fin_promo_dias": 30},
         ],
         "ejercicios": [
             ("Surya Namaskar","Cuerpo completo","yoga"),("Warrior I y II","Piernas","yoga"),
@@ -150,11 +190,29 @@ GIMNASIOS_CFG = [
         "objetivos": ["Ganancia muscular","Fuerza maxima","Powerlifting competitivo",
                       "Culturismo","Definicion muscular"],
         "membresias": [
-            {"nombre":"Basica Hierro",    "precio":350.0,  "duracion_meses":1, "descripcion":"Acceso libre + peso libre"},
-            {"nombre":"Culturismo",       "precio":550.0,  "duracion_meses":1, "descripcion":"Acceso + clase semanal nutricion"},
-            {"nombre":"Powerlifting Pro", "precio":750.0,  "duracion_meses":1, "descripcion":"Coaching tecnico + programa individual"},
-            {"nombre":"VIP Coaching",     "precio":1200.0, "duracion_meses":1, "descripcion":"PT 3x semana + nutricion + seguimiento"},
-            {"nombre":"Pareja Hierro",    "precio":900.0,  "duracion_meses":1, "descripcion":"Dos personas Basica Hierro"},
+            {"nombre":"Basica Hierro",    "precio":350.0,  "duracion_meses":1, "tipo":"estandar",
+             "descripcion":"Acceso libre + peso libre",
+             "beneficios":["Acceso ilimitado a piso de pesas libres","Casillero incluido",
+                           "Acceso a app de registro de cargas"]},
+            {"nombre":"Culturismo",       "precio":550.0,  "duracion_meses":1, "tipo":"estandar",
+             "descripcion":"Acceso + clase semanal nutricion",
+             "beneficios":["Todo lo de Basica Hierro","1 clase semanal de nutricion deportiva",
+                           "Plan de hipertrofia base","Medicion de composicion corporal mensual"]},
+            {"nombre":"Powerlifting Pro", "precio":750.0,  "duracion_meses":1, "tipo":"estandar",
+             "descripcion":"Coaching tecnico + programa individual",
+             "beneficios":["Programa individual de fuerza (Sentadilla/Banca/Peso Muerto)",
+                           "Revision tecnica quincenal con coach","Acceso a plataforma de powerlifting",
+                           "Straps y cinturon de prestamo"]},
+            {"nombre":"VIP Coaching",     "precio":1200.0, "duracion_meses":1, "tipo":"estandar",
+             "descripcion":"PT 3x semana + nutricion + seguimiento",
+             "beneficios":["Personal training 3 veces por semana","Plan de nutricion personalizado",
+                           "Seguimiento de progreso quincenal","Acceso prioritario a maquinas",
+                           "Suplemento de cortesia mensual"]},
+            {"nombre":"Pareja Hierro",    "precio":900.0,  "duracion_meses":1, "tipo":"promocion",
+             "descripcion":"Dos personas Basica Hierro",
+             "beneficios":["Acceso ilimitado para 2 personas","Descuento del 20% vs. inscripcion individual",
+                           "Casillero doble incluido"],
+             "fecha_fin_promo_dias": 60},
         ],
         "ejercicios": [
             ("Sentadilla Libre","Piernas","fuerza"),("Press Banca Plano","Pecho","fuerza"),
@@ -191,10 +249,22 @@ GIMNASIOS_CFG = [
         "objetivos": ["Perdida de peso","Tonificacion","Mejora cardiovascular",
                       "Diversion y socializacion","Resistencia aerobica"],
         "membresias": [
-            {"nombre":"Cardio Basica",   "precio":250.0, "duracion_meses":1, "descripcion":"3 clases por semana"},
-            {"nombre":"Studio Ilimitado","precio":400.0, "duracion_meses":1, "descripcion":"Clases ilimitadas"},
-            {"nombre":"VIP Spinning",    "precio":350.0, "duracion_meses":1, "descripcion":"Spinning ilimitado + 2 clases semana"},
-            {"nombre":"Pareja Cardio",   "precio":600.0, "duracion_meses":1, "descripcion":"Dos personas Ilimitado"},
+            {"nombre":"Cardio Basica",   "precio":250.0, "duracion_meses":1, "tipo":"estandar",
+             "descripcion":"3 clases por semana",
+             "beneficios":["3 clases a la semana a elegir","Acceso a vestidores",
+                           "Reserva de clases por app"]},
+            {"nombre":"Studio Ilimitado","precio":400.0, "duracion_meses":1, "tipo":"estandar",
+             "descripcion":"Clases ilimitadas",
+             "beneficios":["Clases ilimitadas de todo el catalogo","Acceso a Zumba, Spinning y Dance Fit",
+                           "Descuento en toallas y accesorios","Invita un amigo 1 vez al mes"]},
+            {"nombre":"VIP Spinning",    "precio":350.0, "duracion_meses":1, "tipo":"estandar",
+             "descripcion":"Spinning ilimitado + 2 clases semana",
+             "beneficios":["Spinning ilimitado","2 clases adicionales por semana",
+                           "Zapatillas de spinning en prestamo"]},
+            {"nombre":"Pareja Cardio",   "precio":600.0, "duracion_meses":1, "tipo":"promocion",
+             "descripcion":"Dos personas Ilimitado",
+             "beneficios":["Clases ilimitadas para 2 personas","Ahorro del 25% vs. plan individual x2"],
+             "fecha_fin_promo_dias": 40},
         ],
         "ejercicios": [
             ("Jumping Jacks","Cuerpo completo","cardio"),("High Knees","Cuerpo completo","cardio"),
@@ -233,11 +303,28 @@ GIMNASIOS_CFG = [
         "objetivos": ["Rendimiento deportivo","Salud preventiva","Composicion corporal",
                       "Bienestar ejecutivo","Rehabilitacion premium"],
         "membresias": [
-            {"nombre":"Silver",      "precio":500.0,  "duracion_meses":1, "descripcion":"Acceso full instalaciones"},
-            {"nombre":"Gold",        "precio":800.0,  "duracion_meses":1, "descripcion":"Full + 2 PT mes + nutricion"},
-            {"nombre":"Platinum",    "precio":1500.0, "duracion_meses":1, "descripcion":"Full + PT ilimitado + spa"},
-            {"nombre":"Diamond VIP", "precio":2500.0, "duracion_meses":1, "descripcion":"Servicio concierge todo incluido"},
-            {"nombre":"Corporate",   "precio":1200.0, "duracion_meses":1, "descripcion":"Plan corporativo por persona"},
+            {"nombre":"Silver",      "precio":500.0,  "duracion_meses":1, "tipo":"estandar",
+             "descripcion":"Acceso full instalaciones",
+             "beneficios":["Acceso completo a instalaciones","Toallas y amenidades de vestidor",
+                           "Estacionamiento con valet"]},
+            {"nombre":"Gold",        "precio":800.0,  "duracion_meses":1, "tipo":"estandar",
+             "descripcion":"Full + 2 PT mes + nutricion",
+             "beneficios":["Todo lo del plan Silver","2 sesiones de Personal Training al mes",
+                           "Plan de nutricion inicial","Acceso a Recovery Lab"]},
+            {"nombre":"Platinum",    "precio":1500.0, "duracion_meses":1, "tipo":"estandar",
+             "descripcion":"Full + PT ilimitado + spa",
+             "beneficios":["Personal Training ilimitado","Acceso a spa y area de recuperacion",
+                           "Evaluacion fisica mensual completa","Casillero premium con llave electronica"]},
+            {"nombre":"Diamond VIP", "precio":2500.0, "duracion_meses":1, "tipo":"estandar",
+             "descripcion":"Servicio concierge todo incluido",
+             "beneficios":["Servicio de concierge personalizado","Entrenador y nutriologo dedicados",
+                           "Acceso prioritario a todas las clases","Invitados ilimitados",
+                           "Chequeo medico deportivo trimestral"]},
+            {"nombre":"Corporate",   "precio":1200.0, "duracion_meses":1, "tipo":"promocion",
+             "descripcion":"Plan corporativo por persona",
+             "beneficios":["Tarifa preferencial para empresas","Reportes de asistencia para RH",
+                           "Sesion de bienestar ejecutivo trimestral"],
+             "fecha_fin_promo_dias": 90},
         ],
         "ejercicios": [
             ("Press Banca","Pecho","fuerza"),("Sentadilla","Piernas","fuerza"),
@@ -371,12 +458,13 @@ def seed_pg_base():
     print("Roles + Planes SaaS ===")
     roles = {}
     # Roles de la plataforma:
-    #   superadmin  → operador de la plataforma (sin gimnasio asignado)
-    #   owner_gym   → dueño/admin del gimnasio (tenant admin)
-    #   Entrenador  → trainer asignado al gimnasio
+    #   superadmin    → operador de la plataforma (sin gimnasio asignado)
+    #   Propietario   → dueño/admin del gimnasio (tenant admin) -- antes "owner_gym"
+    #   Administrador → admin de UNA sucursal, alcance limitado (HU-45/SCRUM-216)
+    #   Entrenador    → trainer asignado al gimnasio
     #   Recepcionista → staff de front-desk
-    #   Miembro     → cliente final
-    for nombre in ["superadmin", "owner_gym", "Entrenador", "Recepcionista", "Miembro"]:
+    #   Miembro       → cliente final
+    for nombre in ["superadmin", "Propietario", "Administrador", "Entrenador", "Recepcionista", "Miembro"]:
         r = Rol(nombre=nombre)
         db.session.add(r)
         db.session.flush()
@@ -384,9 +472,78 @@ def seed_pg_base():
     db.session.commit()
 
     PLANES_SAAS = [
-        {"nombre":"basico",     "precio_mensual_mxn": 49900,  "max_miembros":  50, "descripcion":"Hasta 50 miembros."},
-        {"nombre":"pro",        "precio_mensual_mxn":149900,  "max_miembros": 200, "descripcion":"Hasta 200 miembros + Analytics."},
-        {"nombre":"enterprise", "precio_mensual_mxn":399900,  "max_miembros":None, "descripcion":"Ilimitado + SLA."},
+        {
+            "nombre": "starter", "precio_mensual_mxn": 0, "max_miembros": 25,
+            "descripcion": "Plan gratuito para probar GymPro con un grupo pequeño de miembros.",
+            "titulo_comercial": "Para arrancar sin costo", "orden": 0, "destacado": False,
+            "caracteristicas": [
+                "Hasta 25 miembros activos",
+                "Registro de asistencias y pagos",
+                "1 usuario administrador",
+                "Soporte por correo electronico",
+            ],
+            "limites": {"pos": False, "pasarelas_pago": False, "analiticas_ia": False,
+                        "reportes_pdf": False, "app_movil": False, "max_staff": 1},
+        },
+        {
+            "nombre": "basico", "precio_mensual_mxn": 49900, "max_miembros": 50,
+            "descripcion": "Gestion completa del dia a dia para gimnasios en operacion.",
+            "titulo_comercial": "Ideal para gimnasios pequeños", "orden": 1, "destacado": False,
+            "caracteristicas": [
+                "Hasta 50 miembros activos",
+                "Punto de venta y control de productos",
+                "Cobros en linea con PayPal y Mercado Pago",
+                "Hasta 3 usuarios de staff",
+                "Reportes en PDF",
+                "App movil para tus miembros",
+            ],
+            "limites": {"pos": True, "pasarelas_pago": True, "analiticas_ia": False,
+                        "reportes_pdf": True, "app_movil": True, "max_staff": 3},
+        },
+        {
+            "nombre": "pro", "precio_mensual_mxn": 99900, "max_miembros": 200,
+            "descripcion": "Suma inteligencia de negocio y automatizacion con IA.",
+            "titulo_comercial": "El mas elegido por gimnasios en crecimiento", "orden": 2, "destacado": True,
+            "caracteristicas": [
+                "Hasta 200 miembros activos",
+                "Todo lo del plan Basico",
+                "Analiticas con IA: riesgo de abandono y clientes por valor",
+                "Generacion de rutinas y dietas asistida por IA",
+                "Respaldos automaticos de tu informacion",
+                "Hasta 10 usuarios de staff",
+            ],
+            "limites": {"pos": True, "pasarelas_pago": True, "analiticas_ia": True,
+                        "reportes_pdf": True, "app_movil": True, "backups_automaticos": True, "max_staff": 10},
+        },
+        {
+            # SCRUM-222 (AC6): "Miembros y staff ilimitados" se corrige --
+            # esa promesa no la respalda un VPS compartido (Postgres +
+            # Mongo + Redis + Ollama en la misma maquina). El tope real
+            # pasa a ser alto pero finito, y aplica POR SUCURSAL (igual
+            # que el resto de los planes, ver utils/capacidad.py): un
+            # cliente con varias sucursales multiplica su capacidad, no
+            # la reparte.
+            #
+            # 500 miembros / 20 staff por sucursal son valores
+            # PROVISIONALES -- no se derivan de una prueba de carga real
+            # sobre el VPS, son una extrapolacion directa del salto
+            # basico(50)->pro(200) de la misma tabla. Antes de anunciar
+            # este numero a un cliente real, hay que confirmarlo con
+            # pruebas de carga del VPS de produccion.
+            "nombre": "enterprise", "precio_mensual_mxn": 199900, "max_miembros": 500,
+            "descripcion": "Alta capacidad por sucursal, con soporte dedicado y acuerdos de nivel de servicio.",
+            "titulo_comercial": "Para cadenas y multiples sucursales", "orden": 3, "destacado": False,
+            "caracteristicas": [
+                "Hasta 500 miembros y 20 usuarios de staff por sucursal",
+                "Todo lo del plan Pro",
+                "Laboratorio de Machine Learning completo",
+                "Soporte prioritario con SLA",
+                "Acompañamiento en la implementacion",
+            ],
+            "limites": {"pos": True, "pasarelas_pago": True, "analiticas_ia": True,
+                        "reportes_pdf": True, "app_movil": True, "backups_automaticos": True,
+                        "ml_lab": True, "soporte_sla": True, "max_staff": 20},
+        },
     ]
     planes_map = {}
     for pd in PLANES_SAAS:
@@ -424,6 +581,13 @@ def seed_gimnasio(cfg, roles, planes_map, idx_start):
     db.session.add(gym)
     db.session.flush()
 
+    # HU-41 (SCRUM-212): gimnasios.id_organizacion es NOT NULL -- toda
+    # creación de Gimnasio necesita su Organizacion 1:1, incluida en seeds.
+    # No se wire-ea crear_asignacion() en los usuarios de este seed (ver
+    # bitácora técnica): nada lee asignacion_usuario para permisos todavía
+    # y los seeds son solo datos de desarrollo/demo.
+    crear_organizacion_para_gimnasio(gym)
+
     ahora = datetime.now(timezone.utc)
     plan  = planes_map[cfg["plan"]]
     sub   = Suscripcion(id_gimnasio=gym.id, id_plan=plan.id, estado="active",
@@ -435,7 +599,7 @@ def seed_gimnasio(cfg, roles, planes_map, idx_start):
         estado="pagada", fecha_emision=ahora, fecha_vencimiento=ahora+timedelta(days=30)))
 
     admin = Usuario(nombre=cfg["admin_nombre"], email=cfg["admin_email"],
-                    id_rol=roles["owner_gym"].id, id_gimnasio=gym.id, activo=True)
+                    id_rol=roles["Propietario"].id, id_gimnasio=gym.id, activo=True)
     admin.set_password("Admin1234!")
     db.session.add(admin)
     db.session.flush()
@@ -444,6 +608,7 @@ def seed_gimnasio(cfg, roles, planes_map, idx_start):
 
     idx = idx_start
     miembros_pg = []
+    trainers = []
 
     for _ in range(cfg["n_trainers"]):
         idx += 1
@@ -453,6 +618,7 @@ def seed_gimnasio(cfg, roles, planes_map, idx_start):
                     id_rol=roles["Entrenador"].id, id_gimnasio=gym.id, activo=True)
         u.set_password(f"Train{idx}!")
         db.session.add(u); db.session.flush()
+        trainers.append(u)
 
     for _ in range(cfg["n_staff"]):
         idx += 1
@@ -475,16 +641,32 @@ def seed_gimnasio(cfg, roles, planes_map, idx_start):
     db.session.commit()
 
     tm_map = {}
-    for tm_data in cfg["membresias"]:
+    for tm_data_raw in cfg["membresias"]:
+        tm_data = dict(tm_data_raw)
+        dias_promo = tm_data.pop("fecha_fin_promo_dias", None)
+        if dias_promo is not None:
+            tm_data["fecha_fin_promo"] = (date.today() + timedelta(days=dias_promo))
         tm = TipoMembresia(id_gimnasio=gym.id, activo=True, **tm_data)
         db.session.add(tm); db.session.flush()
         tm_map[tm_data["nombre"]] = tm
 
-    for (nombre_ej, grupo, tipo_ej) in cfg["ejercicios"]:
-        db.session.add(Ejercicio(id_gimnasio=gym.id, nombre=nombre_ej,
-                                 grupo_muscular=grupo, tipo=tipo_ej,
-                                 series=RNG.choice([3,4,5]),
-                                 repeticiones=RNG.choice(["5","8","10","10-12","12-15","AMRAP"])))
+    # Biblioteca de ejercicios INDIVIDUAL por entrenador (Ejercicio.id_entrenador):
+    # cada entrenador recibe su propia copia del catalogo del gimnasio, igual
+    # que en seed_server.py, para que /api/trainer/exercises no dependa de un
+    # catalogo compartido inexistente al armar rutinas.
+    for trainer in trainers:
+        for (nombre_ej, grupo, tipo_ej) in cfg["ejercicios"]:
+            es_cardio = tipo_ej == "cardio"
+            db.session.add(Ejercicio(
+                id_gimnasio=gym.id, id_entrenador=trainer.id, nombre=nombre_ej,
+                descripcion=f"Ejercicio de {tipo_ej} enfocado en {grupo.lower()}. "
+                            f"Realiza cada repeticion con control y buena tecnica postural, "
+                            f"priorizando la calidad del movimiento sobre la velocidad.",
+                grupo_muscular=grupo, tipo=tipo_ej,
+                series=RNG.choice([3,4,5]),
+                repeticiones=RNG.choice(["5","8","10","10-12","12-15","AMRAP"]),
+                duracion_min=RNG.choice([5,10,15,20]) if es_cardio else None,
+            ))
     db.session.flush()
 
     for (nombre_cl, desc, dur, cap) in cfg["clases"]:
@@ -494,8 +676,45 @@ def seed_gimnasio(cfg, roles, planes_map, idx_start):
     db.session.commit()
 
     print(f"  Miembros: {cfg['n_miembros']}  Entrenadores: {cfg['n_trainers']}  Staff: {cfg['n_staff']}")
-    print(f"  TipoMem: {len(tm_map)}  Ejercicios: {len(cfg['ejercicios'])}  Clases: {len(cfg['clases'])}")
+    print(f"  TipoMem: {len(tm_map)}  Ejercicios: {len(cfg['ejercicios'])} x {len(trainers)} entrenadores  Clases: {len(cfg['clases'])}")
+
+    seed_pasarelas_gimnasio(gym)
+
     return gym, miembros_pg, tm_map, idx
+
+
+def seed_pasarelas_gimnasio(gym):
+    """SCRUM-205: sin esto, ningun gimnasio recien sembrado tiene pasarelas
+    activas y tanto la app como el portal web solo muestran "Efectivo" como
+    metodo de pago (el catalogo que exponen es correcto, pero esta vacio).
+    Se activan PayPal y Mercado Pago en modo sandbox con credenciales de
+    prueba para que el flujo de cobro en linea sea demostrable de inicio a
+    fin. Si PAYMENTS_ENCRYPTION_KEY no esta configurada en el entorno, se
+    omite con un aviso claro en vez de tumbar el resto del seed.
+    """
+    try:
+        credenciales_paypal = cifrar_dict({
+            "client_id":     "sb-sandbox-paypal-client-id",
+            "client_secret": "sb-sandbox-paypal-client-secret",
+        })
+        credenciales_mp = cifrar_dict({
+            "access_token": "TEST-sandbox-mercadopago-access-token",
+            "public_key":   "TEST-sandbox-mercadopago-public-key",
+        })
+    except CryptoNoConfigurado as e:
+        print(f"  [pasarelas] omitido: {e}")
+        return
+
+    db.session.add(ConfiguracionPasarela(
+        id_gimnasio=gym.id, proveedor="paypal", modo="sandbox", activo=True,
+        credenciales=credenciales_paypal, moneda="MXN", titular_cuenta=gym.nombre,
+    ))
+    db.session.add(ConfiguracionPasarela(
+        id_gimnasio=gym.id, proveedor="mercadopago", modo="sandbox", activo=True,
+        credenciales=credenciales_mp, moneda="MXN", titular_cuenta=gym.nombre,
+    ))
+    db.session.commit()
+    print("  Pasarelas: PayPal + Mercado Pago (sandbox, activas)")
 
 
 def seed_mongo_gym(gym, miembros_pg, tm_map, cfg):
@@ -583,15 +802,26 @@ def seed_mongo_gym(gym, miembros_pg, tm_map, cfg):
         total["pagos"] += len(pagos_bulk)
 
         # Asistencias
+        #
+        # "fecha" se guarda como datetime real, no como string. El resto del
+        # sistema (_get_workout_stats, _get_weekly_progress en
+        # user_dashboard.py; calcular_racha_dias en trainer_routes.py;
+        # los reportes de superadmin/owner_gym; todos los módulos de IA que
+        # leen esta colección) compara "fecha" con $gte/$lt contra un
+        # datetime, o la trata como tal. Guardarla como string ("2026-06-01")
+        # hacía que Mongo nunca la encontrara en esas comparaciones: las
+        # asistencias quedaban invisibles para analítica, dashboards y rachas
+        # pese a existir en la base (SCRUM-106 — detectado también y evitado
+        # para datos nuevos en seed_vitazone_demo.py, pero no corregido aquí
+        # en el origen).
         dias_asist = RNG.sample(range(5, 550), RNG.randint(20, 45))
         asist_bulk = []
         for d in dias_asist:
             f = fecha_reg + timedelta(days=d)
-            f_date = f.date() if hasattr(f,"date") else f
             hora = f"{RNG.randint(6,21):02d}:{RNG.choice(['00','15','30','45'])}"
             asist_bulk.append({
                 "id_miembro":   uid, "id_gimnasio": gym_id,
-                "fecha":        str(f_date),
+                "fecha":        f,
                 "hora_entrada": hora,
                 "hora_salida":  f"{min(23,int(hora[:2])+RNG.randint(1,2)):02d}:{hora[3:]}",
             })
@@ -668,19 +898,36 @@ def seed_mongo_gym(gym, miembros_pg, tm_map, cfg):
         mdb.rutinas.insert_many(rutinas_bulk)
         total["rutinas"] += len(rutinas_bulk)
 
-        # Dieta
+        # Dieta propia del miembro — mismo esquema que crea POST /api/user/nutrition/dietas
+        # (id_gimnasio_pg, creado_por:"miembro", comidas planas) para que aparezca
+        # correctamente en la pestaña "Mis Dietas" del miembro, en vez del esquema
+        # plano antiguo (calorias_dia/alimentos_base) que ningun frontend actual lee.
         v = round(RNG.uniform(0.88, 1.12), 2)
+        cal_dia   = round(dieta["calorias"]*v)
+        alimentos = dieta["alimentos"]
+        comidas_nombres = ["Desayuno", "Comida", "Cena"]
+        pesos_cal        = [0.30, 0.45, 0.25]   # reparto tipico de calorias del dia
+        comidas_propias  = [
+            {
+                "nombre":    nombre_comida,
+                "hora":      hora,
+                "calorias":  round(cal_dia * peso),
+                "alimentos": RNG.sample(alimentos, min(3, len(alimentos))),
+            }
+            for nombre_comida, hora, peso in zip(
+                comidas_nombres, ["07:30", "14:00", "20:00"], pesos_cal)
+        ]
         mdb.dietas.insert_one({
-            "id_miembro":     uid, "id_gimnasio": gym_id,
+            "id_miembro":     uid, "id_gimnasio_pg": gym_id,
             "nombre":         dieta["nombre"],
-            "calorias_dia":   round(dieta["calorias"]*v),
-            "proteina_g":     round(dieta["proteina"]*v),
-            "carbos_g":       round(dieta["carbos"]*v),
-            "grasas_g":       round(dieta["grasas"]*v),
-            "notas":          dieta["notas"],
-            "alimentos_base": dieta["alimentos"],
+            "descripcion":    dieta["notas"],
+            "tipo":           "propia",
+            "creado_por":     "miembro",
+            "id_creador_pg":  usuario.id,
+            "comidas":        comidas_propias,
+            "calorias_meta":  cal_dia,
             "objetivo":       objetivo,
-            "activa":         True, "created_at": fecha_reg,
+            "activa":         True, "fecha_creacion": fecha_reg,
         })
         total["dietas"] += 1
 

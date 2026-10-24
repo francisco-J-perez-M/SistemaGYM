@@ -15,6 +15,7 @@ from datetime import datetime, timedelta, timezone
 from flask import Blueprint, jsonify
 from flask_jwt_extended import jwt_required, get_jwt
 from app.utils.tenant import require_tenant
+from app.constants.roles import ROL_PROPIETARIO, ROL_SUPERADMIN, normalizar_rol
 
 notifications_bp = Blueprint("notifications", __name__, url_prefix="/api/notifications")
 
@@ -166,9 +167,23 @@ def init_scheduler(app):
             replace_existing=True,
             kwargs={"app": app},
         )
+        # Auto-renovación de suscripciones de la plataforma. Corre a las 03:00,
+        # antes de que nadie use el sistema, para que a primera hora del día el
+        # panel ya refleje el estado correcto de cada gimnasio.
+        from app.routes.owner_gym.billing import procesar_auto_renovaciones
+        scheduler.add_job(
+            func=procesar_auto_renovaciones,
+            trigger=CronTrigger(hour=3, minute=0),
+            id="billing_auto_renovacion",
+            name="Auto-renovacion de suscripciones",
+            replace_existing=True,
+            kwargs={"app": app},
+        )
+
         scheduler.start()
         _scheduler_status["activo"] = True
-        app.logger.info("[Scheduler] Tarea 'notif_vencimientos' registrada — diaria 08:00 MX")
+        app.logger.info("[Scheduler] Tareas registradas: 'notif_vencimientos' (08:00 MX) "
+                        "y 'billing_auto_renovacion' (03:00 MX)")
 
     except ImportError:
         app.logger.warning("[Scheduler] APScheduler no disponible. Instalar: pip install apscheduler")
@@ -184,7 +199,7 @@ def init_scheduler(app):
 def trigger_check():
     """Dispara el chequeo de vencimientos de forma manual (solo Admin)."""
     claims = get_jwt()
-    if claims.get("role") not in ("owner_gym", "superadmin"):
+    if normalizar_rol(claims.get("role")) not in (ROL_PROPIETARIO, ROL_SUPERADMIN):
         return jsonify({"error": "Solo administradores pueden ejecutar esta accion"}), 403
 
     from flask import current_app

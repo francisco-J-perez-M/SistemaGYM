@@ -17,6 +17,7 @@ from app.models.pg.usuario import Usuario
 from app.models.pg.rol import Rol
 from app.models.pg.suscripcion import Suscripcion
 from app.models.pg.plan_suscripcion import PlanSuscripcion
+from app.constants.roles import ROL_PROPIETARIO, ROL_ENTRENADOR, ROL_RECEPCIONISTA
 from app.mongo import get_db
 from app.utils.security import require_role
 
@@ -199,19 +200,21 @@ def listar_gimnasios():
     if q_param:
         like = f"%{q_param}%"
         query = query.filter(
-            db.or_(Gimnasio.nombre.ilike(like), Gimnasio.email.ilike(like))
+            db.or_(Gimnasio.nombre.ilike(like), Gimnasio.email_contacto.ilike(like))
         )
 
     query = query.order_by(Gimnasio.created_at.desc())
     paginado = query.paginate(page=page, per_page=per_page, error_out=False)
 
+    mdb = get_db()
     items = []
     for gym in paginado.items:
         sub = _suscripcion_activa(gym.id)
         items.append({
             **gym.to_dict(),
-            "total_usuarios": Usuario.query.filter_by(id_gimnasio=gym.id).count(),
-            "suscripcion":    sub,
+            "total_usuarios":  Usuario.query.filter_by(id_gimnasio=gym.id).count(),
+            "total_miembros":  mdb.miembros.count_documents({"id_gimnasio_pg": gym.id}),
+            "suscripcion":     sub,
         })
 
     return jsonify({
@@ -231,7 +234,11 @@ def detalle_gimnasio(gym_id: int):
     """Devuelve detalle completo de un gimnasio: datos PG + métricas MongoDB."""
     gym = Gimnasio.query.get_or_404(gym_id)
 
-    ROLES_STAFF = {"Administrador", "Entrenador", "Recepcionista", "admin"}
+    # Antes incluía "Administrador"/"admin", que no son valores reales de
+    # Rol.nombre en la base (ver seed_pg.py): el dueño del gimnasio se guarda
+    # como "owner_gym". El filtro excluía silenciosamente al propio dueño de
+    # la lista de staff (SCRUM-107).
+    ROLES_STAFF = {ROL_PROPIETARIO, ROL_ENTRENADOR, ROL_RECEPCIONISTA}
     usuarios = (
         Usuario.query
         .join(Usuario.rol)

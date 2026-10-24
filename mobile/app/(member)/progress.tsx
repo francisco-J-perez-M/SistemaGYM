@@ -10,16 +10,19 @@ import { Ionicons } from '@expo/vector-icons';
 import { LineChart } from 'react-native-chart-kit';
 import { Dimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors } from '../../constants/Colors';
 import { useColors, useFontScale } from '../../hooks/useColors';
+import { conAlfa } from '../../constants/themes';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
 import { toDateStr, toArray } from '../../utils/format';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Card from '../../components/ui/Card';
+import MuscleMap2D from '../../components/progress/MuscleMap2D';
 import Button from '../../components/ui/Button';
 import api from '../../services/api';
 import type { BodyProgress } from '../../types';
+import { estaConectado } from '../../services/offline/connectivity';
+import { encolarAccion } from '../../services/offline/queue';
 
 const SCREEN_W = Dimensions.get('window').width;
 
@@ -28,14 +31,17 @@ export default function ProgressScreen() {
   const fs = useFontScale();
   const styles = useMemo(() => make_styles(colors, fs), [colors, fs]);
   const insets = useSafeAreaInsets();
-  const { data: records, loading, refetch } = useFetch<BodyProgress[]>(ENDPOINTS.BODY_PROGRESS);
+  // SCRUM-168 / HU-30: progreso corporal es una de las 4 lecturas que el
+  // ticket pide cachear para consulta sin conexión.
+  const { data: records, loading, refetch } =
+    useFetch<BodyProgress[]>(ENDPOINTS.BODY_PROGRESS, undefined, { cache: true });
   const [modalVisible, setModalVisible] = useState(false);
   const [peso,    setPeso]    = useState('');
   const [cintura, setCintura] = useState('');
   const [cadera,  setCadera]  = useState('');
   const [saving,  setSaving]  = useState(false);
 
-  const sorted = [...toArray(records)].sort(
+  const sorted = [...toArray<BodyProgress>(records)].sort(
     (a, b) => new Date(a.fecha_registro).getTime() - new Date(b.fecha_registro).getTime()
   );
 
@@ -47,19 +53,36 @@ export default function ProgressScreen() {
   const first  = sorted[0];
   const change = last && first ? (last.peso - first.peso).toFixed(1) : null;
 
+  // SCRUM-168 / HU-30: una medición es una escritura "segura" (no mueve
+  // dinero) — se encola si no hay conexión en vez de perderse.
   const saveProgress = async () => {
     if (!peso) return;
     setSaving(true);
+    const payload = {
+      peso:    parseFloat(peso),
+      cintura: cintura ? parseFloat(cintura) : undefined,
+      cadera:  cadera  ? parseFloat(cadera)  : undefined,
+    };
+    const limpiarYCerrar = () => { setModalVisible(false); setPeso(''); setCintura(''); setCadera(''); };
     try {
-      await api.post(ENDPOINTS.USER_PROGRESS, {
-        peso:    parseFloat(peso),
-        cintura: cintura ? parseFloat(cintura) : undefined,
-        cadera:  cadera  ? parseFloat(cadera)  : undefined,
-      });
-      setModalVisible(false);
-      setPeso(''); setCintura(''); setCadera('');
+      if (!estaConectado()) {
+        await encolarAccion('BODY_PROGRESS', ENDPOINTS.USER_PROGRESS, payload);
+        limpiarYCerrar();
+        Alert.alert('Guardado sin conexión', 'Se registrará en cuanto vuelvas a tener internet.');
+        return;
+      }
+      await api.post(ENDPOINTS.USER_PROGRESS, payload);
+      limpiarYCerrar();
       refetch();
     } catch (e: any) {
+      if (!e?.response) {
+        // Se perdió la conexión justo al enviar: se encola en vez de
+        // descartar lo que el socio acaba de teclear.
+        await encolarAccion('BODY_PROGRESS', ENDPOINTS.USER_PROGRESS, payload);
+        limpiarYCerrar();
+        Alert.alert('Guardado sin conexión', 'Se registrará en cuanto vuelvas a tener internet.');
+        return;
+      }
       Alert.alert('Error', e?.response?.data?.error ?? 'No se pudo guardar');
     } finally {
       setSaving(false);
@@ -87,7 +110,7 @@ export default function ProgressScreen() {
           accessibilityLabel="Registrar medición"
           accessibilityRole="button"
         >
-          <Ionicons name="add" size={22} color="#fff" />
+          <Ionicons name="add" size={22} color={colors.onAccent} />
         </TouchableOpacity>
       </View>
 
@@ -131,7 +154,7 @@ export default function ProgressScreen() {
               backgroundGradientFrom: colors.card,
               backgroundGradientTo:   colors.card,
               decimalPlaces:          1,
-              color:        (opacity = 1) => `rgba(108,99,255,${opacity})`,
+              color:        (o = 1) => conAlfa(colors.dataProgreso, o),
               labelColor:   () => colors.textSecondary,
               strokeWidth:  2,
               propsForDots: { r: '4', strokeWidth: '2', stroke: colors.accentLight },
@@ -151,6 +174,11 @@ export default function ProgressScreen() {
           </View>
         </Card>
       )}
+
+      {/* Mapa muscular 2D (SCRUM-101) — volumen de trabajo por grupo muscular,
+          tomado de la bitácora. No existía nada equivalente en móvil antes
+          de esta tarjeta (el modelo 3D solo vivía en el portal web). */}
+      <MuscleMap2D />
 
       {/* History list */}
       <Card>

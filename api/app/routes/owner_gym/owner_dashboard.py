@@ -20,6 +20,13 @@ from app.utils.security import require_role
 
 owner_dashboard_bp = Blueprint("owner_dashboard", __name__)
 
+# HU-45 (SCRUM-222, cierre de panel): un Administrador de sucursal necesita
+# ver el dashboard de SU sucursal para ejercer su rol -- se agrega al lado de
+# "owner_gym" (Propietario) en vez de reemplazarlo. Queda scoped igual que
+# siempre por g.tenant_id (ver utils/tenant.py), así que un Administrador
+# solo ve los números de la sucursal a la que está asignado, nunca los de
+# toda la organización.
+
 
 def _month_range(year: int, month: int):
     """Devuelve (inicio, fin) del mes como datetime."""
@@ -43,7 +50,7 @@ def _prev_months(n: int):
 # ─────────────────────────────────────────────────────────────────────────────
 @owner_dashboard_bp.route("/dashboard", methods=["GET"])
 @jwt_required()
-@require_role("owner_gym")
+@require_role("owner_gym", "Administrador")
 @require_tenant
 def get_owner_dashboard():
     """KPIs principales: miembros activos/inactivos, ingresos, membresías, staff."""
@@ -66,42 +73,61 @@ def get_owner_dashboard():
         ]
     })
 
-    # Membresías próximas a vencer (próximos 7 días)
-    hoy        = now.date().isoformat()
-    en_7_dias  = (now + relativedelta(days=7)).date().isoformat()
-    por_vencer = mdb.miembro_membresias.count_documents({
-        "id_gimnasio": gym_id,
-        "estado": "activa",
-        "fecha_fin": {"$gte": hoy, "$lte": en_7_dias},
+    # ── Membresías próximas a vencer (próximos 7 días) ────────────────────────
+    # Tres detalles que antes hacían que este contador diera siempre 0:
+    #   1. La colección es 'miembro_membresia' (singular), no 'miembro_membresias'.
+    #   2. El estado se guarda capitalizado: 'Activa', no 'activa'.
+    #   3. La colección NO tiene id_gimnasio; se acota por los miembros del gym.
+    # Además fecha_fin convive en dos formatos (datetime y 'YYYY-MM-DD'), así que
+    # se consulta con ambos, igual que en el panel de recepción.
+    en_7 = now + relativedelta(days=7)
+    oids_gym = [m["_id"] for m in mdb.miembros.find({"id_gimnasio_pg": gym_id}, {"_id": 1})]
+    por_vencer = mdb.miembro_membresia.count_documents({
+        "id_miembro": {"$in": oids_gym},
+        "estado":     "Activa",
+        "$or": [
+            {"fecha_fin": {"$gte": now, "$lte": en_7}},
+            {"fecha_fin": {"$gte": now.strftime("%Y-%m-%d"),
+                           "$lte": en_7.strftime("%Y-%m-%d")}},
+        ],
     })
 
-    # ── Ingresos del mes actual ───────────────────────────────────────────────
-    pipeline_mes = [
-        {"$match": {"id_gimnasio": gym_id}},
-        {"$addFields": {"fecha_dt": {"$toDate": "$fecha_pago"}}},
-        {"$match": {"fecha_dt": {"$gte": start_mes, "$lt": end_mes}}},
-        {"$group": {"_id": None, "total": {"$sum": "$monto"}}},
-    ]
-    res = list(mdb.pagos.aggregate(pipeline_mes))
-    ingresos_mes = float(res[0]["total"]) if res else 0.0
-
-    # Ingresos mes anterior (para calcular variación)
+    # ── Ingresos ──────────────────────────────────────────────────────────────
+    # 'Ingresos del mes' es TODO lo que entró: membresías (colección pagos) más
+    # el punto de venta (colección ventas). Antes solo se sumaban las membresías,
+    # así que el panel mostraba $0 mientras Reportes mostraba el importe real de
+    # las ventas: dos pantallas dando cifras distintas del mismo mes.
     prev_start, prev_end = _month_range(
         (now - relativedelta(months=1)).year,
         (now - relativedelta(months=1)).month,
     )
-    pipeline_prev = [
-        {"$match": {"id_gimnasio": gym_id}},
-        {"$addFields": {"fecha_dt": {"$toDate": "$fecha_pago"}}},
-        {"$match": {"fecha_dt": {"$gte": prev_start, "$lt": prev_end}}},
-        {"$group": {"_id": None, "total": {"$sum": "$monto"}}},
-    ]
-    res_prev = list(mdb.pagos.aggregate(pipeline_prev))
-    ingresos_prev = float(res_prev[0]["total"]) if res_prev else 0.0
+
+    def _suma(coleccion, campo_fecha: str, campo_monto: str, desde, hasta) -> float:
+        """Total de una colección en un rango, tolerando fechas string o datetime."""
+        pipeline = [
+            {"$match": {"id_gimnasio": gym_id}},
+            {"$addFields": {"fecha_dt": {"$toDate": f"${campo_fecha}"}}},
+            {"$match": {"fecha_dt": {"$gte": desde, "$lt": hasta}}},
+            {"$group": {"_id": None, "total": {"$sum": f"${campo_monto}"}}},
+        ]
+        r = list(coleccion.aggregate(pipeline))
+        return float(r[0]["total"]) if r else 0.0
+
+    ingresos_membresias = _suma(mdb.pagos,  "fecha_pago", "monto", start_mes, end_mes)
+    ingresos_pos        = _suma(mdb.ventas, "fecha",      "total", start_mes, end_mes)
+    ingresos_mes        = ingresos_membresias + ingresos_pos
+
+    prev_membresias = _suma(mdb.pagos,  "fecha_pago", "monto", prev_start, prev_end)
+    prev_pos        = _suma(mdb.ventas, "fecha",      "total", prev_start, prev_end)
+    ingresos_prev   = prev_membresias + prev_pos
 
     variacion_ingresos = 0.0
     if ingresos_prev > 0:
         variacion_ingresos = round(((ingresos_mes - ingresos_prev) / ingresos_prev) * 100, 1)
+    elif ingresos_mes > 0:
+        # Sin base de comparación no existe un porcentaje: se informa aparte con
+        # 'sin_comparativa' para que la app no pinte un engañoso 0 % o -100 %.
+        variacion_ingresos = 0.0
 
     # ── Staff (entrenadores + recepcionistas) ─────────────────────────────────
     from app.models.pg.rol import Rol
@@ -118,16 +144,16 @@ def get_owner_dashboard():
     # ── Tipos de membresía activos ────────────────────────────────────────────
     tipos_membresia = TipoMembresia.query.filter_by(id_gimnasio=gym_id, activo=True).count()
 
-    # ── Ventas del mes (POS) ──────────────────────────────────────────────────
-    pipeline_ventas = [
+    # ── Transacciones del POS en el mes ───────────────────────────────────────
+    # El importe ya se calculó arriba (ingresos_pos); aquí solo falta el conteo.
+    pipeline_conteo = [
         {"$match": {"id_gimnasio": gym_id}},
         {"$addFields": {"fecha_dt": {"$toDate": "$fecha"}}},
         {"$match": {"fecha_dt": {"$gte": start_mes, "$lt": end_mes}}},
-        {"$group": {"_id": None, "total": {"$sum": "$total"}, "count": {"$sum": 1}}},
+        {"$group": {"_id": None, "count": {"$sum": 1}}},
     ]
-    res_v = list(mdb.ventas.aggregate(pipeline_ventas))
-    ventas_mes        = float(res_v[0]["total"]) if res_v else 0.0
-    ventas_mes_count  = int(res_v[0]["count"])   if res_v else 0
+    res_v = list(mdb.ventas.aggregate(pipeline_conteo))
+    ventas_mes_count = int(res_v[0]["count"]) if res_v else 0
 
     return jsonify({
         "miembros": {
@@ -138,12 +164,19 @@ def get_owner_dashboard():
             "por_vencer":   por_vencer,
         },
         "ingresos": {
-            "mes_actual":   ingresos_mes,
-            "mes_anterior": ingresos_prev,
-            "variacion_pct": variacion_ingresos,
+            # mes_actual es el TOTAL (membresías + POS). El desglose permite a la
+            # app mostrar de dónde viene cada peso sin volver a pedir datos.
+            "mes_actual":     ingresos_mes,
+            "membresias":     ingresos_membresias,
+            "punto_de_venta": ingresos_pos,
+            "mes_anterior":   ingresos_prev,
+            "variacion_pct":  variacion_ingresos,
+            # True cuando el mes anterior no tuvo ingresos: no hay porcentaje que
+            # calcular y la app debe mostrar un guion en vez de 0 % o -100 %.
+            "sin_comparativa": ingresos_prev <= 0,
         },
         "ventas_pos": {
-            "total_mes":    ventas_mes,
+            "total_mes":    ingresos_pos,
             "transacciones": ventas_mes_count,
         },
         "staff": {
@@ -159,7 +192,7 @@ def get_owner_dashboard():
 # ─────────────────────────────────────────────────────────────────────────────
 @owner_dashboard_bp.route("/dashboard/ingresos", methods=["GET"])
 @jwt_required()
-@require_role("owner_gym")
+@require_role("owner_gym", "Administrador")
 @require_tenant
 def get_ingresos_historicos():
     """Ingresos por mes (pagos + ventas POS) para el gráfico de tendencia."""
@@ -218,7 +251,7 @@ def get_ingresos_historicos():
 # ─────────────────────────────────────────────────────────────────────────────
 @owner_dashboard_bp.route("/dashboard/actividad", methods=["GET"])
 @jwt_required()
-@require_role("owner_gym")
+@require_role("owner_gym", "Administrador")
 @require_tenant
 def get_actividad_reciente():
     """Feed de actividad reciente: últimos pagos, registros de miembros y ventas POS."""
@@ -264,6 +297,17 @@ def get_actividad_reciente():
     )
 
     # ── Construir feed ────────────────────────────────────────────────────────
+    # Las tres colecciones guardan la fecha en formatos distintos (datetime en
+    # unas, cadena ISO en otras). Ordenar por el texto mezclaba el orden porque
+    # str(datetime) usa un espacio y isoformat() una 'T', y ' ' < 'T' en ASCII.
+    # Se normaliza a ISO para ordenar y para lo que recibe la app.
+    def _iso(valor) -> str:
+        if valor is None:
+            return ""
+        if hasattr(valor, "isoformat"):
+            return valor.isoformat()
+        return str(valor).replace(" ", "T")
+
     actividad = []
 
     for p in pagos:
@@ -276,7 +320,7 @@ def get_actividad_reciente():
             "titulo": nombre,
             "sub":    p.get("metodo_pago", ""),
             "monto":  float(p.get("monto", 0)),
-            "fecha":  str(p.get("fecha_pago", "")),
+            "fecha":  _iso(p.get("fecha_pago")),
         })
 
     for m in miembros:
@@ -285,7 +329,7 @@ def get_actividad_reciente():
             "tipo":   "registro",
             "titulo": nombre,
             "sub":    m.get("estado", ""),
-            "fecha":  str(m.get("fecha_registro", "")),
+            "fecha":  _iso(m.get("fecha_registro")),
         })
 
     for v in ventas_pos:
@@ -294,14 +338,12 @@ def get_actividad_reciente():
         resumen = items[0].get("nombre", "Venta") if items else "Venta"
         if len(items) > 1:
             resumen = f"{resumen} +{len(items) - 1} más"
-        fecha_v = v.get("fecha")
-        fecha_str = fecha_v.isoformat() if hasattr(fecha_v, "isoformat") else str(fecha_v or "")
         actividad.append({
             "tipo":   "venta",
             "titulo": nombre,
             "sub":    resumen,
             "monto":  float(v.get("total", 0)),
-            "fecha":  fecha_str,
+            "fecha":  _iso(v.get("fecha")),
         })
 
     actividad.sort(key=lambda x: x.get("fecha", ""), reverse=True)

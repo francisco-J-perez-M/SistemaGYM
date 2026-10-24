@@ -9,19 +9,25 @@ import { useState, useEffect, useCallback } from "react";
 import {
   BarChart, Bar, PieChart, Pie, Cell, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ResponsiveContainer,
+  ResponsiveContainer, LabelList,
 } from "recharts";
 import { FiDollarSign, FiUsers, FiTrendingUp, FiBell, FiClock, FiActivity } from "react-icons/fi";
+import {
+  COLORES_GRAFICO, SERIES_GRAFICO, COLOR_REJILLA, ejeX, ejeY, ImporteExtremos,
+} from "../../components/compartido/InfoGrafico";
 import "../../css/CSSUnificado.css";
 
 const API_BASE   = "";
-const ACCENT     = "#fbe379";
-const SUCCESS    = "#4cd964";
-const INFO       = "#38bdf8";
-const DANGER     = "#ff6b9d";
-const WARNING    = "#ffbd2e";
-const PURPLE     = "#a78bfa";
-const PALETTE    = [ACCENT, SUCCESS, INFO, DANGER, WARNING, PURPLE, "#fb923c", "#34d399"];
+// Tonos tomados de la paleta compartida. Los anteriores eran pasteles claros
+// (#fbe379, #4cd964) que sobre el tema claro se confundían con el fondo, y
+// varios se distinguían solo por ser uno rojo y otro verde.
+const ACCENT     = COLORES_GRAFICO.ingresos;
+const SUCCESS    = COLORES_GRAFICO.real;
+const INFO       = COLORES_GRAFICO.asistencia;
+const DANGER     = COLORES_GRAFICO.baja;
+const WARNING    = COLORES_GRAFICO.pos;
+const PURPLE     = COLORES_GRAFICO.membresias;
+const PALETTE    = SERIES_GRAFICO;
 
 // Cuando el superadmin analiza un gimnasio concreto, guarda su id en
 // localStorage("sa_gym_id"). Este helper añade la cabecera X-Gym-ID sólo en ese
@@ -201,14 +207,18 @@ function TabMapReduce() {
       </div>
 
       <SectionTitle>Ingresos mensuales (últimos 12 meses)</SectionTitle>
-      <ResponsiveContainer width="100%" height={240}>
-        <BarChart data={ingresosAgrupados} margin={{ left: 10, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-dark)" />
-          <XAxis dataKey="periodo" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} />
+      <ResponsiveContainer width="100%" height={275}>
+        <BarChart data={ingresosAgrupados} margin={{ top: 24, right: 8, left: 10, bottom: 22 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />
+          <XAxis dataKey="periodo" tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
+                 label={ejeX("Periodo")} />
           <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
-                 tickFormatter={v => `$${(v/1000).toFixed(0)}k`} />
+                 tickFormatter={v => `$${(v/1000).toFixed(0)}k`}
+                 label={ejeY("Ingresos (miles de MXN)")} />
           <Tooltip content={<CustomTooltip prefix="$" />} />
-          <Bar dataKey="total" name="Ingresos" fill={ACCENT} radius={[4,4,0,0]} />
+          <Bar dataKey="total" name="Ingresos" fill={ACCENT} radius={[4,4,0,0]}>
+            <LabelList content={<ImporteExtremos valores={ingresosAgrupados.map((d) => d.total)} />} />
+          </Bar>
         </BarChart>
       </ResponsiveContainer>
 
@@ -228,12 +238,15 @@ function TabMapReduce() {
         </div>
         <div style={{ flex: 1, minWidth: 260 }}>
           <SectionTitle>Asistencia por día de la semana</SectionTitle>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={asistenciaDia} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-dark)" />
-              <XAxis type="number" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} />
+          <ResponsiveContainer width="100%" height={235}>
+            <BarChart data={asistenciaDia} layout="vertical" margin={{ top: 5, right: 8, left: 0, bottom: 22 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />
+              <XAxis type="number" tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
+                     allowDecimals={false}
+                     label={ejeX("Visitas")} />
               <YAxis type="category" dataKey="dia" width={80}
-                     tick={{ fill: "var(--text-secondary)", fontSize: 11 }} />
+                     tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
+                     label={ejeY("Día")} />
               <Tooltip content={<CustomTooltip suffix=" visitas" />} />
               <Bar dataKey="visitas" name="Visitas" fill={SUCCESS} radius={[0,4,4,0]} />
             </BarChart>
@@ -344,7 +357,7 @@ export function TabKMeans() {
       <SectionTitle>Distribución de miembros por grupo</SectionTitle>
       <ResponsiveContainer width="100%" height={240}>
         <BarChart data={clusterBarData}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-dark)" />
+          <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />
           <XAxis dataKey="name" tick={{ fill: "var(--text-secondary)", fontSize: 10 }} />
           <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 11 }} />
           <Tooltip content={<CustomTooltip />} />
@@ -356,7 +369,7 @@ export function TabKMeans() {
       <SectionTitle>Métricas promedio por grupo</SectionTitle>
       <ResponsiveContainer width="100%" height={220}>
         <BarChart data={clusterBarData}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-dark)" />
+          <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />
           <XAxis dataKey="name" tick={{ fill: "var(--text-secondary)", fontSize: 10 }} />
           <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 11 }} />
           <Tooltip content={<CustomTooltip />} />
@@ -489,7 +502,7 @@ export function TabRegresion() {
           </p>
           <ResponsiveContainer width="100%" height={180}>
             <BarChart data={coeficientesArr.map(c => ({ ...c, feature: COEF_LABELS[c.feature] || c.feature }))} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-dark)" />
+              <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />
               <XAxis type="number" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} />
               <YAxis type="category" dataKey="feature" width={160} tick={{ fill: "var(--text-secondary)", fontSize: 11 }} />
               <Tooltip content={<CustomTooltip />} />
@@ -544,16 +557,19 @@ function TabCancelaciones() {
   const [trainLoading, setTL]   = useState(false);
   const [error, setError]       = useState(null);
   const [trainMsg, setTrainMsg] = useState(null);
+  const [page, setPage]         = useState(1);
 
   const token   = localStorage.getItem("token");
   const headers = { Authorization: `Bearer ${token}`, ...gymHeader() };
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (p = 1) => {
     setLoading(true); setError(null);
     try {
-      const r = await fetch(`${API_BASE}/api/analytics/cancelaciones`, { headers });
+      const r = await fetch(`${API_BASE}/api/analytics/cancelaciones?page=${p}&per_page=6`, { headers });
       if (!r.ok) throw new Error(`Error ${r.status}`);
-      setData(await r.json());
+      const j = await r.json();
+      setData(j);
+      setPage(j.pagina || p);
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
   // headers deriva de localStorage (estable durante la sesión); no debe reactivar el callback
@@ -566,7 +582,7 @@ function TabCancelaciones() {
       const r = await fetch(`${API_BASE}/api/analytics/cancelaciones/train`, { method: "POST", headers });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || "Error");
-      setData(j); setTrainMsg("Análisis actualizado correctamente");
+      setData(j); setPage(1); setTrainMsg("Análisis actualizado correctamente");
     } catch (e) { setError(e.message); }
     finally { setTL(false); }
   };
@@ -575,7 +591,7 @@ function TabCancelaciones() {
   const exportPDF = () => {
     if (!data) return;
     const now   = new Date().toLocaleString("es-MX");
-    const preds = (data.predicciones || []).slice(0, 50);
+    const preds = (data.predicciones_export || []).slice(0, 50);
     const total = (data.resumen?.riesgo_alto||0) + (data.resumen?.riesgo_medio||0) + (data.resumen?.activos||0);
 
     const distRows = [
@@ -688,7 +704,7 @@ function TabCancelaciones() {
     win.onload = () => win.print();
   };
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { fetchData(page); }, [fetchData, page]);
 
   const distribucion = [
     { name: "Atención urgente",   value: data?.resumen?.riesgo_alto  || 0, fill: DANGER  },
@@ -702,10 +718,9 @@ function TabCancelaciones() {
     valor:   parseFloat((f.importancia || 0).toFixed(3)),
   }));
 
-  // Top miembros en riesgo (alto + medio)
-  const enRiesgo = (data?.predicciones || [])
-    .filter(p => p.riesgo === "alto" || p.riesgo === "medio")
-    .slice(0, 15);
+  // Página actual de miembros en riesgo (alto + medio), ya paginada por el servidor
+  const enRiesgo = data?.predicciones_pagina || [];
+  const totalPaginas = data?.paginas || 1;
 
   if (loading) return <LoadingSpinner />;
   if (error || !data || data.error) return (
@@ -713,7 +728,7 @@ function TabCancelaciones() {
       icon={<FiBell />}
       title="Todavía no hay datos para mostrar"
       description={data?.error || "Para detectar qué miembros están en riesgo de dejar el gimnasio necesitamos su historial de visitas y pagos. En cuanto haya miembros con actividad, el análisis aparecerá aquí automáticamente."}
-      onRetry={fetchData}
+      onRetry={() => fetchData(1)}
     />
   );
 
@@ -785,7 +800,7 @@ function TabCancelaciones() {
             </p>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={importancia} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-dark)" />
+                <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />
                 <XAxis type="number" tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
                        tickFormatter={v => `${(v * 100).toFixed(0)}%`} />
                 <YAxis type="category" dataKey="feature" width={180}
@@ -816,7 +831,7 @@ function TabCancelaciones() {
                   display: "flex", alignItems: "center", gap: 14, padding: "12px 16px",
                   background: "var(--bg-input)", borderRadius: 10, borderLeft: `3px solid ${col}`,
                 }}>
-                  <div style={{ width: 24, textAlign: "center", fontWeight: 800, color: col, fontSize: 15 }}>{i + 1}</div>
+                  <div style={{ width: 24, textAlign: "center", fontWeight: 800, color: col, fontSize: 15 }}>{(page - 1) * (data.per_page || 6) + i + 1}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                       <span style={{ fontWeight: 700, color: "var(--text-primary)", fontSize: 14 }}>{p.nombre || p.id_miembro}</span>
@@ -848,6 +863,29 @@ function TabCancelaciones() {
               );
             })}
           </div>
+
+          {/* Paginación server-side — mismo patrón usado en las tablas del Superadministrador */}
+          {totalPaginas > 1 && (
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginTop: 16 }}>
+              <button
+                disabled={page <= 1}
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                style={{ border: "none", borderRadius: 8, padding: "7px 14px", fontSize: 13, fontWeight: 600,
+                  cursor: page <= 1 ? "default" : "pointer", opacity: page <= 1 ? 0.5 : 1,
+                  background: "rgba(255,255,255,.06)", color: "var(--text-secondary)" }}>
+                ← Anterior
+              </button>
+              <span style={{ padding: "7px 14px", fontSize: 13, color: "var(--text-secondary)" }}>{page} / {totalPaginas}</span>
+              <button
+                disabled={page >= totalPaginas}
+                onClick={() => setPage(p => Math.min(totalPaginas, p + 1))}
+                style={{ border: "none", borderRadius: 8, padding: "7px 14px", fontSize: 13, fontWeight: 600,
+                  cursor: page >= totalPaginas ? "default" : "pointer", opacity: page >= totalPaginas ? 0.5 : 1,
+                  background: "rgba(255,255,255,.06)", color: "var(--text-secondary)" }}>
+                Siguiente →
+              </button>
+            </div>
+          )}
         </>
       )}
     </div>
@@ -1082,7 +1120,7 @@ function TabFuerza() {
       <SectionTitle>Fuerza promedio estimada por ejercicio</SectionTitle>
       <ResponsiveContainer width="100%" height={Math.max(220, chart.length * 38)}>
         <BarChart data={chart} layout="vertical" margin={{ left: 10, right: 20 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-dark)" />
+          <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />
           <XAxis type="number" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} tickFormatter={v => `${v} kg`} />
           <YAxis type="category" dataKey="nombre" width={150} tick={{ fill: "var(--text-secondary)", fontSize: 11 }} />
           <Tooltip formatter={v => [`${v} kg estimados`, "Promedio"]} />
@@ -1232,7 +1270,7 @@ export function TabModelos() {
                 <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 6px" }}>Recta vs curva (peso estimado según el tiempo)</p>
                 <ResponsiveContainer width="100%" height={220}>
                   <LineChart data={reg.curva}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-dark)" />
+                    <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />
                     <XAxis dataKey="dias" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} tickFormatter={v => `${v}d`} />
                     <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 11 }} domain={["auto", "auto"]} />
                     <Tooltip />

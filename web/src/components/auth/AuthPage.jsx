@@ -8,6 +8,7 @@ import {
   FiSun, FiMoon, FiStar, FiEye, FiEyeOff, FiAlertTriangle 
 } from "react-icons/fi";
 import { GiPineTree } from "react-icons/gi";
+import { normalizarRol, ROL_PROPIETARIO, ROL_MIEMBRO, ROL_ENTRENADOR, ROL_RECEPCIONISTA } from "../../constants/roles";
 
 export default function AuthPage() {
   // --- ESTADOS GENERALES ---
@@ -68,22 +69,26 @@ export default function AuthPage() {
 
       localStorage.setItem("user", JSON.stringify(userData));
 
+      // Normalizado (SCRUM-107 + migración 019): resuelve "owner_gym"
+      // (tokens emitidos antes del rename), "Propietario" y los alias
+      // informales al mismo identificador canónico.
+      const userRole = normalizarRol(userData.role);
+
       // Primer login de dueño de gimnasio → onboarding obligatorio
-      if (userData.role === "owner_gym" && userData.primer_login) {
+      if (userRole === ROL_PROPIETARIO && userData.primer_login) {
         navigate("/owner/bienvenida");
         return;
       }
 
-      if ((userData.role === "Miembro" || userData.role === "user") && !userData.peso_inicial) {
+      if (userRole === ROL_MIEMBRO && !userData.peso_inicial) {
           navigate("/complete-profile");
           return;
       }
 
-      const userRole = userData.role;
       if (userRole === "superadmin") navigate("/superadmin");
-      else if (userRole === "owner_gym" || userRole === "Administrador" || userRole === "admin") navigate("/owner");
-      else if (userRole === "Entrenador" || userRole === "trainer") navigate("/trainer-dashboard");
-      else if (userRole === "Recepcionista" || userRole === "receptionist") navigate("/receptionist-dashboard");
+      else if (userRole === ROL_PROPIETARIO) navigate("/owner");
+      else if (userRole === ROL_ENTRENADOR) navigate("/trainer-dashboard");
+      else if (userRole === ROL_RECEPCIONISTA) navigate("/receptionist-dashboard");
       else navigate("/user/dashboard");
 
     } catch (err) {
@@ -233,6 +238,12 @@ export default function AuthPage() {
                   <motion.button type="submit" className="login-button" disabled={loading} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                     {loading ? <span className="spinner" /> : "Ingresar al sistema"}
                   </motion.button>
+
+                  <p style={{ textAlign: "center", marginTop: 14, fontSize: 13 }}>
+                    <a href="/privacidad" target="_blank" rel="noopener noreferrer" style={{ color: "var(--text-secondary, #94a3b8)", textDecoration: "none" }}>
+                      Política de Privacidad
+                    </a>
+                  </p>
                 </form>
               </motion.div>
             )}

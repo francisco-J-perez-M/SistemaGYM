@@ -4,23 +4,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   FiActivity, FiTrendingUp, FiTrendingDown, FiZap, FiAward,
   FiCalendar, FiCheckCircle, FiAlertTriangle,
-  FiUser, FiHeart, FiBarChart2, FiBook, FiCoffee, FiDollarSign,
+  FiUser, FiHeart,
   FiMoon, FiShield,
 } from "react-icons/fi";
 import "../../css/CSSUnificado.css";
 
 const DIAS = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
-
-const QUICK_LINKS = [
-  { icon: <FiActivity />,    label: "Mi Rutina",       path: "/user/routine",    color: "#6366f1" },
-  { icon: <FiTrendingUp />,  label: "Progreso",        path: "/user/progress",   color: "#22c55e" },
-  { icon: <FiHeart />,       label: "Salud",           path: "/user/health",     color: "#ef4444" },
-  { icon: <FiBarChart2 />,   label: "Predicción",      path: "/user/prediction", color: "#f59e0b" },
-  { icon: <FiCoffee />,      label: "Alimentación",    path: "/user/nutrition",  color: "#8b5cf6" },
-  { icon: <FiBook />,        label: "Recetas",         path: "/user/recipes",    color: "#06b6d4" },
-  { icon: <FiDollarSign />,  label: "Pagos",           path: "/user/payments",   color: "#10b981" },
-  { icon: <FiUser />,        label: "Mi Perfil",       path: "/user/profile",    color: "var(--text-secondary)" },
-];
 
 const OBJETIVO_LABELS = {
   "Pérdida de peso":           { Icon: FiTrendingDown, color: "#ef4444" },
@@ -157,17 +146,17 @@ export default function UserDashboard() {
               initial={{ opacity:0, height:0 }} animate={{ opacity:1, height:"auto" }}
               style={{
                 display:"flex", alignItems:"center", gap:12, padding:"12px 16px",
-                background:"rgba(245,158,11,.1)", border:"1px solid rgba(245,158,11,.3)",
+                background:"var(--warning-bg)", border:"1px solid var(--warning)",
                 borderRadius:10, marginBottom:20, fontSize:14,
               }}
             >
-              <FiAlertTriangle color="#fbbf24" style={{ flexShrink:0 }} />
+              <FiAlertTriangle color="var(--warning)" style={{ flexShrink:0 }} />
               <span style={{ color:"var(--text-primary)" }}>
                 Tu membresía <strong>{membership.plan}</strong> vence en{" "}
-                <strong style={{ color:"#fbbf24" }}>{membership.dias_restantes} días</strong>.{" "}
+                <strong style={{ color:"var(--warning)" }}>{membership.dias_restantes} días</strong>.{" "}
                 <span
                   onClick={() => navigate("/user/renew")}
-                  style={{ color:"#fbbf24", textDecoration:"underline", cursor:"pointer" }}
+                  style={{ color:"var(--warning)", textDecoration:"underline", cursor:"pointer" }}
                 >
                   Renovar ahora
                 </span>
@@ -235,13 +224,21 @@ export default function UserDashboard() {
             </motion.div>
           )}
 
-          {/* ── KPI cards ───────────────────────────── */}
+          {/* ── KPI cards ───────────────────────────────────────────────────
+              Antes cada tarjeta traía su propio hex literal (#f59e0b, #6366f1...)
+              que no correspondía a ningún token del portal, así que no se movía
+              con el cambio de tema claro/oscuro y rompía la paleta homogénea del
+              resto de la app. Ahora usan los tokens semánticos de CSSUnificado.css
+              (--warning/--accent/--info/--success). --danger queda reservado para
+              alertas reales (membresía vencida, más abajo) y no se reutiliza aquí
+              como "color de serie" — cada tarjeta ya distingue su identidad por
+              ícono + etiqueta, no solo por color. */}
           <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))", gap:14, marginBottom:24 }}>
             {[
-              { icon:<FiZap/>,          label:"Racha",       value:stats?.streakDays ?? 0,   unit:"días",    color:"#f59e0b" },
-              { icon:<FiActivity/>,     label:"Entrenam.",   value:stats?.totalWorkouts ?? 0, unit:"este mes",color:"#6366f1" },
-              { icon:<FiTrendingDown/>, label:"Calorías",    value:(stats?.caloriesBurned ?? 0).toLocaleString(), unit:"quemadas",color:"#ef4444" },
-              { icon:<FiTrendingUp/>,   label:"Peso actual", value:stats?.currentWeight > 0 ? stats.currentWeight.toFixed(1) : "—", unit:"kg", color:"#22c55e" },
+              { icon:<FiZap/>,          label:"Racha",       value:stats?.streakDays ?? 0,   unit:"días",    color:"var(--warning)" },
+              { icon:<FiActivity/>,     label:"Entrenam.",   value:stats?.totalWorkouts ?? 0, unit:"este mes",color:"var(--accent)" },
+              { icon:<FiTrendingDown/>, label:"Calorías",    value:(stats?.caloriesBurned ?? 0).toLocaleString(), unit:"quemadas",color:"var(--info)" },
+              { icon:<FiTrendingUp/>,   label:"Peso actual", value:stats?.currentWeight > 0 ? stats.currentWeight.toFixed(1) : "—", unit:"kg", color:"var(--success)" },
             ].map((k, i) => (
               <motion.div
                 key={k.label}
@@ -254,7 +251,7 @@ export default function UserDashboard() {
                 }}
               >
                 <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10 }}>
-                  <div style={{ width:32, height:32, borderRadius:8, background:`${k.color}18`, display:"flex", alignItems:"center", justifyContent:"center", color:k.color }}>
+                  <div style={{ width:32, height:32, borderRadius:8, background:`color-mix(in srgb, ${k.color} 18%, transparent)`, display:"flex", alignItems:"center", justifyContent:"center", color:k.color }}>
                     {k.icon}
                   </div>
                   <span style={{ fontSize:12, color:"var(--text-secondary)", fontWeight:600 }}>{k.label}</span>
@@ -310,18 +307,20 @@ export default function UserDashboard() {
                         onClick={() => toggleExercise(i)}
                         style={{
                           display:"flex", alignItems:"center", gap:10,
-                          padding:"10px 0", borderBottom:"1px solid var(--border)",
+                          // minHeight 44px: objetivo táctil mínimo recomendado para
+                          // toda la fila (es el elemento clicable, no solo el check).
+                          minHeight:44, padding:"11px 4px", borderBottom:"1px solid var(--border)",
                           cursor:"pointer", fontSize:14,
                         }}
                       >
                         <div style={{
-                          width:22, height:22, borderRadius:6, flexShrink:0,
-                          border:`2px solid ${ex.completed ? "#22c55e" : "var(--border)"}`,
-                          background: ex.completed ? "#22c55e" : "transparent",
+                          width:24, height:24, borderRadius:6, flexShrink:0,
+                          border:`2px solid ${ex.completed ? "var(--success)" : "var(--border)"}`,
+                          background: ex.completed ? "var(--success)" : "transparent",
                           display:"flex", alignItems:"center", justifyContent:"center",
                           transition:"all .2s",
                         }}>
-                          {ex.completed && <FiCheckCircle size={13} color="#fff" />}
+                          {ex.completed && <FiCheckCircle size={14} color="var(--text-on-accent)" />}
                         </div>
                         <span style={{ flex:1, textDecoration: ex.completed ? "line-through" : "none", color: ex.completed ? "var(--text-secondary)" : "var(--text-primary)" }}>
                           {ex.name}
@@ -347,20 +346,32 @@ export default function UserDashboard() {
                 </h3>
               </div>
 
-              <div style={{ padding:"8px 0 4px", display:"flex", justifyContent:"space-between", alignItems:"flex-end", height:120 }}>
+              {/* weekProg es asistió/no-asistió (0 ó 100), nunca una magnitud —
+                  el backend solo cuenta presencia por día (_get_weekly_progress
+                  en user_dashboard.py). Una barra con altura variable insinuaba
+                  una escala que no existe (un día con 1 visita se veía igual que
+                  uno con 5). Ahora cada día es una píldora: llena = asistió,
+                  hueca = no asistió; el día actual lleva un anillo para ubicarlo
+                  sin depender solo del color. */}
+              <div style={{ padding:"4px 0 10px", display:"flex", justifyContent:"space-between", gap:6 }}>
                 {DIAS.map((d, i) => {
-                  const val   = weekProg[i === 0 ? 6 : i - 1] || 0; // lunes=0 en backend, 0=dom en JS
-                  const today = i === new Date().getDay();
+                  const asistio = (weekProg[i === 0 ? 6 : i - 1] || 0) > 0; // lunes=0 en backend, 0=dom en JS
+                  const today   = i === new Date().getDay();
                   return (
-                    <div key={d} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4, flex:1 }}>
+                    <div key={d} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:6, flex:1 }}>
                       <motion.div
-                        initial={{ height:0 }} animate={{ height: val > 0 ? 60 : 8 }}
-                        transition={{ duration:.7, delay: i * .06 }}
+                        initial={{ scale:0 }} animate={{ scale:1 }}
+                        transition={{ duration:.35, delay: i * .05 }}
                         style={{
-                          width: today ? 18 : 14, borderRadius:4,
-                          background: val > 0 ? (today ? "var(--accent)" : "var(--accent)88") : "var(--border)",
+                          width:30, height:30, borderRadius:"50%", flexShrink:0,
+                          display:"flex", alignItems:"center", justifyContent:"center",
+                          background: asistio ? "var(--accent)" : "transparent",
+                          border:`2px solid ${asistio ? "var(--accent)" : "var(--border)"}`,
+                          boxShadow: today ? "0 0 0 3px var(--accent-dim)" : "none",
                         }}
-                      />
+                      >
+                        {asistio && <FiCheckCircle size={14} color="var(--text-on-accent)" />}
+                      </motion.div>
                       <span style={{ fontSize:10, fontWeight: today ? 700 : 400, color: today ? "var(--accent)" : "var(--text-secondary)" }}>
                         {d}
                       </span>
@@ -369,22 +380,34 @@ export default function UserDashboard() {
                 })}
               </div>
 
-              <div style={{ marginTop:16, padding:"14px 16px", background:"var(--bg-input)", borderRadius:10 }}>
-                <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, marginBottom:8 }}>
-                  <span style={{ color:"var(--text-secondary)" }}>Asistencias esta semana</span>
-                  <span style={{ fontWeight:700, color:"var(--accent)" }}>
-                    {weekProg.filter(v => v > 0).length} / 7 días
+              {/* Estado vacío: si el miembro nunca ha registrado un entrenamiento
+                  (no solo "esta semana sin asistir"), un "0 / 7 días" se lee como
+                  un fallo en vez de como "todavía no empiezas". */}
+              {stats?.totalWorkouts === 0 ? (
+                <div style={{ marginTop:16, padding:"14px 16px", background:"var(--bg-input)", borderRadius:10, display:"flex", gap:10, alignItems:"center" }}>
+                  <FiActivity size={16} color="var(--text-secondary)" style={{ flexShrink:0 }} />
+                  <span style={{ fontSize:12.5, color:"var(--text-secondary)", lineHeight:1.5 }}>
+                    Aún no registras entrenamientos. En cuanto completes el primero, aquí verás tu racha y tu avance semanal.
                   </span>
                 </div>
-                <div style={{ height:5, background:"var(--border)", borderRadius:3, overflow:"hidden" }}>
-                  <motion.div
-                    style={{ height:"100%", background:"var(--accent)", borderRadius:3 }}
-                    initial={{ width:0 }}
-                    animate={{ width:`${(weekProg.filter(v=>v>0).length / 7) * 100}%` }}
-                    transition={{ duration:1, delay:.4 }}
-                  />
+              ) : (
+                <div style={{ marginTop:16, padding:"14px 16px", background:"var(--bg-input)", borderRadius:10 }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, marginBottom:8 }}>
+                    <span style={{ color:"var(--text-secondary)" }}>Asistencias esta semana</span>
+                    <span style={{ fontWeight:700, color:"var(--accent)" }}>
+                      {weekProg.filter(v => v > 0).length} / 7 días
+                    </span>
+                  </div>
+                  <div style={{ height:5, background:"var(--border)", borderRadius:3, overflow:"hidden" }}>
+                    <motion.div
+                      style={{ height:"100%", background:"var(--accent)", borderRadius:3 }}
+                      initial={{ width:0 }}
+                      animate={{ width:`${(weekProg.filter(v=>v>0).length / 7) * 100}%` }}
+                      transition={{ duration:1, delay:.4 }}
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Membresía status */}
               {membership && (
@@ -398,7 +421,9 @@ export default function UserDashboard() {
                       <div style={{ fontSize:11, color:"var(--text-secondary)", marginBottom:2 }}>Vence</div>
                       <div style={{
                         fontSize:13, fontWeight:700,
-                        color: membership.dias_restantes <= 7 ? "#f59e0b" : "#22c55e",
+                        color: membership.dias_restantes <= 0 ? "var(--danger)"
+                             : membership.dias_restantes <= 7 ? "var(--warning)"
+                             : "var(--success)",
                       }}>
                         {membership.dias_restantes > 0 ? `${membership.dias_restantes} días` : "Vencida"}
                       </div>
@@ -409,36 +434,9 @@ export default function UserDashboard() {
             </motion.div>
           </div>
 
-          {/* ── Accesos rápidos ──────────────────────── */}
-          <motion.div
-            data-guide="us-quicklinks"
-            initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }} transition={{ delay:.35 }}
-            style={{ marginBottom:24 }}
-          >
-            <h3 style={{ fontSize:14, fontWeight:700, color:"var(--text-secondary)", marginBottom:12, textTransform:"uppercase", letterSpacing:".06em" }}>
-              Accesos rápidos
-            </h3>
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(120px,1fr))", gap:10 }}>
-              {QUICK_LINKS.map((ql, i) => (
-                <motion.div
-                  key={ql.path}
-                  initial={{ opacity:0, scale:.9 }} animate={{ opacity:1, scale:1 }} transition={{ delay: .35 + i*.04 }}
-                  whileHover={{ scale:1.04, y:-2 }}
-                  onClick={() => navigate(ql.path)}
-                  style={{
-                    background:"var(--bg-card)", border:"1px solid var(--border)",
-                    borderRadius:10, padding:"14px 10px", textAlign:"center",
-                    cursor:"pointer", transition:"box-shadow .2s",
-                  }}
-                >
-                  <div style={{ width:36, height:36, borderRadius:9, background:`${ql.color}18`, display:"flex", alignItems:"center", justifyContent:"center", color:ql.color, fontSize:18, margin:"0 auto 8px" }}>
-                    {ql.icon}
-                  </div>
-                  <div style={{ fontSize:12, fontWeight:600, color:"var(--text-primary)" }}>{ql.label}</div>
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
+          {/* Los accesos rápidos se retiraron: duplicaban punto por punto las
+              entradas del menú lateral, que está siempre visible. Ocupaban una
+              franja del panel sin ofrecer nada que el menú no diera ya. */}
 
           {/* ── Logros ──────────────────────────────── */}
           {achievements.length > 0 && (

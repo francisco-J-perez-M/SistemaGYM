@@ -6,8 +6,9 @@ import { useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { FiX, FiUpload, FiAlertCircle } from "react-icons/fi";
 import { crearProducto, editarProducto } from "../../api/owner_gym";
+import ListaCombo from "../../components/compartido/ListaCombo";
 
-const CATS = ["General", "Suplementos", "Accesorios", "Snacks", "Bebidas", "Ropa"];
+const CATS = ["General", "Suplementos", "Accesorios", "Snacks", "Bebidas", "Ropa", "Combos"];
 
 const inputSt = {
   width: "100%", boxSizing: "border-box", padding: "9px 12px",
@@ -30,8 +31,10 @@ export default function ProductoModal({ producto, onClose, onSaved }) {
   const [form, setForm] = useState(producto ? {
     nombre: producto.nombre, precio: String(producto.precio),
     stock: String(producto.stock), categoria: producto.categoria,
+    es_combo: !!producto.es_combo, items_combo: producto.items_combo || [],
     descripcion: producto.descripcion, imagenes: [...producto.imagenes],
-  } : { nombre: "", precio: "", stock: "", categoria: "General", descripcion: "", imagenes: [] });
+  } : { nombre: "", precio: "", stock: "", categoria: "General", descripcion: "", imagenes: [],
+        es_combo: false, items_combo: [] });
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
   const imgRef = useRef(null);
@@ -84,6 +87,9 @@ export default function ProductoModal({ producto, onClose, onSaved }) {
         nombre: form.nombre.trim(), precio: Number(form.precio),
         stock: Number(form.stock) || 0, categoria: form.categoria,
         descripcion: form.descripcion.trim(), imagenes: form.imagenes,
+        // Un combo no lleva stock propio: se arma con el de sus componentes
+        es_combo: !!form.es_combo,
+        items_combo: form.es_combo ? form.items_combo : [],
       };
       producto ? await editarProducto(producto.id, payload) : await crearProducto(payload);
       onSaved();
@@ -123,8 +129,40 @@ export default function ProductoModal({ producto, onClose, onSaved }) {
               </div>
               <div>
                 <label style={labelSt}>Stock</label>
-                <input style={inputSt} type="number" min="0" value={form.stock} onChange={e => setField("stock", e.target.value)} placeholder="0" />
+                <input
+                  style={{ ...inputSt, opacity: form.es_combo ? 0.5 : 1 }}
+                  type="number" min="0"
+                  value={form.es_combo ? "" : form.stock}
+                  onChange={e => setField("stock", e.target.value)}
+                  placeholder={form.es_combo ? "Según componentes" : "0"}
+                  disabled={form.es_combo}
+                />
               </div>
+            </div>
+
+            {/* ── Combo ────────────────────────────────────────────────────
+                Al venderse, descuenta el stock de cada componente. */}
+            <div style={{ borderTop: "1px solid var(--border)", paddingTop: 14 }}>
+              <label style={{ ...labelSt, display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={!!form.es_combo}
+                  onChange={e => setField("es_combo", e.target.checked)}
+                  style={{ width: 15, height: 15, cursor: "pointer" }}
+                />
+                Este producto es un combo
+              </label>
+              <p style={{ fontSize: 11.5, color: "var(--text-secondary)", margin: "5px 0 10px", lineHeight: 1.45 }}>
+                Agrupa varios artículos en un solo precio. Su disponibilidad se calcula
+                con el inventario de los artículos que lo forman, y al venderlo se
+                descuenta el stock de cada uno.
+              </p>
+              {form.es_combo && (
+                <ListaCombo
+                  items={form.items_combo}
+                  onChange={(v) => setField("items_combo", v)}
+                />
+              )}
             </div>
             <div>
               <label style={labelSt}>Descripción (opcional)</label>

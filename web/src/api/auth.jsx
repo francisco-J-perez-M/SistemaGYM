@@ -1,4 +1,6 @@
 //frontend\src\api\auth.jsx
+import { peticion } from "./cliente";
+
 const API_URL = "/api/auth";
 
 export async function login(email, password) {
@@ -55,19 +57,22 @@ export async function resetPassword(email, code, newPassword) {
   return data;
 }
 
+// Actividad 09, PR-01 (M. Arriaga Mora): antes leía el token directamente
+// de localStorage, legible por cualquier script que corra en el origen.
+// Ahora pasa por el cliente centralizado (web/src/api/cliente.js), que
+// envía la cookie de sesión HttpOnly en vez de un token en memoria legible.
 export async function completeOnboarding(payload) {
-  const token = localStorage.getItem("token");
-  const response = await fetch("/api/onboarding/complete-setup", {
+  return peticion("/api/onboarding/complete-setup", {
     method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
     body: JSON.stringify(payload),
   });
+}
+
+export async function getPlanesPublicos() {
+  const response = await fetch("/api/onboarding/planes");
   const data = await response.json();
-  if (!response.ok) throw new Error(data.msg || "Error al completar configuración");
-  return data;
+  if (!response.ok) throw new Error(data.msg || "Error al obtener los planes");
+  return data.planes || [];
 }
 
 export async function registerGym(gymData, adminData, idPlan = null) {

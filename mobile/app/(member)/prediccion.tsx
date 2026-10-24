@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LineChart } from 'react-native-chart-kit';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors, useFontScale } from '../../hooks/useColors';
+import { conAlfa } from '../../constants/themes';
 import { useAuth } from '../../hooks/useAuth';
 import api from '../../services/api';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
@@ -40,6 +41,8 @@ export default function PrediccionScreen() {
   const [error, setError]     = useState<string | null>(null);
   const [hist, setHist]       = useState<number[]>([]);
   const [pred, setPred]       = useState<number[]>([]);
+  /** Rango de peso saludable (criterio OMS) que devuelve el backend. */
+  const [rango, setRango]     = useState<any>(null);
 
   const cargar = useCallback(async () => {
     if (!user?.id) { setLoading(false); setError('Sesión no disponible.'); return; }
@@ -53,6 +56,7 @@ export default function PrediccionScreen() {
         setError('Necesitas al menos 3 registros de peso en Progreso Físico para generar la predicción.');
       }
       setHist(h); setPred(p);
+      setRango(d.rango_saludable ?? null);
     } catch {
       setError('No se pudo calcular la predicción. Registra tu peso y vuelve a intentar.');
     } finally {
@@ -76,7 +80,7 @@ export default function PrediccionScreen() {
     backgroundGradientFrom: colors.card,
     backgroundGradientTo:   colors.card,
     decimalPlaces: 1,
-    color:      (o = 1) => `rgba(108, 99, 255, ${o})`,
+    color:      (o = 1) => conAlfa(colors.dataIa, o),
     labelColor: (o = 1) => colors.textSecondary,
     propsForDots: { r: '3' },
     propsForBackgroundLines: { stroke: colors.border },
@@ -136,6 +140,31 @@ export default function PrediccionScreen() {
             </View>
           </View>
 
+          {/* Peso saludable segun la OMS.
+              Da una referencia con criterio clinico frente a la que leer la
+              proyeccion. Es un RANGO, no un "peso ideal": el IMC es cribado
+              poblacional y no distingue musculo de grasa. */}
+          {rango && (
+            <Card>
+              <Text style={styles.sectionTitle}>Peso saludable para tu estatura</Text>
+              <Text style={styles.rangoValor}>
+                {rango.peso_min_kg} – {rango.peso_max_kg} <Text style={styles.kpiUnit}>kg</Text>
+              </Text>
+              <Text style={styles.rangoMeta}>
+                Criterio OMS · IMC {rango.imc_min}–{rango.imc_max} · {rango.estatura_m} m
+              </Text>
+              {rango.imc_actual != null && (
+                <Text style={styles.rangoTexto}>
+                  Tu IMC es {rango.imc_actual} ({rango.categoria}).{' '}
+                  {rango.dentro_del_rango
+                    ? 'Estás dentro del rango.'
+                    : `Te separan ${rango.diferencia_kg} kg del límite ${rango.direccion === 'bajar' ? 'superior' : 'inferior'}.`}
+                </Text>
+              )}
+              <Text style={styles.rangoNota}>{rango.advertencia}</Text>
+            </Card>
+          )}
+
           {/* Gráfica */}
           {combinado.length >= 2 && (
             <Card>
@@ -144,7 +173,7 @@ export default function PrediccionScreen() {
                 data={{
                   labels: combinado.map((_, i) => (i === 0 ? 'inicio' : i === idxCorte - 1 ? 'hoy' : i === combinado.length - 1 ? `+${dias}d` : '')),
                   datasets: [
-                    { data: combinado, color: (o = 1) => `rgba(108, 99, 255, ${o})`, strokeWidth: 2 },
+                    { data: combinado, color: (o = 1) => conAlfa(colors.dataIa, o), strokeWidth: 2 },
                   ],
                 }}
                 width={width - 24}
@@ -192,7 +221,7 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
     },
     rangeChipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
     rangeText:       { color: colors.textSecondary, fontSize: 13 * fs, fontWeight: '600' },
-    rangeTextActive: { color: '#fff' },
+    rangeTextActive: { color: colors.onAccent },
     infoCard: { alignItems: 'center', gap: 10, paddingVertical: 24 },
     infoText: { color: colors.textSecondary, fontSize: 13 * fs, textAlign: 'center', lineHeight: 20 },
     kpiRow: { flexDirection: 'row', gap: 12 },
@@ -204,6 +233,10 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
     kpiValue: { color: colors.text, fontSize: 18 * fs, fontWeight: '800' },
     kpiUnit:  { color: colors.textMuted, fontSize: 11 * fs, fontWeight: '600' },
     sectionTitle: { color: colors.text, fontSize: 15 * fs, fontWeight: '700', marginBottom: 10 },
+    rangoValor:   { color: colors.accent, fontSize: 24 * fs, fontWeight: '800' },
+    rangoMeta:    { color: colors.textSecondary, fontSize: 11 * fs, marginTop: 2 },
+    rangoTexto:   { color: colors.text, fontSize: 13 * fs, marginTop: 8, lineHeight: 19 * fs },
+    rangoNota:    { color: colors.textSecondary, fontSize: 11 * fs, marginTop: 8, lineHeight: 16 * fs },
     predRow: {
       flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
       paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border,

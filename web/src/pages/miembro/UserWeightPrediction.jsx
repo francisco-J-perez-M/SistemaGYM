@@ -5,6 +5,9 @@ import {
   ResponsiveContainer, Scatter,
 } from "recharts";
 import { useMetricsHistory } from "../../hooks/useMetricsHistory";
+import InfoGrafico, {
+  COLORES_GRAFICO, COLOR_REJILLA, ejeX, ejeY, rangoPeriodo, describirTendencia,
+} from "../../components/compartido/InfoGrafico";
 import "../../css/CSSUnificado.css";
 
 const API_BASE = "";
@@ -81,6 +84,10 @@ export default function UserWeightPrediction() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  // Detalle que envía el backend cuando faltan mediciones: cuántas hay y
+  // cuántas se necesitan. Evita que la pantalla cuente por su cuenta y acabe
+  // contradiciéndose.
+  const [faltaDatos, setFaltaDatos] = useState(null);
 
   // Hook: raw time-series from historial_metricas — used to show progress
   // toward the minimum 3 records needed for the ML prediction.
@@ -103,9 +110,18 @@ export default function UserWeightPrediction() {
         `${API_BASE}/api/analytics/regresion/predecir/${userId}?dias=${diasParam}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      // 400/404/422 = datos insuficientes para entrenar/predecir → estado amigable
-      // (el backend lanza 400 cuando aún no hay suficientes registros de progreso)
+      // 400/404/422 = datos insuficientes → estado amigable.
+      // Se guarda lo que el backend informa (cuántos registros hay y cuántos
+      // hacen falta) en lugar de contarlos aquí: la pantalla llegó a mostrar
+      // "6 / 3 registros" con la barra llena y, debajo, que faltaban datos.
+      // Dos fuentes de verdad para el mismo número siempre acaban así.
       if (res.status === 400 || res.status === 404 || res.status === 422) {
+        const detalle = await res.json().catch(() => ({}));
+        setFaltaDatos({
+          registros: detalle.registros,
+          minimo:    detalle.minimo_requerido,
+          mensaje:   detalle.sugerencia || detalle.error,
+        });
         setError("__no_data__");
         return;
       }
@@ -177,6 +193,10 @@ export default function UserWeightPrediction() {
   const tendencia = data?.tendencia || "";
   const tConfig = TENDENCIA_CONFIG[tendencia];
   const disclaimer = data?.disclaimer || data?.advertencia || null;
+  const rangoSaludable = data?.rango_saludable || null;
+  // El backend limita el ritmo de cambio a un máximo plausible; conviene
+  // decirlo, porque entonces la cifra es un tope y no una estimación fina.
+  const proyeccionAcotada = Boolean(data?.proyeccion_acotada);
 
   if (loading) return (
     <div className="loading-spinner" style={{ height: "60vh" }}>
@@ -186,8 +206,10 @@ export default function UserWeightPrediction() {
   );
 
   if (error === "__no_data__") {
-    const registrosActuales = rawHistory.filter(r => r.peso != null).length;
-    const MIN_REGISTROS = 3;
+    // Manda lo que informa el backend; contar aquí es el respaldo por si la
+    // respuesta no trajo el detalle.
+    const registrosActuales = faltaDatos?.registros ?? rawHistory.filter(r => r.peso != null).length;
+    const MIN_REGISTROS = faltaDatos?.minimo ?? 3;
     const faltantes = Math.max(0, MIN_REGISTROS - registrosActuales);
     return (
     <div className="dashboard-content">
@@ -219,14 +241,23 @@ export default function UserWeightPrediction() {
           )}
         </div>
         <p style={{ color: "var(--text-secondary)", fontSize: 15, lineHeight: 1.7, marginBottom: 24 }}>
-          La predicción de peso utiliza tu historial de registros corporales.
-          Necesitas al menos <strong>3 registros</strong> en distintas fechas para que la IA pueda generar una predicción.
+          La predicción usa tu historial de peso. Necesitas al menos{" "}
+          <strong>{MIN_REGISTROS} anotaciones</strong> en fechas distintas.
+        </p>
+        {/* Hay dos caminos para anotar el peso y antes solo se mencionaba uno,
+            así que quien lo apuntaba al entrenar no entendía por qué seguía
+            sin predicción. */}
+        <p style={{ color: "var(--text-secondary)", fontSize: 13.5, lineHeight: 1.7, marginBottom: 24 }}>
+          Cuenta tanto lo que registras en <strong>Progreso Físico</strong> como el
+          peso que anotas al guardar un entrenamiento. Registrar el entrenamiento
+          por sí solo no basta: hay que apuntar el peso.
         </p>
         <div style={{ display: "flex", flexDirection: "column", gap: 12, textAlign: "left", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 14, padding: "20px 24px", marginBottom: 28 }}>
           {[
-            ["1", "Ve a", "Progreso Físico", "y registra tus medidas y peso"],
-            ["2", "Repite en", "días distintos", "(mínimo 3 registros)"],
-            ["3", "Regresa aquí", "y el modelo", "calculará tu tendencia"],
+            ["1", "Ve a", "Progreso Físico", "y anota tu peso"],
+            ["2", "O apúntalo al", "registrar un entrenamiento", "(el campo de peso corporal)"],
+            ["3", "Repite en", "días distintos", `(mínimo ${MIN_REGISTROS} anotaciones)`],
+            ["4", "Vuelve aquí", "y el modelo", "calculará tu tendencia"],
           ].map(([n, a, b, c]) => (
             <div key={n} style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <div style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--accent)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 13, flexShrink: 0 }}>{n}</div>
@@ -309,7 +340,9 @@ export default function UserWeightPrediction() {
                 {pesoMeta != null ? `${pesoMeta.toFixed(1)} kg` : "—"}
               </div>
               <p style={{ fontSize: 11, color: "var(--text-secondary)", margin: "4px 0 0" }}>
-                peso estimado al final del período
+                {proyeccionAcotada
+                  ? "tope plausible al final del período"
+                  : "peso estimado al final del período"}
               </p>
             </div>
             <div className="stat-card" style={{ padding: 16 }}>
@@ -333,6 +366,40 @@ export default function UserWeightPrediction() {
               </p>
             </div>
           </div>
+
+          {/* Rango de peso saludable (criterio OMS).
+              Sirve de referencia para leer la proyección: sin ella, "bajarás
+              5 kg" no dice si eso acerca o aleja de un peso saludable. Se
+              muestra como RANGO y no como "peso ideal": el IMC es cribado
+              poblacional, no un diagnóstico, y no distingue músculo de grasa. */}
+          {rangoSaludable && (
+            <div className="stat-card" style={{ padding: 16 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+                <h3 style={{ margin: 0 }}>Peso saludable para tu estatura</h3>
+                <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+                  Criterio OMS · IMC {rangoSaludable.imc_min}–{rangoSaludable.imc_max} · {rangoSaludable.estatura_m} m
+                </span>
+              </div>
+
+              <div className="stat-value highlight" style={{ fontSize: 22, marginTop: 6 }}>
+                {rangoSaludable.peso_min_kg} – {rangoSaludable.peso_max_kg} kg
+              </div>
+
+              {rangoSaludable.imc_actual != null && (
+                <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "6px 0 0", lineHeight: 1.55 }}>
+                  Tu IMC es <strong style={{ color: "var(--text-primary)" }}>{rangoSaludable.imc_actual}</strong>
+                  {" "}({rangoSaludable.categoria}).{" "}
+                  {rangoSaludable.dentro_del_rango
+                    ? "Estás dentro del rango."
+                    : `Te separan ${rangoSaludable.diferencia_kg} kg del ${rangoSaludable.direccion === "bajar" ? "límite superior" : "límite inferior"}.`}
+                </p>
+              )}
+
+              <p style={{ fontSize: 11, color: "var(--text-secondary)", margin: "8px 0 0", lineHeight: 1.5, opacity: .9 }}>
+                {rangoSaludable.advertencia}
+              </p>
+            </div>
+          )}
 
           {/* Selector de días */}
           <div className="stat-card" style={{
@@ -364,44 +431,78 @@ export default function UserWeightPrediction() {
           <h3>Tu peso: lo que pasó y lo que se espera</h3>
         </div>
 
+        <InfoGrafico
+          titulo="Tu peso registrado y hacia dónde va"
+          periodo={
+            historial.length
+              ? `Registrado: ${rangoPeriodo(historial, "fecha")} · Proyecta ${dias} días`
+              : ""
+          }
+          subtitulo="Lo que has anotado y la tendencia que se desprende de ello."
+          comportamiento={describirTendencia(
+            historial.map((r) => _pesoVal(r)), { unidad: " kg" },
+          )}
+          series={[
+            {
+              color: COLORES_GRAFICO.real,
+              nombre: "Lo que ya registraste",
+              descripcion: "Cada punto es una vez que anotaste tu peso en Progreso Físico. Son tus datos reales.",
+            },
+            {
+              color: COLORES_GRAFICO.prediccion,
+              nombre: "Lo que podría pasar",
+              descripcion: "La línea punteada estima tu peso si sigues con el mismo ritmo. No es una promesa: cambia si cambian tu dieta o tu entrenamiento.",
+            },
+          ]}
+          notas={[
+            data?.registros ? `Calculado con tus ${data.registros} mediciones.` : null,
+            data?.calidad_ajuste != null
+              ? `Qué tan regular ha sido tu evolución: ${(data.calidad_ajuste * 100).toFixed(0)} %. Si el número es bajo, tu peso ha subido y bajado mucho y la estimación es menos certera.`
+              : null,
+            "El eje de la izquierda son kilogramos y el de abajo, fechas.",
+          ].filter(Boolean)}
+        />
+
         <div style={{ display: "flex", gap: 20, marginBottom: 14, fontSize: 12, color: "var(--text-secondary)", flexWrap: "wrap" }}>
           <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ width: 24, height: 3, background: "#38bdf8", borderRadius: 2, display: "inline-block" }} />
+            <span style={{ width: 24, height: 3, background: COLORES_GRAFICO.real, borderRadius: 2, display: "inline-block" }} />
             Lo que ya registraste
           </span>
           <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ width: 24, height: 0, borderTop: "3px dashed #a78bfa", display: "inline-block" }} />
+            <span style={{ width: 24, height: 0, borderTop: `3px dashed ${COLORES_GRAFICO.prediccion}`, display: "inline-block" }} />
             Lo que podría pasar si sigues igual
           </span>
         </div>
 
         {chartData.length > 0 ? (
-          <ResponsiveContainer width="100%" height={280}>
-            <LineChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+          <ResponsiveContainer width="100%" height={315}>
+            <LineChart data={chartData} margin={{ top: 5, right: 20, left: 6, bottom: 24 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />
               <XAxis
                 dataKey="label"
                 tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
                 axisLine={false} tickLine={false}
+                label={ejeX("Fecha")}
               />
               <YAxis
                 tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
                 axisLine={false} tickLine={false}
                 tickFormatter={(v) => `${v.toFixed(0)} kg`}
                 domain={["auto", "auto"]}
+                label={ejeY("Tu peso (kg)")}
               />
               <Tooltip content={<CustomTooltip />} />
               <Line
                 type="monotone" dataKey="real" name="Historial"
-                stroke="#38bdf8" strokeWidth={2.5}
-                dot={{ r: 4, fill: "#38bdf8", strokeWidth: 0 }}
+                stroke={COLORES_GRAFICO.real} strokeWidth={2.5}
+                dot={{ r: 4, fill: COLORES_GRAFICO.real, strokeWidth: 0 }}
                 activeDot={{ r: 6 }}
                 connectNulls={false}
               />
               <Line
                 type="monotone" dataKey="prediccion" name="Predicción"
-                stroke="#a78bfa" strokeWidth={2.5} strokeDasharray="6 4"
-                dot={{ r: 4, fill: "#a78bfa", strokeWidth: 0 }}
+                stroke={COLORES_GRAFICO.prediccion} strokeWidth={2.5} strokeDasharray="6 4"
+                dot={{ r: 4, fill: COLORES_GRAFICO.prediccion, strokeWidth: 0 }}
                 activeDot={{ r: 6 }}
                 connectNulls={false}
               />

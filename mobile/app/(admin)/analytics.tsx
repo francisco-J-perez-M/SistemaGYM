@@ -25,7 +25,8 @@ import type {
 
 type Tab = 'segmentos' | 'cancelacion';
 
-const CLUSTER_COLORS = ['#6c63ff', '#22c55e', '#f59e0b', '#ef4444', '#3b82f6', '#8b5cf6', '#06b6d4', '#ec4899'];
+// Los grupos de K-Means no tienen significado propio: se distinguen por
+// posición usando colors.chartSeries, que cambia solo al cambiar de paleta.
 
 function riesgoColor(r: string): 'error' | 'warning' | 'success' {
   if (r === 'alto')  return 'error';
@@ -91,7 +92,7 @@ export default function AnalyticsScreen() {
               {clusters.map((c, i) => (
                 <Card key={c.cluster_id ?? i}>
                   <View style={styles.clusterHead}>
-                    <View style={[styles.clusterDot, { backgroundColor: CLUSTER_COLORS[i % CLUSTER_COLORS.length] }]} />
+                    <View style={[styles.clusterDot, { backgroundColor: colors.chartSeries[i % colors.chartSeries.length] }]} />
                     <Text style={styles.clusterName}>{c.etiqueta ?? `Grupo ${i + 1}`}</Text>
                     <Badge label={`${c.num_miembros ?? 0} miembros`} color="accent" />
                   </View>
@@ -185,7 +186,7 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
                borderRadius: 12, padding: 4, borderWidth: 1, borderColor: colors.border },
     tabBtn:  { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
                paddingVertical: 9, borderRadius: 10 },
-    tabBtnActive:  { backgroundColor: 'rgba(108,99,255,0.15)' },
+    tabBtnActive:  { backgroundColor: colors.accentBg },
     tabLabel:      { color: colors.textSecondary, fontSize: 14 * fs, fontWeight: '600' },
     tabLabelActive:{ color: colors.accent },
     content: { paddingHorizontal: 20, paddingBottom: 32, gap: 14 },

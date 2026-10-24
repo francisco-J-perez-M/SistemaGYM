@@ -27,6 +27,8 @@ from app.models.pg.plan_suscripcion    import PlanSuscripcion
 from app.models.pg.suscripcion         import Suscripcion
 from app.models.pg.factura_suscripcion import FacturaSuscripcion
 from app.utils.gym_types               import GYM_TYPES, get_gym_type_config, seed_default_memberships
+from app.utils.alcance                 import crear_organizacion_para_gimnasio, crear_asignacion
+from app.constants.roles               import ROL_PROPIETARIO
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +66,7 @@ def _enviar_bienvenida(email: str, nombre_gym: str, nombre_admin: str) -> None:
       </ol>
     </div>
     <p style="color:#888;font-size:13px">
-      Si tienes dudas escribe a soporte@gympro.mx<br>
+      Si tienes dudas escribe a soporteGympro@gmail.com<br>
       Equipo GymPro SaaS
     </p>
   </div>
@@ -157,10 +159,10 @@ def register_gym():
     if Usuario.query.filter_by(email=adm_email).first():
         return jsonify({"msg": "El correo del administrador ya esta registrado"}), 409
 
-    # Obtener rol owner_gym
-    rol_admin = Rol.query.filter_by(nombre="owner_gym").first()
+    # Obtener rol Propietario (antes "owner_gym" -- migración 019)
+    rol_admin = Rol.query.filter_by(nombre=ROL_PROPIETARIO).first()
     if not rol_admin:
-        return jsonify({"msg": "Error interno: rol owner_gym no encontrado"}), 500
+        return jsonify({"msg": "Error interno: rol Propietario no encontrado"}), 500
 
     # Obtener plan (default: basico)
     id_plan = data.get("id_plan")
@@ -193,6 +195,11 @@ def register_gym():
         db.session.add(nuevo_gym)
         db.session.flush()  # obtener nuevo_gym.id
 
+        # 1b. Organización 1:1 del gimnasio nuevo (HU-41 / SCRUM-212).
+        # gimnasios.id_organizacion es NOT NULL, así que esto es obligatorio
+        # aquí -- no cambia ningún comportamiento visible todavía.
+        crear_organizacion_para_gimnasio(nuevo_gym)
+
         # 2. Crear Usuario administrador
         nuevo_admin = Usuario(
             nombre      = adm_nombre,
@@ -204,6 +211,9 @@ def register_gym():
         nuevo_admin.set_password(adm_pass)
         db.session.add(nuevo_admin)
         db.session.flush()
+
+        # 2b. Asignación de alcance del administrador (HU-41 / SCRUM-212).
+        crear_asignacion(nuevo_admin, gimnasio=nuevo_gym)
 
         # 3. Crear Suscripcion trialing
         suscripcion = Suscripcion(
@@ -240,7 +250,7 @@ def register_gym():
             identity = str(nuevo_admin.id),
             additional_claims = {
                 "email":           adm_email,
-                "role":            "owner_gym",
+                "role":            ROL_PROPIETARIO,
                 "id_gimnasio":     nuevo_gym.id,
                 "plan":            _plan_val,
                 "access_level":    "basico",
@@ -257,7 +267,7 @@ def register_gym():
                 "id":     nuevo_admin.id,
                 "nombre": nuevo_admin.nombre,
                 "email":  nuevo_admin.email,
-                "role":   "owner_gym",
+                "role":   ROL_PROPIETARIO,
             },
             "suscripcion": suscripcion.to_dict(),
             "dias_prueba": 14,

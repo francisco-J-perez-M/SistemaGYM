@@ -8,11 +8,14 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useAuthStore } from '../store/authStore';
 import { useAccessibilityStore } from '../store/accessibilityStore';
 import { useColors } from '../hooks/useColors';
+import { darkPalette } from '../constants/themes';
 import {
   configureNotificationHandler,
   registerForPushNotificationsAsync,
   setupNotificationListeners,
 } from '../services/push';
+import { iniciarMonitorConectividad } from '../services/offline/connectivity';
+import { iniciarSincronizacionAutomatica } from '../services/offline/queue';
 
 // ── Error boundary para mostrar crash en pantalla en builds de release ────────
 interface EBState { error: Error | null }
@@ -23,7 +26,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, EBState> {
     if (this.state.error) {
       return (
         <View style={eb.container}>
-          <Text style={eb.title}>🚨 Error al iniciar GymPro</Text>
+          <Text style={eb.title}>Error al iniciar GymPro</Text>
           <ScrollView>
             <Text style={eb.msg}>{this.state.error?.message}</Text>
             <Text style={eb.stack}>{this.state.error?.stack}</Text>
@@ -34,11 +37,14 @@ class ErrorBoundary extends Component<{ children: ReactNode }, EBState> {
     return this.props.children;
   }
 }
+// Esta pantalla se dibuja cuando la app falló al arrancar, momento en el que
+// los hooks de tema pueden no estar disponibles. Por eso lee darkPalette
+// directamente en vez de useColors(): sigue siendo la misma fuente de color.
 const eb = StyleSheet.create({
-  container: { flex: 1, padding: 24, paddingTop: 60, backgroundColor: '#0f0f1a' },
-  title:     { color: '#ff4444', fontSize: 18, fontWeight: 'bold', marginBottom: 12 },
-  msg:       { color: '#fff', fontSize: 14, marginBottom: 12 },
-  stack:     { color: '#aaa', fontSize: 11 },
+  container: { flex: 1, padding: 24, paddingTop: 60, backgroundColor: darkPalette.background },
+  title:     { color: darkPalette.dataRiesgo, fontSize: 18, fontWeight: 'bold', marginBottom: 12 },
+  msg:       { color: darkPalette.text, fontSize: 14, marginBottom: 12 },
+  stack:     { color: darkPalette.textMuted, fontSize: 11 },
 });
 
 SplashScreen.preventAutoHideAsync();
@@ -63,10 +69,10 @@ function AppContent() {
 
   return (
     <>
-      <StatusBar
-        style={resolvedTheme === 'light' ? 'dark' : 'light'}
-        backgroundColor={colors.background}
-      />
+      {/* backgroundColor se retiró: expo-status-bar dejó de aceptarlo y en
+          Android 15 el sistema lo ignora (la barra siempre es transparente).
+          El color de los iconos sigue saliendo de la paleta vía `style`. */}
+      <StatusBar style={resolvedTheme === 'light' ? 'dark' : 'light'} />
       <Stack
         screenOptions={{
           headerShown: false,
@@ -88,6 +94,15 @@ function AppContent() {
 export default function RootLayout() {
   const hydrate    = useAuthStore((s) => s.hydrate);
   const hydrateA11y = useAccessibilityStore((s) => s.hydrate);
+
+  // SCRUM-168 / HU-30: arrancan una sola vez por app, no por sesión de
+  // usuario — el monitor de conectividad y el drenado de la cola offline
+  // deben correr incluso antes de hidratar auth (una sincronización
+  // pendiente de la sesión anterior no debe esperar al login).
+  useEffect(() => {
+    iniciarMonitorConectividad();
+    iniciarSincronizacionAutomatica();
+  }, []);
 
   useEffect(() => {
     // Cargar prefs de accesibilidad y auth en paralelo

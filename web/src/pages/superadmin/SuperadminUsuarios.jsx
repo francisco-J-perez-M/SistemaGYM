@@ -3,6 +3,9 @@ import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import { getUsuarios, toggleUsuario, impersonar } from "../../api/superadmin";
 import { FiUserCheck, FiInfo } from "react-icons/fi";
+// Catálogo único de roles (SCRUM-107): antes este archivo definía su propia
+// copia de ROL_BADGE/ROUTE_FOR_ROLE, que podía divergir de otras vistas.
+import { ROL_BADGE, ROUTE_FOR_ROLE, normalizarRol } from "../../constants/roles";
 
 const card = (extra = {}) => ({
   background: "var(--bg-card)",
@@ -18,6 +21,7 @@ const badge = (type = "pos") => {
     neg:  { bg: "rgba(239,68,68,.15)", color: "var(--danger)" },
     info: { bg: "var(--accent-dim)", color: "var(--accent-soft)" },
     warn: { bg: "rgba(234,179,8,.15)", color: "var(--warning)" },
+    ghost:{ bg: "rgba(100,116,139,.15)", color: "var(--text-secondary)" },
   };
   const c = map[type] || map.info;
   return { display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 9px", borderRadius: 99, fontSize: 11, fontWeight: 700, background: c.bg, color: c.color };
@@ -32,24 +36,6 @@ const btnStyle = (variant = "primary") => {
     purple:  { background: "rgba(168,85,247,.1)",    color: "#a855f7" },
   };
   return { border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "opacity .15s", ...(v[variant] || v.primary) };
-};
-
-const ROL_BADGE = {
-  superadmin:   "info",
-  owner_gym:    "warn",
-  administrador:"warn",
-  entrenador:   "pos",
-  recepcionista:"purple",
-  miembro:      "ghost",
-};
-
-const ROUTE_FOR_ROLE = {
-  superadmin:   "/superadmin",
-  owner_gym:    "/dashboard",
-  administrador:"/dashboard",
-  entrenador:   "/trainer-dashboard",
-  recepcionista:"/receptionist-dashboard",
-  miembro:      "/user/dashboard",
 };
 
 export default function SuperadminUsuarios() {
@@ -117,17 +103,21 @@ export default function SuperadminUsuarios() {
       const r = await impersonar(user.id);
       const { access_token, user: targetUser } = r.data;
 
-      // Guardar sesión actual del superadmin
+      // Guardar sesión actual del superadmin (abortamos si no hay una sesión válida que restaurar)
       const prevToken = localStorage.getItem("token");
       const prevUser  = localStorage.getItem("user");
-      sessionStorage.setItem("sa_prev_token", prevToken || "");
-      sessionStorage.setItem("sa_prev_user",  prevUser  || "");
+      if (!prevToken || !prevUser) {
+        Swal.fire({ icon: "error", title: "Error", text: "No se encontró una sesión de superadmin válida para restaurar al salir de la impersonación.", background: "var(--bg-card)", color: "var(--text-primary)" });
+        return;
+      }
+      sessionStorage.setItem("sa_prev_token", prevToken);
+      sessionStorage.setItem("sa_prev_user",  prevUser);
 
       // Establecer sesión del usuario impersonado
       localStorage.setItem("token", access_token);
       localStorage.setItem("user",  JSON.stringify({ ...targetUser, _impersonated: true }));
 
-      const dest = ROUTE_FOR_ROLE[(targetUser.role || "").toLowerCase()] || "/dashboard";
+      const dest = ROUTE_FOR_ROLE[normalizarRol(targetUser.role).toLowerCase()] || "/owner";
       navigate(dest, { replace: true });
     } catch (e) {
       Swal.fire({ icon: "error", title: "Error", text: e?.response?.data?.msg || "No se pudo impersonar", background: "var(--bg-card)", color: "var(--text-primary)" });
@@ -161,7 +151,7 @@ export default function SuperadminUsuarios() {
         >
           <option value="">Todos los roles</option>
           <option value="superadmin">Superadmin</option>
-          <option value="owner_gym">Owner Gym</option>
+          <option value="Propietario">Propietario</option>
           <option value="Administrador">Administrador</option>
           <option value="Entrenador">Entrenador</option>
           <option value="Recepcionista">Recepcionista</option>
@@ -251,7 +241,7 @@ export default function SuperadminUsuarios() {
       <div style={{ marginTop: 24, padding: "12px 16px", background: "rgba(168,85,247,.08)", border: "1px solid rgba(168,85,247,.2)", borderRadius: 10 }}>
         <p style={{ fontSize: 12, color: "#a855f7", fontWeight: 600, marginBottom: 4, display: "flex", alignItems: "center", gap: 5 }}><FiInfo /> Impersonación de usuarios</p>
         <p style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-          Genera un token temporal de 1 hora. La sesión queda registrada con el campo <code style={{ background: "var(--bg-input)", padding: "1px 5px", borderRadius: 4 }}>impersonated_by</code> para auditoría. Para volver al superadmin, cierra sesión y vuelve a iniciar con tus credenciales.
+          Genera un token temporal de 1 hora. La sesión queda registrada con el campo <code style={{ background: "var(--bg-input)", padding: "1px 5px", borderRadius: 4 }}>impersonated_by</code> para auditoría. Para volver al superadmin, usa el botón "Volver a Superadmin" que aparece en la barra superior mientras estás impersonando.
         </p>
       </div>
     </div>

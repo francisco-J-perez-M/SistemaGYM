@@ -2,17 +2,24 @@
  * Punto de Venta — Miembro
  * Tabs: Productos (ver + comprar) | Mi historial de compras
  *
+ * Dos formas de pagar, las mismas que en la web:
+ *
+ *   Efectivo   POST /api/ventas registra la venta al momento; el cobro se hace
+ *              físicamente en recepción.
+ *   En línea   BotonesPago abre PayPal o Mercado Pago. La venta NO se registra
+ *              aquí: el backend la crea y descuenta el inventario cuando la
+ *              pasarela confirma el cobro (_aplicar_venta), usando los
+ *              metadatos que se envían con el checkout.
+ *
  * Backend espera en POST /api/ventas:
  *   items: [{ id, nombre, precio, qty, categoria }]   ← id es el _id string de Mongo
  *   total: float
- *   metodo_pago: "Efectivo" | "Tarjeta" | "Transferencia"
- *   numero_tarjeta?: string  (últimos 4 dígitos, solo Tarjeta)
- *   referencia?: string      (solo Transferencia)
+ *   metodo_pago: "Efectivo"
  */
 import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl,
-  Alert, Modal, ScrollView, Image, TextInput,
+  Alert, Modal, ScrollView, Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -24,11 +31,13 @@ import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
 import api from '../../services/api';
+import BotonesPago from '../../components/BotonesPago';
+import TicketVenta, { TicketVentaData } from '../../components/admin/TicketVenta';
 import { useAuth } from '../../hooks/useAuth';
 import * as Haptics from 'expo-haptics';
+import { estaConectado, useConnectivityStore } from '../../services/offline/connectivity';
 
-type Tab     = 'productos' | 'historial';
-type Metodo  = 'Efectivo' | 'Tarjeta' | 'Transferencia';
+type Tab = 'productos' | 'historial';
 
 interface Producto {
   _id:         string;
@@ -58,7 +67,7 @@ function ProductImage({ uri, size, colors }: { uri?: string; size: number; color
   if (!uri || err) {
     return (
       <View style={{ width: size, height: size, borderRadius: 12,
-        backgroundColor: 'rgba(108,99,255,0.1)', alignItems: 'center', justifyContent: 'center' }}>
+        backgroundColor: colors.accentBg, alignItems: 'center', justifyContent: 'center' }}>
         <Ionicons name="cube-outline" size={size * 0.45} color={colors.accent} />
       </View>
     );
@@ -79,7 +88,10 @@ export default function MemberPOSScreen() {
   const insets = useSafeAreaInsets();
 
   const { user } = useAuth();
+  const conectado = useConnectivityStore((s) => s.conectado);
   const [tab,     setTab]     = useState<Tab>('productos');
+  // Compra cuyo comprobante se está mostrando
+  const [ticket,  setTicket]  = useState<TicketVentaData | null>(null);
   const [cart,    setCart]    = useState<Cart>({});
   const [buying,  setBuying]  = useState(false);
 
@@ -89,9 +101,6 @@ export default function MemberPOSScreen() {
 
   // Checkout
   const [showCheckout, setShowCheckout] = useState(false);
-  const [metodo,       setMetodo]       = useState<Metodo>('Efectivo');
-  const [tarjeta,      setTarjeta]      = useState('');
-  const [referencia,   setReferencia]   = useState('');
 
   const { data: prodData, loading: loadingP, refetch: refetchP } =
     useFetch<{ productos?: Producto[] }>(ENDPOINTS.USER_PRODUCTOS);
@@ -124,14 +133,18 @@ export default function MemberPOSScreen() {
       return { ...prev, [id]: { ...ex, cantidad: ex.cantidad - 1 } };
     });
 
+  /**
+   * Compra en efectivo: se registra al momento y se cobra en recepción.
+   *
+   * SCRUM-168 / HU-30: aunque el cobro sea físico, registrar la venta baja
+   * el stock del servidor de inmediato — es un movimiento de dinero/
+   * inventario, y el ticket exige que ninguno quede en cola. Se bloquea
+   * sin conexión, igual que la compra con pasarela (ver BotonesPago abajo).
+   */
   const handleCheckout = async () => {
     if (cartItems.length === 0) return;
-    if (metodo === 'Tarjeta' && tarjeta.replace(/\s/g,'').length < 4) {
-      Alert.alert('Datos incompletos', 'Ingresa los últimos 4 dígitos de tu tarjeta.');
-      return;
-    }
-    if (metodo === 'Transferencia' && !referencia.trim()) {
-      Alert.alert('Datos incompletos', 'Ingresa el número de referencia de la transferencia.');
+    if (!estaConectado()) {
+      Alert.alert('Sin conexión', 'No puedes registrar una compra sin conexión a internet. Intenta de nuevo cuando la recuperes.');
       return;
     }
     setBuying(true);
@@ -145,23 +158,19 @@ export default function MemberPOSScreen() {
           categoria: producto.categoria ?? 'General',
         })),
         total:       cartTotal,
-        metodo_pago: metodo,
+        metodo_pago: 'Efectivo',
       };
-      if (metodo === 'Tarjeta')         payload.numero_tarjeta = tarjeta.slice(-4);
-      if (metodo === 'Transferencia')   payload.referencia      = referencia.trim();
-      if (user?.id)    payload.id_miembro     = Number(user.id);
+      if (user?.id)     payload.id_miembro     = Number(user.id);
       if (user?.nombre) payload.nombre_miembro = user.nombre;
 
       await api.post(ENDPOINTS.USER_COMPRAR, payload);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setCart({});
       setShowCheckout(false);
-      setTarjeta('');
-      setReferencia('');
-      setMetodo('Efectivo');
       setTab('historial');
       refetchH();
-      Alert.alert('¡Compra exitosa!', 'Tu compra fue registrada correctamente.');
+      refetchP();
+      Alert.alert('Compra registrada', 'Pasa a recepción para completar el pago.');
     } catch (e: any) {
       Alert.alert('Error', e?.response?.data?.error ?? 'No se pudo procesar la compra');
     } finally {
@@ -240,7 +249,7 @@ export default function MemberPOSScreen() {
                     <TouchableOpacity style={styles.addBtn}
                       onPress={() => { addToCart(p); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
                       accessibilityLabel={`Agregar ${p.nombre} al carrito`}>
-                      <Ionicons name="add" size={18} color="#fff" />
+                      <Ionicons name="add" size={18} color={colors.onAccent} />
                       <Text style={styles.addBtnText}>Agregar</Text>
                     </TouchableOpacity>
                   ) : (
@@ -263,7 +272,7 @@ export default function MemberPOSScreen() {
             <TouchableOpacity style={styles.checkoutBtn}
               onPress={() => setShowCheckout(true)}
               accessibilityLabel={`Finalizar compra, total $${cartTotal.toFixed(2)}`}>
-              <Ionicons name="cart-outline" size={20} color="#fff" />
+              <Ionicons name="cart-outline" size={20} color={colors.onAccent} />
               <Text style={styles.checkoutText}>
                 Comprar ({cartCount}) — ${cartTotal.toFixed(2)}
               </Text>
@@ -287,7 +296,15 @@ export default function MemberPOSScreen() {
             </View>
           }
           renderItem={({ item: c }) => (
-            <View style={styles.compraCard}>
+            // Tocar la compra abre su comprobante, el mismo que emite el POS del
+            // gimnasio, para que el miembro tenga constancia de lo que pagó.
+            <TouchableOpacity
+              style={styles.compraCard}
+              onPress={() => setTicket(c as TicketVentaData)}
+              accessibilityRole="button"
+              accessibilityLabel={`Ver comprobante de la compra del ${toDateStr(c.fecha)}`}
+              activeOpacity={0.75}
+            >
               <View style={styles.compraIconBox}>
                 <Ionicons name="receipt-outline" size={18} color={colors.accent} />
               </View>
@@ -302,11 +319,17 @@ export default function MemberPOSScreen() {
                   </Text>
                 ))}
               </View>
-              <Text style={styles.compraTotal}>${(c.total ?? 0).toFixed(2)}</Text>
-            </View>
+              <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                <Text style={styles.compraTotal}>${(c.total ?? 0).toFixed(2)}</Text>
+                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+              </View>
+            </TouchableOpacity>
           )}
         />
       )}
+
+      {/* Comprobante de la compra seleccionada */}
+      <TicketVenta venta={ticket} onClose={() => setTicket(null)} />
 
       {/* ── MODAL DETALLE PRODUCTO ─────────────────────────────────── */}
       <Modal visible={!!detailProd} animationType="slide" transparent onRequestClose={() => setDetailProd(null)}>
@@ -363,7 +386,7 @@ export default function MemberPOSScreen() {
                 ) : (
                   <TouchableOpacity style={[styles.addBtn, { marginTop: 12 }]}
                     onPress={() => { addToCart(detailProd); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setDetailProd(null); }}>
-                    <Ionicons name="cart-outline" size={18} color="#fff" />
+                    <Ionicons name="cart-outline" size={18} color={colors.onAccent} />
                     <Text style={styles.addBtnText}>Agregar al carrito</Text>
                   </TouchableOpacity>
                 )}
@@ -400,61 +423,63 @@ export default function MemberPOSScreen() {
                 </View>
               </View>
 
-              {/* Método de pago */}
-              <Text style={styles.payLabel}>Método de pago</Text>
-              <View style={styles.metodosRow}>
-                {(['Efectivo', 'Tarjeta', 'Transferencia'] as Metodo[]).map((m) => (
-                  <TouchableOpacity key={m}
-                    style={[styles.metodoChip, metodo === m && styles.metodoChipActive]}
-                    onPress={() => setMetodo(m)}
-                    accessibilityRole="radio" accessibilityState={{ checked: metodo === m }}>
-                    <Ionicons
-                      name={m === 'Efectivo' ? 'cash-outline' : m === 'Tarjeta' ? 'card-outline' : 'swap-horizontal-outline'}
-                      size={16} color={metodo === m ? '#fff' : colors.textSecondary} />
-                    <Text style={[styles.metodoText, metodo === m && { color: '#fff' }]}>{m}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              {/* Datos extra */}
-              {metodo === 'Tarjeta' && (
-                <View style={styles.payField}>
-                  <Text style={styles.payFieldLabel}>Últimos 4 dígitos de la tarjeta</Text>
-                  <TextInput
-                    style={styles.payInput}
-                    value={tarjeta}
-                    onChangeText={t => setTarjeta(t.replace(/\D/g,'').slice(0,4))}
-                    placeholder="1234"
-                    placeholderTextColor={colors.textMuted}
-                    keyboardType="numeric"
-                    maxLength={4}
-                    accessibilityLabel="Últimos 4 dígitos"
-                  />
-                </View>
-              )}
-              {metodo === 'Transferencia' && (
-                <View style={styles.payField}>
-                  <Text style={styles.payFieldLabel}>Número de referencia</Text>
-                  <TextInput
-                    style={styles.payInput}
-                    value={referencia}
-                    onChangeText={setReferencia}
-                    placeholder="Ej: REF-123456"
-                    placeholderTextColor={colors.textMuted}
-                    accessibilityLabel="Referencia de transferencia"
-                  />
+              {!conectado && (
+                <View style={styles.offlineWarnRow}>
+                  <Ionicons name="cloud-offline-outline" size={16} color={colors.warning} />
+                  <Text style={styles.offlineWarnText}>
+                    Sin conexión: no se pueden registrar compras en este momento, ni en
+                    efectivo ni en línea. Intenta de nuevo cuando recuperes internet.
+                  </Text>
                 </View>
               )}
 
+              {/* ── Pago en efectivo ────────────────────────────────────── */}
+              <Text style={styles.payLabel}>Pagar en recepción</Text>
               <TouchableOpacity
-                style={[styles.confirmBtn, buying && { opacity: 0.6 }]}
+                style={[styles.confirmBtn, (buying || !conectado) && { opacity: 0.6 }]}
                 onPress={handleCheckout}
-                disabled={buying}
-                accessibilityLabel="Confirmar y pagar"
+                disabled={buying || !conectado}
+                accessibilityLabel="Registrar compra para pagar en efectivo"
                 accessibilityRole="button">
-                <Ionicons name={buying ? 'hourglass-outline' : 'checkmark-circle-outline'} size={20} color="#fff" />
-                <Text style={styles.confirmBtnText}>{buying ? 'Procesando…' : 'Confirmar pago'}</Text>
+                <Ionicons name={buying ? 'hourglass-outline' : 'cash-outline'} size={20} color={colors.onAccent} />
+                <Text style={styles.confirmBtnText}>
+                  {buying ? 'Procesando…' : 'Pagar en efectivo'}
+                </Text>
               </TouchableOpacity>
+
+              {/* ── Pago en línea ───────────────────────────────────────── */}
+              {/* Los metadatos viajan con el cobro: sin ellos la pasarela cobra
+                  pero el backend no puede registrar la venta ni bajar el stock. */}
+              <Text style={[styles.payLabel, { marginTop: 18 }]}>Pagar en línea</Text>
+              <BotonesPago
+                contexto="producto"
+                monto={Number(cartTotal.toFixed(2))}
+                descripcion={`Compra de ${cartCount} artículo${cartCount === 1 ? '' : 's'}`}
+                referenciaLocal={user?.id ?? null}
+                emailPagador={user?.email ?? null}
+                deshabilitado={buying || cartItems.length === 0 || !conectado}
+                metadatos={{
+                  items: cartItems.map(({ producto, cantidad }) => ({
+                    id:        producto.id ?? producto._id,
+                    nombre:    producto.nombre,
+                    precio:    producto.precio,
+                    qty:       cantidad,
+                    categoria: producto.categoria ?? 'General',
+                  })),
+                  id_miembro:     user?.id ?? null,
+                  nombre_miembro: user?.nombre ?? '',
+                }}
+                onPagado={(tx) => {
+                  // El backend registra la venta al confirmar el cobro; aquí solo
+                  // se limpia el carrito y se refresca el historial.
+                  if (tx?.estado === 'rechazado' || tx?.estado === 'cancelado') return;
+                  setCart({});
+                  setShowCheckout(false);
+                  setTab('historial');
+                  refetchH();
+                  refetchP();
+                }}
+              />
             </ScrollView>
           </View>
         </View>
@@ -470,13 +495,14 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   tabBtn:  { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
              gap: 6, paddingVertical: 10, borderRadius: 12, position: 'relative',
              backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
-  tabBtnActive:  { backgroundColor: 'rgba(108,99,255,0.15)', borderColor: colors.accent },
+  tabBtnActive:  { backgroundColor: colors.accentBg, borderColor: colors.accent },
   tabLabel:      { color: colors.textSecondary, fontSize: 13 * fs, fontWeight: '600' },
   tabLabelActive:{ color: colors.accent },
   cartBadge: { position: 'absolute', top: -6, right: -6, backgroundColor: colors.error,
                borderRadius: 10, minWidth: 20, height: 20, alignItems: 'center',
                justifyContent: 'center', paddingHorizontal: 4 },
-  cartBadgeText: { color: '#fff', fontSize: 11 * fs, fontWeight: '800' },
+  // Va sobre colors.error, que es rojo saturado en toda paleta: blanco fijo.
+  cartBadgeText: { color: '#FFFFFF', fontSize: 11 * fs, fontWeight: '800' },
   grid: { padding: 16, gap: 12, paddingBottom: 110 },
   list: { padding: 16, gap: 10, paddingBottom: 32 },
   productCard: { flex: 1, backgroundColor: colors.card, borderRadius: 16,
@@ -488,9 +514,9 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   productStock: { color: colors.textMuted, fontSize: 11 * fs },
   addBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
             backgroundColor: colors.accent, borderRadius: 10, paddingVertical: 8, width: '100%' },
-  addBtnText: { color: '#fff', fontSize: 13 * fs, fontWeight: '700' },
+  addBtnText: { color: colors.onAccent, fontSize: 13 * fs, fontWeight: '700' },
   qtyRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-            backgroundColor: 'rgba(108,99,255,0.1)', borderRadius: 10,
+            backgroundColor: colors.accentBg, borderRadius: 10,
             paddingHorizontal: 4, paddingVertical: 4, width: '100%' },
   qtyBtn: { padding: 6 },
   qtyNum: { color: colors.accent, fontSize: 16 * fs, fontWeight: '700', minWidth: 24, textAlign: 'center' },
@@ -498,11 +524,11 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
                  flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
                  backgroundColor: colors.accent, borderRadius: 16, paddingVertical: 16,
                  shadowColor: colors.accent, shadowOpacity: 0.4, shadowRadius: 10, elevation: 8 },
-  checkoutText: { color: '#fff', fontSize: 16 * fs, fontWeight: '700' },
+  checkoutText: { color: colors.onAccent, fontSize: 16 * fs, fontWeight: '700' },
   compraCard:    { flexDirection: 'row', alignItems: 'flex-start', gap: 12,
                    backgroundColor: colors.card, borderRadius: 14, padding: 14,
                    borderWidth: 1, borderColor: colors.border },
-  compraIconBox: { width: 38, height: 38, borderRadius: 10, backgroundColor: 'rgba(108,99,255,0.1)',
+  compraIconBox: { width: 38, height: 38, borderRadius: 10, backgroundColor: colors.accentBg,
                    alignItems: 'center', justifyContent: 'center' },
   compraFecha:   { color: colors.textSecondary, fontSize: 12 * fs, marginBottom: 2 },
   compraMetodo:  { color: colors.accent, fontSize: 11 * fs, marginBottom: 4 },
@@ -511,14 +537,14 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   empty:         { alignItems: 'center', paddingVertical: 60, gap: 12 },
   emptyText:     { color: colors.textMuted, fontSize: 14 * fs, fontWeight: '600', textAlign: 'center' },
   // Modal
-  modalOverlay:  { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' },
+  modalOverlay:  { flex: 1, justifyContent: 'flex-end', backgroundColor: colors.overlay },
   modalBackdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   modalSheet:    { backgroundColor: colors.background, borderTopLeftRadius: 24, borderTopRightRadius: 24,
                    padding: 20, maxHeight: '90%' },
   modalHandle:   { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border,
                    alignSelf: 'center', marginBottom: 16 },
   noImgPlaceholder: { width: 260, height: 260, borderRadius: 16, alignSelf: 'center',
-                      backgroundColor: 'rgba(108,99,255,0.08)', alignItems: 'center', justifyContent: 'center' },
+                      backgroundColor: colors.accentBg, alignItems: 'center', justifyContent: 'center' },
   imgDots:       { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 8 },
   imgDot:        { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.border },
   imgDotActive:  { backgroundColor: colors.accent, width: 16 },
@@ -536,20 +562,12 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   summaryTotal:  { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 8, marginTop: 4 },
   summaryTotalLabel: { color: colors.text, fontSize: 16 * fs, fontWeight: '700' },
   summaryTotalValue: { color: colors.accent, fontSize: 20 * fs, fontWeight: '800' },
+  offlineWarnRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14,
+                    backgroundColor: colors.warningBg, padding: 10, borderRadius: 10 },
+  offlineWarnText: { flex: 1, color: colors.warning, fontSize: 12 * fs, lineHeight: 17 },
   payLabel:      { color: colors.text, fontSize: 14 * fs, fontWeight: '700', marginBottom: 10 },
-  metodosRow:    { flexDirection: 'row', gap: 8, marginBottom: 16 },
-  metodoChip:    { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-                   gap: 6, paddingVertical: 10, borderRadius: 12,
-                   backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
-  metodoChipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
-  metodoText:    { color: colors.textSecondary, fontSize: 12 * fs, fontWeight: '600' },
-  payField:      { marginBottom: 16 },
-  payFieldLabel: { color: colors.textSecondary, fontSize: 12 * fs, fontWeight: '600', marginBottom: 6 },
-  payInput:      { backgroundColor: colors.card, borderRadius: 10, paddingHorizontal: 14,
-                   paddingVertical: 10, color: colors.text, fontSize: 14 * fs,
-                   borderWidth: 1, borderColor: colors.border },
   confirmBtn:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
                    backgroundColor: colors.accent, borderRadius: 14, paddingVertical: 16, marginTop: 8 },
-  confirmBtnText:{ color: '#fff', fontSize: 16 * fs, fontWeight: '700' },
+  confirmBtnText:{ color: colors.onAccent, fontSize: 16 * fs, fontWeight: '700' },
 });
 }

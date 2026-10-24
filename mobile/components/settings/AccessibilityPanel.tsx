@@ -145,7 +145,7 @@ export default function AccessibilityPanel({ visible, onClose }: Props) {
       onRequestClose={onClose}
       accessibilityViewIsModal
     >
-      <View style={styles.overlay}>
+      <View style={[styles.overlay, { backgroundColor: colors.overlay }]}>
         <TouchableOpacity
           style={styles.backdrop}
           onPress={onClose}
@@ -244,7 +244,7 @@ export default function AccessibilityPanel({ visible, onClose }: Props) {
                 Así se verá el texto con tu configuración actual.
               </Text>
               <View style={[styles.previewBadge, { backgroundColor: colors.accent }]}>
-                <Text style={[styles.previewBadgeText, { fontSize: 12 * fs }]}>Activo</Text>
+                <Text style={[styles.previewBadgeText, { fontSize: 12 * fs, color: colors.onAccent }]}>Activo</Text>
               </View>
             </View>
 
@@ -256,7 +256,8 @@ export default function AccessibilityPanel({ visible, onClose }: Props) {
 }
 
 const styles = StyleSheet.create({
-  overlay:  { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.55)' },
+  // backgroundColor lo inyecta la paleta (colors.overlay) en el punto de uso.
+  overlay:  { flex: 1, justifyContent: 'flex-end' },
   backdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   sheet:    { borderTopLeftRadius: 28, borderTopRightRadius: 28, maxHeight: '90%' },
   handle:   { width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginTop: 12, marginBottom: 4 },
@@ -276,5 +277,6 @@ const styles = StyleSheet.create({
   previewTitle: { fontWeight: '700' },
   previewBody:  {},
   previewBadge: { alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 20 },
-  previewBadgeText: { color: '#fff', fontWeight: '700' },
+  // color lo inyecta la paleta (colors.onAccent) en el punto de uso.
+  previewBadgeText: { fontWeight: '700' },
 });

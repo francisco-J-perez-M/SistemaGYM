@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import Swal from "sweetalert2";
-import { getSuscripciones, cambiarEstadoSub, cambiarPlanSub, getPlanes } from "../../api/superadmin";
+import { getSuscripciones } from "../../api/superadmin";
 
 const card = (extra = {}) => ({
   background: "var(--bg-card)",
@@ -47,13 +46,15 @@ const ESTADO_LABELS = {
   past_due: "Vencida", unpaid: "Sin Pago", cancelled: "Cancelada",
 };
 
+const PLAN_LABELS = { starter: "Starter", basico: "Básico", pro: "Pro", enterprise: "Enterprise" };
+const planLabel = (nombre) => PLAN_LABELS[(nombre || "").toLowerCase()] || nombre || "—";
+
 export default function SuperadminSuscripciones() {
   const [subs,    setSubs]    = useState([]);
   const [total,   setTotal]   = useState(0);
   const [page,    setPage]    = useState(1);
   const [loading, setLoading] = useState(true);
   const [resumen, setResumen] = useState({});
-  const [planes,  setPlanes]  = useState([]);
   const [filter,  setFilter]  = useState({ estado: "", q: "" });
   const perPage = 20;
 
@@ -74,72 +75,7 @@ export default function SuperadminSuscripciones() {
 
   useEffect(() => {
     load(1, filter);
-    getPlanes().then(r => setPlanes(r.data.planes || [])).catch(() => {});
   }, []);
-
-  const handleCambiarEstado = async (sub) => {
-    const opciones = Object.entries(ESTADO_LABELS)
-      .filter(([k]) => k !== sub.estado)
-      .map(([k, v]) => `<option value="${k}">${v}</option>`)
-      .join("");
-
-    const { value: formValues } = await Swal.fire({
-      title: `Cambiar estado · ${sub.gimnasio}`,
-      html: `
-        <select id="swal-estado" style="width:100%;padding:8px;margin-bottom:10px;border-radius:6px;background:var(--bg-input);color:var(--text-primary);border:1px solid var(--border)">
-          ${opciones}
-        </select>
-        <input id="swal-razon" placeholder="Razón (opcional)" style="width:100%;padding:8px;border-radius:6px;background:var(--bg-input);color:var(--text-primary);border:1px solid var(--border);box-sizing:border-box">
-      `,
-      showCancelButton: true,
-      confirmButtonText: "Cambiar",
-      confirmButtonColor: "var(--accent)",
-      cancelButtonText: "Cancelar",
-      background: "var(--bg-card)",
-      color: "var(--text-primary)",
-      preConfirm: () => ({
-        estado: document.getElementById("swal-estado").value,
-        razon:  document.getElementById("swal-razon").value,
-      }),
-    });
-    if (!formValues) return;
-
-    try {
-      await cambiarEstadoSub(sub.id, formValues.estado, formValues.razon);
-      load(page, filter);
-      Swal.fire({ icon: "success", title: "Estado actualizado", timer: 1500, showConfirmButton: false, background: "var(--bg-card)", color: "var(--text-primary)" });
-    } catch (e) {
-      Swal.fire({ icon: "error", title: "Error", text: e?.response?.data?.msg || "No se pudo actualizar", background: "var(--bg-card)", color: "var(--text-primary)" });
-    }
-  };
-
-  const handleCambiarPlan = async (sub) => {
-    const opciones = planes
-      .filter(p => p.id !== sub.plan_id)
-      .map(p => `<option value="${p.id}">${p.nombre} — $${p.precio_centavos ? (p.precio_centavos / 100).toFixed(0) : "?"}/mes</option>`)
-      .join("");
-
-    const { value } = await Swal.fire({
-      title: `Cambiar plan · ${sub.gimnasio}`,
-      html: `<select id="swal-plan" style="width:100%;padding:8px;border-radius:6px;background:var(--bg-input);color:var(--text-primary);border:1px solid var(--border)">${opciones}</select>`,
-      showCancelButton: true,
-      confirmButtonText: "Cambiar plan",
-      confirmButtonColor: "var(--accent)",
-      cancelButtonText: "Cancelar",
-      background: "var(--bg-card)",
-      color: "var(--text-primary)",
-      preConfirm: () => parseInt(document.getElementById("swal-plan").value),
-    });
-    if (!value) return;
-
-    try {
-      await cambiarPlanSub(sub.id, value);
-      load(page, filter);
-      Swal.fire({ icon: "success", title: "Plan actualizado", timer: 1500, showConfirmButton: false, background: "var(--bg-card)", color: "var(--text-primary)" });
-    } catch (e) {
-      Swal.fire({ icon: "error", title: "Error", text: e?.response?.data?.msg || "No se pudo actualizar el plan", background: "var(--bg-card)", color: "var(--text-primary)" });
-    }
-  };
 
   const pages = Math.ceil(total / perPage);
 
@@ -189,32 +125,26 @@ export default function SuperadminSuscripciones() {
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
             <tr style={{ background: "var(--bg-input)" }}>
-              {["Gimnasio", "Plan", "Estado", "Inicio", "Próximo Cobro", "Acciones"].map(h => (
+              {["Gimnasio", "Plan", "Estado", "Inicio", "Próximo Cobro"].map(h => (
                 <th key={h} style={{ textAlign: "left", padding: "12px 16px", color: "var(--text-secondary)", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: ".06em", borderBottom: "1px solid var(--border)", whiteSpace: "nowrap" }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={6} style={{ padding: 40, textAlign: "center", color: "var(--text-secondary)" }}>Cargando…</td></tr>
+              <tr><td colSpan={5} style={{ padding: 40, textAlign: "center", color: "var(--text-secondary)" }}>Cargando…</td></tr>
             ) : subs.length === 0 ? (
-              <tr><td colSpan={6} style={{ padding: 40, textAlign: "center", color: "var(--text-secondary)" }}>Sin resultados</td></tr>
+              <tr><td colSpan={5} style={{ padding: 40, textAlign: "center", color: "var(--text-secondary)" }}>Sin resultados</td></tr>
             ) : subs.map(sub => (
               <tr key={sub.id} style={{ borderBottom: "1px solid var(--border, rgba(255,255,255,.04))" }}>
                 <td style={{ padding: "12px 16px", fontWeight: 600, color: "var(--text-primary)" }}>{sub.gimnasio}</td>
-                <td style={{ padding: "12px 16px", color: "var(--text-secondary)" }}>{sub.plan}</td>
+                <td style={{ padding: "12px 16px", color: "var(--text-secondary)" }}>{planLabel(sub.plan)}</td>
                 <td style={{ padding: "12px 16px" }}>
                   <span style={badge(ESTADO_BADGE[sub.estado] || "muted")}>{ESTADO_LABELS[sub.estado] || sub.estado}</span>
                 </td>
                 <td style={{ padding: "12px 16px", color: "var(--text-secondary)" }}>{fmtDate(sub.fecha_inicio)}</td>
                 <td style={{ padding: "12px 16px", color: sub.estado === "past_due" || sub.estado === "unpaid" ? "var(--danger)" : "var(--text-secondary)" }}>
                   {fmtDate(sub.fecha_proximo_cobro)}
-                </td>
-                <td style={{ padding: "12px 16px" }}>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <button style={btnStyle("ghost")} onClick={() => handleCambiarPlan(sub)}>Plan</button>
-                    <button style={btnStyle("warn")} onClick={() => handleCambiarEstado(sub)}>Estado</button>
-                  </div>
                 </td>
               </tr>
             ))}

@@ -33,12 +33,12 @@ class Usuario(db.Model):
     )
 
     # FK hacia Rol (roles.id)
-    id_rol = db.Column(db.Integer, db.ForeignKey("roles.id"), nullable=False)
+    id_rol = db.Column(db.Integer, db.ForeignKey("roles.id", ondelete="RESTRICT"), nullable=False)
     rol    = db.relationship("Rol", back_populates="usuarios")
 
     # FK hacia Gimnasio (gimnasios.id)
     # nullable=True durante Sprint 2 para compatibilidad con usuarios sin gimnasio asignado
-    id_gimnasio = db.Column(db.Integer, db.ForeignKey("gimnasios.id"), nullable=True, index=True)
+    id_gimnasio = db.Column(db.Integer, db.ForeignKey("gimnasios.id", ondelete="SET NULL"), nullable=True, index=True)
     gimnasio    = db.relationship("Gimnasio", back_populates="usuarios")
 
     # Onboarding: True = primer login, debe completar configuración del gimnasio
@@ -46,6 +46,9 @@ class Usuario(db.Model):
 
     # Foto de perfil almacenada como data URL base64 (nullable)
     foto_perfil  = db.Column(db.Text, nullable=True)
+
+    # Teléfono de la PERSONA, distinto del teléfono de contacto del gimnasio.
+    telefono     = db.Column(db.String(30), nullable=True)
 
     # ── Autenticación ─────────────────────────────────────────────────────────
 
@@ -70,6 +73,7 @@ class Usuario(db.Model):
             "id_rol":      self.id_rol,
             "rol":         self.rol.nombre if self.rol else None,
             "id_gimnasio": self.id_gimnasio,
+            "telefono":    self.telefono,
             "created_at":  self.created_at.isoformat() if self.created_at else None,
             # Solo exponer si es base64 valida
             "foto_perfil": fp if (fp and fp.startswith("data:image")) else None,

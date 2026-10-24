@@ -8,7 +8,7 @@ Endpoints:
     PATCH /api/superadmin/usuarios/<id>/toggle  activar / desactivar usuario
 """
 from flask import Blueprint, jsonify, request
-from flask_jwt_extended import jwt_required, create_access_token, get_jwt_identity
+from flask_jwt_extended import jwt_required, create_access_token, get_jwt_identity, set_access_cookies
 from datetime import timedelta
 
 from app.extensions import db
@@ -16,6 +16,7 @@ from app.models.pg.usuario import Usuario
 from app.models.pg.gimnasio import Gimnasio
 from app.models.pg.rol import Rol
 from app.utils.security import require_role
+from app.constants.roles import normalizar_rol
 
 usuarios_admin_bp = Blueprint("usuarios_admin", __name__)
 
@@ -54,7 +55,11 @@ def listar_usuarios():
     if gym_id_param is not None:
         query = query.filter(Usuario.id_gimnasio == gym_id_param)
     if rol_param:
-        query = query.filter(Rol.nombre == rol_param)
+        # Comparación normalizada (SCRUM-107): el filtro acepta el valor
+        # canónico exacto ("Entrenador", "owner_gym", ...) y también alias
+        # o variantes de mayúsculas, en vez de exigir una coincidencia
+        # exacta sensible a mayúsculas.
+        query = query.filter(db.func.lower(Rol.nombre) == normalizar_rol(rol_param).lower())
     if activo_param is not None:
         query = query.filter(Usuario.activo == (activo_param.lower() == "true"))
     if q_param:
@@ -153,7 +158,7 @@ def impersonate(user_id: int):
         expires_delta=_IMPERSONATE_TTL,
     )
 
-    return jsonify({
+    respuesta = jsonify({
         "access_token": token,
         "expira_en":    "1h",
         "user": {
@@ -165,7 +170,18 @@ def impersonate(user_id: int):
             "gimnasio":    target.gimnasio.nombre if target.gimnasio else None,
             "plan":        plan,
         },
-    }), 200
+    })
+    # Bug encontrado al revisar este endpoint: era el ÚNICO lugar que emite
+    # un access token y NO lo refleja también en la cookie HttpOnly (login
+    # y /auth/refresh sí lo hacen, ver auth/routes.py). JWT_TOKEN_LOCATION
+    # = ["headers", "cookies"] revisa headers primero, así que el token de
+    # localStorage que inyecta el frontend normalmente gana -- pero dejar
+    # la cookie del superadmin vigente y sin reemplazar es un estado
+    # inconsistente que no debería existir: cualquier código que alguna
+    # vez verifique el JWT solo por cookie (o un proxy/caché que la
+    # reenvíe) seguiría viendo al superadmin, no al usuario impersonado.
+    set_access_cookies(respuesta, token)
+    return respuesta, 200
 
 
 @usuarios_admin_bp.route("/usuarios/<int:user_id>/toggle", methods=["PATCH"])

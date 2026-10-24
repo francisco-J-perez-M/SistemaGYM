@@ -28,6 +28,7 @@ import io
 import json
 import os
 import traceback
+import requests
 from datetime import datetime, timezone
 
 from bson.objectid import ObjectId
@@ -276,6 +277,31 @@ def create_diet():
             if miembro_doc:
                 id_miembro_oid = miembro_doc["_id"]
 
+        # Backward-compat con la vista "Plan Asignado" del miembro (UserMealPlan.jsx),
+        # que no lee "semanas" sino un arreglo plano "comidas": [{nombre,hora,calorias,
+        # alimentos}] al nivel raiz del documento. Si el formulario del entrenador no
+        # lo envio explicitamente, lo derivamos del primer dia con contenido de la
+        # primera semana — asi un plan recien asignado se ve completo en ambas vistas
+        # sin que el entrenador tenga que llenar el mismo dato dos veces.
+        comidas_plano = data.get("comidas")
+        if not comidas_plano:
+            comidas_plano = []
+            for semana in (data.get("semanas") or []):
+                dia_con_contenido = next(
+                    (d for d in (semana.get("dias") or []) if d.get("comidas")), None)
+                if dia_con_contenido:
+                    comidas_plano = [
+                        {
+                            "nombre":    c.get("nombre", ""),
+                            "hora":      c.get("hora", ""),
+                            "calorias":  sum(int(it.get("calorias") or 0) for it in (c.get("items") or [])),
+                            "alimentos": [it.get("nombre_alimento") for it in (c.get("items") or [])
+                                          if it.get("nombre_alimento")],
+                        }
+                        for c in dia_con_contenido.get("comidas", [])
+                    ]
+                    break
+
         doc = {
             "id_entrenador_pg":      trainer_id,
             "id_gimnasio_pg":        gym_id,
@@ -290,8 +316,13 @@ def create_diet():
             "duracion_semanas":      data.get("duracion_semanas", 1),
             "notas":                 data.get("notas", ""),
             "semanas":               data.get("semanas", []),
-            # Backward-compat — clientes antiguos pueden enviar "comidas" plano
-            "comidas":               data.get("comidas", []),
+            # Backward-compat — clientes antiguos pueden enviar "comidas" plano;
+            # si no, se deriva arriba de "semanas" (ver comentario).
+            "comidas":               comidas_plano,
+            # Distingue este plan como asignado por el entrenador para que
+            # UserMealPlan.jsx lo muestre en "Plan Asignado" (antes faltaba y el
+            # plan quedaba invisible para el miembro pese a estar bien guardado).
+            "creado_por":            "entrenador",
             "fuente":                data.get("fuente", "manual"),
             "archivo_fuente":        data.get("archivo_fuente"),
             "eliminada":             False,
@@ -669,6 +700,27 @@ def import_diet_ai():
 
     except ImportError as exc:
         return jsonify({"error": f"Dependencia faltante: {exc}"}), 500
+    except requests.exceptions.Timeout:
+        # Distingue timeout de Ollama de "el modelo no entendio el documento"
+        # (antes ambos casos caian en el 500 generico de abajo). Ver el mismo
+        # fix aplicado al ETL de rutinas (utils/ia_jobs.py).
+        return jsonify({
+            "error": "La IA tardo demasiado en procesar el documento",
+            "detalle": (
+                "Ollama no respondio a tiempo. Si el archivo es largo o el "
+                "servidor esta bajo de recursos, prueba con uno mas corto o "
+                "intentalo de nuevo."
+            ),
+        }), 504
+    except TimeoutError:
+        # _acquire_ollama_slot() no consiguio cupo (ver etl_ollama.py): ya hay
+        # OLLAMA_MAX_CONCURRENT llamadas a Ollama en curso y ninguna termino a
+        # tiempo. Distinto de un timeout de Ollama en si -- aqui ni siquiera
+        # llego a llamarlo.
+        return jsonify({
+            "error": "El servidor de IA esta saturado en este momento",
+            "detalle": "Hay otras importaciones con IA en curso. Intenta de nuevo en unos minutos.",
+        }), 503
     except Exception as exc:
         import traceback
         return jsonify({"error": str(exc), "trace": traceback.format_exc()[-500:]}), 500

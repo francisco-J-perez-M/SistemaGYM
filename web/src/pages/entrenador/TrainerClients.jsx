@@ -9,11 +9,23 @@ import {
   FiBarChart2,
   FiActivity,
   FiX,
-  FiAlertCircle
+  FiAlertCircle,
+  FiUser,
+  FiMail,
+  FiPhone,
+  FiCalendar
 } from "react-icons/fi";
 import trainerService from "../../services/entrenador/trainerService";
 import { useToast } from "../../hooks/useToast";
 import "../../css/CSSUnificado.css";
+
+/** Fecha legible, o null si no hay dato: la ficha omite lo que no sabe. */
+const fechaCorta = (iso) => {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" });
+};
 
 export default function TrainerClients() {
   const { toast, ToastPortal } = useToast();
@@ -335,8 +347,11 @@ export default function TrainerClients() {
                   </div>
                   <div>
                     <h4 style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>{client.name}</h4>
+                    {/* Sin fecha de nacimiento se omite la edad en lugar de
+                        pintar un "?", que parecía un error del sistema. */}
                     <p style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-                      {client.age || "?"} años · {client.goal || "Sin objetivo"}
+                      {client.age ? `${client.age} años · ` : ""}
+                      {client.goal || "Sin objetivo"}
                     </p>
                   </div>
                 </div>
@@ -536,6 +551,70 @@ export default function TrainerClients() {
                     </div>
                   ))}
                 </div>
+
+                {/* Datos personales y última medición corporal.
+                    Solo se pintan los campos con dato: una ficha llena de
+                    guiones no informa más que una corta. */}
+                {(() => {
+                  const filas = [
+                    { icono: <FiUser size={13} />,     label: "Edad",          valor: selectedClient.age ? `${selectedClient.age} años` : null },
+                    { icono: <FiUser size={13} />,     label: "Sexo",          valor: selectedClient.sex || null },
+                    { icono: <FiMail size={13} />,     label: "Correo",        valor: selectedClient.email || null },
+                    { icono: <FiPhone size={13} />,    label: "Teléfono",      valor: selectedClient.phone || null },
+                    { icono: <FiCalendar size={13} />, label: "Miembro desde", valor: fechaCorta(selectedClient.memberSince) },
+                  ].filter((f) => f.valor);
+
+                  const medidas = [
+                    { label: "Peso",       valor: selectedClient.weight  != null ? `${selectedClient.weight} kg` : null },
+                    { label: "IMC",        valor: selectedClient.bmi     != null ? Number(selectedClient.bmi).toFixed(1) : null },
+                    { label: "Grasa",      valor: selectedClient.bodyFat != null ? `${selectedClient.bodyFat}%` : null },
+                  ].filter((m) => m.valor);
+
+                  if (filas.length === 0 && medidas.length === 0) return null;
+
+                  return (
+                    <div style={{ marginBottom: 18 }}>
+                      {filas.length > 0 && (
+                        <>
+                          <h4 style={{ fontSize: 15, fontWeight: 700, marginBottom: 10 }}>Datos del cliente</h4>
+                          <div style={{ display: "grid", gap: 6, marginBottom: medidas.length ? 16 : 0 }}>
+                            {filas.map((f) => (
+                              <div key={f.label} style={{
+                                display: "flex", alignItems: "center", gap: 9,
+                                background: "var(--bg-input)", borderRadius: 8, padding: "9px 12px",
+                              }}>
+                                <span style={{ color: "var(--accent)", display: "flex" }}>{f.icono}</span>
+                                <span style={{ fontSize: 12, color: "var(--text-secondary)", minWidth: 100 }}>{f.label}</span>
+                                <span style={{ fontSize: 13, fontWeight: 600 }}>{f.valor}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      )}
+
+                      {medidas.length > 0 && (
+                        <>
+                          <h4 style={{ fontSize: 15, fontWeight: 700, marginBottom: 3 }}>Última medición</h4>
+                          <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 10px" }}>
+                            {selectedClient.lastMeasured
+                              ? `Registrada el ${fechaCorta(selectedClient.lastMeasured)}.`
+                              : "Sin fecha de registro."}
+                          </p>
+                          <div style={{ display: "grid", gridTemplateColumns: `repeat(${medidas.length}, 1fr)`, gap: 10 }}>
+                            {medidas.map((m) => (
+                              <div key={m.label} style={{
+                                background: "var(--bg-input)", borderRadius: 10, padding: "12px 14px", textAlign: "center",
+                              }}>
+                                <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 3 }}>{m.label}</div>
+                                <div style={{ fontSize: 17, fontWeight: 700, color: "var(--accent)" }}>{m.valor}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Historial con entrenadores previos (mismo gimnasio) */}
                 {prevHistory && ((prevHistory.resumen?.entrenadores_previos > 0) || (prevHistory.rutinas || []).length > 0) && (

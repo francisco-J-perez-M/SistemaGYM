@@ -35,7 +35,58 @@ def _serialize(p):
         "descripcion": p.get("descripcion", ""),
         "imagenes":    p.get("imagenes", []),
         "activo":      p.get("activo", True),
+        # Combos: un producto que agrupa varios artículos en un solo precio.
+        # Al venderse descuenta el stock de cada componente (ver ventas.py).
+        "es_combo":    bool(p.get("es_combo", False)),
+        "items_combo": p.get("items_combo", []),
     }
+
+
+def _limpiar_items_combo(valor):
+    """
+    Normaliza los componentes de un combo.
+    Cada item: {"id_producto": "<ObjectId>", "nombre": str, "cantidad": int}
+    """
+    if not isinstance(valor, list):
+        return []
+    salida = []
+    for it in valor[:20]:
+        if not isinstance(it, dict):
+            continue
+        pid = str(it.get("id_producto") or "").strip()
+        if not pid:
+            continue
+        try:
+            cantidad = max(1, int(it.get("cantidad") or 1))
+        except (TypeError, ValueError):
+            cantidad = 1
+        salida.append({
+            "id_producto": pid,
+            "nombre":      str(it.get("nombre") or "").strip()[:120],
+            "cantidad":    cantidad,
+        })
+    return salida
+
+
+def _stock_disponible_combo(db, gym_id, items):
+    """
+    Unidades del combo que se pueden armar con el inventario actual: el mínimo
+    entre (stock de cada componente / cantidad requerida).
+    """
+    from bson.objectid import ObjectId
+    if not items:
+        return 0
+    disponibles = []
+    for it in items:
+        try:
+            comp = db.productos.find_one(
+                {"_id": ObjectId(it["id_producto"]), "id_gimnasio": gym_id})
+        except Exception:
+            return 0
+        if not comp:
+            return 0
+        disponibles.append(int(comp.get("stock", 0)) // max(1, int(it.get("cantidad", 1))))
+    return max(0, min(disponibles)) if disponibles else 0
 
 
 # ─── GET /alertas ────────────────────────────────────────────────────────────
@@ -53,6 +104,9 @@ def get_alertas():
     """
     db      = get_db()
     gym_id  = g.tenant_id
+    # Las alertas NO llevan icono en el payload: el icono es decision de
+    # presentacion y cada cliente (web y movil) elige el suyo segun `nivel` y
+    # `tipo`. Antes viajaban emojis, que se veian distintos en cada sistema.
     alertas = []
 
     # ── Productos sin stock ───────────────────────────────────────────────────
@@ -65,7 +119,6 @@ def get_alertas():
             "tipo":    "sin_stock",
             "titulo":  f"{p['nombre']} — Sin stock",
             "detalle": "El producto está agotado. Reabastecer urgente.",
-            "icono":   "📦",
         })
 
     # ── Productos con stock bajo ──────────────────────────────────────────────
@@ -80,7 +133,6 @@ def get_alertas():
             "tipo":    "stock_bajo",
             "titulo":  f"{p['nombre']} — Stock bajo",
             "detalle": f"Quedan {p['stock']} unidad(es). Considera reabastecer.",
-            "icono":   "⚠️",
         })
 
     # ── Membresías por vencer (próximos 7 días) ───────────────────────────────
@@ -98,7 +150,6 @@ def get_alertas():
             "tipo":    "membresias_por_vencer",
             "titulo":  f"{por_vencer} membresía(s) vencen esta semana",
             "detalle": "Próximos 7 días. Notifica a los miembros para renovar.",
-            "icono":   "🗓️",
         })
 
     # ── Membresías vencidas con estado aún "activa" ───────────────────────────
@@ -113,7 +164,6 @@ def get_alertas():
             "tipo":    "membresias_vencidas",
             "titulo":  f"{vencidas} membresía(s) vencida(s) sin actualizar",
             "detalle": "Revisar y marcar como vencidas o renovar.",
-            "icono":   "❌",
         })
 
     return jsonify({"alertas": alertas, "total": len(alertas)}), 200
@@ -133,6 +183,13 @@ def listar_productos():
 
     cursor    = db.productos.find(filtro).sort("nombre", 1)
     productos = [_serialize(p) for p in cursor]
+
+    # Para los combos, el stock mostrado es cuántos se pueden armar hoy con el
+    # inventario de sus componentes.
+    for p in productos:
+        if p["es_combo"]:
+            p["stock"] = _stock_disponible_combo(db, g.tenant_id, p["items_combo"])
+
     return jsonify({"productos": productos, "total": len(productos)}), 200
 
 
@@ -161,15 +218,24 @@ def crear_producto():
         imagenes = []
     imagenes = imagenes[:3]          # máximo 3
 
+    es_combo    = bool(data.get("es_combo"))
+    items_combo = _limpiar_items_combo(data.get("items_combo")) if es_combo else []
+    if es_combo and not items_combo:
+        return jsonify({"error": "Un combo debe incluir al menos un producto"}), 400
+
     doc = {
         "id_gimnasio": g.tenant_id,
         "nombre":      nombre,
         "precio":      precio,
-        "stock":       max(0, int(data.get("stock", 0))),
-        "categoria":   (data.get("categoria") or "General").strip(),
+        # El stock de un combo no se lleva por separado: se deriva del stock de
+        # sus componentes al momento de venderlo.
+        "stock":       0 if es_combo else max(0, int(data.get("stock", 0))),
+        "categoria":   (data.get("categoria") or ("Combos" if es_combo else "General")).strip(),
         "descripcion": (data.get("descripcion") or "").strip(),
         "imagenes":    imagenes,
         "activo":      True,
+        "es_combo":    es_combo,
+        "items_combo": items_combo,
         "created_at":  datetime.now(timezone.utc),
     }
     result = db.productos.insert_one(doc)
@@ -206,6 +272,12 @@ def editar_producto(producto_id):
             update["precio"] = float(data["precio"])
         except (TypeError, ValueError):
             return jsonify({"error": "Precio inválido"}), 400
+
+    if "es_combo" in data:
+        update["es_combo"] = bool(data["es_combo"])
+
+    if "items_combo" in data:
+        update["items_combo"] = _limpiar_items_combo(data["items_combo"])
 
     if "stock" in data:
         update["stock"] = max(0, int(data["stock"]))

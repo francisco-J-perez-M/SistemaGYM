@@ -207,7 +207,9 @@ function VideoViewWrapper({ uri }: { uri: string }) {
 const vS = StyleSheet.create({
   container:       { gap: 8 },
   label:           { fontWeight: '700' },
-  player:          { width: '100%', aspectRatio: 16 / 9, borderRadius: 14, backgroundColor: '#000' },
+  // Negro fijo a propósito: es el lienzo del reproductor de vídeo, no una
+  // superficie de la interfaz. No cambia con la paleta.
+  player:          { width: '100%', aspectRatio: 16 / 9, borderRadius: 14, backgroundColor: '#000000' },
   placeholder:     { width: '100%', aspectRatio: 16 / 9, borderRadius: 14, borderWidth: 1,
                      alignItems: 'center', justifyContent: 'center', gap: 8 },
   placeholderText: { textAlign: 'center', paddingHorizontal: 16 },
@@ -228,7 +230,7 @@ export default function ExerciseDetailSheet({ visible, exercise, onClose }: Prop
   // Resolver imágenes: primero desde imageKey (caché), luego prop directo
   const imgs = exercise.imageKey
     ? (_imageCache.get(exercise.imageKey) ?? []).filter(Boolean)
-    : toArray(exercise.imagenes).filter(Boolean);
+    : toArray<string>(exercise.imagenes).filter(Boolean);
 
   const hasVideo = !!(exercise.video || exercise.videoKey);
 
@@ -247,7 +249,7 @@ export default function ExerciseDetailSheet({ visible, exercise, onClose }: Prop
       onRequestClose={onClose}
       accessibilityViewIsModal
     >
-      <View style={s.overlay}>
+      <View style={[s.overlay, { backgroundColor: colors.overlay }]}>
         <TouchableOpacity style={s.backdrop} onPress={onClose}
           accessibilityLabel="Cerrar" accessibilityRole="button" />
 
@@ -345,7 +347,8 @@ export default function ExerciseDetailSheet({ visible, exercise, onClose }: Prop
 }
 
 const s = StyleSheet.create({
-  overlay:  { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.55)' },
+  // backgroundColor lo inyecta la paleta (colors.overlay) en el punto de uso.
+  overlay:  { flex: 1, justifyContent: 'flex-end' },
   backdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   sheet:    { borderTopLeftRadius: 28, borderTopRightRadius: 28, maxHeight: '85%' },
   handle:   { width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginTop: 12, marginBottom: 4 },

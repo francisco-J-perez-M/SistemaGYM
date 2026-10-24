@@ -9,6 +9,7 @@ from app.extensions import db as pg_db
 from app.models.pg.usuario import Usuario
 from app.models.pg.ejercicio import Ejercicio
 from app.utils.tenant import require_tenant
+from app.utils.busqueda import normalizar_columna, patron_insensible
 
 trainer_bp = Blueprint('trainer', __name__, url_prefix='/api/trainer')
 
@@ -92,6 +93,42 @@ def get_trainer_dashboard():
 # ═══════════════════════════════════════════════════════════════
 #  RUTAS — CLIENTES DEL ENTRENADOR
 # ═══════════════════════════════════════════════════════════════
+
+def _iso(valor):
+    """Fecha en ISO 8601, o None. Tolera datetime, date y cadena."""
+    if not valor:
+        return None
+    if hasattr(valor, "isoformat"):
+        return valor.isoformat()
+    return str(valor)
+
+
+def _edad_de(valor):
+    """
+    Edad en anos a partir de una fecha de nacimiento.
+
+    Acepta datetime, date o cadena ISO porque el campo se ha guardado de las
+    tres formas segun por donde se diera de alta al miembro. Devuelve None si
+    no hay fecha o es ilegible: la pantalla debe poder distinguir "sin dato" de
+    "cero anos", que antes se mostraban igual con un signo de interrogacion.
+    """
+    if not valor:
+        return None
+    fn = valor
+    if isinstance(fn, str):
+        try:
+            fn = datetime.fromisoformat(fn.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+    fn = getattr(fn, "date", lambda: fn)()
+    try:
+        hoy = date.today()
+        edad = hoy.year - fn.year - ((hoy.month, hoy.day) < (fn.month, fn.day))
+    except (AttributeError, TypeError, ValueError):
+        return None
+    # Una fecha corrupta puede dar edades imposibles; mejor no mostrar nada.
+    return edad if 0 < edad < 120 else None
+
 
 @trainer_bp.route('/clients', methods=['GET'])
 @jwt_required()
@@ -194,6 +231,14 @@ def get_trainer_clients():
             tasa          = calcular_tasa_asistencia(mdb, miembro_id)
             estado        = determinar_estado_cliente(None, tasa)
 
+            # Ultimo registro de progreso: da el peso actual sin una consulta
+            # por cliente en el frontend.
+            ultimo_progreso = mdb.progreso_fisico.find_one(
+                {"id_miembro": miembro_id, "peso": {"$ne": None}},
+                {"peso": 1, "imc": 1, "grasa_corporal": 1, "fecha_registro": 1, "_id": 0},
+                sort=[("fecha_registro", -1)],
+            ) or {}
+
             clients_data.append({
                 "id":           str(miembro_id),          # MongoDB ObjectId (para lookups internos)
                 "pg_id":        r.get("id_usuario_pg"),   # PostgreSQL int (para asignaciones de dieta/rutina)
@@ -203,7 +248,19 @@ def get_trainer_clients():
                 "sessionsTotal":r.get("total_sesiones", 0),
                 "attendance":   tasa,
                 "streak":       racha,
-                "status":       estado
+                "status":       estado,
+                # Datos de ficha. Antes no viajaban y la tarjeta pintaba un "?"
+                # en la edad porque el campo sencillamente no existia.
+                "age":          _edad_de(r.get("fecha_nacimiento")),
+                "email":        r.get("email") or "",
+                "phone":        r.get("telefono") or "",
+                "sex":          r.get("sexo") or "",
+                "memberSince":  _iso(r.get("fecha_registro")),
+                "weight":       ultimo_progreso.get("peso"),
+                "bmi":          ultimo_progreso.get("imc"),
+                "bodyFat":      ultimo_progreso.get("grasa_corporal"),
+                "lastMeasured": _iso(ultimo_progreso.get("fecha_registro")),
+                "monthAttendance": r.get("asistencias_mes", 0),
             })
 
         if status != "all":
@@ -419,11 +476,14 @@ def get_trainer_profile():
         # Certificaciones: devolver como array estructurado
         certs_list = [
             {
-                'id':          str(c['_id']),
-                'nombre':      c.get('nombre', ''),
-                'emisor':      c.get('emisor', ''),
-                'anio':        c.get('anio', ''),
-                'url_archivo': c.get('url_archivo', ''),
+                'id':             str(c['_id']),
+                'nombre':         c.get('nombre', ''),
+                'emisor':         c.get('emisor', ''),
+                'anio':           c.get('anio', ''),
+                # 'archivo' es el documento en data URL; url_archivo se mantiene
+                # por los registros anteriores a esta versión.
+                'archivo':        c.get('archivo') or c.get('url_archivo', ''),
+                'nombre_archivo': c.get('nombre_archivo', ''),
             }
             for c in certificaciones
         ]
@@ -500,23 +560,46 @@ def update_trainer_profile():
                 upsert=True
             )
 
-        # Certificaciones: array de objetos {nombre, emisor, anio, url_archivo}
+        # Certificaciones: array de objetos {nombre, emisor, anio, archivo}
+        #
+        # 'archivo' es el documento escaneado en data URL (PDF o imagen). Se
+        # guarda en la propia colección porque el proyecto no tiene servidor de
+        # archivos; por eso se limita el tamaño, si no cada lectura del perfil
+        # arrastraría varios megas.
         if 'certifications' in data:
-            incoming = data['certifications']  # list of {id?, nombre, emisor, anio, url_archivo}
-            # Remove all existing certs and replace
+            incoming = data['certifications']
+            LIMITE_ARCHIVO = 4_200_000        # ~3 MB reales tras base64
+
+            limpias = []
+            for c in incoming or []:
+                nombre = (c.get("nombre") or "").strip()
+                if not nombre:
+                    continue
+
+                archivo = c.get("archivo") or c.get("url_archivo") or ""
+                if archivo and not str(archivo).startswith(("data:application/pdf", "data:image")):
+                    archivo = ""                       # formato no admitido: se descarta
+                if archivo and len(archivo) > LIMITE_ARCHIVO:
+                    return jsonify({
+                        'success': False,
+                        'error': f"El archivo de '{nombre}' supera los 3 MB permitidos",
+                    }), 400
+
+                limpias.append({
+                    "id_entrenador_pg": trainer_id,
+                    "id_gimnasio_pg":   g.tenant_id,
+                    "nombre":           nombre,
+                    "emisor":           (c.get("emisor") or "").strip(),
+                    "anio":             str(c.get("anio") or "").strip(),
+                    "archivo":          archivo,
+                    "nombre_archivo":   (c.get("nombre_archivo") or "").strip(),
+                })
+
+            # Se reemplaza el conjunto completo: la app envía siempre la lista
+            # entera, así que borrar y reinsertar mantiene ambos lados iguales.
             mdb.certificaciones_entrenador.delete_many({"id_entrenador_pg": trainer_id})
-            if incoming:
-                mdb.certificaciones_entrenador.insert_many([
-                    {
-                        "id_entrenador_pg": trainer_id,
-                        "id_gimnasio_pg":   g.tenant_id,
-                        "nombre":           c.get("nombre", "").strip(),
-                        "emisor":           c.get("emisor", "").strip(),
-                        "anio":             str(c.get("anio", "")).strip(),
-                        "url_archivo":      c.get("url_archivo", ""),
-                    }
-                    for c in incoming if c.get("nombre", "").strip()
-                ])
+            if limpias:
+                mdb.certificaciones_entrenador.insert_many(limpias)
 
         return jsonify({'success': True, 'message': 'Perfil actualizado correctamente'}), 200
 
@@ -829,7 +912,9 @@ def get_routines():
 
         query = {"id_entrenador_pg": trainer_id}
         if category != 'all': query["categoria"] = category
-        if search:            query["nombre"]    = {"$regex": search, "$options": "i"}
+        # SCRUM-105: insensible a mayúsculas/acentos (patron_insensible,
+        # única fuente de esa lógica -- ver utils/busqueda.py).
+        if search:            query["nombre"]    = {"$regex": patron_insensible(search), "$options": "i"}
 
         routines = list(mdb.rutinas.find(query).sort("fecha_actualizacion", -1))
         result   = []
@@ -1322,7 +1407,9 @@ def get_exercises():
     if not incluir_inactivos:
         q = q.filter_by(activo=True)
     if search:
-        q = q.filter(Ejercicio.nombre.ilike(f'%{search}%'))
+        # SCRUM-105: insensible a mayúsculas/acentos (normalizar_columna,
+        # única fuente de esa lógica -- ver utils/busqueda.py).
+        q = q.filter(normalizar_columna(Ejercicio.nombre).ilike(normalizar_columna(f'%{search}%')))
     if grupo:
         q = q.filter_by(grupo_muscular=grupo)
 

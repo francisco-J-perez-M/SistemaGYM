@@ -5,11 +5,12 @@
  *   GET  /api/user/membership        → { tieneMembresia, membresia?, mensaje? }
  *   GET  /api/user/membership/plans  → { planes: [...] }
  *   POST /api/user/membership/renew  → body { id_membresia, metodo_pago }
- *                                       metodo_pago ∈ Efectivo | Tarjeta | Transferencia
+ *                                       metodo_pago ∈ Efectivo | PayPal | Mercado Pago
  */
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert,
+  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -23,15 +24,20 @@ import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
 import api from '../../services/api';
+import {
+  getMetodosPago, pagarEnApp, mensajePorEstado,
+  type MetodoPago as MetodoPagoDisponible, type ProveedorPago,
+} from '../../services/pagos';
 import type {
   MembershipResponse, PlansResponse, MembershipPlan, MetodoPago,
 } from '../../types';
+import { estaConectado, useConnectivityStore } from '../../services/offline/connectivity';
 
-const METODOS: { key: MetodoPago; label: string; icon: React.ComponentProps<typeof Ionicons>['name'] }[] = [
-  { key: 'Efectivo',      label: 'Efectivo',      icon: 'cash-outline' },
-  { key: 'Tarjeta',       label: 'Tarjeta',       icon: 'card-outline' },
-  { key: 'Transferencia', label: 'Transferencia', icon: 'swap-horizontal-outline' },
-];
+// Carrusel de planes: la tarjeta no ocupa todo el ancho para que asome la
+// siguiente y se entienda que el listado se desliza en horizontal.
+const SCREEN_W  = Dimensions.get('window').width;
+const CARD_GAP  = 12;
+const CARD_W    = Math.min(300, SCREEN_W * 0.76);
 
 function estadoBadge(estado: string): { label: string; color: 'success' | 'warning' | 'error' } {
   if (estado === 'activa')     return { label: 'Activa',     color: 'success' };
@@ -45,18 +51,69 @@ export default function MembershipScreen() {
   const styles = useMemo(() => make_styles(colors, fs), [colors, fs]);
   const insets = useSafeAreaInsets();
 
-  const { data, loading, refetch } = useFetch<MembershipResponse>(ENDPOINTS.USER_MEMBERSHIP);
+  // SCRUM-168 / HU-30: el estado de membresía es una de las 4 lecturas que
+  // el ticket pide cachear — el socio debe poder ver si está "al día" sin
+  // señal, aunque no pueda renovar sin conexión (ver doRenew/pagarEnLinea).
+  const { data, loading, refetch } =
+    useFetch<MembershipResponse>(ENDPOINTS.USER_MEMBERSHIP, undefined, { cache: true });
   const { data: plansData, loading: loadingPlans } = useFetch<PlansResponse>(ENDPOINTS.MEMBERSHIP_PLANS);
+  const conectado = useConnectivityStore((s) => s.conectado);
 
   const [selectedPlan, setSelectedPlan] = useState<MembershipPlan | null>(null);
   const [metodo, setMetodo]   = useState<MetodoPago>('Efectivo');
   const [renewing, setRenewing] = useState(false);
   const [showRenew, setShowRenew] = useState(false);
+  const [pagando, setPagando] = useState(false);
+  const [indiceActivo, setIndiceActivo] = useState(0);   // posición en el carrusel
+  // Efectivo + las pasarelas activas del gimnasio (PayPal / Mercado Pago)
+  const [pasarelas, setPasarelas] = useState<MetodoPagoDisponible[]>([]);
+  // HU-30: si falla por falta de red (no hubo respuesta del servidor), los
+  // métodos digitales se muestran deshabilitados con un mensaje — nunca
+  // simplemente ocultos, para no confundir "sin internet" con "el gimnasio
+  // no tiene pasarelas configuradas".
+  const [pagosSinConexion, setPagosSinConexion] = useState(false);
+
+  useEffect(() => {
+    let vivo = true;
+    (async () => {
+      try {
+        const lista = await getMetodosPago();
+        if (vivo) { setPasarelas(lista); setPagosSinConexion(false); }
+      } catch (err: any) {
+        if (!vivo) return;
+        setPasarelas([]);
+        // Sin "response" → la petición no llegó al servidor (sin conexión).
+        setPagosSinConexion(!err?.response);
+      }
+    })();
+    return () => { vivo = false; };
+  }, []);
+
+  const metodosPago = useMemo(() => ([
+    { id: 'Efectivo', label: 'Efectivo', esPasarela: false, proveedor: null as ProveedorPago | null },
+    ...pasarelas.map((p) => ({
+      id: p.proveedor as string,
+      label: p.nombre,
+      esPasarela: true,
+      proveedor: p.proveedor,
+    })),
+  ]), [pasarelas]);
 
   const planes = plansData?.planes ?? [];
 
+  // SCRUM-168 / HU-30: renovar es un movimiento de dinero (incluso en
+  // "Efectivo" — activa la membresía de inmediato) y el ticket exige que
+  // NINGÚN movimiento de dinero quede en cola. Se bloquea por completo sin
+  // conexión, nunca se encola para reintentar después.
   const doRenew = async () => {
     if (!selectedPlan) return;
+    if (!estaConectado()) {
+      Alert.alert(
+        'Sin conexión',
+        'No puedes renovar tu membresía sin conexión a internet. Ningún pago o renovación se procesa sin conexión — intenta de nuevo cuando la recuperes.',
+      );
+      return;
+    }
     setRenewing(true);
     try {
       await api.post(ENDPOINTS.MEMBERSHIP_RENEW, {
@@ -74,8 +131,50 @@ export default function MembershipScreen() {
     }
   };
 
+  /** Cobro en línea: abre la pasarela y confirma el resultado al volver. */
+  const pagarEnLinea = async (proveedor: ProveedorPago) => {
+    if (!selectedPlan) return;
+    if (!estaConectado()) {
+      Alert.alert(
+        'Sin conexión',
+        'No puedes pagar en línea sin conexión a internet. Intenta de nuevo cuando la recuperes.',
+      );
+      return;
+    }
+    setPagando(true);
+    try {
+      const res = await pagarEnApp({
+        proveedor,
+        contexto: 'membresia',
+        monto: Number(selectedPlan.precio),
+        descripcion: `Membresía ${selectedPlan.nombre}`,
+        referenciaLocal: selectedPlan.id_membresia,
+      });
+      const info = mensajePorEstado(res.estado);
+      Alert.alert(info.titulo, res.mensaje ?? info.texto);
+      if (res.estado === 'aprobado' || res.estado === 'pendiente') {
+        setShowRenew(false);
+        setSelectedPlan(null);
+        refetch();
+      }
+    } catch (e: any) {
+      Alert.alert('No se pudo iniciar el pago',
+        e?.response?.data?.msg ?? 'Intenta de nuevo más tarde.');
+    } finally {
+      setPagando(false);
+    }
+  };
+
   const confirmRenew = () => {
     if (!selectedPlan) return;
+
+    // Con PayPal o Mercado Pago el cobro ocurre en la pasarela
+    const metodoSel = metodosPago.find((m) => m.id === metodo);
+    if (metodoSel?.esPasarela && metodoSel.proveedor) {
+      pagarEnLinea(metodoSel.proveedor);
+      return;
+    }
+
     Alert.alert(
       'Confirmar renovación',
       `${selectedPlan.nombre}\nMétodo: ${metodo}\nTotal: $${selectedPlan.precio}`,
@@ -149,7 +248,7 @@ export default function MembershipScreen() {
         label={showRenew ? 'Cerrar' : (membership ? 'Renovar membresía' : 'Contratar plan')}
         variant={showRenew ? 'secondary' : 'primary'}
         onPress={() => setShowRenew((v) => !v)}
-        icon={<Ionicons name={showRenew ? 'close' : 'refresh-outline'} size={18} color={showRenew ? colors.text : '#fff'} />}
+        icon={<Ionicons name={showRenew ? 'close' : 'refresh-outline'} size={18} color={showRenew ? colors.text : colors.onAccent} />}
       />
 
       {/* ── Apartado de renovación ────────────────────────────── */}
@@ -161,56 +260,186 @@ export default function MembershipScreen() {
           ) : planes.length === 0 ? (
             <Text style={styles.emptyText}>No hay planes disponibles en este gimnasio.</Text>
           ) : (
-            planes.map((plan) => {
-              const isSel = selectedPlan?.id_membresia === plan.id_membresia;
+            <>
+            {/* Carrusel horizontal: se desliza de izquierda a derecha y se
+                detiene centrado en cada plan (snapToInterval). */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              decelerationRate="fast"
+              snapToInterval={CARD_W + CARD_GAP}
+              snapToAlignment="start"
+              contentContainerStyle={styles.carruselContent}
+              onScroll={(e) => {
+                const i = Math.round(e.nativeEvent.contentOffset.x / (CARD_W + CARD_GAP));
+                if (i !== indiceActivo) setIndiceActivo(i);
+              }}
+              scrollEventThrottle={16}
+            >
+            {planes.map((plan) => {
+              const isSel   = selectedPlan?.id_membresia === plan.id_membresia;
+              const esPromo = plan.tipo === 'promocion';
               return (
                 <TouchableOpacity
                   key={plan.id_membresia}
-                  style={[styles.planRow, isSel && styles.planRowActive]}
+                  activeOpacity={0.85}
+                  style={[
+                    styles.planCard,
+                    esPromo && styles.planCardPromo,
+                    isSel && styles.planCardActive,
+                  ]}
                   onPress={() => setSelectedPlan(isSel ? null : plan)}
                   accessibilityRole="radio"
                   accessibilityState={{ checked: isSel }}
                   accessibilityLabel={`${plan.nombre}, $${plan.precio}, ${plan.duracion_meses} meses`}
                 >
-                  <View style={[styles.radio, isSel && styles.radioActive]}>
-                    {isSel && <View style={styles.radioDot} />}
+                  {/* Cinta de promoción, igual que en la web */}
+                  {esPromo && (
+                    <View style={styles.cintaPromo}>
+                      <Text style={styles.cintaPromoText}>PROMOCIÓN</Text>
+                    </View>
+                  )}
+
+                  {/* Encabezado: selector + nombre */}
+                  <View style={styles.planHeader}>
+                    <View style={styles.planHeaderLeft}>
+                      <View style={[styles.radio, isSel && styles.radioActive]}>
+                        {isSel && <View style={styles.radioDot} />}
+                      </View>
+                      <Text style={styles.planName}>{plan.nombre}</Text>
+                    </View>
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.planName}>{plan.nombre}</Text>
-                    <Text style={styles.planDuration}>
-                      {plan.duracion_meses} {plan.duracion_meses === 1 ? 'mes' : 'meses'}
+
+                  {/* Precio protagonista */}
+                  <View style={styles.precioRow}>
+                    <Text style={[styles.planPrice, esPromo && { color: colors.promo }]}>
+                      ${plan.precio}
                     </Text>
+                    <Text style={styles.precioMoneda}>MXN</Text>
+                  </View>
+
+                  {/* Duración como chip */}
+                  <View style={styles.chipDuracion}>
+                    <Ionicons name="time-outline" size={12} color={colors.textSecondary} />
+                    <Text style={styles.chipDuracionText}>
+                      {plan.duracion_meses} {plan.duracion_meses === 1 ? 'mes' : 'meses'}
+                      {plan.duracion_meses > 1 &&
+                        ` · $${Math.round(plan.precio / plan.duracion_meses)}/mes`}
+                    </Text>
+                  </View>
+
+                  {/* Etiquetas: ahorro y vigencia de la promoción */}
+                  <View style={styles.planTags}>
                     {!!plan.ahorro && plan.ahorro > 0 && (
-                      <Text style={styles.planSave}>Ahorras ${plan.ahorro.toFixed(0)}</Text>
+                      <View style={styles.tagSave}>
+                        <Text style={styles.tagSaveText}>Ahorras ${plan.ahorro.toFixed(0)}</Text>
+                      </View>
+                    )}
+                    {esPromo && (
+                      <View style={styles.tagPromo}>
+                        <Ionicons name="flame" size={11} color={colors.promo} />
+                        <Text style={styles.tagPromoText}>
+                          {plan.dias_restantes_promo == null
+                            ? 'Promoción'
+                            : plan.dias_restantes_promo === 0
+                              ? 'Último día'
+                              : `Solo ${plan.dias_restantes_promo} día${plan.dias_restantes_promo === 1 ? '' : 's'}`}
+                        </Text>
+                      </View>
                     )}
                   </View>
-                  <Text style={styles.planPrice}>${plan.precio}</Text>
+
+                  {!!plan.descripcion && (
+                    <Text style={styles.planDesc}>{plan.descripcion}</Text>
+                  )}
+
+                  {/* Beneficios definidos por el gimnasio */}
+                  {Array.isArray(plan.beneficios) && plan.beneficios.length > 0 && (
+                    <View style={styles.beneficios}>
+                      {plan.beneficios.map((b, i) => (
+                        <View key={i} style={styles.beneficioRow}>
+                          <Ionicons name="checkmark-circle" size={14} color={colors.dataProgreso} />
+                          <Text style={styles.beneficioText}>{b}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+
+                  {/* Qué incluye el combo */}
+                  {plan.es_combo && !!plan.items_combo?.length && (
+                    <View style={styles.comboBox}>
+                      <Text style={styles.comboTitle}>COMBO INCLUYE</Text>
+                      {plan.items_combo.map((it, i) => (
+                        <Text key={i} style={styles.comboItem}>
+                          {it.cantidad}× {it.nombre}
+                        </Text>
+                      ))}
+                    </View>
+                  )}
                 </TouchableOpacity>
               );
-            })
+            })}
+            </ScrollView>
+
+            {/* Indicadores de posición del carrusel */}
+            {planes.length > 1 && (
+              <View style={styles.dots}>
+                {planes.map((p, i) => (
+                  <View
+                    key={p.id_membresia}
+                    style={[styles.dot, i === indiceActivo && styles.dotActivo]}
+                  />
+                ))}
+              </View>
+            )}
+            </>
           )}
 
           {selectedPlan && (
             <>
               <Text style={[styles.sectionTitle, { marginTop: 18 }]}>2. Método de pago</Text>
+              {/* Efectivo + las pasarelas que el gimnasio tenga activas */}
               <View style={styles.metodosRow}>
-                {METODOS.map((m) => {
-                  const active = metodo === m.key;
+                {metodosPago.map((m) => {
+                  const active = metodo === m.id;
                   return (
                     <TouchableOpacity
-                      key={m.key}
+                      key={m.id}
                       style={[styles.metodoChip, active && styles.metodoChipActive]}
-                      onPress={() => setMetodo(m.key)}
+                      onPress={() => setMetodo(m.id as MetodoPago)}
                       accessibilityRole="radio"
                       accessibilityState={{ checked: active }}
                       accessibilityLabel={m.label}
                     >
-                      <Ionicons name={m.icon} size={16} color={active ? '#fff' : colors.textSecondary} />
-                      <Text style={[styles.metodoText, active && { color: '#fff' }]}>{m.label}</Text>
+                      <Ionicons
+                        name={m.id === 'Efectivo' ? 'cash-outline' : 'card-outline'}
+                        size={16}
+                        color={active ? colors.onAccent : colors.textSecondary}
+                      />
+                      <Text style={[styles.metodoText, active && { color: colors.onAccent }]}>{m.label}</Text>
                     </TouchableOpacity>
                   );
                 })}
               </View>
+              {!conectado ? (
+                // SCRUM-168 / HU-30: sin conexión se bloquea TODO el flujo de
+                // renovación, no solo las pasarelas — ver doRenew más arriba.
+                <View style={styles.warnRow}>
+                  <Ionicons name="cloud-offline-outline" size={16} color={colors.warning} />
+                  <Text style={styles.warnText}>
+                    Sin conexión: no se puede renovar ni pagar en este momento, ni en
+                    efectivo ni con pasarela. Intenta de nuevo cuando recuperes internet.
+                  </Text>
+                </View>
+              ) : pagosSinConexion && (
+                <View style={styles.warnRow}>
+                  <Ionicons name="cloud-offline-outline" size={16} color={colors.warning} />
+                  <Text style={styles.warnText}>
+                    Pago con PayPal o Mercado Pago no disponible sin conexión. Solo puedes
+                    renovar en efectivo hasta recuperar internet.
+                  </Text>
+                </View>
+              )}
 
               <View style={styles.totalRow}>
                 <Text style={styles.totalLabel}>Total a pagar</Text>
@@ -218,9 +447,14 @@ export default function MembershipScreen() {
               </View>
 
               <Button
-                label={`Renovar con ${selectedPlan.nombre}`}
+                label={
+                  metodosPago.find((m) => m.id === metodo)?.esPasarela
+                    ? `Pagar con ${metodosPago.find((m) => m.id === metodo)?.label}`
+                    : `Renovar con ${selectedPlan.nombre}`
+                }
                 onPress={confirmRenew}
-                loading={renewing}
+                loading={renewing || pagando}
+                disabled={!conectado}
                 style={{ marginTop: 12 }}
               />
             </>
@@ -277,17 +511,75 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
     sectionTitle: { color: colors.text, fontSize: 15 * fs, fontWeight: '700', marginBottom: 12 },
     emptyText:    { color: colors.textMuted, fontSize: 13 * fs },
 
-    planRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14,
-               borderBottomWidth: 1, borderBottomColor: colors.border },
-    planRowActive: { backgroundColor: colors.accent + '14', borderRadius: 12, paddingHorizontal: 8 },
+    // ── Carrusel de planes ───────────────────────────────────────────────
+    carruselContent: { paddingVertical: 4, paddingRight: 4 },
+    dots:     { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 12 },
+    dot:      { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.border },
+    dotActivo:{ backgroundColor: colors.accent, width: 18 },
+
+    // ── Tarjetas de plan ─────────────────────────────────────────────────
+    planCard: {
+      width: CARD_W, marginRight: CARD_GAP,
+      borderWidth: 1, borderColor: colors.border, borderRadius: 14,
+      padding: 14, backgroundColor: colors.inputBg,
+    },
+    planCardActive: {
+      borderColor: colors.accent, borderWidth: 2,
+      backgroundColor: colors.accent + '12',
+    },
+    // Las promociones se destacan con un halo del color comercial de la paleta
+    planCardPromo: {
+      borderColor: colors.promo,
+      shadowColor: colors.promo, shadowOpacity: 0.35, shadowRadius: 10,
+      shadowOffset: { width: 0, height: 0 }, elevation: 6,
+    },
+    planHeader:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+    planHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
+
+    // Cinta superior de las promociones
+    cintaPromo: {
+      position: 'absolute', top: 0, alignSelf: 'center',
+      backgroundColor: colors.promo, paddingHorizontal: 12, paddingVertical: 3,
+      borderBottomLeftRadius: 8, borderBottomRightRadius: 8,
+    },
+    cintaPromoText: { color: colors.background, fontSize: 9.5 * fs, fontWeight: '800', letterSpacing: 0.6 },
+
+    precioRow:    { flexDirection: 'row', alignItems: 'baseline', gap: 5, marginTop: 10 },
+    precioMoneda: { color: colors.textSecondary, fontSize: 12 * fs, fontWeight: '600' },
+
+    chipDuracion: {
+      flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start',
+      backgroundColor: colors.card, borderRadius: 8,
+      paddingHorizontal: 9, paddingVertical: 5, marginTop: 8,
+    },
+    chipDuracionText: { color: colors.textSecondary, fontSize: 11.5 * fs, fontWeight: '600' },
+
     radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: colors.border,
              alignItems: 'center', justifyContent: 'center' },
     radioActive: { borderColor: colors.accent },
     radioDot:    { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.accent },
-    planName:     { color: colors.text, fontSize: 15 * fs, fontWeight: '600' },
-    planDuration: { color: colors.textSecondary, fontSize: 12 * fs },
-    planSave:     { color: colors.success, fontSize: 12 * fs, marginTop: 2, fontWeight: '600' },
-    planPrice:    { color: colors.accent, fontSize: 18 * fs, fontWeight: '700' },
+
+    planName:     { color: colors.text, fontSize: 16 * fs, fontWeight: '700' },
+    planDuration: { color: colors.textSecondary, fontSize: 12 * fs, marginTop: 2 },
+    planPrice:    { color: colors.accent, fontSize: 22 * fs, fontWeight: '800' },
+    planDesc:     { color: colors.textSecondary, fontSize: 12.5 * fs, lineHeight: 18 * fs, marginTop: 10 },
+
+    planTags:     { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
+    // Ahorro = el usuario gana -> tono progreso.  Promoción -> tono comercial.
+    tagSave:      { backgroundColor: colors.dataProgresoBg, borderRadius: 7, paddingHorizontal: 8, paddingVertical: 3 },
+    tagSaveText:  { color: colors.dataProgreso, fontSize: 11 * fs, fontWeight: '700' },
+    tagPromo:     { flexDirection: 'row', alignItems: 'center', gap: 4,
+                    backgroundColor: colors.promoBg, borderRadius: 7,
+                    paddingHorizontal: 8, paddingVertical: 3 },
+    tagPromoText: { color: colors.promo, fontSize: 11 * fs, fontWeight: '700' },
+
+    beneficios:    { marginTop: 12, gap: 6 },
+    beneficioRow:  { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+    beneficioText: { color: colors.text, fontSize: 12.5 * fs, lineHeight: 17 * fs, flex: 1 },
+
+    comboBox:   { marginTop: 12, backgroundColor: colors.card, borderRadius: 10, padding: 10 },
+    comboTitle: { color: colors.accent, fontSize: 10 * fs, fontWeight: '800', letterSpacing: 0.5, marginBottom: 4 },
+    comboItem:  { color: colors.textSecondary, fontSize: 12 * fs, lineHeight: 18 * fs },
 
     metodosRow:  { flexDirection: 'row', gap: 8 },
     metodoChip:  { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,

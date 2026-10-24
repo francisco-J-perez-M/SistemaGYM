@@ -17,8 +17,19 @@ from app.models.pg.rol        import Rol
 from app.models.pg.gimnasio   import Gimnasio
 from app.utils.tenant import require_tenant
 from app.utils.security import require_role
+from app.utils.alcance import crear_asignacion
+from app.utils.capacidad import verificar_capacidad_staff, LimiteDePlanExcedido
+from app.utils.busqueda import normalizar_columna
 
 owner_trainers_bp = Blueprint("owner_trainers", __name__)
+
+# HU-45: un Administrador da de alta y gestiona el Staff (Entrenador /
+# Recepcionista) de SU sucursal -- el formulario de alta (OwnerStaff.jsx)
+# no ofrece el rol Administrador como opción, así que no hay riesgo de que
+# un Administrador cree a otro Administrador por esta vía (eso sigue siendo
+# exclusivo de Propietario, ver sucursales.py). El tope de capacidad de
+# staff (utils/capacidad.py) ya es por Gimnasio, así que sigue aplicando
+# igual sin importar quién da de alta.
 
 _STAFF_ROLES         = ("Entrenador", "Recepcionista")
 _VALID_FOTO_PREFIXES = ("data:image/jpeg;base64,", "data:image/png;base64,",
@@ -40,14 +51,14 @@ def _staff_filter(gym_id):
 # ---------------------------------------------------------------------------
 @owner_trainers_bp.route("/staff", methods=["GET"])
 @jwt_required()
-@require_role("owner_gym")
+@require_role("owner_gym", "Administrador")
 @require_tenant
 def listar_staff():
     """Lista entrenadores y recepcionistas del gimnasio con filtros opcionales."""
     gym_id = g.tenant_id
-    rol_filter  = request.args.get("rol")          # "Entrenador" | "Recepcionista"
-    solo_activos = request.args.get("activos", "true").lower() == "true"
-    search       = request.args.get("q", "").strip()
+    rol_filter    = request.args.get("rol")          # "Entrenador" | "Recepcionista"
+    activos_param = request.args.get("activos", "true").strip().lower()
+    search        = request.args.get("q", "").strip()
 
     role_ids = _staff_filter(gym_id)
     if not role_ids:
@@ -57,16 +68,24 @@ def listar_staff():
         Usuario.id_gimnasio == gym_id,
         Usuario.id_rol.in_(role_ids),
     )
-    if solo_activos:
+    # "true"/"false" filtran explícitamente por el estatus solicitado; cualquier
+    # otro valor (p. ej. "" o "all") devuelve activos e inactivos sin filtrar.
+    if activos_param == "true":
         q = q.filter_by(activo=True)
+    elif activos_param == "false":
+        q = q.filter_by(activo=False)
     if rol_filter:
         rol_obj = Rol.query.filter_by(nombre=rol_filter).first()
         if rol_obj:
             q = q.filter_by(id_rol=rol_obj.id)
     if search:
+        # SCRUM-105: el nombre se compara ignorando mayúsculas/acentos
+        # (normalizar_columna, única fuente de esa lógica -- ver
+        # utils/busqueda.py); el email queda fuera de alcance a propósito
+        # (identificador técnico) y se sigue comparando tal cual.
         q = q.filter(
             db.or_(
-                Usuario.nombre.ilike(f"%{search}%"),
+                normalizar_columna(Usuario.nombre).ilike(normalizar_columna(f"%{search}%")),
                 Usuario.email.ilike(f"%{search}%"),
             )
         )
@@ -80,7 +99,7 @@ def listar_staff():
 # ---------------------------------------------------------------------------
 @owner_trainers_bp.route("/staff/<int:user_id>", methods=["GET"])
 @jwt_required()
-@require_role("owner_gym")
+@require_role("owner_gym", "Administrador")
 @require_tenant
 def get_staff_member(user_id: int):
     gym_id   = g.tenant_id
@@ -96,7 +115,7 @@ def get_staff_member(user_id: int):
 # ---------------------------------------------------------------------------
 @owner_trainers_bp.route("/staff", methods=["POST"])
 @jwt_required()
-@require_role("owner_gym")
+@require_role("owner_gym", "Administrador")
 @require_tenant
 def crear_staff():
     """
@@ -122,6 +141,12 @@ def crear_staff():
     if rol_name not in _STAFF_ROLES:
         return jsonify({"msg": f"rol debe ser uno de: {', '.join(_STAFF_ROLES)}"}), 400
 
+    # SCRUM-222 (AC2): tope de staff del plan, verificado en el alta.
+    try:
+        verificar_capacidad_staff(gym_id)
+    except LimiteDePlanExcedido as e:
+        return jsonify({"msg": str(e)}), 409
+
     if Usuario.query.filter_by(email=email).first():
         return jsonify({"msg": "El email ya está registrado"}), 409
 
@@ -139,6 +164,12 @@ def crear_staff():
     )
     nuevo.set_password(password)
     db.session.add(nuevo)
+    db.session.flush()
+
+    # Asignación de alcance del nuevo staff (HU-41 / SCRUM-212) -- no
+    # cambia nada del comportamiento actual de este endpoint.
+    crear_asignacion(nuevo)
+
     db.session.commit()
 
     return jsonify({"msg": "Usuario creado", **nuevo.to_dict()}), 201
@@ -149,7 +180,7 @@ def crear_staff():
 # ---------------------------------------------------------------------------
 @owner_trainers_bp.route("/staff/<int:user_id>", methods=["PUT"])
 @jwt_required()
-@require_role("owner_gym")
+@require_role("owner_gym", "Administrador")
 @require_tenant
 def actualizar_staff(user_id: int):
     """
@@ -201,7 +232,7 @@ def actualizar_staff(user_id: int):
 # ---------------------------------------------------------------------------
 @owner_trainers_bp.route("/staff/<int:user_id>/toggle", methods=["PATCH"])
 @jwt_required()
-@require_role("owner_gym")
+@require_role("owner_gym", "Administrador")
 @require_tenant
 def toggle_staff(user_id: int):
     gym_id   = g.tenant_id

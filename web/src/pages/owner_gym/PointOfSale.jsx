@@ -16,7 +16,9 @@ import {
   FiClock, FiChevronLeft, FiChevronRight, FiCreditCard, FiUser,
   FiFileText,
 } from "react-icons/fi";
+import Swal from "sweetalert2";
 import { getProductos, toggleProducto, eliminarProducto, getMiembros, getVentas } from "../../api/owner_gym";
+import { reconciliarSilencioso } from "../../api/pagosOnline";
 import ProductoModal       from "./POSProductoModal";
 import ProductoDetailModal from "./POSProductoDetailModal";
 import CheckoutModal       from "./POSCheckoutModal";
@@ -205,7 +207,24 @@ function TabProductos() {
                 }
                 <div style={{ padding: "12px 14px 8px" }}>
                   <span style={{ fontSize: 10, color: catColor(p.categoria), fontWeight: 700, textTransform: "uppercase" }}>{p.categoria}</span>
-                  <p style={{ margin: "4px 0 6px", fontSize: 13, fontWeight: 600, color: "var(--text-primary)", lineHeight: 1.3 }}>{p.nombre}</p>
+                  <p style={{ margin: "4px 0 6px", fontSize: 13, fontWeight: 600, color: "var(--text-primary)", lineHeight: 1.3 }}>
+                    {p.nombre}
+                    {p.es_combo && (
+                      <span style={{
+                        marginLeft: 6, fontSize: 9.5, fontWeight: 800, letterSpacing: ".05em",
+                        background: "var(--accent)", color: "#fff",
+                        padding: "2px 6px", borderRadius: 5, verticalAlign: "middle",
+                      }}>
+                        COMBO
+                      </span>
+                    )}
+                  </p>
+                  {/* Contenido del combo, para que el cajero sepa qué entrega */}
+                  {p.es_combo && Array.isArray(p.items_combo) && p.items_combo.length > 0 && (
+                    <p style={{ margin: "0 0 6px", fontSize: 10.5, color: "var(--text-secondary)", lineHeight: 1.4 }}>
+                      {p.items_combo.map(it => `${it.cantidad}× ${it.nombre}`).join(" · ")}
+                    </p>
+                  )}
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: p.stock === 0 || p.stock <= LOW_STOCK ? 6 : 0 }}>
                     <span style={{ fontSize: 16, fontWeight: 800, color: "var(--success)" }}>{fmt(p.precio)}</span>
                     <span style={{ fontSize: 11, color: p.stock === 0 ? "var(--danger)" : p.stock <= LOW_STOCK ? "var(--warning)" : "var(--text-secondary)", fontWeight: p.stock <= LOW_STOCK ? 700 : 400 }}>
@@ -282,6 +301,21 @@ function TabVenta() {
   const load = useCallback(async () => {
     setLoadingInit(true);
     try {
+      // Confirma primero los pagos en línea que hayan quedado pendientes, para
+      // que la venta y el stock ya estén actualizados al pintar el catálogo.
+      const confirmadas = await reconciliarSilencioso();
+      if (confirmadas.length > 0) {
+        Swal.fire({
+          icon: "success",
+          title: confirmadas.length === 1 ? "Pago confirmado" : "Pagos confirmados",
+          text: confirmadas.length === 1
+            ? "Se registró una venta pagada en línea."
+            : `Se registraron ${confirmadas.length} ventas pagadas en línea.`,
+          timer: 2600, showConfirmButton: false,
+          background: "var(--bg-card)", color: "var(--text-primary)",
+        });
+      }
+
       const tasks = [getProductos({ activos: true })];
       if (!isMiembroRole) tasks.push(getMiembros());
 
@@ -434,7 +468,7 @@ function TabVenta() {
             {cart.length === 0 ? (
               <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "var(--text-secondary)", gap: 10, paddingTop: 40 }}>
                 <FiShoppingCart size={34} style={{ opacity: 0.2 }} />
-                <p style={{ fontSize: 12 }}>Carrito vacio</p>
+                <p style={{ fontSize: 12 }}>Carrito vacío</p>
               </div>
             ) : cart.map(item => (
               <div key={item.id} style={{ background: "var(--bg-input, rgba(255,255,255,.04))", borderRadius: 8, padding: "8px 10px" }}>
@@ -517,6 +551,29 @@ const METODO_COLOR = {
   QR:            "var(--warning)",
 };
 
+const MESES_POS = [
+  "Ene", "Feb", "Mar", "Abr", "May", "Jun",
+  "Jul", "Ago", "Sep", "Oct", "Nov", "Dic",
+];
+
+/** Chip de periodo del historial. */
+function ChipPeriodo({ activo, onClick, children }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        padding: "6px 13px", borderRadius: 18, cursor: "pointer",
+        border: `1px solid ${activo ? "var(--accent)" : "var(--border, rgba(255,255,255,.12))"}`,
+        background: activo ? "var(--accent)" : "transparent",
+        color: activo ? "#fff" : "var(--text-secondary)",
+        fontSize: 12.5, fontWeight: 600, transition: "all .15s",
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
 function TabHistorial() {
   const [ventas,      setVentas]      = useState([]);
   const [loading,     setLoading]     = useState(true);
@@ -526,19 +583,46 @@ function TabHistorial() {
   const [detail,      setDetail]      = useState(null); // venta expandida
   const [ticketVenta, setTicketVenta] = useState(null); // venta para el ticket modal
 
-  const load = useCallback(async (p = 1) => {
+  // Periodo: 0 = sin acotar. `montoTotal` viene del backend y cubre el filtro
+  // entero, no sólo la página visible.
+  const [anio,       setAnio]       = useState(0);
+  const [mes,        setMes]        = useState(0);
+  const [anios,      setAnios]      = useState([]);
+  const [montoTotal, setMontoTotal] = useState(0);
+
+  const load = useCallback(async (p = 1, a = anio, m = mes) => {
     setLoading(true);
     try {
-      const res = await getVentas({ page: p, per_page: 10 });
+      const params = { page: p, per_page: 10 };
+      if (a) params.anio = a;
+      if (a && m) params.mes = m;
+
+      const res = await getVentas(params);
       setVentas(res.data?.ventas || []);
       setPages(res.data?.pages  || 1);
       setTotal(res.data?.total  || 0);
+      setMontoTotal(res.data?.monto_total ?? 0);
+      if (Array.isArray(res.data?.anios) && res.data.anios.length) {
+        setAnios(res.data.anios);
+      }
       setPage(p);
     } catch { /* silente */ }
     finally { setLoading(false); }
-  }, []);
+  }, [anio, mes]);
 
-  useEffect(() => { load(1); }, [load]);
+  useEffect(() => { load(1, 0, 0); }, []); // eslint-disable-line
+
+  // Cambiar de periodo reinicia la paginación: la página 4 del filtro anterior
+  // puede no existir en el nuevo.
+  const cambiarPeriodo = (a, m) => {
+    setAnio(a);
+    setMes(m);
+    load(1, a, m);
+  };
+
+  const etiquetaPeriodo = !anio
+    ? "todo el historial"
+    : !mes ? `año ${anio}` : `${MESES_POS[mes - 1]} ${anio}`;
 
   const fmtDate = (iso) => {
     if (!iso) return "—";
@@ -549,8 +633,49 @@ function TabHistorial() {
 
   return (
     <div style={{ padding: "20px 28px", overflowY: "auto", flex: 1 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>{total} ventas registradas</span>
+      {/* Filtro de periodo + total del filtro */}
+      <div style={{
+        ...cardSt({ padding: "14px 18px", marginBottom: 16 }),
+        display: "flex", flexDirection: "column", gap: 10,
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginRight: 3 }}>
+            Periodo:
+          </span>
+          <ChipPeriodo activo={anio === 0} onClick={() => cambiarPeriodo(0, 0)}>Todo</ChipPeriodo>
+          {(anios.length ? anios : [new Date().getFullYear()]).map((a) => (
+            <ChipPeriodo key={a} activo={anio === a} onClick={() => cambiarPeriodo(a, mes)}>
+              {a}
+            </ChipPeriodo>
+          ))}
+        </div>
+
+        {anio !== 0 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginRight: 3 }}>
+              Mes:
+            </span>
+            <ChipPeriodo activo={mes === 0} onClick={() => cambiarPeriodo(anio, 0)}>Año</ChipPeriodo>
+            {MESES_POS.map((m, i) => (
+              <ChipPeriodo key={m} activo={mes === i + 1} onClick={() => cambiarPeriodo(anio, i + 1)}>
+                {m}
+              </ChipPeriodo>
+            ))}
+          </div>
+        )}
+
+        <div style={{
+          display: "flex", alignItems: "baseline", justifyContent: "space-between",
+          flexWrap: "wrap", gap: 8,
+          paddingTop: 10, borderTop: "1px solid var(--border, rgba(255,255,255,.07))",
+        }}>
+          <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+            {total} venta{total === 1 ? "" : "s"} · {etiquetaPeriodo}
+          </span>
+          <span style={{ fontSize: 21, fontWeight: 800, color: "var(--accent)" }}>
+            {fmtMoney(montoTotal)}
+          </span>
+        </div>
       </div>
 
       {loading ? (

@@ -9,7 +9,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors } from '../../constants/Colors';
 import { useColors, useFontScale } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
@@ -161,7 +160,7 @@ export default function PTRequestsScreen() {
                     disabled={actionLoading === r._id}
                     accessibilityLabel="Aceptar solicitud"
                   >
-                    <Ionicons name="checkmark-outline" size={16} color="#fff" />
+                    <Ionicons name="checkmark-outline" size={16} color={colors.onAccent} />
                     <Text style={styles.actionBtnText}>Aceptar</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -200,7 +199,7 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   },
   filterChipActive:  { backgroundColor: colors.accent, borderColor: colors.accent },
   filterText:        { color: colors.textSecondary, fontSize: 13 * fs, fontWeight: '600' },
-  filterTextActive:  { color: '#fff' },
+  filterTextActive:  { color: colors.onAccent },
   list:   { paddingHorizontal: 20, gap: 12, paddingBottom: 32 },
   empty:  { alignItems: 'center', paddingVertical: 60, gap: 10 },
   emptyText: { color: colors.textMuted, fontSize: 14 * fs, fontWeight: '600' },
@@ -210,7 +209,7 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
     width: 44, height: 44, borderRadius: 14,
     backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center',
   },
-  avatarInitials: { color: '#fff', fontSize: 18 * fs, fontWeight: '800' },
+  avatarInitials: { color: colors.onAccent, fontSize: 18 * fs, fontWeight: '800' },
   memberName:  { color: colors.text, fontSize: 15 * fs, fontWeight: '700' },
   memberEmail: { color: colors.textSecondary, fontSize: 12 * fs },
   dateText:    { color: colors.textMuted, fontSize: 11 * fs, marginTop: 2 },
@@ -227,6 +226,6 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   },
   acceptBtn: { backgroundColor: colors.accent },
   rejectBtn: { backgroundColor: colors.errorBg, borderWidth: 1, borderColor: colors.error },
-  actionBtnText: { color: '#fff', fontSize: 14 * fs, fontWeight: '700' },
+  actionBtnText: { color: colors.onAccent, fontSize: 14 * fs, fontWeight: '700' },
 });
 }

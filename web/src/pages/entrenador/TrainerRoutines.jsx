@@ -6,6 +6,7 @@
  *   2. Ejercicios — catálogo propio del gimnasio (asignable a rutinas).
  */
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   FiFileText, FiPlus, FiEdit, FiTrash2, FiCopy, FiSearch, FiX, FiFilter,
@@ -16,6 +17,10 @@ import { GiMuscleUp, GiWeightLiftingUp, GiRunningShoe } from "react-icons/gi";
 import { MdOutlineSmartToy } from "react-icons/md";
 import trainerService from "../../services/entrenador/trainerService";
 import { useToast } from "../../hooks/useToast";
+import {
+  useRoutineImportJob, startRoutineImportJob, dismissRoutineImportJob,
+  cancelRoutineImportJob,
+} from "../../hooks/useRoutineImportJob";
 import "../../css/CSSUnificado.css";
 
 /* ── Constantes ── */
@@ -830,12 +835,12 @@ function ExerciseDetailModal({ exercise, onClose, onEdit }) {
 // ═══════════════════════════════════════════════════════════════
 //  ImportarIARoutinesTab — ETL con Ollama para rutinas y ejercicios
 // ═══════════════════════════════════════════════════════════════
-function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExercise, onAssignRoutine }) {
+function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExercise, onAssignRoutine, onAssignRoutineToMember }) {
   const [mode, setMode]           = useState("trainer"); // "trainer" | "client"
   const [file, setFile]           = useState(null);
   const [clientId, setClientId]   = useState("");
   const [nivel, setNivel]         = useState("");        // Principiante | Intermedio | Avanzado
-  const [loading, setLoading]     = useState(false);
+  const [submitting, setSubmitting] = useState(false);  // encolando el job (solo el POST inicial)
   const [error, setError]         = useState(null);
   const [preview, setPreview]     = useState(null);   // { rutinas[], ejercicios[], resumen }
   const [saving, setSaving]       = useState(false);
@@ -847,11 +852,38 @@ function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExe
   const [expandedR, setExpandedR] = useState({});
   const fileRef = useRef(null);
 
+  // Diálogo de confirmación propio (mismo look que el resto del sistema, ver
+  // hooks/useToast.jsx) en vez de window.confirm() -- instancia independiente
+  // de la del componente padre, no necesita pasarse por props.
+  const { confirm: confirmCancel, ToastPortal: CancelToastPortal } = useToast();
+
+  // Job de importación en background (ver hooks/useRoutineImportJob.js). Vive
+  // fuera de este componente para que sobreviva si el entrenador cambia de
+  // pestaña o navega a otra pantalla mientras Ollama procesa el documento.
+  const job = useRoutineImportJob();
+  const jobPending = job?.estado === "procesando";
+
   useEffect(() => {
     trainerService.getRoutineAIStatus()
       .then(s => setAiStatus(s))
       .catch(() => setAiStatus({ disponible: false, modelo_activo: false, modelo: "phi3:mini" }));
   }, []);
+
+  // Reacciona a los cambios del job compartido: cuando termina (listo/error),
+  // sea porque lo acabamos de encolar aquí o porque el entrenador vuelve a
+  // esta pestaña tras dejarlo corriendo, se refleja en la vista previa local.
+  useEffect(() => {
+    if (!job) return;
+    if (job.estado === "listo" && job.resultado) {
+      setPreview(job.resultado);
+      setError(null);
+      const sr = {}; (job.resultado.rutinas || []).forEach((_, i) => sr[i] = true);
+      const se = {}; (job.resultado.ejercicios || []).forEach((_, i) => se[i] = true);
+      setSelRoutines(sr); setSelExercises(se);
+    } else if (job.estado === "error") {
+      setError(job.detalle ? `${job.error}. ${job.detalle}` : job.error);
+    }
+  }, [job]);
 
   const handleFile = (f) => {
     if (!f) return;
@@ -864,16 +896,28 @@ function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExe
 
   const handleProcess = async () => {
     if (!file) return;
-    setLoading(true); setError(null); setPreview(null);
+    setSubmitting(true); setError(null); setPreview(null);
     try {
+      // El POST solo encola el job y responde de inmediato (202) -- el
+      // resultado real llega por polling vía useRoutineImportJob, no aquí.
       const data = await trainerService.importRoutinesAI(file);
-      setPreview(data);
-      // Pre-seleccionar todo
-      const sr = {}; (data.rutinas || []).forEach((_, i) => sr[i] = true);
-      const se = {}; (data.ejercicios || []).forEach((_, i) => se[i] = true);
-      setSelRoutines(sr); setSelExercises(se);
+      startRoutineImportJob(data.job_id, file.name);
     } catch (err) { setError(err.message); }
-    finally { setLoading(false); }
+    finally { setSubmitting(false); }
+  };
+
+  const handleCancelImport = async () => {
+    // El caso típico: el job se quedó "procesando" para siempre (ej. se
+    // reiniciaron los contenedores a mitad del proceso) y el entrenador
+    // necesita poder desatorarse sin esperar a que expire solo (ver
+    // JOB_STALE_AFTER_SECONDS en ia_jobs.py, 30 min por defecto).
+    const ok = await confirmCancel({
+      title: "¿Cancelar la importación en curso?",
+      message: "Se perderá el progreso de este intento. Puedes volver a subir el archivo después.",
+      type: "warning", confirmText: "Sí, cancelar", cancelText: "Seguir esperando",
+    });
+    if (!ok) return;
+    cancelRoutineImportJob();
   };
 
   const handleSave = async () => {
@@ -886,10 +930,28 @@ function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExe
       const res = await onSaveRoutine(payload);
       if (res) {
         rutinasOk++;
-        // Si se asigna a un cliente con nivel, calcular y guardar pesos sugeridos
+        // Asignar al cliente en cuanto se eligió uno -- el nivel es opcional
+        // (solo calcula pesos sugeridos de arranque; ver assign_routine_to_member
+        // en trainer_routes.py). Antes esto exigía "nivel" también, así que si
+        // el entrenador dejaba el nivel sin elegir la rutina se creaba pero NUNCA
+        // quedaba vinculada al cliente (el contador "Clientes" sale de
+        // miembro_rutina, no del campo id_miembro de la rutina).
         const idRutina = res.id_rutina || res.id;
-        if (mode === "client" && clientId && nivel && idRutina) {
-          try { await onAssignRoutine?.(idRutina, clientId, nivel); } catch { /* no bloquea el guardado */ }
+        if (mode === "client" && clientId && idRutina) {
+          // miembro_rutina: alimenta el contador "Clientes" de la tarjeta y,
+          // si hay nivel, los pesos sugeridos. Si ESTA rutina ya trae el peso
+          // real por ejercicio, se ignora cualquier nivel que haya quedado
+          // seleccionado de una importación anterior en la misma sesión --
+          // nunca se sobreescribe un dato real con una tabla genérica.
+          const nivelParaAsignar = routineHasRealWeights(rutina) ? "" : nivel;
+          try { await onAssignRoutine?.(idRutina, clientId, nivelParaAsignar); } catch { /* no bloquea el guardado */ }
+          // rutinas_asignadas: es lo que el miembro ve en su propia sección de
+          // Entrenamiento. Sin esta llamada la rutina quedaba "asignada" solo
+          // para el contador del entrenador, pero invisible para el cliente.
+          const pgId = clients.find(c => c.id === clientId)?.pgId;
+          if (pgId) {
+            try { await onAssignRoutineToMember?.(idRutina, pgId); } catch { /* no bloquea el guardado */ }
+          }
         }
       }
     }
@@ -900,12 +962,36 @@ function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExe
     }
     setSaving(false);
     setSaved({ rutinas: rutinasOk, ejercicios: ejerciciosOk });
+    dismissRoutineImportJob();
     onImportDone?.();
   };
 
-  const reset = () => { setFile(null); setPreview(null); setError(null); setSaved(null); setClientId(""); setNivel(""); };
+  const reset = () => {
+    setFile(null); setPreview(null); setError(null); setSaved(null);
+    setClientId(""); setNivel("");
+    dismissRoutineImportJob();
+  };
 
   const aiOk = aiStatus?.disponible && aiStatus?.modelo_activo;
+
+  // ── Seguridad al asignar pesos ────────────────────────────────────────
+  // El parser determinista para PDFs de 2 columnas (parse_routines_from_app_export,
+  // ver etl_ollama.py) trae el peso REAL que el cliente ya venía levantando en
+  // cada ejercicio. Si ese dato existe, se usa tal cual y no tiene sentido (ni
+  // es seguro) sobreescribirlo con una tabla genérica de "pesos sugeridos por
+  // nivel". Si el documento NO trae pesos (el parser de texto plano y, muchas
+  // veces, el fallback de Ollama devuelven "peso": "" ejercicio por ejercicio),
+  // entonces sí es indispensable que el entrenador indique el nivel del
+  // cliente antes de asignar la rutina -- de lo contrario el cliente llegaría
+  // presencialmente al gimnasio con una rutina sin ningún peso de referencia.
+  const routineExercises = (r) => (r.days || []).flatMap(d => d.exercises || []);
+  const routineHasRealWeights = (r) => {
+    const exs = routineExercises(r);
+    return exs.length > 0 && exs.every(ex => String(ex.peso ?? "").trim() !== "");
+  };
+  const selectedRoutinesList = (preview?.rutinas || []).filter((_, i) => selRoutines[i]);
+  const pesosCompletos  = selectedRoutinesList.length > 0 && selectedRoutinesList.every(routineHasRealWeights);
+  const nivelRequerido  = mode === "client" && !!clientId && selectedRoutinesList.length > 0 && !pesosCompletos;
 
   if (saved) return (
     <div style={{ textAlign: "center", padding: "60px 20px" }}>
@@ -943,8 +1029,66 @@ function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExe
         </div>
       )}
 
+      {/* ── Aviso de job en background ───────────────────────────────────── */}
+      {jobPending && (() => {
+        const pct = job?.progreso_total
+          ? Math.round((job.progreso_actual / job.progreso_total) * 100)
+          : null;
+        return (
+        <div style={{
+          background: "rgba(99,102,241,.08)", border: "1px solid rgba(99,102,241,.25)",
+          borderRadius: 10, padding: "14px 16px", marginBottom: 18,
+          display: "flex", alignItems: "center", gap: 12,
+        }}>
+          <FiLoader size={18} style={{ color: "var(--accent)", animation: "spin 1s linear infinite", flexShrink: 0 }} />
+          <div style={{ fontSize: 12.5, lineHeight: 1.6, flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 700, marginBottom: 2 }}>
+              Procesando {job?.archivo ? <code style={{ background: "rgba(0,0,0,.1)", padding: "1px 5px", borderRadius: 4 }}>{job.archivo}</code> : "el archivo"} con IA…
+              {pct !== null && <span style={{ color: "var(--accent)" }}> {pct}%</span>}
+            </div>
+            {/* Barra de progreso: determinada (bloque X de N) en cuanto se sabe
+                cuántos bloques hay que mandarle a Ollama; indeterminada (deslizante)
+                mientras todavía se está leyendo/parseando el archivo -- así se ve que
+                de verdad avanza y no solo un ícono girando sin más información. */}
+            <div style={{
+              height: 6, borderRadius: 4, background: "rgba(99,102,241,.15)",
+              overflow: "hidden", margin: "6px 0", position: "relative",
+            }}>
+              <div style={{
+                position: pct === null ? "absolute" : "static",
+                height: "100%", borderRadius: 4, background: "var(--accent)",
+                width: pct !== null ? `${pct}%` : "35%",
+                transition: pct !== null ? "width .4s ease" : "none",
+                animation: pct === null ? "ia-progress-indeterminate 1.3s ease-in-out infinite" : "none",
+              }} />
+            </div>
+            <div style={{ color: "var(--text-secondary)" }}>
+              {pct !== null
+                ? `Bloque ${job.progreso_actual} de ${job.progreso_total} — `
+                : "Leyendo el archivo — "}
+              Le avisaremos cuando el proceso de extracción termine — puedes volver a este módulo
+              más tarde y seguir con tu tarea de asignación de ejercicios mientras tanto.
+            </div>
+          </div>
+          <button
+            onClick={handleCancelImport}
+            title="Cancelar la importación en curso"
+            style={{
+              border: "1px solid rgba(99,102,241,.35)", background: "transparent",
+              color: "var(--accent)", borderRadius: 6, padding: "5px 10px",
+              fontSize: 11.5, fontWeight: 700, cursor: "pointer", flexShrink: 0,
+              alignSelf: "center",
+            }}
+          >
+            Cancelar
+          </button>
+        </div>
+        );
+      })()}
+      <CancelToastPortal />
+
       {/* ── Selector de modo ─────────────────────────────────────────────── */}
-      {!preview && (
+      {!preview && !jobPending && (
         <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
           {[
             { key: "trainer", label: "Mis rutinas",         desc: "Migra tu biblioteca desde otro sistema" },
@@ -964,7 +1108,7 @@ function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExe
       )}
 
       {/* ── Selector de cliente (modo cliente) ───────────────────────────── */}
-      {!preview && mode === "client" && (
+      {!preview && !jobPending && mode === "client" && (
         <div style={{ marginBottom: 14 }}>
           <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: ".06em", display: "block", marginBottom: 5 }}>
             Cliente
@@ -973,22 +1117,15 @@ function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExe
             <option value="">Selecciona un cliente</option>
             {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
-
-          {/* Nivel del cliente → pesos sugeridos automáticos por ejercicio */}
-          <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: ".06em", display: "block", margin: "12px 0 5px" }}>
-            Nivel del cliente <span style={{ textTransform: "none", fontWeight: 400 }}>(opcional — asigna pesos de arranque)</span>
-          </label>
-          <select className="input-compact" value={nivel} onChange={e => setNivel(e.target.value)}>
-            <option value="">Sin pesos sugeridos</option>
-            <option value="Principiante">Principiante</option>
-            <option value="Intermedio">Intermedio</option>
-            <option value="Avanzado">Avanzado</option>
-          </select>
+          <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 6 }}>
+            El nivel (para pesos de arranque) se pide después de extraer el documento,
+            solo si el PDF no trae ya los pesos reales de cada ejercicio.
+          </div>
         </div>
       )}
 
       {/* ── Info ─────────────────────────────────────────────────────────── */}
-      {!preview && (
+      {!preview && !jobPending && (
         <div style={{ background: "rgba(99,102,241,.08)", border: "1px solid rgba(99,102,241,.2)", borderRadius: 10, padding: "12px 16px", marginBottom: 18, display: "flex", gap: 10, alignItems: "flex-start" }}>
           <MdOutlineSmartToy size={18} style={{ color: "var(--accent)", flexShrink: 0, marginTop: 1 }} />
           <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.6 }}>
@@ -1001,7 +1138,7 @@ function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExe
       )}
 
       {/* ── Dropzone ─────────────────────────────────────────────────────── */}
-      {!preview && (
+      {!preview && !jobPending && (
         <div
           style={{ border: `2px dashed ${drag ? "var(--accent)" : "var(--border)"}`, borderRadius: 12, padding: "36px 24px", textAlign: "center", background: drag ? "rgba(99,102,241,.05)" : "var(--bg-card)", cursor: "pointer", transition: "all .2s", marginBottom: 16 }}
           onDragOver={e => { e.preventDefault(); setDrag(true); }}
@@ -1023,14 +1160,14 @@ function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExe
       )}
 
       {/* ── Botón procesar ───────────────────────────────────────────────── */}
-      {!preview && (
+      {!preview && !jobPending && (
         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
           <button className="btn-compact-primary" onClick={handleProcess}
-            disabled={!file || loading || !aiOk}
+            disabled={!file || submitting || !aiOk}
             title={!aiOk ? "Ollama no disponible" : ""}
           >
-            {loading
-              ? <><FiLoader size={13} style={{ animation: "spin 1s linear infinite" }} /> Procesando...</>
+            {submitting
+              ? <><FiLoader size={13} style={{ animation: "spin 1s linear infinite" }} /> Enviando...</>
               : <><MdOutlineSmartToy size={14} /> Extraer con IA</>}
           </button>
         </div>
@@ -1122,6 +1259,36 @@ function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExe
             </div>
           )}
 
+          {/* ── Pesos: automático si el PDF ya los trae, manual si no ──────── */}
+          {mode === "client" && clientId && selectedRoutinesList.length > 0 && (
+            pesosCompletos ? (
+              <div style={{ background: "rgba(16,185,129,.08)", border: "1px solid rgba(16,185,129,.25)", borderRadius: 10, padding: "12px 16px", marginBottom: 18, display: "flex", gap: 10, alignItems: "flex-start" }}>
+                <FiCheck size={15} style={{ color: "var(--success)", flexShrink: 0, marginTop: 1 }} />
+                <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.6 }}>
+                  <strong style={{ color: "var(--text-primary)" }}>Este documento ya trae el peso real de cada ejercicio.</strong><br />
+                  Se asignarán tal cual al cliente — no es necesario indicar su nivel.
+                </div>
+              </div>
+            ) : (
+              <div style={{ background: "rgba(245,158,11,.08)", border: "1px solid rgba(245,158,11,.3)", borderRadius: 10, padding: "12px 16px", marginBottom: 18 }}>
+                <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.6, display: "flex", gap: 8, alignItems: "flex-start", marginBottom: 10 }}>
+                  <FiAlertCircle size={15} style={{ flexShrink: 0, marginTop: 1, color: "#f59e0b" }} />
+                  <span>
+                    <strong style={{ color: "var(--text-primary)" }}>Este documento no trae pesos por ejercicio.</strong><br />
+                    Para que el cliente entrene de forma segura en el gimnasio, indica su nivel: se le
+                    asignarán pesos de arranque adecuados antes de guardar la rutina.
+                  </span>
+                </div>
+                <select className="input-compact" value={nivel} onChange={e => setNivel(e.target.value)}>
+                  <option value="">Selecciona el nivel del cliente…</option>
+                  <option value="Principiante">Principiante</option>
+                  <option value="Intermedio">Intermedio</option>
+                  <option value="Avanzado">Avanzado</option>
+                </select>
+              </div>
+            )
+          )}
+
           {/* Ejercicios para biblioteca */}
           {(preview.ejercicios || []).length > 0 && (
             <div style={{ marginBottom: 20 }}>
@@ -1154,13 +1321,20 @@ function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExe
           <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
             <button className="btn-outline-small" onClick={reset}><FiX size={12} /> Descartar</button>
             <button className="btn-compact-primary" onClick={handleSave} disabled={saving ||
-              (Object.values(selRoutines).every(v => !v) && Object.values(selExercises).every(v => !v))}>
+              (Object.values(selRoutines).every(v => !v) && Object.values(selExercises).every(v => !v)) ||
+              (nivelRequerido && !nivel)}>
               <FiSave size={13} />{saving ? "Guardando..." : "Confirmar e importar"}
             </button>
           </div>
         </>
       )}
-      <style>{`@keyframes spin{to{transform:rotate(360deg);}}`}</style>
+      <style>{`
+        @keyframes spin{to{transform:rotate(360deg);}}
+        @keyframes ia-progress-indeterminate{
+          0%   { left: -35%; }
+          100% { left: 100%; }
+        }
+      `}</style>
     </div>
   );
 }
@@ -1168,8 +1342,23 @@ function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExe
 export default function TrainerRoutines() {
   const { toast, confirm, ToastPortal } = useToast();
 
-  /* ── Tab activo ── */
-  const [tab, setTab] = useState("routines"); // "routines" | "exercises" | "import"
+  /* ── Tab activo ──────────────────────────────────────────────────────
+   * Se sincroniza con ?tab=import en la URL para que el aviso de
+   * "importación en curso" en Layout.jsx pueda enlazar directo a este
+   * módulo aunque el entrenador esté en otra pantalla. ── */
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [tab, setTab] = useState(() => (
+    searchParams.get("tab") === "import" ? "import" : "routines"
+  )); // "routines" | "exercises" | "import"
+
+  useEffect(() => {
+    if (tab === "import") {
+      if (searchParams.get("tab") !== "import") setSearchParams({ tab: "import" }, { replace: true });
+    } else if (searchParams.get("tab")) {
+      setSearchParams({}, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
 
   /* ── Estado: rutinas ── */
   const [routines, setRoutines]             = useState([]);
@@ -1267,7 +1456,10 @@ export default function TrainerRoutines() {
     trainerService.getClients()
       .then(data => {
         const list = data.clients || data || [];
-        setClients(list.map(c => ({ id: c.id || c.id_usuario_pg, name: c.name || c.nombre })));
+        // pg_id (id_usuario_pg en Postgres) es requerido por assignRoutineToMember
+        // para que la rutina quede visible en el portal del miembro -- antes se
+        // descartaba aquí y la importación con IA nunca podía usarlo.
+        setClients(list.map(c => ({ id: c.id || c.id_usuario_pg, pgId: c.pg_id ?? c.id_usuario_pg ?? null, name: c.name || c.nombre })));
       })
       .catch(() => setClients([]));
   }, []);
@@ -2317,6 +2509,10 @@ export default function TrainerRoutines() {
           }}
           onAssignRoutine={async (routineId, id_miembro, nivel) => {
             try { return await trainerService.assignRoutine(routineId, { id_miembro, nivel }); }
+            catch { return null; }
+          }}
+          onAssignRoutineToMember={async (routineId, id_miembro_pg) => {
+            try { return await trainerService.assignRoutineToMember(routineId, id_miembro_pg); }
             catch { return null; }
           }}
         />

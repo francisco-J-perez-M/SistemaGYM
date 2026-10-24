@@ -98,14 +98,35 @@ def registrar_venta():
 
         # ── Decrementar stock de cada producto vendido ────────────────────────
         # Usa pipeline de actualización para que stock nunca baje de 0.
+        # Si el artículo es un COMBO, no se descuenta él mismo (no lleva stock
+        # propio): se descuenta el stock de cada componente que lo integra,
+        # multiplicado por la cantidad de combos vendidos.
         for item in items:
             try:
                 oid = ObjectId(str(item["id"]))
                 qty = max(1, int(item.get("qty", 1)))
-                db.productos.update_one(
+
+                prod = db.productos.find_one(
                     {"_id": oid, "id_gimnasio": id_gimnasio},
-                    [{"$set": {"stock": {"$max": [0, {"$subtract": ["$stock", qty]}]}}}]
+                    {"es_combo": 1, "items_combo": 1},
                 )
+
+                if prod and prod.get("es_combo"):
+                    for comp in (prod.get("items_combo") or []):
+                        try:
+                            comp_oid = ObjectId(str(comp["id_producto"]))
+                            comp_qty = max(1, int(comp.get("cantidad", 1))) * qty
+                            db.productos.update_one(
+                                {"_id": comp_oid, "id_gimnasio": id_gimnasio},
+                                [{"$set": {"stock": {"$max": [0, {"$subtract": ["$stock", comp_qty]}]}}}]
+                            )
+                        except Exception:
+                            continue
+                else:
+                    db.productos.update_one(
+                        {"_id": oid, "id_gimnasio": id_gimnasio},
+                        [{"$set": {"stock": {"$max": [0, {"$subtract": ["$stock", qty]}]}}}]
+                    )
             except Exception:
                 pass  # no-bloqueante: fallo de stock no cancela la venta
 
@@ -221,22 +242,65 @@ def listar_ventas():
         if tenant_filter:
             filtro["id_gimnasio"] = tenant_filter["id_gimnasio"]
 
-        # Si es miembro, filtrar solo sus compras propias
+        # Si es miembro, filtrar solo sus compras propias.
+        #
+        # Se busca por los DOS identificadores porque conviven ventas guardadas
+        # de formas distintas: las del POS traen el ObjectId del documento
+        # miembro, y las pagadas en línea antes de la corrección quedaron solo
+        # con el id de PostgreSQL. Con un único criterio, parte del historial
+        # queda invisible para el miembro.
         if role in ("user", "miembro"):
             user_pg_id = int(get_jwt_identity())
             gym_id = tenant_filter.get("id_gimnasio") if tenant_filter else None
             query_m = {"id_usuario_pg": user_pg_id}
             if gym_id:
                 query_m["id_gimnasio_pg"] = gym_id
-            miembro = db.miembros.find_one(query_m)
+            miembro = db.miembros.find_one(query_m) or db.miembros.find_one(
+                {"id_usuario_pg": user_pg_id})
+
+            criterios = [{"id_miembro_pg": user_pg_id}, {"id_miembro": user_pg_id}]
             if miembro:
-                filtro["id_miembro"] = miembro["_id"]
+                criterios.append({"id_miembro": miembro["_id"]})
+            filtro["$or"] = criterios
+
+        # ── Periodo (opcional) ────────────────────────────────────────────────
+        # anio sin mes devuelve el año completo. Se filtra por rango de fechas
+        # en vez de por año extraído, para que el índice de 'fecha' sirva.
+        anio = request.args.get("anio", type=int)
+        mes  = request.args.get("mes",  type=int)
+        if anio:
+            if mes and 1 <= mes <= 12:
+                desde = datetime(anio, mes, 1)
+                hasta = datetime(anio + (mes == 12), (mes % 12) + 1, 1)
             else:
-                return jsonify({"ventas": [], "total": 0, "pages": 0, "page": page}), 200
+                desde = datetime(anio, 1, 1)
+                hasta = datetime(anio + 1, 1, 1)
+            filtro["fecha"] = {"$gte": desde, "$lt": hasta}
 
         total  = db.ventas.count_documents(filtro)
         cursor = db.ventas.find(filtro).sort("fecha", -1).skip(skip).limit(per_page)
         pages  = math.ceil(total / per_page) if total > 0 else 0
+
+        # Importe de todo el filtro, no solo de la página: es lo que la pantalla
+        # muestra como total del periodo.
+        agg = list(db.ventas.aggregate([
+            {"$match": filtro},
+            {"$group": {"_id": None, "suma": {"$sum": "$total"}}},
+        ]))
+        monto_total = float(agg[0]["suma"]) if agg and agg[0].get("suma") is not None else 0.0
+
+        # Años con ventas, para el selector de periodo. Se calcula sobre el mismo
+        # filtro pero sin el rango de fechas, si no siempre devolvería un año.
+        filtro_sin_fecha = {k: v for k, v in filtro.items() if k != "fecha"}
+        anios = sorted(
+            {
+                d["_id"] for d in db.ventas.aggregate([
+                    {"$match": filtro_sin_fecha},
+                    {"$group": {"_id": {"$year": {"$toDate": "$fecha"}}}},
+                ]) if d.get("_id")
+            },
+            reverse=True,
+        )
 
         ventas = []
         for v in cursor:
@@ -249,7 +313,15 @@ def listar_ventas():
                 "nombre_miembro": v.get("nombre_miembro", ""),
             })
 
-        return jsonify({"ventas": ventas, "total": total, "pages": pages, "page": page}), 200
+        return jsonify({
+            "ventas":      ventas,
+            "total":       total,
+            "pages":       pages,
+            "page":        page,
+            "per_page":    per_page,
+            "monto_total": monto_total,
+            "anios":       anios,
+        }), 200
 
     except Exception as e:
         print(f"Error en listar_ventas: {e}")

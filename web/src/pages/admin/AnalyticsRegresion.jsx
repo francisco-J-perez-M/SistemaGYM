@@ -3,6 +3,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { COLORES_GRAFICO, COLOR_REJILLA } from "../../components/compartido/InfoGrafico";
 import "../../css/CSSUnificado.css";
 
 const API_BASE = "";
@@ -297,11 +298,11 @@ export default function AnalyticsRegresion() {
             <div className="chart-header"><h3>Peso promedio del gimnasio</h3></div>
             <ResponsiveContainer width="100%" height={220}>
               <LineChart data={globalChartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)"/>
+                <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA}/>
                 <XAxis dataKey="mes" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false}/>
                 <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v.toFixed(0)} kg`}/>
                 <Tooltip content={<CustomTooltip />}/>
-                <Line type="monotone" dataKey="peso" name="Promedio global" stroke="#38bdf8" strokeWidth={2.5} dot={{ r: 4, fill: "#38bdf8", strokeWidth: 0 }} connectNulls={false}/>
+                <Line type="monotone" dataKey="peso" name="Promedio global" stroke={COLORES_GRAFICO.real} strokeWidth={2.5} dot={{ r: 4, fill: COLORES_GRAFICO.real, strokeWidth: 0 }} connectNulls={false}/>
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -417,22 +418,22 @@ export default function AnalyticsRegresion() {
           </div>
           <div style={{ display: "flex", gap: 16, marginBottom: 12, fontSize: 12, color: "var(--text-secondary)" }}>
             <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ width: 24, height: 3, background: "#38bdf8", borderRadius: 2, display: "inline-block" }} />
+              <span style={{ width: 24, height: 3, background: COLORES_GRAFICO.real, borderRadius: 2, display: "inline-block" }} />
               Historial real
             </span>
             <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ width: 24, height: 0, borderTop: "3px dashed #a78bfa", display: "inline-block" }} />
+              <span style={{ width: 24, height: 0, borderTop: `3px dashed ${COLORES_GRAFICO.prediccion}`, display: "inline-block" }} />
               Predicción IA
             </span>
           </div>
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={memberChartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)"/>
+              <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA}/>
               <XAxis dataKey="label" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false}/>
               <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v.toFixed(0)} kg`}/>
               <Tooltip content={<CustomTooltip />}/>
-              <Line type="monotone" dataKey="real" name="Historial" stroke="#38bdf8" strokeWidth={2.5} dot={{ r: 4, fill: "#38bdf8", strokeWidth: 0 }} connectNulls={false}/>
-              <Line type="monotone" dataKey="prediccion" name="Predicción" stroke="#a78bfa" strokeWidth={2.5} strokeDasharray="6 4" dot={{ r: 4, fill: "#a78bfa", strokeWidth: 0 }} connectNulls={false}/>
+              <Line type="monotone" dataKey="real" name="Historial" stroke={COLORES_GRAFICO.real} strokeWidth={2.5} dot={{ r: 4, fill: COLORES_GRAFICO.real, strokeWidth: 0 }} connectNulls={false}/>
+              <Line type="monotone" dataKey="prediccion" name="Predicción" stroke={COLORES_GRAFICO.prediccion} strokeWidth={2.5} strokeDasharray="6 4" dot={{ r: 4, fill: COLORES_GRAFICO.prediccion, strokeWidth: 0 }} connectNulls={false}/>
             </LineChart>
           </ResponsiveContainer>
         </div>

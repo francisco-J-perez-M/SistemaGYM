@@ -9,7 +9,6 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 // LinearGradient eliminado — puede fallar en Fabric (new arch) antes de registrarse
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors } from '../../constants/Colors';
 import { useColors, useFontScale } from '../../hooks/useColors';
 import { ENDPOINTS, API_BASE_URL } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
@@ -17,6 +16,7 @@ import { useAuth } from '../../hooks/useAuth';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
+import SelectorFecha from '../../components/ui/SelectorFecha';
 import api from '../../services/api';
 import AccessibilityPanel from '../../components/settings/AccessibilityPanel';
 import * as Haptics from 'expo-haptics';
@@ -62,6 +62,10 @@ const GENERO_OPTS    = ['Masculino', 'Femenino', 'Otro'];
 const OBJETIVO_OPTS  = ['Pérdida de peso', 'Tonificación muscular', 'Ganancia muscular', 'Resistencia', 'Mantenimiento'];
 const EXP_OPTS       = ['Principiante', 'Intermedio', 'Avanzado'];
 const ACTIVIDAD_OPTS = ['Sedentario', 'Ligero', 'Moderado', 'Activo', 'Muy activo'];
+// SCRUM-102: preferencias de entrenamiento que antes solo se podian fijar
+// una vez, durante el wizard de onboarding.
+const DISPONIBILIDAD_OPTS = ['Mañanas', 'Tardes', 'Noches', 'Fines de semana', 'Flexible'];
+const UNIDAD_OPTS         = ['Métrico (kg, cm)', 'Imperial (lb, in)'];
 
 export default function ProfileScreen() {
   const colors = useColors();
@@ -86,6 +90,8 @@ export default function ProfileScreen() {
   const [experiencia, setExperiencia] = useState('');
   const [actividad, setActividad] = useState('');
   const [estatura, setEstatura] = useState('');
+  const [disponibilidad, setDisponibilidad] = useState('');
+  const [unidadMedida, setUnidadMedida] = useState('');
 
   // Resuelve la foto: data URI tal cual, URL absoluta tal cual, o nombre de
   // archivo → lo sirve el backend en /api/uploads/<archivo>.
@@ -106,6 +112,8 @@ export default function ProfileScreen() {
     setExperiencia(data?.nivelExperiencia ?? '');
     setActividad(data?.nivelActividad ?? '');
     setEstatura(num(data?.altura));
+    setDisponibilidad((data as any)?.diasDisponibles ?? '');
+    setUnidadMedida((data as any)?.unidadMedida ?? '');
     setEditing(true);
   };
 
@@ -123,6 +131,8 @@ export default function ProfileScreen() {
         nivelExperiencia: experiencia,
         nivelActividad:   actividad,
         altura:           estatura.trim(),   // el backend quita la 'm'
+        diasDisponibles:  disponibilidad,
+        unidadMedida:     unidadMedida,
       });
       await refetch();
       setEditing(false);
@@ -291,9 +301,17 @@ export default function ProfileScreen() {
               <TextInput style={styles.input} value={telefono} onChangeText={setTelefono}
                 keyboardType="phone-pad" placeholder="+52 ..." placeholderTextColor={colors.textMuted} accessibilityLabel="Teléfono" />
 
-              <Text style={styles.inputLabel}>Fecha de nacimiento</Text>
-              <TextInput style={styles.input} value={fechaNac} onChangeText={setFechaNac}
-                placeholder="dd/mm/aaaa" placeholderTextColor={colors.textMuted} accessibilityLabel="Fecha de nacimiento" />
+              {/* Calendario en lugar de escribir la fecha a mano: evita
+                  formatos inválidos y fechas imposibles. */}
+              <View style={{ marginTop: 14 }}>
+                <SelectorFecha
+                  label="Fecha de nacimiento"
+                  value={fechaNac}
+                  onChange={setFechaNac}
+                  anioMaximo={new Date().getFullYear() - 10}
+                  accessibilityLabel="Fecha de nacimiento"
+                />
+              </View>
 
               <Text style={styles.inputLabel}>Estatura (m)</Text>
               <TextInput style={styles.input} value={estatura} onChangeText={setEstatura}
@@ -303,6 +321,8 @@ export default function ProfileScreen() {
               <Selector label="Objetivo" options={OBJETIVO_OPTS}  value={objetivo}    onChange={setObjetivo}    styles={styles} colors={colors} />
               <Selector label="Nivel de experiencia" options={EXP_OPTS} value={experiencia} onChange={setExperiencia} styles={styles} colors={colors} />
               <Selector label="Nivel de actividad"   options={ACTIVIDAD_OPTS} value={actividad} onChange={setActividad} styles={styles} colors={colors} />
+              <Selector label="Disponibilidad" options={DISPONIBILIDAD_OPTS} value={disponibilidad} onChange={setDisponibilidad} styles={styles} colors={colors} />
+              <Selector label="Unidad de medida" options={UNIDAD_OPTS} value={unidadMedida} onChange={setUnidadMedida} styles={styles} colors={colors} />
             </ScrollView>
             <View style={styles.editActions}>
               <Button label="Cancelar" variant="secondary" onPress={() => setEditing(false)} style={{ flex: 1 }} />
@@ -337,7 +357,7 @@ function Selector({ label, options, value, onChange, styles, colors }: {
               accessibilityState={{ selected: active }}
               accessibilityLabel={`${label}: ${opt}`}
             >
-              <Text style={[styles.optChipText, active && { color: '#fff' }]}>{opt}</Text>
+              <Text style={[styles.optChipText, active && { color: colors.onAccent }]}>{opt}</Text>
             </TouchableOpacity>
           );
         })}
@@ -390,13 +410,13 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
     justifyContent:  'center',
   },
   avatarImg: { width: 90, height: 90, borderRadius: 28, backgroundColor: colors.surface },
-  initials:  { color: '#fff', fontSize: 32 * fs, fontWeight: '800' },
-  heroName:  { color: colors.text, fontSize: 22 * fs, fontWeight: '700' },
-  heroEmail: { color: colors.textSecondary, fontSize: 13 * fs },
+  initials:  { color: colors.onAccent, fontSize: 32 * fs, fontWeight: '800' },
+  heroName:  { color: colors.text, fontSize: 22 * fs, fontWeight: '700', textAlign: 'center' },
+  heroEmail: { color: colors.textSecondary, fontSize: 13 * fs, textAlign: 'center' },
   statsRow:  { flexDirection: 'row', gap: 10, marginTop: 8 },
   statPill: {
     alignItems:      'center',
-    backgroundColor: 'rgba(108,99,255,0.15)',
+    backgroundColor: colors.accentBg,
     paddingHorizontal: 12,
     paddingVertical:   8,
     borderRadius:    14,
@@ -430,7 +450,7 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   },
   infoIconBox: {
     width: 32, height: 32, borderRadius: 10,
-    backgroundColor: 'rgba(108,99,255,0.1)',
+    backgroundColor: colors.accentBg,
     alignItems: 'center', justifyContent: 'center',
   },
   infoLabel: { color: colors.textSecondary, fontSize: 11 * fs },

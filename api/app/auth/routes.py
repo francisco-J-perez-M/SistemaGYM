@@ -10,14 +10,20 @@ Sprint 3: una vez migrados todos los usuarios a PG, eliminar el bloque
   "_login_mongo_fallback" y el import de modelos Mongo.
 """
 from flask import Blueprint, request, jsonify, current_app
-from flask_jwt_extended import create_access_token
+from flask_jwt_extended import (
+    create_access_token, create_refresh_token, jwt_required, get_jwt_identity,
+    get_jwt, set_access_cookies, set_refresh_cookies, unset_jwt_cookies,
+)
 from flask_mail import Message
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import random
-from app.extensions import db, limiter, mail
+import uuid
+from app.extensions import db, limiter, mail, redis_cliente
 from app.models.pg.usuario import Usuario as UsuarioPG
 from app.models.pg.rol     import Rol     as RolPG
+from app.utils.alcance     import crear_asignacion, sucursales_de_administrador, usuario_tiene_alcance
+from app.constants.roles  import ROL_ADMINISTRADOR, normalizar_rol
 
 # ── Modelos Mongo (fallback legacy — se eliminarán en Sprint 3) ───────────────
 from app.mongo import get_db
@@ -51,6 +57,12 @@ def _build_token_pg(usuario: UsuarioPG) -> dict:
                 "perfil_completo": True,
                 "peso_inicial": None,
                 "fuente":       "pg",
+                # HU-41 (SCRUM-212): claims adicionales de alcance. superadmin
+                # opera a nivel de plataforma -- sin organización ni sucursales.
+                # Aditivos: nada lee todavía estos dos campos para decidir
+                # permisos (eso es HU-42), así que no cambian ningún comportamiento.
+                "id_organizacion": None,
+                "sucursales":      [],
             },
             "user_response": {
                 "id":           str(usuario.id),
@@ -104,6 +116,18 @@ def _build_token_pg(usuario: UsuarioPG) -> dict:
             "peso_inicial":    peso_inicial,
             "primer_login":    primer_login,
             "fuente":          "pg",
+            # HU-41 (SCRUM-212) + HU-45 (SCRUM-216): "sucursales" ya deja de
+            # ser aditivo para un Administrador -- es la lista real de
+            # sucursales que puede operar (ver sucursales_de_administrador(),
+            # resuelta sobre AsignacionUsuario, no sobre id_gimnasio). Para
+            # el resto de roles se mantiene igual que antes: una sola
+            # sucursal de por vida, sin consulta extra.
+            "id_organizacion": usuario.gimnasio.id_organizacion if usuario.gimnasio else None,
+            "sucursales":      (
+                sucursales_de_administrador(usuario.id)
+                if normalizar_rol(rol_nombre) == ROL_ADMINISTRADOR
+                else ([usuario.id_gimnasio] if usuario.id_gimnasio else [])
+            ),
         },
         "user_response": {
             "id":              str(usuario.id),
@@ -221,7 +245,32 @@ def login():
             identity=payload["identity"],
             additional_claims=payload["claims"],
         )
-        return jsonify({"access_token": token, "user": payload["user_response"]}), 200
+        # Token de refresco de larga duración: permite que la sesión sobreviva
+        # al cierre de la aplicación sin tener que alargar el access token, que
+        # es el que viaja en cada petición y por eso conviene que caduque pronto.
+        #
+        # "fam" (Actividad 09, PR-02 — J. C. Pérez Nava): identifica la cadena
+        # de renovaciones. Cada refresco emite un refresh_token nuevo que
+        # conserva la misma familia; si un token ya canjeado vuelve a
+        # presentarse, se revoca la familia completa (ver /auth/refresh).
+        familia = str(uuid.uuid4())
+        refresh = create_refresh_token(
+            identity=payload["identity"],
+            additional_claims={**payload["claims"], "fam": familia},
+        )
+        respuesta = jsonify({
+            "access_token":  token,
+            "refresh_token": refresh,
+            "user":          payload["user_response"],
+        })
+        # Cookies HttpOnly (Actividad 09, PR-01 — M. Arriaga Mora): el portal
+        # web ya no necesita guardar el token en localStorage para mantener
+        # la sesión -- ver web/src/api/cliente.js. El cuerpo JSON de arriba
+        # se conserva para no romper al cliente móvil, que autentica por
+        # cabecera Authorization y no por cookies.
+        set_access_cookies(respuesta, token)
+        set_refresh_cookies(respuesta, refresh)
+        return respuesta, 200
 
     # ── 2. Fallback MongoDB (usuarios legacy — Sprint 2 transitorio) ──────────
     user_mongo = UserMongo.find_by_email(email)
@@ -239,10 +288,221 @@ def login():
             identity=payload["identity"],
             additional_claims=payload["claims"],
         )
-        return jsonify({"access_token": token, "user": payload["user_response"]}), 200
+        refresh = create_refresh_token(
+            identity=payload["identity"],
+            additional_claims=payload["claims"],
+        )
+        respuesta = jsonify({
+            "access_token":  token,
+            "refresh_token": refresh,
+            "user":          payload["user_response"],
+        })
+        set_access_cookies(respuesta, token)
+        set_refresh_cookies(respuesta, refresh)
+        return respuesta, 200
 
     # ── Usuario no encontrado en ninguna fuente ───────────────────────────────
     return jsonify({"msg": "Credenciales inválidas"}), 401
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# REFRESCO DE SESIÓN
+# ─────────────────────────────────────────────────────────────────────────────
+
+@auth_bp.route("/refresh", methods=["POST"])
+@jwt_required(refresh=True)
+def refresh_token():
+    """
+    Entrega un access token nuevo a partir del token de refresco.
+
+    Es lo que permite que la sesión se sienta permanente: la aplicación guarda
+    el refresco y, cuando el access token caduca, pide uno nuevo en silencio en
+    vez de mandar al usuario a la pantalla de acceso.
+
+    Se vuelven a leer el rol y el gimnasio desde la base en lugar de copiarlos
+    del token viejo: así, si al usuario le cambiaron el rol o lo dieron de baja,
+    el cambio surte efecto en el siguiente refresco y no dentro de dos meses.
+
+    Actividad 09, PR-02 (J. C. Pérez Nava): el token de refresco se ROTA en
+    cada renovación. Antes, un mismo token de refresco servía un número
+    ilimitado de veces durante sus 90 días completos -- ni caducaba al
+    usarse ni el servidor distinguía entre el dispositivo legítimo y una
+    copia robada. Ahora cada canje invalida el token presentado, y si ese
+    mismo token vuelve a presentarse (señal de que hay dos copias en
+    circulación), se revoca la familia completa y se fuerza a iniciar
+    sesión de nuevo.
+    """
+    claims_viejos = get_jwt()
+    jti_viejo     = claims_viejos.get("jti")
+    familia       = claims_viejos.get("fam") or jti_viejo
+    user_id       = get_jwt_identity()
+
+    if jti_viejo and redis_cliente.get(f"revocado:{jti_viejo}"):
+        if familia:
+            redis_cliente.setex(f"familia_revocada:{familia}", 90 * 86400, "1")
+        return jsonify({"msg": "Sesión revocada por seguridad."}), 401
+
+    restante = claims_viejos["exp"] - int(datetime.now(timezone.utc).timestamp())
+    if restante > 0 and jti_viejo:
+        redis_cliente.setex(f"revocado:{jti_viejo}", restante, "1")
+
+    usuario = UsuarioPG.query.get(int(user_id)) if str(user_id).isdigit() else None
+    if usuario:
+        if not usuario.activo:
+            return jsonify({"msg": "Usuario inactivo"}), 403
+        if usuario.gimnasio and not usuario.gimnasio.activo:
+            return jsonify({"msg": "El gimnasio no está activo"}), 403
+
+        payload       = _build_token_pg(usuario)
+        access_nuevo  = create_access_token(
+            identity=payload["identity"], additional_claims=payload["claims"],
+        )
+        refresh_nuevo = create_refresh_token(
+            identity=payload["identity"],
+            additional_claims={**payload["claims"], "fam": familia},
+        )
+        respuesta = jsonify({
+            "access_token":  access_nuevo,
+            "refresh_token": refresh_nuevo,
+            "user":          payload["user_response"],
+        })
+        set_access_cookies(respuesta, access_nuevo)
+        set_refresh_cookies(respuesta, refresh_nuevo)
+        return respuesta, 200
+
+    # Usuarios legacy de Mongo: se conservan los claims del token de refresco.
+    claims_legacy = {k: v for k, v in claims_viejos.items()
+                      if k not in ("exp", "iat", "jti", "type", "sub", "nbf", "fresh", "fam")}
+    access_nuevo  = create_access_token(identity=user_id, additional_claims=claims_legacy)
+    refresh_nuevo = create_refresh_token(
+        identity=user_id, additional_claims={**claims_legacy, "fam": familia},
+    )
+    respuesta = jsonify({
+        "access_token":  access_nuevo,
+        "refresh_token": refresh_nuevo,
+    })
+    set_access_cookies(respuesta, access_nuevo)
+    set_refresh_cookies(respuesta, refresh_nuevo)
+    return respuesta, 200
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SESIÓN ACTUAL (rol verificado por el servidor)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@auth_bp.route("/me", methods=["GET"])
+@jwt_required()
+def me():
+    """
+    Devuelve el rol y los datos mínimos de la sesión actual, leídos del JWT
+    firmado por el servidor -- nunca de lo que el cliente diga tener
+    guardado localmente.
+
+    Actividad 09, PR-02 (M. Arriaga Mora): Layout.jsx decidía qué panel
+    mostrar comparando contra el campo "role" del objeto "user" guardado en
+    localStorage, que el propio usuario puede editar desde la consola del
+    navegador. Este endpoint es la fuente de verdad que reemplaza esa
+    lectura: la guarda de navegación en Layout.jsx ahora espera esta
+    respuesta antes de montar cualquier panel.
+    """
+    claims = get_jwt()
+    return jsonify({
+        "role":            claims.get("role"),
+        "id_gimnasio":     claims.get("id_gimnasio"),
+        "email":           claims.get("email"),
+        # HU-45: el selector de sucursal activa del frontend los necesita
+        # para saber si debe mostrarse y con qué opciones -- ver
+        # POST /auth/sucursal-activa más abajo.
+        "id_organizacion": claims.get("id_organizacion"),
+        "sucursales":      claims.get("sucursales", []),
+    }), 200
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SUCURSAL ACTIVA (HU-45 / SCRUM-216)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@auth_bp.route("/sucursal-activa", methods=["POST"])
+@jwt_required()
+def cambiar_sucursal_activa():
+    """
+    Cambia la sucursal activa de un Administrador multi-sucursal y reemite
+    los tokens para que el cambio surta efecto de inmediato -- sin esto,
+    el usuario tendría que cerrar sesión y volver a entrar cada vez que su
+    propietario lo mueve de sucursal o le asigna una nueva.
+
+    Diseño "sucursal activa": usuarios.id_gimnasio sigue siendo la única
+    fuente que lee require_tenant/require_role (utils/tenant.py,
+    utils/security.py) en los 267 endpoints existentes -- aquí solo se
+    actualiza ese valor, validado contra AsignacionUsuario (la fuente de
+    verdad de qué sucursales puede operar), y se reconstruye el JWT con
+    _build_token_pg() exactamente como hace /auth/refresh. Cero endpoints
+    existentes necesitan saber que esto existe.
+
+    Deliberadamente limitado a Administrador: Propietario, Entrenador,
+    Recepcionista y Miembro siguen con una sola sucursal de por vida (ver
+    utils/alcance.py), así que no tienen nada que "activar".
+    """
+    data = request.get_json(silent=True) or {}
+    id_gimnasio_nuevo = data.get("id_gimnasio")
+    if not isinstance(id_gimnasio_nuevo, int):
+        return jsonify({"msg": "id_gimnasio es obligatorio y debe ser un entero"}), 400
+
+    user_id = get_jwt_identity()
+    usuario = UsuarioPG.query.get(int(user_id)) if str(user_id).isdigit() else None
+    if usuario is None or not usuario.activo:
+        return jsonify({"msg": "Usuario inválido"}), 403
+
+    if normalizar_rol(usuario.rol.nombre if usuario.rol else "") != ROL_ADMINISTRADOR:
+        return jsonify({"msg": "Solo un Administrador de sucursal puede cambiar su sucursal activa"}), 403
+
+    if not usuario_tiene_alcance(usuario.id, [ROL_ADMINISTRADOR], id_gimnasio_nuevo):
+        return jsonify({"msg": "No tienes una asignación como Administrador sobre esa sucursal"}), 403
+
+    usuario.id_gimnasio = id_gimnasio_nuevo
+    db.session.commit()
+
+    payload = _build_token_pg(usuario)
+    access_nuevo  = create_access_token(identity=payload["identity"], additional_claims=payload["claims"])
+    refresh_nuevo = create_refresh_token(
+        identity=payload["identity"],
+        additional_claims={**payload["claims"], "fam": str(uuid.uuid4())},
+    )
+    respuesta = jsonify({
+        "access_token":  access_nuevo,
+        "refresh_token": refresh_nuevo,
+        "user":          payload["user_response"],
+    })
+    set_access_cookies(respuesta, access_nuevo)
+    set_refresh_cookies(respuesta, refresh_nuevo)
+    return respuesta, 200
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LOGOUT
+# ─────────────────────────────────────────────────────────────────────────────
+
+@auth_bp.route("/logout", methods=["POST"])
+@jwt_required(refresh=True)
+def logout():
+    """
+    Revoca el token de refresco presentado.
+
+    Actividad 09, PR-01 (J. C. Pérez Nava): antes, cerrar sesión solo
+    limpiaba el almacén del dispositivo -- no existía ninguna llamada a un
+    endpoint de cierre de sesión ni lista de revocación en el servidor, de
+    modo que el token de refresco seguía siendo válido durante sus 90 días
+    completos después de que el usuario creía haber cerrado la sesión.
+    """
+    claims   = get_jwt()
+    jti      = claims.get("jti")
+    restante = claims["exp"] - int(datetime.now(timezone.utc).timestamp())
+    if restante > 0 and jti:
+        redis_cliente.setex(f"revocado:{jti}", restante, "1")
+
+    respuesta = jsonify({"msg": "Sesión cerrada"})
+    unset_jwt_cookies(respuesta)
+    return respuesta, 200
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -292,6 +552,13 @@ def register():
         )
         nuevo.set_password(data["password"])
         db.session.add(nuevo)
+        db.session.flush()
+
+        # Asignación de alcance del usuario (HU-41 / SCRUM-212) -- si no
+        # se especificó id_gimnasio, queda sin organización ni sucursal,
+        # igual que hoy queda sin gimnasio asignado.
+        crear_asignacion(nuevo)
+
         db.session.commit()
 
         return jsonify({"msg": "Usuario registrado exitosamente", "id": nuevo.id}), 201

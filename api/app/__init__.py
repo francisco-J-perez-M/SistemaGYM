@@ -1,4 +1,5 @@
 from flask import Flask, send_from_directory
+from flask_jwt_extended import jwt_required
 import os
 from .config import Config
 from .extensions import db, migrate, jwt, mail, limiter
@@ -10,6 +11,8 @@ from app.routes.owner_gym.pagos               import pagos_bp
 from app.routes.owner_gym.dashboard_routes    import dashboard_bp
 from app.routes.owner_gym.billing             import billing_bp
 from app.routes.owner_gym.billing_stripe      import billing_stripe_bp
+from app.routes.owner_gym.pasarelas           import pasarelas_bp
+from app.routes.pagos_online                  import pagos_online_bp
 from app.routes.owner_gym.onboarding          import onboarding_bp
 from app.routes.owner_gym.catalogos           import catalogos_bp
 from app.routes.owner_gym.reports             import reports_bp
@@ -19,7 +22,9 @@ from app.routes.owner_gym.owner_dashboard     import owner_dashboard_bp
 from app.routes.owner_gym.owner_profile       import owner_profile_bp
 from app.routes.owner_gym.owner_trainers      import owner_trainers_bp
 from app.routes.owner_gym.owner_membresias    import owner_membresias_bp
+from app.routes.owner_gym.reportes_negocio    import reportes_negocio_bp
 from app.routes.owner_gym.owner_productos     import owner_productos_bp
+from app.routes.owner_gym.sucursales          import sucursales_bp
 from app.routes.miembro.user_dashboard        import user_dashboard_bp
 from app.routes.miembro.user_payments         import user_payments_bp
 from app.routes.miembro.user_profile          import user_profile_bp
@@ -31,6 +36,8 @@ from app.routes.miembro.training              import training_bp
 from app.routes.miembro.user_nutrition        import user_nutrition_bp
 from app.routes.entrenador.trainer_routes     import trainer_bp
 from app.routes.entrenador.diet_routes        import diet_bp
+from app.routes.entrenador.reportes_entrenador import reportes_entrenador_bp
+from app.routes.owner_gym.suscripcion_recurrente import suscripcion_recurrente_bp
 from app.routes.recepcionista.recepcionista_routes import recepcionista_bp
 from app.routes.ia.spark_mapreduce            import spark_mapreduce_bp
 from app.routes.ia.spark_kmeans               import spark_kmeans_bp
@@ -42,6 +49,7 @@ from app.routes.ia.spark_modelos              import spark_modelos_bp
 from app.routes.compartido.membresias         import membresias_bp
 from app.routes.compartido.miembro_membresias import miembro_membresias_bp
 from app.routes.compartido.notificaciones     import notificaciones_bp
+from app.routes.compartido.citas_lectura      import citas_miembro_bp, citas_entrenador_bp
 from app.backups.routes                       import backups_bp
 from app.backups.tenant_routes                import tenant_backups_bp
 from app.routes.superadmin.gimnasios          import gimnasios_admin_bp
@@ -88,6 +96,8 @@ def create_app():
     app.register_blueprint(user_profile_bp)
     app.register_blueprint(trainer_bp)
     app.register_blueprint(diet_bp)
+    app.register_blueprint(reportes_entrenador_bp)
+    app.register_blueprint(suscripcion_recurrente_bp)
     app.register_blueprint(user_health_bp)
     app.register_blueprint(user_body_progress_bp)
     app.register_blueprint(user_membership_bp)
@@ -97,10 +107,14 @@ def create_app():
     app.register_blueprint(spark_regresion_bp)
     app.register_blueprint(user_routines_bp,      url_prefix="/api/user")
     app.register_blueprint(training_bp,           url_prefix="/api/user/training")
+    app.register_blueprint(citas_miembro_bp,      url_prefix="/api/user")
+    app.register_blueprint(citas_entrenador_bp,   url_prefix="/api/trainer")
     app.register_blueprint(user_nutrition_bp)
     app.register_blueprint(miembro_membresias_bp, url_prefix="/api")
     app.register_blueprint(billing_bp)
     app.register_blueprint(billing_stripe_bp)
+    app.register_blueprint(pasarelas_bp)
+    app.register_blueprint(pagos_online_bp)
     app.register_blueprint(onboarding_bp)
     app.register_blueprint(catalogos_bp,          url_prefix="/api")
     app.register_blueprint(reports_bp)
@@ -115,7 +129,9 @@ def create_app():
     app.register_blueprint(owner_profile_bp,       url_prefix="/api/owner_gym")
     app.register_blueprint(owner_trainers_bp,      url_prefix="/api/owner_gym")
     app.register_blueprint(owner_membresias_bp,    url_prefix="/api/owner_gym")
+    app.register_blueprint(reportes_negocio_bp,    url_prefix="/api/owner_gym")
     app.register_blueprint(owner_productos_bp,     url_prefix="/api/owner_gym")
+    app.register_blueprint(sucursales_bp,          url_prefix="/api/owner_gym")
     app.register_blueprint(tenant_backups_bp,      url_prefix="/api/owner_gym")
     app.register_blueprint(recepcionista_bp,       url_prefix="/api/recepcionista")
     app.register_blueprint(gimnasios_admin_bp,     url_prefix="/api/superadmin")
@@ -128,7 +144,25 @@ def create_app():
     # ── Ruta para servir fotos de perfil subidas ─────────────────────────────
     # Usa /app/storage/uploads/ (bind-mounted desde el host) para garantizar
     # persistencia entre rebuilds sin depender de named volumes ni permisos.
+    #
+    # Actividad 09, PR-01 (M. Hernández Cervantes): la ruta no exigía sesión,
+    # así que cualquiera que conociera o adivinara el nombre de un archivo
+    # podía descargarlo sin autenticarse. @jwt_required() cierra ese hueco.
+    #
+    # send_from_directory ya usa safe_join internamente (Flask/Werkzeug),
+    # así que ".." en el nombre no permite escapar del directorio: no hace
+    # falta secure_filename() aquí, y de hecho rompería la ruta real de los
+    # certificados de entrenador, que sí usan una subcarpeta a propósito
+    # (/api/uploads/certs/<archivo>, ver trainer_routes.py).
+    #
+    # El aislamiento POR GIMNASIO (que un gimnasio no pueda leer los
+    # archivos de otro) requiere reorganizar este directorio en subcarpetas
+    # por id_gimnasio, lo que a su vez exige migrar los archivos ya
+    # subidos tanto en local como en el VPS. Se deja pendiente a propósito:
+    # aplicarlo ahora sin esa migración rompería las fotos de perfil que ya
+    # están referenciadas en Mongo/PG. Queda registrado como seguimiento.
     @app.route("/api/uploads/<path:filename>")
+    @jwt_required()
     def serve_upload(filename):
         upload_dir = "/app/storage/uploads"
         return send_from_directory(upload_dir, filename)

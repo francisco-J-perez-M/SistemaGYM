@@ -14,9 +14,12 @@ import { useState, useEffect, useCallback } from "react";
 import {
   FiPlus, FiTrash2, FiSave, FiActivity, FiCalendar, FiClock,
   FiTrendingUp, FiCheckCircle, FiRefreshCw, FiBarChart2, FiList,
+  FiChevronLeft, FiChevronRight,
 } from "react-icons/fi";
 import { GiMuscleUp } from "react-icons/gi";
-import { getUserRoutines, completeWorkout, getWorkouts } from "../../api/workouts";
+import {
+  getUserRoutines, getAssignedRoutines, completeWorkout, getWorkouts,
+} from "../../api/workouts";
 import { useNavigate } from "react-router-dom";
 import "../../css/CSSUnificado.css";
 
@@ -43,13 +46,32 @@ const dayMatchesToday = (d) => normTxt(d?.dia).includes(todayName());
 const pickTodayOrFirst = (dias) => (dias || []).find(dayMatchesToday) || (dias || [])[0] || null;
 // Ejercicios editables de un día (nombres fijos de la rutina, series por defecto).
 // Cada ejercicio conserva su grupo muscular y su unidad de peso (kg / lb).
+// Si el ejercicio no trae grupo, hereda el del día: así los ejercicios de una
+// rutina asignada no caen todos en el cajón "General".
 const exercisesFromDay = (day) =>
   (day?.ejercicios || []).filter(e => e.nombre).map(e => ({
     nombre: e.nombre,
-    grupo: e.grupo || "",
+    grupo: e.grupo || day?.grupo || "",
     unidad: e.unidad || "kg",
     series: seriesFrom(e),
   }));
+
+// ── Origen de la rutina ─────────────────────────────────────────────────────
+// Las rutinas propias y las asignadas por el entrenador viven en colecciones
+// distintas y llegan por endpoints distintos. Se unifican aquí para que la
+// bitácora las trate igual, conservando de dónde viene cada una.
+const ORIGEN = { PROPIA: "propia", ENTRENADOR: "entrenador" };
+
+const normalizaRutina = (r, origen) => ({
+  ...r,
+  origen,
+  // El id del selector se prefija con el origen: los dos endpoints devuelven
+  // ObjectId de colecciones diferentes y nada garantiza que no coincidan.
+  id: `${origen}:${r.id}`,
+  // Rutina del catálogo que se guarda en la bitácora. En una asignación, `id`
+  // es el documento de asignación y la rutina real viene en `id_rutina`.
+  idRutinaOrigen: origen === ORIGEN.ENTRENADOR ? (r.id_rutina || null) : r.id,
+});
 
 // Interpreta valores multivalor ("7,7,7" / "10,20,30") y convierte lb a kg.
 const LB_A_KG = 0.453592;
@@ -81,28 +103,70 @@ export default function UserWorkoutLog() {
   const [workouts, setWorkouts] = useState([]);
   const [resumen, setResumen]   = useState(null);
   const [loadingHist, setLoadingHist] = useState(true);
+  const [pagina, setPagina]     = useState(1);
+  const [paginacion, setPaginacion] = useState(null);
+  // Último peso conocido, para precargar el campo en lugar de dejarlo vacío.
+  const [ultimoPeso, setUltimoPeso] = useState(null);
 
   const selectedRoutine = routines.find(r => r.id === routineId) || null;
   const days = selectedRoutine?.dias || [];
   const selectedDay = days.find(d => d.id === dayId) || null;
 
-  const loadHist = useCallback(() => {
+  const PAGE_SIZE = 10;
+
+  // La bitácora se pagina en el servidor: el resumen (total, volumen, kcal) se
+  // calcula sobre el histórico completo y no sobre la página que se muestra.
+  const loadHist = useCallback((page = 1) => {
     setLoadingHist(true);
-    getWorkouts({ limit: 20 })
-      .then(r => { setWorkouts(r.data?.workouts || []); setResumen(r.data?.resumen || null); })
+    getWorkouts({ page, per_page: PAGE_SIZE })
+      .then(r => {
+        setWorkouts(r.data?.workouts || []);
+        setResumen(r.data?.resumen || null);
+        setPaginacion(r.data?.paginacion || null);
+        setUltimoPeso(r.data?.ultimo_peso || null);
+        // El backend acota la página pedida al total disponible.
+        if (r.data?.paginacion?.page) setPagina(r.data.paginacion.page);
+      })
       .catch(() => {})
       .finally(() => setLoadingHist(false));
   }, []);
 
+  const irAPagina = (p) => {
+    const max = paginacion?.paginas || 1;
+    const destino = Math.min(Math.max(1, p), max);
+    if (destino !== pagina) { setPagina(destino); loadHist(destino); }
+  };
+
+  // Se piden las dos listas en paralelo y con allSettled: si el entrenador no
+  // ha asignado nada, o falla una de las dos, la otra debe seguir mostrándose.
   const loadRoutines = useCallback(() => {
     setLoadingRoutines(true);
-    getUserRoutines()
-      .then(r => setRoutines(r.data?.rutinas || []))
-      .catch(() => setRoutines([]))
+    Promise.allSettled([getUserRoutines(), getAssignedRoutines()])
+      .then(([propias, asignadas]) => {
+        const lista = (res, origen) =>
+          res.status === "fulfilled"
+            ? (res.value.data?.rutinas || []).map(r => normalizaRutina(r, origen))
+            : [];
+        setRoutines([
+          ...lista(propias, ORIGEN.PROPIA),
+          ...lista(asignadas, ORIGEN.ENTRENADOR),
+        ]);
+      })
       .finally(() => setLoadingRoutines(false));
   }, []);
 
-  useEffect(() => { loadRoutines(); loadHist(); }, [loadRoutines, loadHist]);
+  useEffect(() => { loadRoutines(); loadHist(1); }, [loadRoutines, loadHist]);
+
+  // Precarga del peso: se rellena una sola vez con el último conocido para que
+  // el miembro solo confirme. Sin esto el campo se quedaba vacío entrenamiento
+  // tras entrenamiento y la predicción nunca llegaba a sus tres mediciones.
+  const [pesoPrecargado, setPesoPrecargado] = useState(false);
+  useEffect(() => {
+    if (!pesoPrecargado && ultimoPeso?.valor && pesoCorporal === "") {
+      setPeso(String(ultimoPeso.valor));
+      setPesoPrecargado(true);
+    }
+  }, [ultimoPeso, pesoPrecargado, pesoCorporal]);
 
   // Aplica una rutina: fija duración y preselecciona el día que cae HOY
   // (o el primero si ninguno coincide), cargando sus ejercicios.
@@ -116,11 +180,14 @@ export default function UserWorkoutLog() {
     setMsg(null);
   }, []);
 
-  // Auto-selección inicial: primera rutina activa + día de hoy (una sola vez).
+  // Auto-selección inicial: primera rutina activa CON días + día de hoy.
+  // Se exige que tenga días porque una rutina sin ellos deja la pantalla en
+  // blanco y parece que el registro no funciona.
   const [autoApplied, setAutoApplied] = useState(false);
   useEffect(() => {
     if (!autoApplied && !routineId && routines.length > 0) {
-      applyRoutine(routines.find(x => x.activa !== false) || routines[0]);
+      const utilizable = (x) => x.activa !== false && (x.dias?.length || 0) > 0;
+      applyRoutine(routines.find(utilizable) || routines[0]);
       setAutoApplied(true);
     }
   }, [routines, autoApplied, routineId, applyRoutine]);
@@ -163,7 +230,7 @@ export default function UserWorkoutLog() {
       const { data } = await completeWorkout({
         nombre_rutina: `${selectedRoutine.nombre}${selectedDay.grupo ? " - " + selectedDay.grupo : ""}`,
         grupo_muscular: selectedDay.grupo || undefined,
-        id_rutina: selectedRoutine.id,
+        id_rutina: selectedRoutine.idRutinaOrigen || undefined,
         duracion_min: duracion ? parseInt(duracion) : undefined,
         peso_corporal: pesoCorporal ? parseFloat(pesoCorporal) : undefined,
         notas: notas.trim() || undefined,
@@ -177,8 +244,10 @@ export default function UserWorkoutLog() {
       });
       // Recargar el día para volver a empezar con los valores de la rutina.
       if (selectedDay) setExercises(exercisesFromDay(selectedDay));
-      setPeso(""); setNotas("");
-      loadHist();
+      setNotas("");
+      // El peso NO se limpia: se conserva como precarga del siguiente
+      // registro, que es el mismo dato del mismo día.
+      loadHist(1);
     } catch (e) {
       setMsg({ type: "error", text: e?.response?.data?.error || "No se pudo guardar el entrenamiento." });
     } finally {
@@ -219,10 +288,33 @@ export default function UserWorkoutLog() {
               <label style={S.label}>Rutina</label>
               <select style={S.input} value={routineId} onChange={e => onRoutineChange(e.target.value)}>
                 <option value="">Selecciona una rutina…</option>
-                {routines.map(r => (
-                  <option key={r.id} value={r.id}>{r.nombre}{r.activa === false ? " (inactiva)" : ""}</option>
-                ))}
+                {[
+                  { origen: ORIGEN.PROPIA, etiqueta: "Mis rutinas" },
+                  { origen: ORIGEN.ENTRENADOR, etiqueta: "Asignadas por tu entrenador" },
+                ].map(({ origen, etiqueta }) => {
+                  const grupo = routines.filter(r => r.origen === origen);
+                  if (grupo.length === 0) return null;
+                  return (
+                    <optgroup key={origen} label={etiqueta}>
+                      {grupo.map(r => (
+                        <option key={r.id} value={r.id}>
+                          {r.nombre}
+                          {r.nombre_entrenador ? ` · ${r.nombre_entrenador}` : ""}
+                          {r.activa === false ? " (inactiva)" : ""}
+                          {(r.dias?.length || 0) === 0 ? " — sin días" : ""}
+                        </option>
+                      ))}
+                    </optgroup>
+                  );
+                })}
               </select>
+
+              {selectedRoutine?.origen === ORIGEN.ENTRENADOR && (
+                <p style={S.origenNota}>
+                  <FiCheckCircle size={12} /> Rutina asignada
+                  {selectedRoutine.nombre_entrenador ? ` por ${selectedRoutine.nombre_entrenador}` : ""}.
+                </p>
+              )}
 
               {days.length > 1 && (
                 <>
@@ -304,12 +396,35 @@ export default function UserWorkoutLog() {
                   <input style={S.input} type="number" value={duracion} onChange={e => setDuracion(e.target.value)} placeholder="45" />
                 </div>
                 <div>
-                  <label style={S.label}><FiTrendingUp /> Peso corporal (opcional)</label>
-                  <input style={S.input} type="number" value={pesoCorporal} onChange={e => setPeso(e.target.value)} placeholder="Solo si te pesaste" />
+                  <label style={S.label}>
+                    <FiTrendingUp /> Peso corporal (kg)
+                    {ultimoPeso && <span style={S.todayTag}>Precargado</span>}
+                  </label>
+                  <input
+                    style={{ ...S.input, ...(pesoCorporal ? S.inputDestacado : null) }}
+                    type="number" step="0.1" value={pesoCorporal}
+                    onChange={e => setPeso(e.target.value)}
+                    placeholder="Ej. 78.5"
+                  />
+                  {ultimoPeso && (
+                    <p style={S.pesoHint}>
+                      {ultimoPeso.origen === "perfil"
+                        ? "Tomado de tu perfil. Confírmalo o corrígelo."
+                        : `Tu última anotación fue ${ultimoPeso.valor} kg${ultimoPeso.fecha ? ` el ${ultimoPeso.fecha}` : ""}. Corrígelo si hoy pesas distinto.`}
+                    </p>
+                  )}
                 </div>
               </div>
-              <p style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 6 }}>
-                Al guardar, tu entrenamiento queda registrado y se calculan tus calorías quemadas automáticamente. El peso es opcional.
+              {/* El peso es el único dato del formulario que alimenta la
+                  predicción. Sin decirlo, la gente lo dejaba vacío y luego no
+                  entendía por qué "Mi Predicción" seguía en cero registros
+                  teniendo la bitácora llena de entrenamientos. */}
+              <p style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 6, lineHeight: 1.5 }}>
+                Al guardar, tu entrenamiento queda registrado y se calculan tus calorías
+                quemadas automáticamente.{" "}
+                <strong style={{ color: "var(--accent)" }}>
+                  Si anotas tu peso, cuenta para tu predicción de peso corporal.
+                </strong>
               </p>
               <label style={S.label}>Notas</label>
               <input style={S.input} value={notas} onChange={e => setNotas(e.target.value)} placeholder="Cómo te sentiste…" />
@@ -336,7 +451,7 @@ export default function UserWorkoutLog() {
         <div style={S.card}>
           <div style={S.cardHead}>
             <h3 style={S.cardTitle}><FiCalendar /> Tu bitácora</h3>
-            <button style={S.ghostBtn} onClick={loadHist}><FiRefreshCw /> Actualizar</button>
+            <button style={S.ghostBtn} onClick={() => loadHist(pagina)}><FiRefreshCw /> Actualizar</button>
           </div>
 
           {resumen && (
@@ -373,6 +488,28 @@ export default function UserWorkoutLog() {
                   </div>
                 </div>
               ))}
+
+              {(paginacion?.paginas || 1) > 1 && (
+                <div style={S.pager}>
+                  <button
+                    style={{ ...S.pagerBtn, ...(pagina <= 1 ? S.pagerBtnOff : null) }}
+                    onClick={() => irAPagina(pagina - 1)}
+                    disabled={pagina <= 1}
+                  >
+                    <FiChevronLeft size={13} /> Anterior
+                  </button>
+                  <span style={S.pagerInfo}>
+                    Página {pagina} de {paginacion.paginas} · {paginacion.total} en total
+                  </span>
+                  <button
+                    style={{ ...S.pagerBtn, ...(pagina >= paginacion.paginas ? S.pagerBtnOff : null) }}
+                    onClick={() => irAPagina(pagina + 1)}
+                    disabled={pagina >= paginacion.paginas}
+                  >
+                    Siguiente <FiChevronRight size={13} />
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -393,6 +530,13 @@ const S = {
   ghostBtn: { display: "inline-flex", alignItems: "center", gap: 6, background: "var(--bg-input)", border: "1px solid var(--border)", color: "var(--text-secondary)", borderRadius: 8, padding: "7px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer" },
   label: { display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: "var(--text-secondary)", margin: "12px 0 5px", fontWeight: 600 },
   todayTag: { display: "inline-flex", alignItems: "center", gap: 4, marginLeft: 8, padding: "2px 8px", borderRadius: 20, background: "var(--accent-dim, rgba(108,99,255,.15))", color: "var(--accent)", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".4px" },
+  origenNota: { display: "flex", alignItems: "center", gap: 6, margin: "6px 0 0", fontSize: 12, color: "var(--success, #059669)" },
+  inputDestacado: { borderColor: "var(--accent)" },
+  pesoHint: { fontSize: 11, color: "var(--text-secondary)", margin: "5px 2px 0", lineHeight: 1.45 },
+  pager: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 14, paddingTop: 12, borderTop: "1px solid var(--border)" },
+  pagerBtn: { display: "inline-flex", alignItems: "center", gap: 5, background: "transparent", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 11px", color: "var(--text-primary)", fontSize: 12, fontWeight: 600, cursor: "pointer" },
+  pagerBtnOff: { opacity: .4, cursor: "not-allowed" },
+  pagerInfo: { fontSize: 12, color: "var(--text-secondary)" },
   input: { width: "100%", boxSizing: "border-box", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 9, padding: "9px 12px", color: "var(--text-primary)", fontSize: 14 },
   exCard: { background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 12, padding: 14 },
   serieHead: { display: "flex", gap: 8, fontSize: 11, color: "var(--text-tertiary, var(--text-secondary))", fontWeight: 600, marginBottom: 4, padding: "0 2px" },

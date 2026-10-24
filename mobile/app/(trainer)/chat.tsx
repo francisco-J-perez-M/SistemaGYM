@@ -251,7 +251,8 @@ export default function TrainerChatScreen() {
                   <Ionicons
                     name={m.leido ? 'checkmark-done' : 'checkmark'}
                     size={12}
-                    color={m.leido ? '#a0f0c0' : 'rgba(255,255,255,0.5)'}
+                    color={colors.onAccent}
+                    style={{ opacity: m.leido ? 1 : 0.55 }}
                   />
                 )}
               </View>
@@ -282,7 +283,7 @@ export default function TrainerChatScreen() {
           accessibilityLabel="Enviar mensaje"
           accessibilityRole="button"
         >
-          <Ionicons name={sending ? 'hourglass-outline' : 'send'} size={18} color="#fff" />
+          <Ionicons name={sending ? 'hourglass-outline' : 'send'} size={18} color={colors.onAccent} />
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -296,7 +297,7 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   header:       { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 12, gap: 10 },
   title:        { color: colors.text, fontSize: 26 * fs, fontWeight: '700', flex: 1 },
   totalBadge:   { backgroundColor: colors.error, borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3 },
-  totalBadgeText: { color: '#fff', fontSize: 12 * fs, fontWeight: '700' },
+  totalBadgeText: { color: colors.onAccent, fontSize: 12 * fs, fontWeight: '700' },
   list:         { paddingHorizontal: 20, gap: 4, paddingBottom: 32 },
   empty:        { alignItems: 'center', paddingVertical: 60, gap: 8 },
   emptyText:    { color: colors.textMuted, fontSize: 15 * fs, fontWeight: '600', textAlign: 'center' },
@@ -310,7 +311,7 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
     backgroundColor: colors.accent,
     alignItems: 'center', justifyContent: 'center',
   },
-  memberInitial:{ color: '#fff', fontSize: 20 * fs, fontWeight: '800' },
+  memberInitial:{ color: colors.onAccent, fontSize: 20 * fs, fontWeight: '800' },
   unreadDot:    {
     position: 'absolute', top: -4, right: -4,
     backgroundColor: colors.error, borderRadius: 10,
@@ -318,7 +319,7 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
     alignItems: 'center', justifyContent: 'center',
     paddingHorizontal: 4,
   },
-  unreadDotText:{ color: '#fff', fontSize: 10 * fs, fontWeight: '800' },
+  unreadDotText:{ color: colors.onAccent, fontSize: 10 * fs, fontWeight: '800' },
   memberName:   { color: colors.text, fontSize: 15 * fs, fontWeight: '700' },
   memberEmail:  { color: colors.textSecondary, fontSize: 12 * fs, marginTop: 2 },
   // ── Chat ──
@@ -333,7 +334,7 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
     width: 38, height: 38, borderRadius: 11,
     backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center',
   },
-  chatHeaderInitial: { color: '#fff', fontSize: 16 * fs, fontWeight: '800' },
+  chatHeaderInitial: { color: colors.onAccent, fontSize: 16 * fs, fontWeight: '800' },
   chatHeaderName:    { color: colors.text, fontSize: 15 * fs, fontWeight: '700' },
   chatHeaderEmail:   { color: colors.textSecondary, fontSize: 11 * fs },
   refreshBtn:        { padding: 6 },
@@ -344,10 +345,10 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   bubbleMe:    { alignSelf: 'flex-end', backgroundColor: colors.accent, borderBottomRightRadius: 4 },
   bubbleThem:  { alignSelf: 'flex-start', backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderBottomLeftRadius: 4 },
   bubbleText:  { color: colors.text, fontSize: 14 * fs, lineHeight: 20 },
-  bubbleTextMe:{ color: '#fff' },
+  bubbleTextMe:{ color: colors.onAccent },
   bubbleMeta:  { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-end' },
   bubbleTime:  { color: colors.textMuted, fontSize: 10 * fs },
-  bubbleTimeMine: { color: 'rgba(255,255,255,0.6)' },
+  bubbleTimeMine: { color: colors.onAccent, opacity: 0.7 },
   inputBar:    {
     flexDirection: 'row', alignItems: 'flex-end', gap: 10,
     paddingTop: 8, paddingHorizontal: 16,

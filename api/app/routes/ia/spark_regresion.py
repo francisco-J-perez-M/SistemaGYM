@@ -88,7 +88,14 @@ def _regresion_global(gym_id=None, trainer_id=None):
     db = get_mongo_db()
 
     # 1. Obtener IDs de miembros del gimnasio (o solo los del entrenador)
-    query_m = {"estado": "Activo"}
+    #
+    # NO se filtra por estado "Activo". El modelo relaciona peso con tiempo,
+    # cintura, grasa e IMC, y esa relacion no cambia porque una membresia haya
+    # vencido: las mediciones pasadas siguen siendo validas para entrenar.
+    # Filtrarlas dejaba el modelo sin datos en gimnasios donde la mayoria de
+    # miembros figura como inactiva, y la pantalla respondia "aun no hay
+    # suficientes datos" con decenas de registros en la base.
+    query_m = {}
     if gym_id is not None:
         query_m["id_gimnasio_pg"] = int(gym_id)
     if trainer_id is not None:
@@ -98,12 +105,33 @@ def _regresion_global(gym_id=None, trainer_id=None):
     if not member_oids:
         raise ValueError(f"No hay miembros registrados para el gimnasio {gym_id}.")
 
-    # 2. Leer progreso_fisico de esos miembros
+    # 2. Leer las mediciones de peso de esos miembros.
+    #
+    # Dos fuentes, igual que en la prediccion individual: la ficha de Progreso
+    # Fisico y el peso corporal que se anota al cerrar un entrenamiento. Leer
+    # solo la primera desaprovechaba mediciones reales y dejaba el modelo por
+    # debajo del minimo en gimnasios donde la gente registra su peso al entrenar.
     registros = list(db.progreso_fisico.find(
         {"id_miembro": {"$in": member_oids}},
-        {"id_miembro": 1, "peso": 1, "imc": 1, "grasa_corporal": 1,
+        {"id_miembro": 1, "peso": 1, "imc": 1, "bmi": 1, "grasa_corporal": 1,
          "cintura": 1, "fecha_registro": 1},
     ))
+
+    # Los entrenamientos aportan peso y fecha; no traen cintura ni grasa, que se
+    # imputan mas abajo con la media, igual que un registro de progreso al que
+    # le falten esos campos.
+    for e in db.entrenamientos_realizados.find(
+        {"id_miembro": {"$in": member_oids}, "peso_corporal": {"$ne": None, "$gt": 0}},
+        {"id_miembro": 1, "peso_corporal": 1, "fecha": 1},
+    ):
+        registros.append({
+            "id_miembro":     e.get("id_miembro"),
+            "peso":           e.get("peso_corporal"),
+            "fecha_registro": e.get("fecha"),
+            "imc":            None,
+            "grasa_corporal": None,
+            "cintura":        None,
+        })
 
     if len(registros) < 10:
         raise ValueError("Se necesitan al menos 10 registros de progreso para entrenar el modelo.")
@@ -131,7 +159,7 @@ def _regresion_global(gym_id=None, trainer_id=None):
         dias = max(0, (dt - primer_fecha[mid]).days)
         cintura = r.get("cintura")
         grasa   = r.get("grasa_corporal")
-        bmi     = r.get("imc")
+        bmi     = r.get("imc") or r.get("bmi")
         rows.append({
             "peso": peso, "dias": dias,
             "cintura": float(cintura) if cintura else None,
@@ -269,6 +297,271 @@ def _resolver_id_miembro_mongo(id_entrada: str):
     return None
 
 
+MIN_REGISTROS_PERSONALES = 3
+
+
+# ── Límites fisiológicos de la proyección ───────────────────────────────────
+#
+# Una recta ajustada a tres mediciones extrapolada a 90 días puede dar
+# cualquier cosa: el caso que motivó esto proyectaba 18 kg a tres meses para
+# alguien de 90 kg. Matemáticamente es lo que dice el modelo; como información
+# para una persona no solo es falsa, es dañina.
+#
+# El cambio de peso se acota a un ritmo plausible. Un 1 % del peso corporal por
+# semana es el techo que suele citarse como pérdida sostenible; por encima de
+# eso ya no se está describiendo una tendencia sino un artefacto de
+# extrapolación. Se aplica sobre el ÚLTIMO peso medido, de modo que la
+# proyección arranca donde acaban los datos reales y no da un salto.
+RITMO_MAX_SEMANAL = 0.01      # fracción del peso corporal por semana
+PESO_MIN_HUMANO   = 30.0
+PESO_MAX_HUMANO   = 300.0
+
+
+# ── Rango de peso saludable (criterio OMS) ──────────────────────────────────
+#
+# La OMS clasifica el estado nutricional del adulto por índice de masa corporal
+# (IMC = peso / estatura²): <18.5 bajo peso, 18.5-24.9 normal, 25-29.9
+# sobrepeso, >=30 obesidad.
+#
+# Se devuelve un RANGO y no un "peso ideal" único: el IMC es una herramienta de
+# cribado poblacional, no un diagnóstico individual, y no distingue masa
+# muscular de grasa. Un mismo cuerpo puede estar sano en varios puntos del
+# intervalo.
+IMC_LIMITES = ((18.5, "Bajo peso"), (25.0, "Normal"), (30.0, "Sobrepeso"))
+IMC_SALUDABLE_MIN = 18.5
+IMC_SALUDABLE_MAX = 24.9
+
+
+def _categoria_imc(imc: float) -> str:
+    for tope, nombre in IMC_LIMITES:
+        if imc < tope:
+            return nombre
+    return "Obesidad"
+
+
+def _rango_saludable(estatura_m: float, peso_actual: float | None = None):
+    """
+    Rango de peso saludable segun el IMC de la OMS, para una estatura dada.
+
+    Devuelve None si la estatura no es utilizable: sin ella el IMC no se puede
+    calcular y es preferible no mostrar nada a mostrar una cifra inventada.
+    """
+    try:
+        h = float(estatura_m or 0)
+    except (TypeError, ValueError):
+        return None
+
+    # La estatura se guarda unas veces en metros y otras en centimetros.
+    if h > 3:
+        h = h / 100.0
+    if h <= 0.5 or h > 2.6:
+        return None
+
+    minimo = round(IMC_SALUDABLE_MIN * h * h, 1)
+    maximo = round(IMC_SALUDABLE_MAX * h * h, 1)
+
+    datos = {
+        "estatura_m":   round(h, 2),
+        "peso_min_kg":  minimo,
+        "peso_max_kg":  maximo,
+        "imc_min":      IMC_SALUDABLE_MIN,
+        "imc_max":      IMC_SALUDABLE_MAX,
+        "criterio":     "Clasificacion de la OMS por indice de masa corporal en adultos",
+        "advertencia": (
+            "El IMC es una medida de cribado poblacional, no un diagnostico. "
+            "No distingue masa muscular de grasa ni tiene en cuenta la edad, el "
+            "sexo o la complexion. Cualquier objetivo de peso conviene fijarlo "
+            "con un profesional de la salud."
+        ),
+    }
+
+    if peso_actual:
+        try:
+            p = float(peso_actual)
+            imc = round(p / (h * h), 1)
+            datos["imc_actual"]  = imc
+            datos["categoria"]   = _categoria_imc(imc)
+            datos["dentro_del_rango"] = minimo <= p <= maximo
+            # Diferencia hasta el borde mas cercano del rango saludable. Es la
+            # cifra util: cuanto falta, no un "peso ideal" arbitrario.
+            if p > maximo:
+                datos["diferencia_kg"] = round(p - maximo, 1)
+                datos["direccion"]     = "bajar"
+            elif p < minimo:
+                datos["diferencia_kg"] = round(minimo - p, 1)
+                datos["direccion"]     = "subir"
+            else:
+                datos["diferencia_kg"] = 0.0
+                datos["direccion"]     = "mantener"
+        except (TypeError, ValueError, ZeroDivisionError):
+            pass
+
+    return datos
+
+
+def _acotar_proyeccion(peso_predicho: float, peso_ultimo: float, dias: int):
+    """
+    Acota una predicción al rango que el cuerpo puede recorrer en ese plazo.
+
+    Devuelve (peso_acotado, fue_acotado) para que la interfaz pueda avisar de
+    que la cifra es un tope y no la salida cruda del modelo.
+    """
+    try:
+        peso  = float(peso_predicho)
+        base  = float(peso_ultimo)
+    except (TypeError, ValueError):
+        return None, False
+
+    if base <= 0:
+        return round(max(PESO_MIN_HUMANO, min(PESO_MAX_HUMANO, peso)), 2), False
+
+    margen = base * RITMO_MAX_SEMANAL * (max(0, dias) / 7.0)
+    techo  = min(PESO_MAX_HUMANO, base + margen)
+    suelo  = max(PESO_MIN_HUMANO, base - margen)
+
+    acotado = max(suelo, min(techo, peso))
+    return round(acotado, 2), abs(acotado - peso) > 0.01
+
+
+def _regresion_personal(historial: list, dias_futuro: int):
+    """
+    Ajusta una recta al peso del propio miembro y proyecta hacia adelante.
+
+    Existe porque el modelo del gimnasio necesita 10 registros repartidos entre
+    varios miembros, y eso dejaba sin prediccion a alguien que ya tenia las
+    suyas: la pantalla decia "6 / 3 registros" con la barra llena y aun asi
+    respondia que faltaban datos. Con tres mediciones propias hay suficiente
+    para trazar su tendencia, que ademas es mas fiel que aplicarle los
+    coeficientes promedio del gimnasio.
+
+    Es un ajuste por minimos cuadrados sobre (dias, peso), sin dependencias:
+    para una serie de unas pocas decenas de puntos no hace falta mas.
+
+    Devuelve (predicciones, r2) o (None, None) si no alcanza el minimo.
+    """
+    if len(historial) < MIN_REGISTROS_PERSONALES:
+        return None, None
+
+    base = _to_naive_datetime(historial[0].get("_dt"))
+    if base is None:
+        return None, None
+
+    puntos = []
+    for h in historial:
+        dt = _to_naive_datetime(h.get("_dt"))
+        if dt is None:
+            continue
+        puntos.append(((dt - base).days, h["peso"]))
+
+    if len(puntos) < MIN_REGISTROS_PERSONALES:
+        return None, None
+
+    n   = len(puntos)
+    sx  = sum(p[0] for p in puntos)
+    sy  = sum(p[1] for p in puntos)
+    sxx = sum(p[0] * p[0] for p in puntos)
+    sxy = sum(p[0] * p[1] for p in puntos)
+
+    denominador = n * sxx - sx * sx
+    if denominador == 0:
+        # Todas las mediciones son del mismo dia: no hay eje temporal que
+        # ajustar. Se proyecta el peso actual como una linea plana.
+        pendiente, interseccion = 0.0, sy / n
+    else:
+        pendiente    = (n * sxy - sx * sy) / denominador
+        interseccion = (sy - pendiente * sx) / n
+
+    # Coeficiente de determinacion: cuanta de la variacion del peso explica el
+    # paso del tiempo. Sirve para avisar cuando la tendencia es poco fiable.
+    media_y = sy / n
+    ss_tot  = sum((p[1] - media_y) ** 2 for p in puntos)
+    ss_res  = sum((p[1] - (interseccion + pendiente * p[0])) ** 2 for p in puntos)
+    r2 = 1.0 - (ss_res / ss_tot) if ss_tot > 0 else 1.0
+
+    dias_hasta_hoy = max(0, (datetime.now() - base).days)
+    peso_ultimo = float(puntos[-1][1])
+
+    predicciones = []
+    for d in (30, 60, 90, 120, 150, 180):
+        if d > dias_futuro:
+            continue
+        peso = interseccion + pendiente * (dias_hasta_hoy + d)
+        acotado, fue_acotado = _acotar_proyeccion(peso, peso_ultimo, d)
+        predicciones.append({
+            "dias_desde_hoy":   d,
+            "fecha_estimada":   (datetime.now() + timedelta(days=d)).strftime("%Y-%m-%d"),
+            "peso_predicho_kg": acotado,
+            "acotado":          fue_acotado,
+        })
+
+    return predicciones, round(float(r2), 4)
+
+
+def _historial_de_miembro(id_miembro: str):
+    """
+    Serie de peso del miembro, ordenada, con la fecha cruda para calcular.
+
+    Lee DOS fuentes, porque el miembro puede anotar su peso por dos caminos
+    distintos y ambos son mediciones igual de validas:
+
+      progreso_fisico            la ficha de Progreso Fisico
+      entrenamientos_realizados  el campo de peso corporal de la bitacora
+
+    Usar solo la primera dejaba sin prediccion a quien registraba su peso al
+    terminar de entrenar: la pantalla decia "0 / 3 registros" con la bitacora
+    llena de entrenamientos.
+
+    Cuando hay varias mediciones el mismo dia se conserva la ultima, que es la
+    mas reciente; promediarlas mezclaria una pesada en ayunas con otra despues
+    de entrenar, que no son comparables.
+    """
+    from bson import ObjectId
+    db = get_mongo_db()
+    try:
+        oid = ObjectId(id_miembro)
+    except Exception:
+        return [], []
+
+    registros = list(
+        db.progreso_fisico.find(
+            {"id_miembro": oid},
+            {"peso": 1, "imc": 1, "grasa_corporal": 1, "cintura": 1, "fecha_registro": 1, "_id": 0},
+        ).sort("fecha_registro", 1)
+    )
+
+    # La bitacora guarda `peso_corporal` solo cuando el miembro lo anota; los
+    # entrenamientos sin peso no aportan nada a este modelo y se descartan.
+    entrenos = list(
+        db.entrenamientos_realizados.find(
+            {"id_miembro": oid, "peso_corporal": {"$ne": None, "$gt": 0}},
+            {"peso_corporal": 1, "fecha": 1, "_id": 0},
+        ).sort("fecha", 1)
+    )
+
+    # Se indexa por dia para que las dos fuentes no cuenten dos veces la misma
+    # medicion: guardar el peso al entrenar YA crea un registro de progreso.
+    por_dia = {}
+
+    def _anotar(peso_bruto, fecha_bruta):
+        try:
+            peso = round(float(peso_bruto), 1)
+        except (TypeError, ValueError):
+            return
+        if peso <= 0:
+            return
+        dt = _to_naive_datetime(fecha_bruta)
+        clave = dt.strftime("%Y-%m-%d") if dt else str(fecha_bruta)
+        por_dia[clave] = {"fecha": clave, "peso": peso, "_dt": fecha_bruta}
+
+    for r in registros:
+        _anotar(r.get("peso"), r.get("fecha_registro"))
+    for e in entrenos:
+        _anotar(e.get("peso_corporal"), e.get("fecha"))
+
+    historial = sorted(por_dia.values(), key=lambda h: h["fecha"])
+    return registros, historial
+
+
 def _predecir_con_coeficientes(id_miembro: str, dias_futuro: int,
                                 coeficientes: dict, medias: dict):
     """Proyecta el peso futuro usando coeficientes cacheados + pymongo. Sin scikit-learn."""
@@ -282,7 +575,7 @@ def _predecir_con_coeficientes(id_miembro: str, dias_futuro: int,
     registros = list(
         db.progreso_fisico.find(
             {"id_miembro": oid},
-            {"peso": 1, "imc": 1, "grasa_corporal": 1, "cintura": 1, "fecha_registro": 1, "_id": 0},
+            {"peso": 1, "imc": 1, "bmi": 1, "grasa_corporal": 1, "cintura": 1, "fecha_registro": 1, "_id": 0},
         ).sort("fecha_registro", 1)
     )
 
@@ -312,27 +605,85 @@ def _predecir_con_coeficientes(id_miembro: str, dias_futuro: int,
     ultimo  = registros[-1]
     cintura = float(ultimo.get("cintura") or medias.get("cintura", 80.0))
     grasa   = float(ultimo.get("grasa_corporal") or medias.get("grasa", 22.0))
-    bmi     = float(ultimo.get("imc") or 25.0)
+    bmi     = float(ultimo.get("imc") or ultimo.get("bmi") or 25.0)
 
     coef = coeficientes
+    peso_ultimo = float(historial[-1]["peso"])
+
+    # El modelo del gimnasio devuelve un peso ABSOLUTO a partir de coeficientes
+    # promedio, que no tiene por qué pasar por la última medición de este
+    # miembro: la proyección arrancaba con un salto respecto a su peso real.
+    # Se toma solo la VARIACIÓN que predice el modelo y se aplica sobre su
+    # último peso medido, de modo que la línea sea continua.
+    def _peso_modelo(dias_total):
+        return (
+            coef["intercepto"]
+            + coef["dias"]           * dias_total
+            + coef["cintura"]        * cintura
+            + coef["grasa_corporal"] * grasa
+            + coef["bmi"]            * bmi
+        )
+
+    peso_hoy_modelo = _peso_modelo(dias_actuales)
+
     predicciones_futuras = []
     for d in [30, 60, 90, 120, 150, 180]:
         if d <= dias_futuro:
-            dias_total = dias_actuales + d
-            peso_pred = (
-                coef["intercepto"]
-                + coef["dias"]           * dias_total
-                + coef["cintura"]        * cintura
-                + coef["grasa_corporal"] * grasa
-                + coef["bmi"]            * bmi
-            )
+            variacion = _peso_modelo(dias_actuales + d) - peso_hoy_modelo
+            acotado, fue_acotado = _acotar_proyeccion(peso_ultimo + variacion, peso_ultimo, d)
             predicciones_futuras.append({
                 "dias_desde_hoy":   d,
                 "fecha_estimada":   (datetime.now() + timedelta(days=d)).strftime("%Y-%m-%d"),
-                "peso_predicho_kg": round(float(peso_pred), 2),
+                "peso_predicho_kg": acotado,
+                "acotado":          fue_acotado,
             })
 
     return historial, predicciones_futuras
+
+
+MIN_REGISTROS_MODELO = 10
+
+
+def _diagnostico_datos(gym_id, trainer_id):
+    """
+    Cuenta cuantos miembros y registros hay en el alcance pedido.
+
+    Sirve para que la pantalla explique QUE falta en lugar de un "no hay datos
+    suficientes" que no dice si el problema son los miembros, las mediciones o
+    el alcance del entrenador.
+    """
+    db = get_mongo_db()
+    query = {}
+    if gym_id is not None:
+        query["id_gimnasio_pg"] = int(gym_id)
+    if trainer_id is not None:
+        query["id_entrenador_pg"] = int(trainer_id)
+
+    oids = [m["_id"] for m in db.miembros.find(query, {"_id": 1})]
+    if not oids:
+        registros = con_registro = 0
+    else:
+        # Se cuentan las dos fuentes de peso, las mismas que usa el modelo.
+        registros = (
+            db.progreso_fisico.count_documents(
+                {"id_miembro": {"$in": oids}, "peso": {"$ne": None}})
+            + db.entrenamientos_realizados.count_documents(
+                {"id_miembro": {"$in": oids}, "peso_corporal": {"$ne": None, "$gt": 0}})
+        )
+        con_registro = len(set(
+            db.progreso_fisico.distinct(
+                "id_miembro", {"id_miembro": {"$in": oids}, "peso": {"$ne": None}})
+            + db.entrenamientos_realizados.distinct(
+                "id_miembro", {"id_miembro": {"$in": oids}, "peso_corporal": {"$ne": None, "$gt": 0}})
+        ))
+
+    return {
+        "miembros_en_alcance":  len(oids),
+        "miembros_con_medidas": con_registro,
+        "registros":            registros,
+        "minimo_requerido":     MIN_REGISTROS_MODELO,
+        "alcance":              "entrenador" if trainer_id is not None else "gimnasio",
+    }
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
@@ -359,7 +710,14 @@ def regresion_analytics():
         return jsonify(payload), 200
 
     except ValueError as ve:
-        return jsonify({"error": str(ve)}), 400
+        # Se acompana el motivo con las cifras reales del alcance para que la
+        # pantalla pueda decir "tienes 4 miembros y 6 mediciones, faltan 4"
+        # en lugar de un mensaje generico que no orienta a nadie.
+        try:
+            detalle = _diagnostico_datos(resolve_gym_id(), _trainer_scope())
+        except Exception:
+            detalle = {}
+        return jsonify({"error": str(ve), **detalle}), 400
     except Exception as e:
         import traceback; traceback.print_exc()
         return jsonify({"error": str(e)}), 500
@@ -394,7 +752,22 @@ def regresion_train():
 @spark_regresion_bp.route("/api/analytics/regresion/predecir/<id_entrada>", methods=["GET"])
 @jwt_required()
 def predecir_peso_miembro(id_entrada: str):
-    """Predice el peso futuro de un miembro usando coeficientes cacheados."""
+    """
+    Predice el peso futuro de un miembro.
+
+    Usa dos modelos y prefiere el mejor disponible:
+
+      1. Modelo del gimnasio (cacheado). Pondera dias, cintura, grasa e IMC.
+         Necesita 10 registros repartidos entre varios miembros.
+      2. Regresion sobre el historial del PROPIO miembro. Basta con 3
+         mediciones suyas.
+
+    El segundo no es un parche: es mas fiel para el individuo, porque describe
+    su tendencia real en vez de aplicarle los coeficientes promedio del
+    gimnasio. Antes solo existia el primero, y por eso un miembro con seis
+    mediciones propias veia "6 / 3 registros" con la barra llena y, aun asi,
+    el mensaje de que faltaban datos: el gimnasio entero no llegaba a diez.
+    """
     try:
         id_entrada  = id_entrada.strip("{}")
         dias_futuro = request.args.get("dias", 180, type=int)
@@ -403,63 +776,140 @@ def predecir_peso_miembro(id_entrada: str):
 
         gym_id     = resolve_gym_id()
         trainer_id = _trainer_scope()
-        key        = _cache_key(gym_id, trainer_id)
 
         id_miembro_real = _resolver_id_miembro_mongo(id_entrada)
         if id_miembro_real is None:
             return jsonify({
-                "error": "No se encontraron registros de progreso para este id.",
-                "sugerencia": "Verifica que el miembro tiene registros en progreso_fisico.",
+                "error": "Este miembro todavia no tiene registros de progreso fisico.",
+                "sugerencia": "Pidele que registre su peso desde Progreso Fisico.",
+                "registros": 0,
+                "minimo_requerido": MIN_REGISTROS_PERSONALES,
             }), 404
 
+        registros, historial = _historial_de_miembro(id_miembro_real)
+        if not historial:
+            return jsonify({
+                "error": "Este miembro todavia no tiene registros de peso.",
+                "sugerencia": "Pidele que registre su peso desde Progreso Fisico.",
+                "registros": 0,
+                "minimo_requerido": MIN_REGISTROS_PERSONALES,
+            }), 404
+
+        # ── Modelo 1: el del gimnasio, si esta entrenado o puede entrenarse ──
+        coeficientes = medias = None
+        key = _cache_key(gym_id, trainer_id)
         cached = cache_get(key)
         if not cached or "coeficientes" not in cached:
-            try:
-                metricas, coeficientes, tendencia, mc, mg = _regresion_global(gym_id, trainer_id)
-            except ValueError:
-                # El entrenador aún no tiene datos propios suficientes para un
-                # modelo individual: caer al modelo del gimnasio para no romper
-                # la predicción puntual de su cliente.
-                if trainer_id is None:
-                    raise
-                key = _cache_key(gym_id, None)
-                cached = cache_get(key)
-                if cached and "coeficientes" in cached:
-                    metricas = coeficientes = tendencia = None  # ya está en caché
-                else:
-                    metricas, coeficientes, tendencia, mc, mg = _regresion_global(gym_id, None)
-            if not cached or "coeficientes" not in cached:
-                payload = _build_global_payload(metricas, coeficientes, tendencia)
-                payload["_medias"] = {"cintura": mc, "grasa": mg}
-                payload["desde_cache"] = False
-                cache_set(key, payload)
-                cached = payload
+            # Un entrenador con pocos datos propios cae al modelo del gimnasio.
+            for scope in ([trainer_id, None] if trainer_id is not None else [None]):
+                try:
+                    k = _cache_key(gym_id, scope)
+                    c = cache_get(k)
+                    if c and "coeficientes" in c:
+                        cached, key = c, k
+                        break
+                    metricas, coefs, tendencia, mc, mg = _regresion_global(gym_id, scope)
+                    payload = _build_global_payload(metricas, coefs, tendencia)
+                    payload["_medias"] = {"cintura": mc, "grasa": mg}
+                    payload["desde_cache"] = False
+                    cache_set(k, payload)
+                    cached, key = payload, k
+                    break
+                except ValueError:
+                    continue   # sin datos suficientes en este alcance
 
-        coeficientes = cached["coeficientes"]
-        medias       = cached.get("_medias", {"cintura": 80.0, "grasa": 22.0})
-        historial, predicciones = _predecir_con_coeficientes(
-            id_miembro_real, dias_futuro, coeficientes, medias
-        )
+        if cached and "coeficientes" in cached:
+            coeficientes = cached["coeficientes"]
+            medias       = cached.get("_medias", {"cintura": 80.0, "grasa": 22.0})
 
-        if historial is None:
-            return jsonify({"error": "El miembro no tiene registros de progreso"}), 404
+        predicciones = None
+        modelo       = None
+        calidad      = None
+
+        if coeficientes:
+            _, predicciones = _predecir_con_coeficientes(
+                id_miembro_real, dias_futuro, coeficientes, medias
+            )
+            if predicciones:
+                modelo = "gimnasio"
+
+        # ── Modelo 2: la propia tendencia del miembro ────────────────────────
+        if not predicciones:
+            predicciones, calidad = _regresion_personal(historial, dias_futuro)
+            if predicciones:
+                modelo = "personal"
+
+        if not predicciones:
+            # Ni uno ni otro: falta historial propio. Se devuelve el conteo real
+            # para que la pantalla muestre cuanto falta en lugar de un mensaje
+            # generico que contradiga su propia barra de progreso.
+            return jsonify({
+                "error": "Todavia no hay mediciones suficientes para proyectar una tendencia.",
+                "sugerencia": (
+                    f"Se necesitan al menos {MIN_REGISTROS_PERSONALES} registros "
+                    "de peso en fechas distintas."
+                ),
+                "registros": len(historial),
+                "minimo_requerido": MIN_REGISTROS_PERSONALES,
+            }), 404
 
         tendencia_str = "estable"
+        diferencia = None
         if predicciones and historial:
-            diff = predicciones[-1]["peso_predicho_kg"] - historial[-1]["peso"]
-            if diff < -1.5:   tendencia_str = "bajando"
-            elif diff > 1.5:  tendencia_str = "subiendo"
+            diferencia = round(predicciones[-1]["peso_predicho_kg"] - historial[-1]["peso"], 2)
+            if diferencia < -1.5:   tendencia_str = "bajando"
+            elif diferencia > 1.5:  tendencia_str = "subiendo"
+
+        # El historial se devuelve sin la fecha cruda, que solo servia de apoyo
+        # para el calculo y no es serializable a JSON.
+        historial_limpio = [{"fecha": h["fecha"], "peso": h["peso"]} for h in historial]
+
+        # ── Rango de peso saludable (OMS) ────────────────────────────────────
+        # Da una referencia con criterio clinico frente a la que leer la
+        # proyeccion. Sin ella, "bajaras 5 kg" no dice si eso acerca o aleja al
+        # miembro de un peso saludable para su estatura.
+        peso_actual_kg = historial_limpio[-1]["peso"] if historial_limpio else None
+        rango_saludable = None
+        try:
+            from bson import ObjectId as _OID
+            doc_miembro = get_mongo_db().miembros.find_one(
+                {"_id": _OID(id_miembro_real)}, {"estatura": 1, "_id": 0}
+            ) or {}
+            rango_saludable = _rango_saludable(doc_miembro.get("estatura"), peso_actual_kg)
+        except Exception as ex:
+            # Sin estatura no hay IMC. Es preferible omitir el bloque a mostrar
+            # una referencia inventada, asi que no se interrumpe la respuesta.
+            print(f"[regresion] rango saludable no disponible: {ex}")
+
+        # ¿Alguna proyeccion tuvo que acotarse al ritmo maximo plausible?
+        proyeccion_acotada = any(p.get("acotado") for p in predicciones)
 
         return jsonify({
             "id_entrada":           id_entrada,
             "id_miembro_resuelto":  id_miembro_real,
-            "algoritmo":            "Regresión Lineal (coeficientes cacheados)",
+            "algoritmo": ("Regresion lineal sobre el historial del miembro"
+                          if modelo == "personal"
+                          else "Regresion lineal multiple del gimnasio"),
+            "modelo":               modelo,
+            # r2 solo lo aporta el modelo personal; con el del gimnasio la
+            # calidad se mide sobre el conjunto y no sobre este miembro.
+            "calidad_ajuste":       calidad,
+            "registros":            len(historial_limpio),
             "horizonte_dias":       dias_futuro,
-            "peso_actual_kg":       historial[-1]["peso"] if historial else None,
+            "peso_actual_kg":       historial_limpio[-1]["peso"] if historial_limpio else None,
+            "cambio_estimado_kg":   diferencia,
             "tendencia":            tendencia_str,
-            "historial_peso":       historial,
+            "historial_peso":       historial_limpio,
             "predicciones_futuras": predicciones,
-            "advertencia":          "Predicción basada en tendencia histórica. Factores como dieta y rutina pueden alterar el resultado.",
+            "rango_saludable":      rango_saludable,
+            "proyeccion_acotada":   proyeccion_acotada,
+            "advertencia": (
+                "Proyeccion basada en la tendencia registrada. "
+                "La dieta, la rutina y el descanso pueden cambiar el resultado."
+                + (" El ritmo se ha limitado a un maximo plausible: con pocas "
+                   "mediciones la tendencia se dispara al extrapolarla."
+                   if proyeccion_acotada else "")
+            ),
             "ejecutado_en":         datetime.now().isoformat(),
         }), 200
 

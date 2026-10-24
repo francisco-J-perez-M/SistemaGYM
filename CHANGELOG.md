@@ -1,0 +1,648 @@
+# Registro de cambios — GymPro
+
+Historial de lo que se ha ido incorporando al sistema y hacia dónde va. Sirve para
+tres cosas: saber qué se hizo y cuándo, detectar lo que funciona pero no está cerrado
+del todo, y tener por escrito el plan del siguiente periodo.
+
+Las versiones agrupan trabajo por bloques temáticos, no por publicaciones formales. La
+fecha es la del último commit del bloque.
+
+**Cómo leer el documento:**
+
+| Sección | Qué contiene |
+|---|---|
+| Pendientes al cierre | Lo que queda abierto del cuatrimestre que termina |
+| Plan del cuatrimestre | Hacia dónde va el proyecto en el periodo siguiente |
+| Versiones (v1.2, v1.1…) | Lo que se entregó, de lo más reciente a lo más antiguo |
+
+**Cómo leer las etiquetas de estado:**
+
+| Etiqueta | Significado |
+|---|---|
+| Completo | Funciona y está documentado |
+| Sin documentar | Funciona, falta escribirlo en algún README o manual |
+| Parcial | Implementado a medias o solo en una plataforma |
+| Pendiente | Identificado pero no empezado |
+
+---
+
+## Pendientes al cierre del cuatrimestre mayo-agosto 2026
+
+Lo que queda abierto al terminar este periodo. Es el punto de partida del plan de
+septiembre-diciembre que viene a continuación.
+
+| Tema | Detalle | Estado |
+|---|---|---|
+| Bloqueo por plan de suscripción | Los planes ya guardan sus límites en el campo `limites` (JSON) y el modelo tiene el método `permite()`, pero **ningún módulo lo consulta todavía**. Falta aplicar el bloqueo real: máximo de miembros, acceso a analítica, número de administradores | Pendiente |
+| `api/.env` versionado | El archivo con secretos sigue en el repositorio. Hay que sacarlo con `git rm --cached api/.env` y rotar credenciales | Pendiente |
+| Webhooks de pago | En desarrollo no llegan a `localhost`, por eso existe la reconciliación manual. En producción con dominio público habría que activarlos y quitar esa muleta | Parcial |
+| Webhooks del cargo recurrente | Igual que el anterior, para las suscripciones de PayPal y Mercado Pago | Parcial |
+| Modelo 3D del cuerpo | `BodyModel.jsx` y `BodyViewer.jsx` dependen de `three`, `@react-three/fiber` y `@react-three/drei`. Pesan en el bundle y no funcionan bien en equipos modestos ni en móviles de gama baja | Pendiente |
+| Almacenamiento de archivos | Fotos, logotipos y certificados se guardan como base64 en la propia base. Funciona, pero un servidor de archivos u objeto sería lo correcto al crecer | Pendiente |
+| Reportes dentro de la app | El PDF se descarga; podría verse en la aplicación con el visor ya construido para los certificados | Pendiente |
+| Respaldos por gimnasio | Ya guardan todo lo necesario, pero no se pueden acotar por fecha ni por módulo: siempre se lleva el gimnasio entero | Pendiente |
+
+### Cerrado en este cuatrimestre
+
+Lo que estuvo en la lista de pendientes y ya quedó resuelto:
+
+| Tema | Cómo quedó |
+|---|---|
+| Manuales de usuario y técnicos | Entregados en el formato nuevo |
+| Combos de membresías y productos | Se editan desde la web y se consultan desde el móvil |
+| Imágenes de productos | Se administran desde la web y se muestran en ambas plataformas |
+| Reportes del propietario | Generador con filtros de periodo y secciones, en web y móvil, con gráficas opcionales |
+
+---
+
+## Plan del cuatrimestre septiembre-diciembre 2026
+
+Ocho frentes de trabajo, ordenados por lo que aporta antes. Los cuatro primeros
+cierran deuda que ya está identificada; los cuatro siguientes son crecimiento.
+
+### 1. Bloqueo por plan de suscripción
+
+El modelo ya tiene `limites` y `permite()`, pero nadie los consulta: hoy un gimnasio
+del plan básico puede dar de alta miembros sin tope y entrar a la analítica. Es la
+pieza que convierte el sistema en un SaaS de verdad, porque sin ella los planes son
+una etiqueta sin consecuencia.
+
+- Decorador `@requiere_limite("miembros")` aplicado en las altas, el staff y la
+  analítica, para no repetir la comprobación en cada endpoint.
+- Aviso al acercarse al límite, no solo al chocar con él: enterarse de que no puedes
+  dar de alta a un cliente teniéndolo delante es la peor forma de descubrirlo.
+- Pantalla que explique qué se gana subiendo de plan, enlazada desde el bloqueo.
+
+### 2. Seguridad y credenciales
+
+- Sacar `api/.env` del control de versiones y **rotar todas las credenciales**:
+  `JWT_SECRET_KEY`, `POSTGRES_PASSWORD`, `PAYMENTS_ENCRYPTION_KEY` y las de las
+  pasarelas. Mientras sigan en el historial de Git hay que darlas por comprometidas.
+- Revisar que ningún endpoint devuelva datos de otro gimnasio. El multi-tenant se
+  apoya en `require_tenant`, y conviene una prueba automática que lo confirme en vez
+  de confiar en que está bien puesto en todas partes.
+- Limitar los intentos de inicio de sesión por IP.
+
+### 3. Webhooks en producción
+
+- Registrar la URL pública en PayPal y Mercado Pago, tanto para los pagos sueltos
+  como para el cargo recurrente.
+- **Verificar la firma de cada notificación.** Hoy se acepta cualquier petición que
+  llegue al endpoint; en producción eso permitiría a un tercero marcar pagos como
+  aprobados.
+- Conservar la reconciliación manual como red de seguridad: un webhook perdido no
+  debe dejar un cobro sin registrar.
+
+### 4. Corrección de fallos de interfaz
+
+Un repaso ordenado, pantalla por pantalla, con una lista de comprobación:
+
+- Comportamiento con datos vacíos y con datos desbordados (nombres muy largos,
+  cifras de siete dígitos, listas de cientos de elementos).
+- Responsive real en tabletas y en pantallas de 1366×768, que es lo que suele haber
+  en la recepción de un gimnasio.
+- Accesibilidad: contraste, navegación con teclado y etiquetas para lector de
+  pantalla. El sistema ya usa `accessibilityLabel` en el móvil, pero la web va por
+  detrás.
+- Estados de carga y de error coherentes: hoy cada pantalla los resuelve a su manera.
+
+### 5. Sustituir el modelo 3D
+
+`three` + `@react-three/fiber` + `@react-three/drei` son unos 700 KB de JavaScript
+para mostrar un cuerpo humano, y en equipos sin GPU decente va a tirones. La
+alternativa es un **SVG por zonas musculares**: pesa una fracción, funciona en
+cualquier navegador, se puede colorear por intensidad de trabajo y es accesible
+—cada zona puede llevar su etiqueta, cosa que un lienzo WebGL no permite.
+
+- Mapa corporal en SVG con las zonas como rutas independientes.
+- Vista frontal y posterior, alternables.
+- Color según el volumen entrenado en el periodo, reaprovechando la lógica de
+  `entrenamientos_realizados` que ya existe.
+
+### 6. Dietas y ejercicios
+
+- Biblioteca de ejercicios con vídeo y con la ejecución paso a paso, no solo el
+  nombre y una imagen.
+- Sustituciones de alimentos: si al miembro no le gusta algo, que el plan ofrezca un
+  equivalente con macros parecidos en lugar de dejarle el hueco.
+- Cálculo de macros del plan completo, para contrastarlo con el objetivo del miembro
+  y avisar cuando no cuadran.
+- Duplicar una dieta o una rutina como plantilla, que hoy obliga a rehacerla entera.
+
+### 7. Respaldos con filtros
+
+Los respaldos ya guardan todo lo que hay que guardar, pero es todo o nada:
+
+- Acotar por rango de fechas y por módulo (solo pagos, solo rutinas, solo miembros).
+- Vista previa de qué contiene un respaldo antes de restaurarlo.
+- Restauración selectiva, en lugar de volcar el archivo entero.
+- Respaldo automático programado por gimnasio, no solo el global de la plataforma.
+
+### 8. Ideas para valorar
+
+Ninguna es imprescindible; están por orden de lo que aportaría antes al gimnasio:
+
+- **Recordatorios automáticos.** Avisar al miembro cuando su membresía está por
+  vencer y al que lleva dos semanas sin aparecer. La infraestructura de
+  notificaciones ya existe y hoy solo se usa para vencimientos.
+- **Panel del recepcionista.** Es un rol que ya existe en la base pero casi no tiene
+  pantallas propias: registrar asistencia, cobrar y dar de alta a un miembro.
+- **Check-in con código QR.** Cada miembro con su código y una pantalla de lectura en
+  la entrada. Sustituye el registro manual de asistencia, que es donde más se pierde
+  información hoy.
+- **Exportar a Excel.** El PDF sirve para leer; para cruzar datos con otra
+  herramienta hace falta CSV o XLSX.
+- **Historial de cambios.** Quién modificó un precio, quién dio de baja a un miembro.
+  En un negocio con varios empleados acaba haciendo falta.
+- **Modo oscuro coherente en la web.** El móvil tiene sistema de temas documentado;
+  la web va con variables CSS sueltas.
+- **Pruebas automáticas.** No hay ninguna. Empezar por lo que más ha fallado: cálculo
+  de importes, multi-tenant y predicciones.
+- **Aplicación instalable (PWA).** Que la web funcione sin conexión para consultar
+  rutinas, sin necesidad de publicar en las tiendas.
+
+### Criterio de priorización
+
+Si el tiempo no alcanza para todo, el orden que recomiendo es:
+
+1. **Seguridad** (punto 2). Es lo único que no puede quedarse a medias.
+2. **Bloqueo por plan** (punto 1). Sin esto el modelo de negocio no existe.
+3. **Fallos de interfaz** (punto 4). Es lo que se ve en una demostración.
+4. El resto, según lo que pida quien evalúe el proyecto.
+
+---
+
+## v1.3 — Ejes rotulados y colores que se distinguen · 8 de agosto de 2026
+
+**Colores de las gráficas** · Completo
+
+- Paleta única y accesible en `InfoGrafico.jsx`, aplicada a los doce archivos con
+  gráficas del sistema y al generador de PDF. Los tonos anteriores eran pasteles
+  claros —`#fbe379`, `#4cd964`— pensados para fondo oscuro: sobre el tema claro se
+  confundían con el blanco de la tarjeta.
+- Las barras no destacadas de "Asistencia por día" y "Asistencia por mes" usaban un
+  amarillo al 20 % de opacidad. Solo se veía la barra del día con más visitas y el
+  resto parecía vacío; ahora usan un gris con cuerpo suficiente.
+- Ninguna pareja de series se distingue solo por ser una roja y otra verde, que es
+  la confusión más común de daltonismo. En el reporte del entrenador, "Completadas"
+  y "Canceladas" pasaron de azul/rojo a verde/naranja.
+- La cuadrícula usaba `var(--border)`, casi blanca en el tema claro y sin dar
+  referencia para leer las alturas. Ahora es un gris intermedio visible en ambos
+  temas sin competir con los datos.
+- Los colores dejan de venir de variables CSS del tema: `var(--accent)` y
+  `var(--success)` cambian con el tema elegido y en algunos quedaban tan parecidos
+  que dos series se solapaban visualmente.
+
+**Títulos y comportamiento** · Completo
+
+- Los títulos dicen qué periodo se está viendo. "Ingresos últimos 6 meses" no
+  aclaraba cuáles seis: ahora una etiqueta junto al título muestra el rango real
+  —"Mar 2026 a Ago 2026"—, calculado del propio dato para que no quede desfasado
+  al cambiar el periodo consultado.
+- Títulos más precisos sobre qué se mide: "Total por mes" pasó a "Ingreso total
+  cobrado por mes"; "Asistencia por día de la semana" a "Afluencia promedio por día
+  de la semana", que aclara que es una media y no una semana concreta.
+- Cada serie temporal describe su comportamiento en una línea: si sube, baja o se
+  mantiene, entre qué valores y en qué porcentaje. Sin eso, la pendiente se estima
+  a ojo y se puede leer al revés cuando el eje no arranca en cero. Por debajo del
+  2 % se dice "estable": llamarlo subida sería darle un significado que no tiene.
+- Los títulos de las gráficas del PDF llevan el periodo del reporte.
+
+**Rótulos de los ejes** · Completo
+
+- Cada gráfico dice qué mide cada eje y en qué unidad. Un "8k" en el eje vertical
+  podía ser pesos, visitas o miembros, y había que deducirlo del título.
+- Helpers `ejeX()` y `ejeY()` compartidos, para que todos los gráficos lo pongan
+  igual en lugar de que cada pantalla lo resuelva a su manera.
+- En los PDF los ejes se rotulan con `_rotular_ejes()`: el vertical girado 90° junto
+  al margen, como es costumbre. ReportLab no ofrece rótulo de eje propiamente dicho,
+  así que se dibuja como texto sobre el lienzo.
+- Los gráficos ganaron altura para dar sitio a los rótulos sin comprimir el área de
+  trazado.
+- Los ejes que cuentan cosas —visitas, sesiones, miembros— usan solo números
+  enteros. Recharts partía el máximo en cinco marcas y salían cortes como
+  0.75 / 1.5 / 2.25, que no ayudan a leer algo contable aunque el dato sea un
+  promedio. El valor exacto con decimales sigue apareciendo al pasar el cursor.
+
+> Bloque escrito sin poder ejecutar el código: el entorno de pruebas siguió caído.
+> Revisión manual únicamente.
+
+---
+
+## v1.2 — Reportes con identidad y gráficas que informan · 8 de agosto de 2026
+
+**Diseño de los reportes en PDF** · Completo
+
+- Nuevo módulo `api/app/utils/estilo_pdf.py` con la maquetación compartida: portada,
+  encabezado y pie por página, tarjetas de indicadores y tablas. Los dos reportes
+  definían cada uno su paleta y su tabla, así que se parecían sin llegar a ser
+  iguales y cualquier retoque había que hacerlo dos veces.
+- **El logotipo del gimnasio aparece en la portada y en el encabezado de cada
+  página.** Sin logotipo se dibuja una marca con la inicial, en lugar de dejar un
+  hueco que parece un fallo.
+- Las cifras clave van en tarjetas destacadas antes de las tablas, las columnas de
+  importes se alinean a la derecha para poder compararlas de un vistazo, las filas
+  alternan color y cada sección lleva una frase que explica qué se está mirando.
+- Los nombres largos ya no se cortan con `[:52]`: el texto salta de línea dentro de
+  la celda.
+
+**Gráficas con más información** · Completo
+
+- Cada gráfica lleva un subtítulo con el total, el promedio y los extremos. Una
+  gráfica dice cómo se reparte algo, pero no cuánto es ese algo: "PayPal 79.5 %" no
+  aclara si son ochocientos pesos o cien mil.
+- Las barras muestran su valor encima y las líneas el de cada vértice. Se omiten
+  cuando hay demasiadas categorías, porque los números se pisarían entre sí.
+- El pastel indica el importe junto al porcentaje, dice cuántas categorías se
+  agruparon en "Otros" y señala cuál predomina.
+- Los rankings numeran las posiciones, muestran el porcentaje sobre el total y
+  llevan un riel de fondo para ver cuánto le falta a cada barra respecto al primero.
+  Si la lista se recorta, se avisa de cuántos elementos quedaron fuera.
+- La línea de evolución añade la variación entre el primer y el último punto.
+- En la gráfica de predicción, lo medido lleva punto relleno y lo proyectado punto
+  hueco: la forma distingue ambas series aunque el PDF se imprima en blanco y negro,
+  cosa que el color por sí solo no logra.
+
+**Fotos entre móvil y web** · Completo
+
+- El logotipo del gimnasio se podía cargar desde la app pero la web ni lo mostraba
+  ni permitía subirlo. Ahora el perfil del gimnasio en web lo muestra y admite
+  cargarlo, con el mismo formato que usa el móvil. De ahí lo toman los reportes.
+- El perfil del entrenador en web mostraba siempre las iniciales aunque hubiera
+  foto: el backend ya la enviaba en `photo` y la pantalla la ignoraba.
+
+> Este bloque se escribió sin poder ejecutar el código: el entorno de pruebas
+> estuvo caído durante su desarrollo. La revisión fue manual, así que conviene
+> levantar la API y descargar un reporte antes de darlo por bueno.
+
+---
+
+## v1.1 — Predicciones que sí predicen y gráficos que se explican · 7 de agosto de 2026
+
+**Predicciones** · Completo
+
+- Corregido el fallo por el que "Mi Predicción" mostraba "6 / 3 registros" con la
+  barra llena y, debajo, que faltaban datos. La predicción individual exigía que el
+  modelo del gimnasio estuviera entrenado —10 registros repartidos entre varios
+  miembros—, así que alguien con seis mediciones propias se quedaba sin proyección.
+  Ahora hay un segundo modelo que ajusta una recta sobre el historial del propio
+  miembro y basta con tres mediciones. Es además más fiel para el individuo, porque
+  describe su tendencia real en lugar de aplicarle los coeficientes promedio.
+- El modelo del gimnasio entrenaba solo con miembros en estado "Activo". Las
+  mediciones de un miembro con la membresía vencida siguen siendo válidas para
+  relacionar peso con tiempo, y descartarlas dejaba sin datos a gimnasios donde la
+  mayoría figura como inactiva.
+- Cuando de verdad faltan datos, la respuesta dice cuántos registros hay y cuántos
+  se necesitan, en vez de un mensaje genérico. La pantalla usa esas cifras en lugar
+  de contarlas por su cuenta, que era el origen de la contradicción.
+- La proyección se acota a un rango humano: un ajuste lineal extrapolado a seis
+  meses podía dar pesos negativos o de 300 kg.
+- El peso que se anota al cerrar un entrenamiento ya cuenta para la predicción.
+  Antes solo se leía la ficha de Progreso Físico, así que quien registraba su peso
+  al terminar de entrenar veía "0 / 3 registros" con la bitácora llena. Las dos
+  fuentes se unifican y se deduplican por día, porque anotar el peso al entrenar ya
+  crea de por sí un registro de progreso.
+- El formulario de entrenamiento y la pantalla de predicción explican que el peso es
+  lo que alimenta el modelo: registrar el entrenamiento solo, sin anotar el peso, no
+  aporta nada a la proyección.
+
+**Gráficos** · Completo
+
+- Nuevo componente `InfoGrafico` con un botón "Cómo leerlo" que explica qué
+  representa cada color, de dónde salen los datos y cómo interpretar los ejes.
+  Aplicado a las predicciones de los tres roles, al panel del propietario y a
+  Finanzas y Flujo.
+- Paleta única con significado fijo: el dinero, lo medido y lo proyectado se ven
+  igual en todo el sistema, sin tener que releer la leyenda en cada pantalla.
+
+**Reportes** · Completo
+
+- Los PDF admiten gráficas: reparto por método de pago, origen de los ingresos,
+  rankings de membresías y productos, sesiones mes a mes y tipos de sesión. Se
+  dibujan con `reportlab.graphics`, que ya venía incluido, en lugar de añadir
+  matplotlib y unos 60 MB a la imagen de Docker.
+- Casilla "Incluir gráficas" en el reporte del propietario y en el del entrenador,
+  tanto en web como en móvil.
+- Las etiquetas del eje se recortaban a diez caracteres siempre, así que "Punto de
+  venta" salía como "Punto de …" aunque sobrara espacio. Ahora el límite depende de
+  cuántas categorías haya.
+
+**Mis Clientes del entrenador** · Completo
+
+- La edad mostraba un "?" porque el backend nunca la enviaba. Ahora se calcula y,
+  si no hay fecha de nacimiento, se omite en lugar de pintar un interrogante que
+  parecía un error.
+- La ficha del cliente incorpora correo, teléfono, sexo, antigüedad y su última
+  medición corporal con peso, IMC y grasa.
+
+**Limpieza** · Completo
+
+- Retirados los emojis que el backend enviaba en las alertas del panel. El icono es
+  decisión de presentación y cada cliente elige el suyo según el nivel de la alerta.
+- Las casillas del reporte del entrenador usan iconos en lugar de caracteres.
+
+---
+
+## v1.0 — Paridad web/móvil, respaldos y arranque reproducible · 5 de agosto de 2026
+
+**Arranque en cualquier computadora** · Completo
+
+- Resuelto el fallo que impedía levantar los contenedores en algunas computadoras:
+  `exec /app/entrypoint.sh: no such file or directory`, seguido de
+  `host not found in upstream "api"` en nginx. La causa eran los finales de línea de
+  Windows (CRLF) en el script de arranque; el segundo error era solo una consecuencia
+  del primero. Explicado a fondo en el apartado 10.1 del README.
+- `.gitattributes` ampliado con `* text=auto` y reglas explícitas para `.sh`,
+  `Dockerfile`, `.yml` y `.conf`. El resultado de `git clone` ya no depende de la
+  configuración personal de `core.autocrlf` de cada quien.
+- `api/Dockerfile` normaliza el `entrypoint.sh` durante el build. Cubre el caso que el
+  punto anterior no puede: `docker build` copia desde el disco, no desde Git.
+- `backups/` y `uploads/` viajan con un `.gitkeep`. Antes no existían en un clon nuevo,
+  Docker las creaba como `root` y el contenedor —que corre como `gymuser`— no podía
+  escribir respaldos ni fotos de perfil.
+
+**Respaldos** · Completo
+
+- El respaldo por gimnasio guardaba las rutinas pero no sus días ni sus ejercicios, así
+  que al restaurar aparecían rutinas vacías. Se añadió la cascada completa
+  `rutinas → rutina_dias → rutina_ejercicios`, las asignaciones a miembros, y las
+  colecciones que faltaban: chats, citas, solicitudes PT, recetas, consumos, métricas
+  históricas, entrenamientos y las certificaciones y perfiles del staff.
+- El Excel y el PDF del respaldo global solo recorrían MongoDB. Ahora incluyen las
+  tablas de PostgreSQL —entre ellas el catálogo de ejercicios—, dejando fuera a
+  propósito las credenciales cifradas de las pasarelas de pago.
+- La restauración descarta documentos de otro gimnasio en lugar de mezclarlos.
+
+**Cobro recurrente de la suscripción** · Completo
+
+- `auto_renovar` era una casilla que se guardaba y nadie leía: activarla no renovaba
+  ni cobraba nada. Ahora el cargo recurrente es real, con **PayPal Subscriptions** y
+  **Mercado Pago Preapproval**.
+- El modelo es el de cualquier SaaS: el dueño autoriza una vez en la pasarela y ella
+  cobra sola cada 30 días. GymPro no guarda tarjetas ni dispara cargos, así que no
+  queda sujeto a PCI-DSS ni depende de permisos especiales de PayPal.
+- La capa de pasarelas gana un contrato de suscripciones (`crear_suscripcion`,
+  `consultar_suscripcion`, `cancelar_suscripcion`) que normaliza el vocabulario de
+  ambos proveedores: PayPal dice `ACTIVE` y Mercado Pago `authorized`, y quien
+  consume la capa no debería tener que saberlo.
+- El ciclo diario dejó de renovar a ciegas y pasó a reconciliar: pregunta a la
+  pasarela cómo quedó cada acuerdo y registra lo que reporta. Si la pasarela no
+  responde, no toca la suscripción y reintenta al día siguiente, porque cortarle el
+  servicio a un gimnasio que sí pagó por un fallo de red sería peor.
+- El interruptor de la web y del móvil se sustituyó por el flujo real de
+  autorización, con un botón para comprobar el estado al volver de la pasarela. Un
+  acuerdo creado pero sin autorizar ahora se ve como tal en lugar de aparentar estar
+  activo.
+- Las facturas de un cobro recurrente llevan la referencia del cargo, con
+  restricción de unicidad: las pasarelas reenvían la misma notificación si no reciben
+  respuesta, y sin eso el historial mostraría el doble de lo cobrado.
+- Migración 015. Documentado en el apartado 3.1 del README.
+
+**Limpieza** · Completo
+
+- Eliminado `web/src/pages/owner_gym/sedkodaW0`, una copia antigua de
+  `POSProductoModal.jsx` anterior a los combos que nadie importaba.
+
+**Propietario** · Completo
+
+- Panel de control sincronizado entre web y móvil: el móvil incorpora los indicadores
+  que le faltaban (punto de venta, tipos de membresía, mes anterior, recepcionistas),
+  más alertas operativas y actividad reciente.
+- La web dejó de mostrar una variación engañosa cuando no hay mes previo con ingresos.
+- Pagos y punto de venta en la web con filtro por año y mes, y el total de todo el
+  filtro, no solo de la página visible.
+
+**Entrenador** · Completo
+
+- Reporte de desempeño en PDF con filtros de año, mes y secciones. Lo genera el
+  servidor y lo consumen igual la web y el móvil, así que ambos documentos son el
+  mismo. Nuevo módulo `api/app/routes/entrenador/reportes_entrenador.py`.
+- Alta y edición de ejercicios desde el móvil, y creación de rutinas completas en dos
+  pasos eligiendo de la biblioteca personal.
+
+**Miembro** · Completo
+
+- Marcar un día de rutina como completado desde el móvil: registra la bitácora, cuenta
+  la asistencia del día y alimenta la racha y las gráficas de progreso.
+- Plan alimenticio completo. Antes solo leía las comidas planas e ignoraba la
+  estructura `semanas → días → comidas` que usa el entrenador, y por eso el plan se
+  veía a medias.
+- Recetas con imagen y ficha de detalle con ingredientes y preparación. Los valores
+  nutrimentales no aparecían porque llegan como `proteinas_g` y se leían como
+  `proteinas`.
+- Comprobantes del punto de venta en el móvil, para propietario y miembro, con opción
+  de compartir.
+- Se retiraron los accesos rápidos del panel web: repetían punto por punto el menú
+  lateral, que está siempre visible.
+
+---
+
+## v0.9 — Documentación y puesta a punto · 4 de agosto de 2026
+
+**Documentación** · Completo
+
+- README principal reescrito con instalación desde cero para Windows, macOS y Linux,
+  enlaces oficiales de descarga, configuración de Git y credenciales, comandos del día a
+  día, migraciones y tabla de problemas frecuentes.
+- Se documentaron seis variables de entorno que existían en `.env.example` pero no
+  aparecían en ningún README: `ALLOWED_ORIGINS`, `FRONTEND_URL`, `PUBLIC_API_URL`,
+  `MONGO_DB`, `POSTGRES_URI` y `SPARK_ENABLED`.
+- README de la API: pruebas de correo y zona horaria, tabla de endpoints ampliada y
+  explicación del esquema de tokens.
+- README del móvil: dependencias nativas y cuándo obligan a regenerar el build.
+- README de la web: apartado de pagos y distinción entre credenciales de gimnasio y de
+  plataforma.
+- Este registro de cambios.
+
+---
+
+## v0.8 — Sesión persistente y perfiles · 31 de julio de 2026
+
+**Sesión que no caduca** · Completo
+
+- El acceso entrega un token de refresco de 90 días además del de acceso de 8 horas.
+  Nuevo endpoint `POST /api/auth/refresh`.
+- El interceptor del móvil renueva el token y reintenta la petición en vez de expulsar
+  al usuario. Las peticiones simultáneas comparten un único refresco.
+- Al renovar se revalidan el rol y el estado contra la base, de modo que una baja surte
+  efecto en la siguiente renovación.
+
+**Certificaciones con documento** · Completo
+
+- El entrenador adjunta el certificado en PDF o imagen, con límite de 3 MB.
+- El miembro lo previsualiza desde la ficha del entrenador, antes o después de
+  contratarlo. Los PDF se renderizan dentro de la aplicación con PDF.js sobre un WebView,
+  que es la única forma de que Android e iOS se comporten igual.
+- Corregido: el móvil trataba las certificaciones como texto cuando la API devuelve un
+  arreglo de objetos, así que siempre aparecían vacías.
+
+**Perfiles** · Completo
+
+- Migración `014`: `usuarios.telefono` y `gimnasios.logo`.
+- Nuevo `PUT /api/owner_gym/perfil/propietario` para editar los datos de la persona,
+  separado del endpoint del gimnasio.
+- Foto de perfil del propietario y logotipo del gimnasio desde la galería.
+- Rol centrado bajo el nombre en los cuatro perfiles.
+
+**Nuevas dependencias nativas** (obligan a regenerar el development build):
+`expo-image-picker`, `expo-document-picker`, `react-native-webview`.
+
+---
+
+## v0.7 — Zona horaria, auditoría de datos y cierre de los tres roles · 31 de julio de 2026
+
+**Zona horaria** · Completo — *afectaba a todos los registros*
+
+- La imagen de la API no incluía `tzdata` y el contenedor corría en UTC, así que las
+  ~100 llamadas a `datetime.now()` guardaban la hora equivocada: un movimiento de las
+  19:00 quedaba registrado con la fecha del día siguiente.
+- Se instaló `tzdata` y se añadió `TZ`/`APP_TIMEZONE`, lo que corrige todos los puntos de
+  escritura sin tocar el código.
+- El mismo fallo existía en el cliente: `toDateStr` usaba `toISOString()`, que convierte
+  a UTC. Ahora lee la fecha local del dispositivo.
+
+**Datos incorrectos del propietario** · Completo
+
+- «Por vencer» daba siempre 0 por tres motivos acumulados: consultaba una colección con
+  el nombre en plural que no existe, filtraba el estado en minúscula cuando se guarda
+  capitalizado, y buscaba un campo de gimnasio que esa colección no tiene.
+- «Ingresos del mes» ignoraba el punto de venta, así que el panel mostraba $0 mientras
+  Reportes mostraba el importe real. Ahora es el total con desglose.
+- En Reportes, el total del mes contaba el punto de venta dos veces y la fila
+  «Membresías» mostraba el total en vez de su parte.
+- El historial de cobros pintaba los centavos como pesos: una factura de $499 aparecía
+  como $49,900.
+- «Mi Perfil» del propietario mostraba los datos del gimnasio en lugar de los suyos.
+
+**Filtros e historial** · Completo
+
+- Movimientos y ventas filtrables por mes y año, con paginación. El importe que se
+  muestra es el del filtro completo, no el de la página visible.
+- Componentes compartidos `SelectorPeriodo` y `Paginador`.
+
+**Reportes** · Completo
+
+- Nuevo `GET /api/owner_gym/reportes/pdf`: reporte ejecutivo con portada e identidad del
+  gimnasio, periodo y secciones a elegir, y comparativa opcional contra el periodo
+  anterior. El anterior era un volcado de analítica sin personalizar.
+
+**Cierre de los tres roles** · Completo
+
+- Miembro: detalle de rutina ejercicio por ejercicio, perfil del entrenador con
+  certificaciones y calificación —que además libera la pantalla donde el chat quedaba
+  aplastado—, y autoselección del día en Registrar Entrenamiento.
+- Entrenador: ficha de clientes, agenda con hora seleccionable y cliente obligatorio
+  limitado a los suyos, y ver/editar en dietas y recetas.
+- Propietario: membresías editables desde el móvil y Perfil del Gym con el tipo elegido
+  de un catálogo, mostrado en lenguaje natural.
+
+**Tipos de TypeScript** · Completo
+
+- El `tsconfig.json` tenía `baseUrl`, deprecado en TS 7.0, y eso hacía que `tsc` muriera
+  antes de revisar el código. Al corregirlo salieron a la luz ~300 errores preexistentes.
+- La causa de unos 270 era que `toArray<T>` no tenía valor por defecto en el genérico:
+  cada llamada sin tipo explícito infería `unknown[]`.
+- `CustomDrawer` declara ahora solo las cuatro props que consume, porque expo-router y
+  `@react-navigation/drawer` traen copias distintas de los mismos tipos.
+
+---
+
+## v0.6 — Pagos en línea · 27 al 29 de julio de 2026
+
+**PayPal y Mercado Pago** · Completo
+
+- Integración con credenciales por gimnasio, cifradas con Fernet. Cada gimnasio decide a
+  qué cuenta llega su dinero; las suscripciones al SaaS las cobra la plataforma con las
+  suyas.
+- Disponible en membresías, productos del punto de venta y suscripciones, tanto en web
+  como en móvil.
+- Migración `011`: pasarelas y transacciones.
+- El pago aprobado aplica su efecto de verdad: renueva la membresía respetando los días
+  restantes, registra la venta y descuenta el inventario, incluidos los componentes de
+  los combos.
+- Reconciliación para desarrollo: como los webhooks no alcanzan `localhost`, las
+  pantallas de cobro recuperan los pagos que quedaron pendientes.
+- Retorno a la app móvil mediante el enlace profundo `gympro://`. Antes la URL de retorno
+  apuntaba a `localhost`, inalcanzable desde el teléfono.
+- Métodos unificados a efectivo, PayPal y Mercado Pago en todo el sistema.
+
+**Membresías y punto de venta** · Parcial *(los combos solo se editan desde la web)*
+
+- Migración `012`: planes SaaS con características, límites y destacado.
+- Migración `013`: beneficios, combos y fecha de caducidad en las membresías.
+- Promociones con vigencia que se destacan visualmente y dejan de ofrecerse al vencer.
+
+**Sistema de color del móvil** · Completo
+
+- `constants/themes.ts` como única fuente: 45 tokens con significado, no estético.
+  Ninguna pantalla escribe colores a mano.
+- Se eliminó `constants/Colors.ts`, una segunda paleta que 23 archivos importaban sin
+  usar.
+- Documentado en `mobile/docs/SISTEMA-DE-COLOR.md`.
+
+**Otros del móvil** · Completo
+
+- Carrusel horizontal de planes con desplazamiento por posiciones e indicadores.
+- Punto de venta del propietario con alta, edición y baja de productos.
+- Ficha detallada de miembros y de staff.
+- Pantalla de suscripción del propietario.
+
+---
+
+## v0.5 — Analítica y despliegue · 14 de julio de 2026
+
+**Laboratorio de modelos** · Completo
+
+- Los módulos de K-Means, regresión y modelos pasaron del propietario al
+  superadministrador.
+- Método del codo y coeficiente de silueta, y flujo de entrenamiento, prueba y error en
+  cinco pasos, con datos reales por gimnasio.
+
+**Infraestructura** · Completo
+
+- nginx resuelve el backend por DNS dinámico, lo que evita el fallo «host not found in
+  upstream» y las direcciones obsoletas tras reiniciar.
+- `env_file` en cascada: un clon nuevo arranca sin crear `.env` a mano.
+- Construcción más rápida con caché de pip y npm.
+
+---
+
+## v0.4 — Recuperación de contraseña · 4 al 8 de julio de 2026
+
+· Completo
+
+- Código de 6 dígitos por correo, guardado con hash y 15 minutos de vigencia.
+- La respuesta es siempre la misma exista o no la cuenta, para no revelar qué correos
+  están registrados. Como efecto, un fallo de envío solo se ve en los registros.
+
+---
+
+## v0.3 — Móvil: entrenamiento y entrenadores · 2 al 4 de julio de 2026
+
+· Completo
+
+- «Mi Rutina»: el miembro crea y edita sus propias rutinas con grupos musculares y
+  unidades kg/lb.
+- Predicción de peso con gráfica, reportes de entrenador y recordatorios locales.
+- Calificación de entrenador, cambio de entrenador conservando el historial, y
+  suscripción del propietario con cargo recurrente.
+- Corregido: el historial del cliente omitía las rutinas asignadas por entrenadores
+  anteriores.
+
+---
+
+## Cómo mantener este registro
+
+Al cerrar un bloque de trabajo, añadir una entrada con:
+
+1. **Qué cambió**, en términos de lo que el usuario puede hacer ahora.
+2. **Por qué**, cuando se corrigió un error: la causa concreta, no solo el síntoma. Es
+   lo que evita repetirlo.
+3. **Estado de la documentación**, para que lo no documentado quede a la vista.
+4. **Migraciones o dependencias nuevas**, que es lo que obliga a los demás a reconstruir.
+
+Para ver los commits de un periodo:
+
+```bash
+git log --pretty=format:"%ad %s" --date=short --since="2026-07-01"
+```

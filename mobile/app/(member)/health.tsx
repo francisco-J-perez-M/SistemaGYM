@@ -11,7 +11,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, RefreshControl, Modal, TextInput,
-  TouchableOpacity, Alert,
+  TouchableOpacity, Alert, Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -92,6 +92,12 @@ export default function HealthScreen() {
   const [medModal, setMedModal] = useState(false);
   const [medical, setMedical] = useState<Medical>({ condiciones: [], alergias: [], medicamentos: [], lesiones: [] });
   const [savingMed, setSavingMed] = useState(false);
+  // SCRUM-102: contacto de emergencia vive en el mismo bloque "información
+  // médica" del indicador de completitud, y el consentimiento (LFPDPPP) es
+  // la puerta para guardar cualquiera de estos datos.
+  const [contactoNombre, setContactoNombre] = useState('');
+  const [contactoTelefono, setContactoTelefono] = useState('');
+  const [consentimiento, setConsentimiento] = useState(false);
 
   const saveMeasures = async () => {
     if (!form.peso) { Alert.alert('Falta peso', 'Ingresa al menos tu peso actual.'); return; }
@@ -121,17 +127,31 @@ export default function HealthScreen() {
       medicamentos: toArray<string>(data?.medicamentos),
       lesiones:     toArray<string>(data?.lesiones),
     });
+    setContactoNombre((data as any)?.contactoEmergenciaNombre ?? '');
+    setContactoTelefono((data as any)?.contactoEmergenciaTelefono ?? '');
+    setConsentimiento(!!(data as any)?.consentimientoDatosMedicos);
     setMedModal(true);
   };
 
   const saveMedical = async () => {
+    if (!consentimiento) {
+      Alert.alert(
+        'Consentimiento requerido',
+        'Para guardar tu información médica necesitamos tu consentimiento explícito. ' +
+        'Activa la casilla al final del formulario.',
+      );
+      return;
+    }
     setSavingMed(true);
     try {
       await api.put(ENDPOINTS.USER_HEALTH_MEDICAL, {
-        condicionesMedicas: medical.condiciones,
-        alergias:           medical.alergias,
-        medicamentos:       medical.medicamentos,
-        lesiones:           medical.lesiones,
+        condicionesMedicas:         medical.condiciones,
+        alergias:                   medical.alergias,
+        medicamentos:               medical.medicamentos,
+        lesiones:                   medical.lesiones,
+        contactoEmergenciaNombre:   contactoNombre.trim(),
+        contactoEmergenciaTelefono: contactoTelefono.trim(),
+        consentimiento:             true,
       });
       setMedModal(false);
       refetch();
@@ -192,7 +212,7 @@ export default function HealthScreen() {
           accessibilityRole="button"
           accessibilityLabel="Registrar medidas"
         >
-          <Ionicons name="add" size={22} color="#fff" />
+          <Ionicons name="add" size={22} color={colors.onAccent} />
         </TouchableOpacity>
       </View>
 
@@ -333,6 +353,35 @@ export default function HealthScreen() {
                   colors={colors}
                 />
               ))}
+
+              <Text style={styles.chipBlockTitle}>Contacto de emergencia</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Nombre"
+                placeholderTextColor={colors.textMuted}
+                value={contactoNombre}
+                onChangeText={setContactoNombre}
+              />
+              <TextInput
+                style={[styles.input, { marginTop: 8 }]}
+                placeholder="Teléfono"
+                placeholderTextColor={colors.textMuted}
+                keyboardType="phone-pad"
+                value={contactoTelefono}
+                onChangeText={setContactoTelefono}
+              />
+
+              {/* SCRUM-102 / LFPDPPP: dato sensible, opcional, requiere
+                  consentimiento explícito antes de guardar — nunca se asume. */}
+              <View style={styles.consentRow}>
+                <Switch value={consentimiento} onValueChange={setConsentimiento} />
+                <Text style={styles.consentText}>
+                  Autorizo a GymPro a guardar mi información médica (condiciones,
+                  alergias, medicamentos, lesiones y contacto de emergencia) para
+                  fines de seguridad durante mi entrenamiento. Es opcional: puedo
+                  completar mi perfil sin esta información.
+                </Text>
+              </View>
             </ScrollView>
             <Button label="Guardar" onPress={saveMedical} loading={savingMed} style={{ marginTop: 14 }} />
           </View>
@@ -397,7 +446,7 @@ function ChipEditor({
           placeholderTextColor={colors.textMuted}
         />
         <TouchableOpacity style={styles.chipAddBtn} onPress={add} accessibilityLabel={`Añadir a ${title}`}>
-          <Ionicons name="add" size={20} color="#fff" />
+          <Ionicons name="add" size={20} color={colors.onAccent} />
         </TouchableOpacity>
       </View>
     </View>
@@ -462,5 +511,7 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
     inputLabel:  { color: colors.textSecondary, fontSize: 13 * fs, marginBottom: 4, marginTop: 10 },
     input:       { backgroundColor: colors.inputBg, borderRadius: 12, borderWidth: 1, borderColor: colors.border,
                    color: colors.text, padding: 12, fontSize: 15 * fs },
+    consentRow:  { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginTop: 16 },
+    consentText: { flex: 1, color: colors.textMuted, fontSize: 11.5 * fs, lineHeight: 16 },
   });
 }

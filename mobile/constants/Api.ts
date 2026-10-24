@@ -8,9 +8,12 @@
  *    Expo codifica la IP del Metro bundler en el QR code que escanea el dispositivo.
  *    `hostUri` tiene la forma "192.168.x.x:8081", por lo que basta extraer el host
  *    para saber qué máquina está corriendo la API (misma máquina = mismo host).
- * 3. Fallback para emuladores:
+ * 3. Fallback para emuladores (solo en desarrollo, __DEV__):
  *    - Android emulator: 10.0.2.2 (alias del host en AVD)
  *    - iOS simulator:    localhost
+ * 4. Fallback de produccion (build sin EXPO_PUBLIC_API_BASE_URL definida):
+ *    https://api.gympro.lat/api -- localhost no tiene sentido en un
+ *    telefono real, asi que el fallback final es el dominio publico.
  */
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
@@ -46,7 +49,11 @@ function resolveApiUrl(): string {
     return 'http://localhost:8080/api';
   }
 
-  return 'http://localhost:8080/api';
+  // Build de produccion (EAS / TestFlight / Play Store) sin
+  // EXPO_PUBLIC_API_BASE_URL definida: localhost aqui apuntaria al propio
+  // telefono del usuario, no a ningun servidor -- por eso el fallback real
+  // de produccion es el dominio publico de la API, no localhost.
+  return 'https://api.gympro.lat/api';
 }
 
 export const API_BASE_URL = resolveApiUrl();
@@ -72,6 +79,8 @@ export const ENDPOINTS = {
   // ── Auth ──────────────────────────────────────────────────────────────────
   LOGIN:              '/auth/login',
   REGISTER:           '/auth/register',
+  REFRESH:            '/auth/refresh',           // POST con el token de refresco
+  LOGOUT:             '/auth/logout',            // POST con el token de refresco -- lo revoca en el servidor
   FORGOT_PASSWORD:    '/auth/forgot-password',   // POST { email }
   RESET_PASSWORD:     '/auth/reset-password',    // POST { email, code, new_password }
 
@@ -86,11 +95,13 @@ export const ENDPOINTS = {
   BODY_PROGRESS:      '/user/body-progress',     // GET/POST /api/user/body-progress
   WORKOUT_COMPLETE:   '/user/workout/complete',  // POST /api/user/workout/complete (bitácora)
   USER_WORKOUTS:      '/user/workouts',           // GET  /api/user/workouts (historial bitácora)
+  MUSCLE_GROUP_WORK:  '/user/workouts/muscle-groups', // GET /api/user/workouts/muscle-groups (SCRUM-101: mapa muscular 2D)
   USER_ROUTINES:      '/user/routines',          // GET  /api/user/routines (user_routines_bp prefix=/api/user)
   USER_PAYMENTS:      '/user/payments',          // GET  /api/user/payments  (stats + historial)
   USER_HEALTH:        '/user/health',            // GET/POST /api/user/health (condiciones + medidas)
   USER_HEALTH_MEDICAL:'/user/health/medical',    // PUT /api/user/health/medical (info médica)
   MEMBERSHIP_PAYMENT_METHODS: '/user/membership/payment-methods', // GET métodos recientes
+  PROFILE_COMPLETION: '/user/profile-completion', // GET SCRUM-102: % de perfil + pendientes por bloque
 
   // Nutrición
   DIETAS:             '/user/nutrition/dietas',  // GET /api/user/nutrition/dietas
@@ -105,6 +116,8 @@ export const ENDPOINTS = {
   TRAINER_SCHEDULE:   '/trainer/schedule',       // GET /api/trainer/schedule
   TRAINER_SESSIONS:   '/trainer/sessions',       // GET /api/trainer/sessions
   TRAINER_REPORTS:    '/trainer/reports',        // GET /api/trainer/reports?range=week|month|quarter
+  TRAINER_REP_OPCIONES: '/trainer/reportes/opciones', // GET años con sesiones y secciones
+  TRAINER_REP_PDF:      '/trainer/reportes/pdf',      // GET ?anio=&mes=&secciones= → PDF
   TRAINER_MEMBERS:    '/trainer/members',        // GET /api/trainer/members
   TRAINER_DIETS:      '/trainer/diets',          // GET/POST/PUT/DELETE /api/trainer/diets
   TRAINER_RECIPES:    '/trainer/recipes',        // GET/POST /api/trainer/recipes
@@ -117,6 +130,21 @@ export const ENDPOINTS = {
   OWNER_MEMBRESIAS:   '/owner_gym/membresias',   // GET /api/owner_gym/membresias (tipos de membresía)
   OWNER_INGRESOS:     '/owner_gym/dashboard/ingresos',   // GET ?meses=6  → tendencia mensual
   OWNER_ACTIVIDAD:    '/owner_gym/dashboard/actividad',  // GET ?limit=20 → feed reciente
+  OWNER_ALERTAS:      '/owner_gym/alertas',      // GET → { alertas: [...], total } stock y membresías
+
+  // ── Suscripción del gimnasio con la plataforma ────────────────────────────
+  // billing_bp: url_prefix="/api/billing"
+  BILLING_SUSCRIPCION: '/billing/suscripcion',   // GET estado actual | PUT /<id> auto_renovar
+  BILLING_PLANES:      '/billing/planes',        // GET catálogo de planes SaaS
+  BILLING_FACTURAS:    '/billing/facturas',      // GET ?limit=10 historial
+  BILLING_RENOVAR:     '/billing/suscripcion/renovar', // POST { id_plan? } renovar o mejorar
+  // Cargo recurrente: el dueño autoriza una vez en la pasarela y ella cobra sola.
+  BILLING_RECURRENTE:      '/billing/suscripcion/recurrente',  // GET estado | POST crear | DELETE cancelar
+  BILLING_RECURRENTE_SYNC: '/billing/suscripcion/recurrente/sincronizar', // POST reconciliar
+
+  // ── Reporte ejecutivo del gimnasio ────────────────────────────────────────
+  REPORTES_OPCIONES:   '/owner_gym/reportes/opciones', // GET años y secciones disponibles
+  REPORTES_PDF:        '/owner_gym/reportes/pdf',      // GET ?anio=&mes=&secciones=&comparar=
 
   // ── IA / Analítica (Spark) — /api/analytics/* ─────────────────────────────
   ANALYTICS_KMEANS:        '/analytics/kmeans',        // GET ?k=3 → segmentación de miembros
@@ -149,7 +177,8 @@ export const ENDPOINTS = {
   TRAINER_CHAT_UNREAD:  '/trainer/chat/unread-summary', // GET
 
   // Owner Gym — Perfil del Gym (GET /api/owner_gym/perfil devuelve datos del gimnasio)
-  OWNER_GYM_PROFILE:    '/owner_gym/perfil',      // GET /api/owner_gym/perfil
+  OWNER_GYM_PROFILE:    '/owner_gym/perfil',      // GET/PUT datos del gimnasio
+  OWNER_PERFIL_PROPIETARIO: '/owner_gym/perfil/propietario', // PUT datos de la persona
   OWNER_PRODUCTOS:      '/owner_gym/productos',    // GET /api/owner_gym/productos
   OWNER_VENTAS:         '/ventas',                 // GET /api/ventas (ventas_bp hardcoded)
 

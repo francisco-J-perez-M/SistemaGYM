@@ -90,35 +90,100 @@ export interface BodyProgress {
 
 // ── Nutrition ─────────────────────────────────────────────────────────────────
 
+/** Ingrediente de una receta. El backend lo guarda como objeto. */
+export interface IngredienteReceta {
+  nombre?:   string;
+  cantidad?: number | string;
+  unidad?:   string;
+}
+
+/**
+ * Receta — GET /api/user/nutrition/recetas.
+ *
+ * Los macros llegan con sufijo `_g` desde la biblioteca del entrenador
+ * (`proteinas_g`) pero las recetas antiguas del miembro los guardaron sin él
+ * (`proteinas`). Se declaran ambos y la pantalla toma el primero que exista;
+ * confiar solo en uno dejaba los macros en blanco según quién creó la receta.
+ */
 export interface Receta {
   _id:         string;
   nombre:      string;
-  calorias:    number;
-  proteinas?:  number;
-  carbohidratos?: number;
-  grasas?:     number;
-  categoria:   string;
-  ingredientes?: string;
-  instrucciones?: string;
-}
-
-export interface Dieta {
-  _id:         string;
-  nombre:      string;
+  calorias?:   number;
+  categoria?:  string;
   descripcion?: string;
-  calorias_objetivo?: number;
-  comidas:     ComidaDieta[];
+  /** base64 (data URL) o URL. */
+  imagen?:     string | null;
+  tiempo_preparacion_min?: number;
+
+  proteinas?:      number;
+  carbohidratos?:  number;
+  grasas?:         number;
+  proteinas_g?:     number;
+  carbohidratos_g?: number;
+  grasas_g?:        number;
+
+  /** Texto libre en recetas viejas, lista de objetos en las nuevas. */
+  ingredientes?:  string | IngredienteReceta[];
+  instrucciones?: string;
+  consumida_hoy?: boolean;
 }
 
+/** Una comida dentro de un día del plan. */
 export interface ComidaDieta {
-  nombre:    string;
+  nombre?:   string;
   hora?:     string;
-  recetas:   string[];
+  /** Nombres o ids de receta, según cómo se armara el plan. */
+  recetas?:  string[];
+  alimentos?: string[];
+  calorias?: number;
+  notas?:    string;
+}
+
+export interface DiaDieta {
+  dia?:     string;
+  comidas?: ComidaDieta[];
+}
+
+export interface SemanaDieta {
+  semana?: number;
+  dias?:   DiaDieta[];
+}
+
+/**
+ * Plan alimenticio — GET /api/user/nutrition/dietas.
+ *
+ * Convive con dos formatos. Los planes que arma el entrenador anidan
+ * `semanas → dias → comidas`; los antiguos, y los que crea el propio miembro,
+ * traen `comidas` planas. La pantalla aplana el primero para tratar ambos
+ * igual: leer solo `comidas` era la razón de que el plan se viera incompleto.
+ */
+export interface Dieta {
+  _id:          string;
+  nombre:       string;
+  descripcion?: string;
+  objetivo?:    string;
+  notas?:       string;
+  duracion_semanas?: number;
+
+  calorias_objetivo?: number;
+  calorias_meta?:     number;
+  proteinas_meta_g?:  number;
+  carbohidratos_meta_g?: number;
+  grasas_meta_g?:     number;
+
+  semanas?: SemanaDieta[];
+  comidas?: ComidaDieta[];
 }
 
 // ── Membership ────────────────────────────────────────────────────────────────
 
 /** Plan disponible — contrato real de GET /api/user/membership/plans → { planes: [...] } */
+export interface ItemCombo {
+  nombre:       string;
+  cantidad:     number;
+  id_producto?: string | number;
+}
+
 export interface MembershipPlan {
   id:             string;   // 'monthly' | 'quarterly' | 'annual'
   id_membresia:   number;   // entero PG — requerido por /renew
@@ -126,6 +191,14 @@ export interface MembershipPlan {
   precio:         number;
   duracion_meses: number;
   ahorro?:        number;
+  // Información comercial que define el dueño del gimnasio
+  tipo?:            'estandar' | 'promocion';
+  descripcion?:     string | null;
+  beneficios?:      string[];
+  es_combo?:        boolean;
+  items_combo?:     ItemCombo[];
+  fecha_fin_promo?: string | null;
+  dias_restantes_promo?: number | null;
 }
 
 /** Membresía activa — contrato real de GET /api/user/membership → { tieneMembresia, membresia } */
@@ -147,7 +220,8 @@ export interface MembershipResponse {
 
 export interface PlansResponse { planes: MembershipPlan[] }
 
-export type MetodoPago = 'Efectivo' | 'Tarjeta' | 'Transferencia';
+// Métodos aceptados: efectivo en caja o pago en línea por pasarela.
+export type MetodoPago = 'Efectivo' | 'paypal' | 'mercadopago';
 
 // ── Payments (GET /api/user/payments) ──────────────────────────────────────────
 
@@ -158,12 +232,19 @@ export interface PaymentItem {
   amount:  number;
   method:  string;
   status:  string;
+  /** Origen del cargo: el plan del gimnasio o una compra en el punto de venta. */
+  type?:   'membresia' | 'producto';
+  /** Número de artículos. Solo en las compras. */
+  items?:  number;
   rawDate: string;
 }
 
 export interface PaymentsResponse {
   stats: {
     totalPaid:   number;
+    /** Desglose del total: cuánto por el plan y cuánto en el punto de venta. */
+    totalMembresias?: number;
+    totalCompras?:    number;
     lastPayment: string;
     nextPayment: string;
     status:      string;
@@ -412,9 +493,14 @@ export interface OwnerDashboard {
     por_vencer: number;
   };
   ingresos: {
-    mes_actual:    number;
-    mes_anterior:  number;
-    variacion_pct: number;
+    /** Total del mes: membresías + punto de venta. No sumarle ventas_pos otra vez. */
+    mes_actual:      number;
+    membresias?:     number;
+    punto_de_venta?: number;
+    mes_anterior:    number;
+    variacion_pct:   number;
+    /** True si el mes anterior no tuvo ingresos: no hay porcentaje que mostrar. */
+    sin_comparativa?: boolean;
   };
   ventas_pos: {
     total_mes:      number;
@@ -425,6 +511,22 @@ export interface OwnerDashboard {
     recepcionistas: number;
   };
   tipos_membresia: number;
+}
+
+/* El feed de actividad ya está declarado arriba como `ActividadItem`. */
+
+/** Alerta operativa — GET /owner_gym/alertas. */
+export interface AlertaOperativa {
+  nivel:   'error' | 'warning' | 'info';
+  tipo:    string;
+  titulo:  string;
+  detalle: string;
+  icono?:  string;
+}
+
+export interface AlertasResponse {
+  alertas: AlertaOperativa[];
+  total:   number;
 }
 
 /** Membresía activa anidada en el miembro (Miembro.to_dict) */
@@ -493,4 +595,10 @@ export interface MovimientosResponse {
   total:       number;
   pages:       number;
   page:        number;
+  per_page?:   number;
+  /** Importe de todo el filtro, no solo de la página devuelta. */
+  monto_total?: number;
+  /** Años con movimientos; alimenta el selector de periodo. */
+  anios?:      number[];
+  filtro?:     { tipo: string; anio: number | null; mes: number | null };
 }

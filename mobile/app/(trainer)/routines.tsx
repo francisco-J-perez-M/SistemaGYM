@@ -14,7 +14,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors } from '../../constants/Colors';
 import { useColors, useFontScale, useReduceMotion } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
@@ -25,6 +24,8 @@ import Badge from '../../components/ui/Badge';
 import Input from '../../components/ui/Input';
 import RoutineDetailModal, { type RoutineForModal } from '../../components/routines/RoutineDetailModal';
 import ExerciseDetailSheet, { type ExerciseDetail, cacheVideo, cacheImages } from '../../components/routines/ExerciseDetailSheet';
+import FormularioEjercicio, { type EjercicioEditable } from '../../components/routines/FormularioEjercicio';
+import FormularioRutina from '../../components/routines/FormularioRutina';
 
 // ── Types reales del API ──────────────────────────────────────────────────────
 interface ExerciseItem {
@@ -101,6 +102,10 @@ export default function TrainerRoutinesScreen() {
   const [exSearch,   setExSearch]   = useState('');
   const [selectedRoutine, setSelectedRoutine] = useState<RoutineForModal | null>(null);
   const [selectedExercise, setSelectedExercise] = useState<ExerciseDetail | null>(null);
+  // Formularios de alta. `formEjercicio` guarda el ejercicio a editar, o un
+  // objeto vacío para dar de alta uno nuevo; null mantiene el modal cerrado.
+  const [formEjercicio, setFormEjercicio] = useState<EjercicioEditable | null>(null);
+  const [formRutina,    setFormRutina]    = useState(false);
 
   const { data, loading, refetch } = useFetch<RoutinesResponse>(ENDPOINTS.TRAINER_ROUTINES);
   const { data: exData, loading: loadingEx, refetch: refetchEx } =
@@ -125,10 +130,24 @@ export default function TrainerRoutinesScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 16 }]}>
-      {/* Header */}
+      {/* Header. El botón crea lo que corresponde a la pestaña abierta, así que
+          hay una sola acción visible en lugar de dos compitiendo. */}
       <View style={styles.header}>
-        <Text style={styles.title} accessibilityRole="header">Rutinas</Text>
-        <Text style={styles.sub}>{routines.length} creadas · {allExercises.length} ejercicios</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.title} accessibilityRole="header">Rutinas</Text>
+          <Text style={styles.sub}>{routines.length} creadas · {allExercises.length} ejercicios</Text>
+        </View>
+        <TouchableOpacity
+          style={styles.crearBtn}
+          onPress={() => mainTab === 'rutinas' ? setFormRutina(true) : setFormEjercicio({})}
+          accessibilityRole="button"
+          accessibilityLabel={mainTab === 'rutinas' ? 'Crear rutina' : 'Crear ejercicio'}
+        >
+          <Ionicons name="add" size={19} color={colors.onAccent} />
+          <Text style={styles.crearTxt}>
+            {mainTab === 'rutinas' ? 'Rutina' : 'Ejercicio'}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Tab principal */}
@@ -199,8 +218,16 @@ export default function TrainerRoutinesScreen() {
                   }}
                   accessibilityLabel={`Ver detalle de ${e.nombre}`}
                   accessibilityRole="button">
-                  <Ionicons name="eye-outline" size={13} color="#fff" />
+                  <Ionicons name="eye-outline" size={13} color={colors.onAccent} />
                   <Text style={styles.verBtnText}>Ver</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.editarBtn}
+                  onPress={() => setFormEjercicio(e as EjercicioEditable)}
+                  accessibilityLabel={`Editar ${e.nombre}`}
+                  accessibilityRole="button"
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Ionicons name="create-outline" size={17} color={colors.textSecondary} />
                 </TouchableOpacity>
               </View>
             )}
@@ -276,7 +303,7 @@ export default function TrainerRoutinesScreen() {
                     accessibilityLabel={`Ver detalle de ${r.name}`}
                     accessibilityRole="button"
                   >
-                    <Ionicons name="eye-outline" size={14} color="#fff" />
+                    <Ionicons name="eye-outline" size={14} color={colors.onAccent} />
                     <Text style={styles.verBtnText}>Ver</Text>
                   </TouchableOpacity>
                   <Ionicons
@@ -305,7 +332,7 @@ export default function TrainerRoutinesScreen() {
               {isOpen && toArray(r.exerciseList).length > 0 && (
                 <View style={styles.exList}>
                   <Text style={styles.exListTitle}>Ejercicios</Text>
-                  {r.exerciseList.map((ex, i) => (
+                  {toArray(r.exerciseList).map((ex: any, i: number) => (
                     <View key={i} style={styles.exRow}>
                       <View style={styles.exNumBox}>
                         <Text style={styles.exNum}>{i + 1}</Text>
@@ -338,7 +365,7 @@ export default function TrainerRoutinesScreen() {
                         }}
                         accessibilityLabel={`Ver detalle de ${ex.name}`}
                         accessibilityRole="button">
-                        <Ionicons name="eye-outline" size={13} color="#fff" />
+                        <Ionicons name="eye-outline" size={13} color={colors.onAccent} />
                         <Text style={styles.verBtnText}>Ver</Text>
                       </TouchableOpacity>
                     </View>
@@ -361,6 +388,26 @@ export default function TrainerRoutinesScreen() {
         onClose={() => setSelectedRoutine(null)}
         mode="trainer"
       />
+
+      {/* Alta y edición. La `key` fuerza a React a montar un formulario nuevo
+          por ejercicio: sin ella, reabrirlo conservaría lo tecleado antes. */}
+      {formEjercicio !== null && (
+        <FormularioEjercicio
+          key={formEjercicio.id ?? 'nuevo'}
+          visible
+          ejercicio={formEjercicio.id ? formEjercicio : null}
+          onClose={() => setFormEjercicio(null)}
+          onGuardado={refetchEx}
+        />
+      )}
+
+      {formRutina && (
+        <FormularioRutina
+          visible
+          onClose={() => setFormRutina(false)}
+          onGuardado={() => { refetch(); refetchEx(); }}
+        />
+      )}
     </View>
   );
 }
@@ -381,9 +428,23 @@ function StatPill({ icon, label, color, styles, colors }: {
 function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   return StyleSheet.create({
   screen:  { flex: 1, backgroundColor: colors.background },
-  header:  { paddingHorizontal: 20, gap: 2, paddingBottom: 8 },
+  header: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingHorizontal: 20, paddingBottom: 8,
+  },
   title:   { color: colors.text, fontSize: 26 * fs, fontWeight: '700' },
   sub:     { color: colors.textSecondary, fontSize: 13 * fs },
+  crearBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: colors.accent,
+    paddingHorizontal: 13, paddingVertical: 9, borderRadius: 12,
+  },
+  crearTxt: { color: colors.onAccent, fontSize: 13.5 * fs, fontWeight: '700' },
+  editarBtn: {
+    width: 34, height: 34, borderRadius: 11, marginLeft: 6,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border,
+  },
   catScroll:  { maxHeight: 44, marginBottom: 4 },
   catContent: { paddingHorizontal: 20, gap: 8, alignItems: 'center' },
   catChip: {
@@ -392,7 +453,7 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   },
   catChipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
   catText:       { color: colors.textSecondary, fontSize: 13 * fs, fontWeight: '600' },
-  catTextActive: { color: '#fff' },
+  catTextActive: { color: colors.onAccent },
   list:   { padding: 16, gap: 12, paddingBottom: 32 },
   empty:  { alignItems: 'center', paddingVertical: 60, gap: 8 },
   emptyText: { color: colors.textMuted, fontSize: 15 * fs, fontWeight: '600' },
@@ -402,7 +463,7 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   cardActions:{ alignItems: 'flex-end', gap: 4 },
   catIcon: {
     width: 42, height: 42, borderRadius: 12,
-    backgroundColor: 'rgba(108,99,255,0.1)',
+    backgroundColor: colors.accentBg,
     alignItems: 'center', justifyContent: 'center',
   },
   routineName: { color: colors.text, fontSize: 15 * fs, fontWeight: '700' },
@@ -414,24 +475,24 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   exList:      { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 10, gap: 8 },
   exListTitle: { color: colors.textSecondary, fontSize: 12 * fs, fontWeight: '700', marginBottom: 4 },
   exRow:       { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  exNumBox:    { width: 24, height: 24, borderRadius: 8, backgroundColor: 'rgba(108,99,255,0.15)', alignItems: 'center', justifyContent: 'center' },
+  exNumBox:    { width: 24, height: 24, borderRadius: 8, backgroundColor: colors.accentBg, alignItems: 'center', justifyContent: 'center' },
   exNum:       { color: colors.accent, fontSize: 12 * fs, fontWeight: '700' },
   exName:      { color: colors.text, fontSize: 14 * fs, fontWeight: '600' },
   exMeta:      { color: colors.accent, fontSize: 12 * fs },
   exDay:       { color: colors.textMuted, fontSize: 11 * fs, marginTop: 2 },
   mainTabRow:  { flexDirection: 'row', marginHorizontal: 20, marginBottom: 12, backgroundColor: colors.card, borderRadius: 12, padding: 4, borderWidth: 1, borderColor: colors.border },
   mainTab:     { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8, borderRadius: 10 },
-  mainTabActive: { backgroundColor: 'rgba(108,99,255,0.15)' },
+  mainTabActive: { backgroundColor: colors.accentBg },
   mainTabText:   { color: colors.textSecondary, fontSize: 13 * fs, fontWeight: '600' },
   mainTabTextActive: { color: colors.accent },
   searchBox:   { flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, marginBottom: 10, backgroundColor: colors.card, borderRadius: 12, borderWidth: 1, borderColor: colors.border },
   searchInput: { flex: 1, color: colors.text, fontSize: 14 * fs, paddingHorizontal: 10, paddingVertical: 10 },
   exCard:      { flexDirection: 'row', alignItems: 'flex-start', gap: 12, backgroundColor: colors.card, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: colors.border },
-  exCardIcon:  { width: 38, height: 38, borderRadius: 10, backgroundColor: 'rgba(108,99,255,0.1)', alignItems: 'center', justifyContent: 'center' },
+  exCardIcon:  { width: 38, height: 38, borderRadius: 10, backgroundColor: colors.accentBg, alignItems: 'center', justifyContent: 'center' },
   exCardName:  { color: colors.text, fontSize: 14 * fs, fontWeight: '700' },
   exCardMeta:  { color: colors.accent, fontSize: 12 * fs, marginTop: 2 },
   exCardDesc:  { color: colors.textSecondary, fontSize: 12 * fs, marginTop: 4 },
   verBtn:      { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.accent, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
-  verBtnText:  { color: '#fff', fontSize: 12 * fs, fontWeight: '700' },
+  verBtnText:  { color: colors.onAccent, fontSize: 12 * fs, fontWeight: '700' },
 });
 }

@@ -48,6 +48,13 @@ class FacturaSuscripcion(db.Model):
     # Stripe (nullable para modo local)
     stripe_invoice_id = db.Column(db.String(100), nullable=True, unique=True)
 
+    # Identificador del cargo en PayPal o Mercado Pago cuando la factura viene de
+    # un cobro recurrente. Es único porque las pasarelas reenvían la misma
+    # notificación varias veces si no reciben respuesta: sin esta restricción,
+    # un reintento generaría una factura duplicada y el historial de cobros
+    # mostraría el doble de lo realmente pagado.
+    referencia_externa = db.Column(db.String(120), nullable=True, unique=True, index=True)
+
     # Auditoría
     created_at        = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
 
@@ -60,13 +67,30 @@ class FacturaSuscripcion(db.Model):
 
     def to_dict(self):
         estado_val = self.estado if isinstance(self.estado, str) else self.estado.value
+
+        # El plan al que corresponde la factura, para que el historial diga qué
+        # se pagó y no solo "Suscripción".
+        plan_nombre = None
+        try:
+            sub = self.suscripcion
+            if sub and sub.plan:
+                plan_nombre = sub.plan.titulo_comercial or sub.plan.nombre
+        except Exception:
+            plan_nombre = None
+
         return {
             "id":                 self.id,
             "id_suscripcion":     self.id_suscripcion,
+            # 'monto' viaja en CENTAVOS, como se guarda. Quien lo pinte debe usar
+            # 'monto_mxn' (pesos) o 'monto_display': mostrar el crudo convierte
+            # una factura de $499 en una de $49,900.
             "monto":              self.monto,
+            "monto_mxn":          round((self.monto or 0) / 100, 2),
             "monto_display":      f"${self.monto / 100:,.2f} {self.moneda}" if self.monto else None,
             "moneda":             self.moneda,
             "estado":             estado_val,
+            "plan":               plan_nombre,
+            "concepto":           f"Suscripción {plan_nombre}" if plan_nombre else "Suscripción",
             "fecha_emision":      self.fecha_emision.isoformat() if self.fecha_emision else None,
             "fecha_vencimiento":  self.fecha_vencimiento.isoformat() if self.fecha_vencimiento else None,
             "fecha_pago":         self.fecha_pago.isoformat() if self.fecha_pago else None,

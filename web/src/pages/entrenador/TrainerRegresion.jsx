@@ -14,6 +14,9 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import InfoGrafico, {
+  COLORES_GRAFICO, COLOR_REJILLA, ejeX, ejeY, rangoPeriodo, describirTendencia,
+} from "../../components/compartido/InfoGrafico";
 import "../../css/CSSUnificado.css";
 
 const API_BASE       = "";
@@ -242,29 +245,72 @@ function PredictionModal({ member, onClose }) {
                 ))}
               </div>
 
-              {/* Leyenda */}
+              {/* Cabecera del gráfico con la explicación de qué es cada trazo */}
+              <InfoGrafico
+                titulo="Peso registrado y proyección"
+                periodo={
+                  data?.historial_peso?.length
+                    ? `Medido: ${rangoPeriodo(data.historial_peso, "fecha")} · `
+                      + `Proyecta ${data.horizonte_dias ?? dias} días`
+                    : ""
+                }
+                subtitulo={
+                  data?.modelo === "personal"
+                    ? "Proyección calculada con las mediciones de este miembro."
+                    : "Proyección calculada con el modelo del gimnasio."
+                }
+                comportamiento={describirTendencia(
+                  (data?.historial_peso || []).map((r) => r.peso),
+                  { unidad: " kg" },
+                )}
+                series={[
+                  {
+                    color: COLORES_GRAFICO.real,
+                    nombre: "Historial real",
+                    descripcion: "Cada punto es una medición que el miembro registró en Progreso Físico. Es dato medido, no estimado.",
+                  },
+                  {
+                    color: COLORES_GRAFICO.prediccion,
+                    nombre: "Predicción",
+                    descripcion: "Línea discontinua: hacia dónde apunta su tendencia si mantiene el ritmo actual. No es un dato observado.",
+                  },
+                ]}
+                notas={[
+                  data?.registros
+                    ? `Basado en ${data.registros} medicion${data.registros === 1 ? "" : "es"} registradas.`
+                    : null,
+                  data?.calidad_ajuste != null
+                    ? `Ajuste del modelo: ${(data.calidad_ajuste * 100).toFixed(0)} %. Cuanto más alto, más regular ha sido la evolución del peso y más fiable la proyección.`
+                    : null,
+                  "El eje vertical está en kilogramos y el horizontal en fechas. El tramo punteado empieza donde terminan las mediciones reales.",
+                ].filter(Boolean)}
+              />
+
+              {/* Leyenda compacta junto al gráfico */}
               <div style={{ display: "flex", gap: 16, marginBottom: 10, fontSize: 12, color: "var(--text-secondary)" }}>
                 <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ width: 24, height: 3, background: "#38bdf8", borderRadius: 2, display: "inline-block" }} />
+                  <span style={{ width: 24, height: 3, background: COLORES_GRAFICO.real, borderRadius: 2, display: "inline-block" }} />
                   Historial real
                 </span>
                 <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ width: 24, height: 0, borderTop: "3px dashed #a78bfa", display: "inline-block" }} />
-                  Predicción IA
+                  <span style={{ width: 24, height: 0, borderTop: `3px dashed ${COLORES_GRAFICO.prediccion}`, display: "inline-block" }} />
+                  Predicción
                 </span>
               </div>
 
               {/* Gráfico */}
-              <ResponsiveContainer width="100%" height={240}>
-                <LineChart data={chartData} margin={{ top: 5, right: 16, left: 0, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                  <XAxis dataKey="label" tick={{ fill: "var(--text-secondary)", fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => `${v.toFixed(0)} kg`} />
+              <ResponsiveContainer width="100%" height={275}>
+                <LineChart data={chartData} margin={{ top: 5, right: 16, left: 6, bottom: 24 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />
+                  <XAxis dataKey="label" tick={{ fill: "var(--text-secondary)", fontSize: 10 }} axisLine={false} tickLine={false}
+                    label={ejeX("Fecha de la medición")} />
+                  <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => `${v.toFixed(0)} kg`}
+                    label={ejeY("Peso corporal (kg)")} />
                   <Tooltip content={<ChartTooltip />} />
-                  <Line type="monotone" dataKey="real" name="Historial" stroke="#38bdf8" strokeWidth={2.5}
-                    dot={{ r: 3, fill: "#38bdf8", strokeWidth: 0 }} connectNulls={false} />
-                  <Line type="monotone" dataKey="prediccion" name="Predicción" stroke="#a78bfa" strokeWidth={2.5}
-                    strokeDasharray="6 4" dot={{ r: 3, fill: "#a78bfa", strokeWidth: 0 }} connectNulls={false} />
+                  <Line type="monotone" dataKey="real" name="Historial" stroke={COLORES_GRAFICO.real} strokeWidth={2.5}
+                    dot={{ r: 3, fill: COLORES_GRAFICO.real, strokeWidth: 0 }} connectNulls={false} />
+                  <Line type="monotone" dataKey="prediccion" name="Predicción" stroke={COLORES_GRAFICO.prediccion} strokeWidth={2.5}
+                    strokeDasharray="6 4" dot={{ r: 3, fill: COLORES_GRAFICO.prediccion, strokeWidth: 0 }} connectNulls={false} />
                 </LineChart>
               </ResponsiveContainer>
 
@@ -514,20 +560,35 @@ export default function TrainerRegresion() {
 
           {/* Gráfico tendencia */}
           <div className="chart-card">
-            <div className="chart-header" style={{ marginBottom: 4 }}>
-              <h3>Tendencia de peso promedio del gimnasio</h3>
-            </div>
-            <p style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 12 }}>
-              Evolución histórica del peso corporal promedio de todos los miembros.
-            </p>
-            <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={tendenciaGlobal} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="mes" tick={{ fill: "var(--text-secondary)", fontSize: 10 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => `${v.toFixed(0)} kg`} />
+            <InfoGrafico
+              titulo="Peso promedio de tus clientes, mes a mes"
+              periodo={rangoPeriodo(tendenciaGlobal, "mes")}
+              subtitulo="Evolución del peso corporal medio de los miembros con mediciones registradas."
+              comportamiento={describirTendencia(
+                (tendenciaGlobal || []).map((r) => r.peso), { unidad: " kg" },
+              )}
+              series={[
+                {
+                  color: COLORES_GRAFICO.real,
+                  nombre: "Promedio del grupo",
+                  descripcion: "Media de todas las mediciones registradas ese mes por el conjunto de tus clientes.",
+                },
+              ]}
+              notas={[
+                "Es un promedio del grupo, no de una persona: un cliente nuevo con peso muy distinto mueve la línea sin que nadie haya cambiado.",
+                "Los meses sin mediciones no aparecen en el eje.",
+              ]}
+            />
+            <ResponsiveContainer width="100%" height={235}>
+              <LineChart data={tendenciaGlobal} margin={{ top: 5, right: 10, left: 6, bottom: 24 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />
+                <XAxis dataKey="mes" tick={{ fill: "var(--text-secondary)", fontSize: 10 }} axisLine={false} tickLine={false}
+                  label={ejeX("Mes")} />
+                <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => `${v.toFixed(0)} kg`}
+                  label={ejeY("Peso promedio (kg)")} />
                 <Tooltip content={<ChartTooltip />} />
-                <Line type="monotone" dataKey="peso" name="Promedio" stroke="#38bdf8" strokeWidth={2.5}
-                  dot={{ r: 3.5, fill: "#38bdf8", strokeWidth: 0 }} connectNulls={false} />
+                <Line type="monotone" dataKey="peso" name="Promedio" stroke={COLORES_GRAFICO.real} strokeWidth={2.5}
+                  dot={{ r: 3.5, fill: COLORES_GRAFICO.real, strokeWidth: 0 }} connectNulls={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>

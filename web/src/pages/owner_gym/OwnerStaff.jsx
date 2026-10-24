@@ -4,6 +4,7 @@
  */
 import { useEffect, useState, useRef, useCallback } from "react";
 import { getStaff, crearStaff, toggleStaff, updateStaff } from "../../api/owner_gym";
+import DetalleUsuarioModal, { fechaFicha } from "../../components/compartido/DetalleUsuarioModal";
 
 // ── Tokens ────────────────────────────────────────────────────────────────────
 const C = {
@@ -134,6 +135,33 @@ function ConfirmDialog({ open, title, message, onConfirm, onCancel, danger }) {
   );
 }
 
+// ── Field / IcoWrap ──────────────────────────────────────────────────────────
+// Antes vivian DENTRO de StaffModal: al recrearse en cada render (cada
+// setForm por cada caracter escrito) React los veia como un tipo de
+// componente nuevo, desmontaba el <input> anterior y el campo perdia el foco
+// tras cada letra (SCRUM-202: "Alta de entrenador: el campo pierde el foco
+// tras cada caracter"). Se sacan a nivel de modulo para que conserven su
+// identidad entre renders, igual que Avatar y PhotoUploader.
+function Field({ label, required, children }) {
+  return (
+    <div style={{ flex: "1 1 calc(50% - 6px)", minWidth: 0 }}>
+      <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: C.t2, textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 5 }}>
+        {label}{required && <span style={{ color: C.accent, marginLeft: 2 }}>*</span>}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+function IcoWrap({ icon, children }) {
+  return (
+    <div style={{ position: "relative" }}>
+      <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: C.t3, display: "flex" }}>{icon}</span>
+      {children}
+    </div>
+  );
+}
+
 // ── Modal ─────────────────────────────────────────────────────────────────────
 const EMPTY_FORM = { nombre: "", email: "", password: "", rol: "", foto_base64: "" };
 
@@ -158,22 +186,6 @@ function StaffModal({ open, onClose, onSave, initial, saving }) {
     border: `1px solid ${C.border}`, borderRadius: 8,
     padding: "9px 12px 9px 32px", color: C.t1, fontSize: 13, outline: "none",
   };
-
-  const Field = ({ label, required, children }) => (
-    <div style={{ flex: "1 1 calc(50% - 6px)", minWidth: 0 }}>
-      <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: C.t2, textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 5 }}>
-        {label}{required && <span style={{ color: C.accent, marginLeft: 2 }}>*</span>}
-      </label>
-      {children}
-    </div>
-  );
-
-  const IcoWrap = ({ icon, children }) => (
-    <div style={{ position: "relative" }}>
-      <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: C.t3, display: "flex" }}>{icon}</span>
-      {children}
-    </div>
-  );
 
   return (
     <div onClick={e => e.target === e.currentTarget && onClose()}
@@ -249,7 +261,27 @@ function StaffModal({ open, onClose, onSave, initial, saving }) {
 }
 
 // ── StaffCard ─────────────────────────────────────────────────────────────────
-function StaffCard({ u, onEdit, onToggle }) {
+/** Traduce un integrante del staff a la ficha genérica del modal de detalle. */
+function staffADetalle(u) {
+  return {
+    nombre:    u.nombre,
+    email:     u.email,
+    telefono:  u.telefono,
+    foto:      u.foto_perfil,
+    activo:    u.activo !== false,
+    subtitulo: u.rol ?? null,
+    datos: [
+      { icono: "rol",       etiqueta: "Puesto",        valor: u.rol },
+      { icono: "generico",  etiqueta: "Especialidad",  valor: u.especializacion ?? u.especialidad },
+      { icono: "correo",    etiqueta: "Correo",        valor: u.email },
+      { icono: "telefono",  etiqueta: "Teléfono",      valor: u.telefono },
+      { icono: "ingreso",   etiqueta: "Alta",          valor: fechaFicha(u.created_at) },
+      { icono: "generico",  etiqueta: "Identificador", valor: u.id },
+    ],
+  };
+}
+
+function StaffCard({ u, onView, onEdit, onToggle }) {
   return (
     <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, overflow: "hidden", opacity: u.activo ? 1 : 0.7, transition: "box-shadow .15s" }}>
       {/* Header */}
@@ -271,6 +303,10 @@ function StaffCard({ u, onEdit, onToggle }) {
       <div style={{ borderTop: `1px solid ${C.border}`, padding: "8px 12px", display: "flex", gap: 6, justifyContent: "space-between", alignItems: "center" }}>
         <span style={{ fontSize: 11, color: C.t3 }}>Desde {u.created_at ? u.created_at.slice(0, 10) : "—"}</span>
         <div style={{ display: "flex", gap: 6 }}>
+          <button onClick={() => onView(u)} title="Ver ficha completa"
+            style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 8, border: "none", background: `${C.accent}1A`, color: C.accent, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+            Ver
+          </button>
           <button onClick={() => onEdit(u)}
             style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", color: C.t2, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
             <IcoEdit /> Editar
@@ -318,6 +354,8 @@ export default function OwnerStaff() {
   const [activos, setActivos] = useState("true");
   const [modal,   setModal]   = useState(false);
   const [editing, setEditing] = useState(null);
+  // Integrante cuya ficha completa se está viendo; null cierra el modal.
+  const [detalle, setDetalle] = useState(null);
   const [confirm, setConfirm] = useState(null);
 
   const load = useCallback(async () => {
@@ -472,6 +510,7 @@ export default function OwnerStaff() {
         <div data-guide="ow-staff-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: 16 }}>
           {staff.map(u => (
             <StaffCard key={u.id} u={u}
+              onView={setDetalle}
               onEdit={(u) => { setEditing(u); setModal(true); }}
               onToggle={handleToggle}
             />
@@ -485,6 +524,12 @@ export default function OwnerStaff() {
         onSave={handleSave}
         initial={editing}
         saving={saving}
+      />
+
+      <DetalleUsuarioModal
+        usuario={detalle ? staffADetalle(detalle) : null}
+        onClose={() => setDetalle(null)}
+        titulo="Detalle del staff"
       />
     </div>
   );
