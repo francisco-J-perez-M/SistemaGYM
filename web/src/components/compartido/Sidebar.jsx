@@ -584,7 +584,7 @@ export default function Sidebar({
         </div>
         {!collapsed && (
           <div style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
-            <span style={S.brandText}>GYM PRO</span>
+            <span style={S.brandText}>{user.nombre || "Usuario"}</span>
             <span style={S.badge}>{ROLE_LABELS[role] || "USER"}</span>
           </div>
         )}
