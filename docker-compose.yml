@@ -35,9 +35,10 @@ services:
     networks:
       - gympro
     # Puerto expuesto al host para herramientas de gestión (DBeaver, psql local)
+    # Usa 5433 para evitar conflicto con PostgreSQL local instalado en el host
     # Comentar en producción y controlar acceso vía security groups de AWS
     ports:
-      - "5432:5432"
+      - "5433:5432"
 
   # ── MongoDB local ────────────────────────────────────────────────────────────
   # Sin autenticación en dev. Para producción en EC2, agregar:
@@ -59,9 +60,9 @@ services:
     networks:
       - gympro
     # Puerto expuesto al host para herramientas de gestión (Compass, mongosh local)
-    # Usa 27018 para evitar conflicto con MongoDB local instalado en el host
+    # Usa 27019 para evitar conflicto con MongoDB local (27017) y MongoDB Compass (27018)
     ports:
-      - "27018:27017"
+      - "27019:27017"
 
   # ── Redis ────────────────────────────────────────────────────────────────────
   redis:
