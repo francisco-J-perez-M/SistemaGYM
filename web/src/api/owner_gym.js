@@ -41,6 +41,9 @@ export const getStaffMember      = (id)          => API.get(`/owner_gym/staff/${
 export const crearStaff          = (data)        => API.post("/owner_gym/staff", data);
 export const toggleStaff         = (id)          => API.patch(`/owner_gym/staff/${id}/toggle`);
 export const updateStaff         = (id, data)    => API.put(`/owner_gym/staff/${id}`, data);
+// Genera una contrasena nueva y reenvia el correo de bienvenida -- para
+// cuando el original nunca llego (p. ej. a un correo @hotmail).
+export const reenviarCredencialesStaff = (id)    => API.post(`/owner_gym/staff/${id}/reenviar-credenciales`);
 
 // ── Tipos de membresía ────────────────────────────────────────────────────
 export const getMembresias       = (params = {}) => API.get("/owner_gym/membresias", { params });
