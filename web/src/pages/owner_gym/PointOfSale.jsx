@@ -640,13 +640,13 @@ function TabHistorial() {
       {pages > 1 && (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginTop: 20 }}>
           <button onClick={() => load(page - 1)} disabled={page === 1 || loading}
-            style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, color: page === 1 ? "#334155" : "var(--text-secondary)",
+            style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, color: page === 1 ? "var(--border)" : "var(--text-secondary)",
               cursor: page === 1 ? "not-allowed" : "pointer", padding: "6px 12px", display: "flex", alignItems: "center", gap: 4, fontSize: 13 }}>
             <FiChevronLeft size={13} /> Anterior
           </button>
           <span style={{ fontSize: 12, color: "var(--text-tertiary)" }}>Página {page} de {pages}</span>
           <button onClick={() => load(page + 1)} disabled={page === pages || loading}
-            style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, color: page === pages ? "#334155" : "var(--text-secondary)",
+            style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, color: page === pages ? "var(--border)" : "var(--text-secondary)",
               cursor: page === pages ? "not-allowed" : "pointer", padding: "6px 12px", display: "flex", alignItems: "center", gap: 4, fontSize: 13 }}>
             Siguiente <FiChevronRight size={13} />
           </button>

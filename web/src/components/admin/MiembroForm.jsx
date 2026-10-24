@@ -161,8 +161,8 @@ export default function MiembroForm({
               value={imcActual}
               disabled
               style={{ 
-                background: "#0f172a", 
-                color: "#38bdf8", 
+                background: "var(--bg-input)", 
+                color: "var(--accent-soft)", 
                 fontWeight: "bold",
                 cursor: "not-allowed"
               }}

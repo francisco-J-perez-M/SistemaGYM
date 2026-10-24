@@ -33,7 +33,7 @@ const btnStyle = (variant = "primary") => {
 
 const INPUT = {
   width: "100%",
-  background: "rgba(255,255,255,.04)",
+  background: "var(--bg-input)",
   border: "1px solid var(--border)",
   borderRadius: 8,
   padding: "9px 12px",

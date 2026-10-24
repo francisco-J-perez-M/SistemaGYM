@@ -187,7 +187,7 @@ export default function SuperadminUsuarios() {
       <div style={card({ padding: 0, overflow: "hidden" })}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
-            <tr style={{ background: "rgba(255,255,255,.03)" }}>
+            <tr style={{ background: "var(--bg-input)" }}>
               {["Usuario", "Email", "Rol", "Gimnasio", "Estado", "Creado", "Acciones"].map(h => (
                 <th key={h} style={{ textAlign: "left", padding: "12px 16px", color: "var(--text-secondary)", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: ".06em", borderBottom: "1px solid var(--border)", whiteSpace: "nowrap" }}>{h}</th>
               ))}
@@ -250,7 +250,7 @@ export default function SuperadminUsuarios() {
       <div style={{ marginTop: 24, padding: "12px 16px", background: "rgba(168,85,247,.08)", border: "1px solid rgba(168,85,247,.2)", borderRadius: 10 }}>
         <p style={{ fontSize: 12, color: "#a855f7", fontWeight: 600, marginBottom: 4 }}>ℹ️ Impersonación de usuarios</p>
         <p style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-          Genera un token temporal de 1 hora. La sesión queda registrada con el campo <code style={{ background: "rgba(255,255,255,.06)", padding: "1px 5px", borderRadius: 4 }}>impersonated_by</code> para auditoría. Para volver al superadmin, cierra sesión y vuelve a iniciar con tus credenciales.
+          Genera un token temporal de 1 hora. La sesión queda registrada con el campo <code style={{ background: "var(--bg-input)", padding: "1px 5px", borderRadius: 4 }}>impersonated_by</code> para auditoría. Para volver al superadmin, cierra sesión y vuelve a iniciar con tus credenciales.
         </p>
       </div>
     </div>

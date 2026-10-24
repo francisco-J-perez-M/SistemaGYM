@@ -55,7 +55,7 @@ function ChurnRow({ gym }) {
   const colorMap = { ALTO: "var(--danger)", MEDIO: "var(--warning)" };
   const c = colorMap[gym.nivel_riesgo] || "var(--text-secondary)";
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderRadius: 8, background: "rgba(255,255,255,.03)", marginBottom: 4 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderRadius: 8, background: "var(--bg-input)", marginBottom: 4 }}>
       <div style={{ width: 8, height: 8, borderRadius: "50%", background: c, flexShrink: 0 }} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -75,7 +75,7 @@ function ChurnRow({ gym }) {
 
 function GymRow({ gym }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "10px 14px", borderRadius: 8, background: "rgba(255,255,255,.03)", marginBottom: 4 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "10px 14px", borderRadius: 8, background: "var(--bg-input)", marginBottom: 4 }}>
       <div style={{ width: 36, height: 36, borderRadius: 8, background: "var(--accent-dim, var(--accent-dim))", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 15, fontWeight: 700, color: "var(--accent, var(--accent))" }}>
         {(gym.nombre || "G").charAt(0)}
       </div>

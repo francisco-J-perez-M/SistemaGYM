@@ -274,7 +274,7 @@ export default function CobrarMembresia() {
               style={{
                 padding: "14px 0", borderRadius: 10, border: "none",
                 background: canSubmit ? "var(--accent)" : "var(--border-hover)",
-                color: canSubmit ? "#fff" : "rgba(255,255,255,.4)",
+                color: canSubmit ? "#fff" : "var(--text-secondary)",
                 fontWeight: 700, fontSize: 15, cursor: canSubmit ? "pointer" : "not-allowed",
                 transition: "all .2s",
               }}

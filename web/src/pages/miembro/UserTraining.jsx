@@ -198,7 +198,7 @@ function TabRutinas() {
                         {dia.ejercicios.map((ej, j) => (
                           <div key={j} style={{
                             display: "flex", gap: 10, padding: "7px 10px",
-                            background: "rgba(255,255,255,.03)", borderRadius: 6, marginBottom: 4,
+                            background: "var(--bg-input)", borderRadius: 6, marginBottom: 4,
                             fontSize: 12, color: "var(--text-primary)",
                           }}>
                             <span style={{ flex: 1 }}>{ej.nombre}</span>
@@ -244,7 +244,7 @@ function TabRutinas() {
             {label}
             {count > 0 && (
               <span style={{
-                background: vista === key ? "rgba(255,255,255,.25)" : "rgba(255,255,255,.1)",
+                background: vista === key ? "var(--accent)" : "var(--bg-input)",
                 borderRadius: 99, padding: "1px 7px", fontSize: 10,
               }}>
                 {count}

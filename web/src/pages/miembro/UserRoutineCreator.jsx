@@ -1,477 +1,483 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
-import { FiPlus, FiTrash2, FiSave, FiCopy, FiAlertCircle, FiCheckCircle } from "react-icons/fi";
-import { GiMuscleUp } from "react-icons/gi";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  FiPlus, FiTrash2, FiSave, FiCopy, FiAlertCircle, FiCheckCircle,
+  FiChevronDown, FiChevronUp, FiSearch, FiZap
+} from "react-icons/fi";
 import "../../css/CSSUnificado.css";
 
+/* ─── Datos estáticos ────────────────────────────────────────── */
+const DIAS_SEMANA = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
+const DIAS_CORTO  = ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
+
+const GRUPOS = [
+  { id:"pecho",      label:"Pecho",           emoji:"🫁", color:"#ef4444" },
+  { id:"espalda",    label:"Espalda",          emoji:"🔙", color:"#6366f1" },
+  { id:"hombros",    label:"Hombros",          emoji:"🏋️", color:"#8b5cf6" },
+  { id:"biceps",     label:"Bíceps",           emoji:"💪", color:"#f59e0b" },
+  { id:"triceps",    label:"Tríceps",          emoji:"🦾", color:"#f97316" },
+  { id:"piernas",    label:"Piernas",          emoji:"🦵", color:"#22c55e" },
+  { id:"gluteos",    label:"Glúteos",          emoji:"🍑", color:"#ec4899" },
+  { id:"abdomen",    label:"Abdomen / Core",   emoji:"⚡", color:"#06b6d4" },
+  { id:"cardio",     label:"Cardio",           emoji:"🏃", color:"#84cc16" },
+  { id:"descanso",   label:"Descanso",         emoji:"😴", color:"#64748b" },
+];
+
+const SUGERENCIAS = {
+  pecho:    ["Press Banca","Press Inclinado","Press Declinado","Aperturas con Mancuernas","Fondos en paralelas","Pullover","Cruce de poleas"],
+  espalda:  ["Dominadas","Remo con Barra","Remo con Mancuerna","Jalones al Pecho","Jalones tras Nuca","Face Pull","Pull-Over"],
+  hombros:  ["Press Militar","Elevaciones Laterales","Elevaciones Frontales","Pájaros","Press Arnold","Encogimientos con Mancuernas"],
+  biceps:   ["Curl con Barra","Curl con Mancuernas","Curl Martillo","Curl Concentrado","Curl en Polea","Curl de Predicador"],
+  triceps:  ["Extensiones Tríceps","Patadas de Tríceps","Jalones al Pecho (tríceps)","Press Francés","Extensión Aérea"],
+  piernas:  ["Sentadillas","Prensa de Piernas","Extensiones","Curl Femoral","Zancadas","Sentadilla Búlgara","Elevaciones de Gemelos"],
+  gluteos:  ["Hip Thrust","Puente de Glúteo","Zancadas","Sentadilla Sumo","Abductores en Máquina","Patadas de Glúteo"],
+  abdomen:  ["Crunches","Plancha","Elevación de Piernas","Bicicleta","Russian Twist","Rueda Abdominal","Crunches en Polea"],
+  cardio:   ["Caminadora 30 min","Bicicleta 20 min","Elíptica 20 min","Remo 15 min","Jump Rope 15 min","HIIT 20 min"],
+  descanso: [],
+};
+
+const PLANTILLAS = [
+  {
+    nombre: "Push / Pull / Legs",
+    dias: [
+      { dia:"Lunes",    grupo:"pecho",   ejercicios:[{nombre:"Press Banca",series:"4",reps:"10"},{nombre:"Press Inclinado",series:"3",reps:"12"},{nombre:"Extensiones Tríceps",series:"3",reps:"15"},{nombre:"Fondos",series:"3",reps:"12"}] },
+      { dia:"Martes",   grupo:"espalda", ejercicios:[{nombre:"Dominadas",series:"4",reps:"8"},{nombre:"Remo con Barra",series:"4",reps:"10"},{nombre:"Curl con Barra",series:"3",reps:"12"},{nombre:"Curl Martillo",series:"3",reps:"12"}] },
+      { dia:"Miércoles",grupo:"piernas", ejercicios:[{nombre:"Sentadillas",series:"4",reps:"12"},{nombre:"Prensa",series:"3",reps:"15"},{nombre:"Extensiones",series:"3",reps:"15"},{nombre:"Elevaciones de Gemelos",series:"4",reps:"20"}] },
+      { dia:"Jueves",   grupo:"descanso",ejercicios:[] },
+      { dia:"Viernes",  grupo:"pecho",   ejercicios:[{nombre:"Press Banca",series:"4",reps:"10"},{nombre:"Aperturas",series:"3",reps:"12"},{nombre:"Press Arnold",series:"3",reps:"12"}] },
+      { dia:"Sábado",   grupo:"espalda", ejercicios:[{nombre:"Jalones al Pecho",series:"4",reps:"12"},{nombre:"Remo con Mancuerna",series:"3",reps:"12"},{nombre:"Curl Concentrado",series:"3",reps:"15"}] },
+      { dia:"Domingo",  grupo:"descanso",ejercicios:[] },
+    ],
+  },
+  {
+    nombre: "Full Body 3 días",
+    dias: [
+      { dia:"Lunes",    grupo:"pecho",   ejercicios:[{nombre:"Press Banca",series:"3",reps:"10"},{nombre:"Sentadillas",series:"3",reps:"12"},{nombre:"Dominadas",series:"3",reps:"8"},{nombre:"Plancha",series:"3",reps:"45s"}] },
+      { dia:"Miércoles",grupo:"hombros", ejercicios:[{nombre:"Press Militar",series:"3",reps:"10"},{nombre:"Remo con Barra",series:"3",reps:"10"},{nombre:"Prensa",series:"3",reps:"15"},{nombre:"Crunches",series:"3",reps:"20"}] },
+      { dia:"Viernes",  grupo:"piernas", ejercicios:[{nombre:"Zancadas",series:"3",reps:"12"},{nombre:"Press Inclinado",series:"3",reps:"10"},{nombre:"Jalones",series:"3",reps:"12"},{nombre:"Elevación de Piernas",series:"3",reps:"15"}] },
+    ],
+  },
+];
+
+/* ─── Componentes ────────────────────────────────────────────── */
+function GrupoSelector({ value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const current = GRUPOS.find(g => g.id === value) || GRUPOS[0];
+  return (
+    <div style={{ position:"relative" }}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        style={{
+          display:"flex", alignItems:"center", gap:8, padding:"6px 12px",
+          background:"var(--bg-input)", border:"1px solid var(--border)",
+          borderRadius:8, cursor:"pointer", fontSize:13, color:"var(--text-primary)",
+          whiteSpace:"nowrap",
+        }}
+      >
+        <span>{current.emoji}</span>
+        <span style={{ color:current.color, fontWeight:600 }}>{current.label}</span>
+        {open ? <FiChevronUp size={12} /> : <FiChevronDown size={12} />}
+      </button>
+      {open && (
+        <div style={{
+          position:"absolute", top:"calc(100% + 6px)", left:0, zIndex:50,
+          background:"var(--bg-card)", border:"1px solid var(--border)",
+          borderRadius:10, padding:6, minWidth:180, boxShadow:"0 8px 24px rgba(0,0,0,.25)",
+        }}>
+          {GRUPOS.map(g => (
+            <div
+              key={g.id}
+              onClick={() => { onChange(g.id); setOpen(false); }}
+              style={{
+                display:"flex", alignItems:"center", gap:8, padding:"7px 10px",
+                borderRadius:7, cursor:"pointer", fontSize:13,
+                background: g.id === value ? `${g.color}18` : "transparent",
+                color: g.id === value ? g.color : "var(--text-primary)",
+              }}
+            >
+              <span>{g.emoji}</span> {g.label}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EjercicioRow({ ej, idx, grupo, onUpdate, onDelete }) {
+  const [showSug, setShowSug] = useState(false);
+  const sugs = (SUGERENCIAS[grupo] || []).filter(s =>
+    ej.nombre === "" || s.toLowerCase().includes(ej.nombre.toLowerCase())
+  );
+  const ref = useRef(null);
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setShowSug(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  return (
+    <div ref={ref} style={{ position:"relative", display:"grid", gridTemplateColumns:"1fr auto auto auto", gap:8, alignItems:"center", padding:"10px 12px", background:"var(--bg-input)", borderRadius:9, marginBottom:8 }}>
+      <div style={{ position:"relative" }}>
+        <input
+          placeholder="Nombre del ejercicio…"
+          value={ej.nombre}
+          onChange={e => { onUpdate("nombre", e.target.value); setShowSug(true); }}
+          onFocus={() => setShowSug(true)}
+          style={{ width:"100%", padding:"8px 10px", background:"var(--bg-card)", border:"1px solid var(--border)", borderRadius:7, color:"var(--text-primary)", fontSize:13 }}
+        />
+        {showSug && sugs.length > 0 && ej.nombre.length < 20 && (
+          <div style={{
+            position:"absolute", top:"calc(100% + 4px)", left:0, right:0, zIndex:40,
+            background:"var(--bg-card)", border:"1px solid var(--border)",
+            borderRadius:8, maxHeight:160, overflowY:"auto",
+            boxShadow:"0 6px 20px rgba(0,0,0,.2)",
+          }}>
+            {sugs.slice(0,6).map(s => (
+              <div key={s} onClick={() => { onUpdate("nombre", s); setShowSug(false); }}
+                style={{ padding:"8px 12px", cursor:"pointer", fontSize:13, color:"var(--text-primary)" }}
+                onMouseEnter={e => e.currentTarget.style.background = "var(--bg-input)"}
+                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+              >{s}</div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <input
+        placeholder="Series"
+        value={ej.series}
+        onChange={e => onUpdate("series", e.target.value)}
+        style={{ width:60, padding:"8px 10px", background:"var(--bg-card)", border:"1px solid var(--border)", borderRadius:7, color:"var(--text-primary)", fontSize:13, textAlign:"center" }}
+      />
+      <input
+        placeholder="Reps"
+        value={ej.reps}
+        onChange={e => onUpdate("reps", e.target.value)}
+        style={{ width:60, padding:"8px 10px", background:"var(--bg-card)", border:"1px solid var(--border)", borderRadius:7, color:"var(--text-primary)", fontSize:13, textAlign:"center" }}
+      />
+      <button onClick={onDelete} style={{ padding:8, background:"none", border:"none", color:"var(--text-secondary)", cursor:"pointer" }}>
+        <FiTrash2 size={14} />
+      </button>
+    </div>
+  );
+}
+
+/* ─── Main ───────────────────────────────────────────────────── */
 export default function UserRoutineCreator() {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
-  const [routine, setRoutine] = useState({
-    nombre: "Mi Rutina Personalizada",
-    dias: [
-      { 
-        dia: "Lunes", 
-        grupo: "Pecho y Tríceps", 
-        ejercicios: [{ nombre: "Press Banca", series: "4", reps: "12" }] 
-      },
-      { 
-        dia: "Martes", 
-        grupo: "Espalda y Bíceps", 
-        ejercicios: [{ nombre: "Dominadas", series: "3", reps: "10" }] 
-      }
-    ]
-  });
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
-  const [successMessage, setSuccessMessage] = useState(null);
+  const [routine,    setRoutine]    = useState({ nombre:"Mi Rutina", dias:[] });
+  const [activeDay,  setActiveDay]  = useState(0);
+  const [saving,     setSaving]     = useState(false);
+  const [error,      setError]      = useState(null);
+  const [success,    setSuccess]    = useState(false);
+  const [showTpl,    setShowTpl]    = useState(false);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (!storedUser) {
-      navigate("/", { replace: true });
-      return;
-    }
-    setUser(JSON.parse(storedUser));
+    if (!localStorage.getItem("token")) { navigate("/", { replace:true }); return; }
     fetchRoutine();
   }, []);
 
   const fetchRoutine = async () => {
     try {
-      setLoading(true);
-      const token = localStorage.getItem("token");
-      
-      const response = await fetch("/api/user/routines", {
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json"
-        }
+      const res = await fetch("/api/user/routines", {
+        headers: { Authorization:`Bearer ${localStorage.getItem("token")}` },
       });
-
-      if (!response.ok) throw new Error("Error al cargar rutina");
-
-      const data = await response.json();
-      
-      // Cargar la primera rutina si existe
-      if (data.rutinas && data.rutinas.length > 0) {
-        setRoutine(data.rutinas[0]);
+      if (res.ok) {
+        const d = await res.json();
+        if (d.rutinas?.length > 0) setRoutine(d.rutinas[0]);
+        else setRoutine({ nombre:"Mi Rutina", dias: [{ dia:"Lunes", grupo:"pecho", ejercicios:[{nombre:"",series:"4",reps:"12"}] }] });
       }
-      
-      setError(null);
-    } catch (err) {
-      console.error("Error:", err);
-      // No mostrar error si no hay rutinas, usar la rutina por defecto
-      console.log("Usando rutina por defecto");
-    } finally {
-      setLoading(false);
-    }
+    } catch {}
   };
 
-  const agregarEjercicio = (diaIndex) => {
-    const nuevaRutina = { ...routine };
-    nuevaRutina.dias[diaIndex].ejercicios.push({ nombre: "", series: "3", reps: "12" });
-    setRoutine(nuevaRutina);
+  /* ── Mutations ──────────────────────────────────────────────── */
+  const setDias = (fn) => setRoutine(r => ({ ...r, dias: fn([...r.dias]) }));
+
+  const addDay = () => {
+    const usados = routine.dias.map(d => d.dia);
+    const sig    = DIAS_SEMANA.find(d => !usados.includes(d));
+    if (!sig) { setError("Ya están todos los días de la semana."); return; }
+    setDias(dias => {
+      const next = [...dias, { dia:sig, grupo:"pecho", ejercicios:[{nombre:"",series:"4",reps:"12"}] }];
+      setActiveDay(next.length - 1);
+      return next;
+    });
   };
 
-  const eliminarEjercicio = (diaIndex, ejercicioIndex) => {
-    const nuevaRutina = { ...routine };
-    nuevaRutina.dias[diaIndex].ejercicios.splice(ejercicioIndex, 1);
-    setRoutine(nuevaRutina);
+  const removeDay = (i) => {
+    if (routine.dias.length <= 1) { setError("Debe haber al menos un día."); return; }
+    setDias(dias => { dias.splice(i,1); return dias; });
+    setActiveDay(ai => Math.max(0, ai >= i ? ai - 1 : ai));
   };
 
-  const actualizarEjercicio = (diaIndex, ejercicioIndex, campo, valor) => {
-    const nuevaRutina = { ...routine };
-    nuevaRutina.dias[diaIndex].ejercicios[ejercicioIndex][campo] = valor;
-    setRoutine(nuevaRutina);
+  const addExercise = (di) => setDias(dias => {
+    dias[di].ejercicios.push({ nombre:"", series:"4", reps:"12" });
+    return dias;
+  });
+
+  const updateExercise = (di, ei, field, val) => setDias(dias => {
+    dias[di].ejercicios[ei][field] = val;
+    return dias;
+  });
+
+  const removeExercise = (di, ei) => setDias(dias => {
+    dias[di].ejercicios.splice(ei, 1);
+    return dias;
+  });
+
+  const loadTemplate = (tpl) => {
+    setRoutine({ ...tpl, id: routine.id });
+    setActiveDay(0);
+    setShowTpl(false);
   };
 
-  const agregarDia = () => {
-    const diasSemana = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
-    const diasUsados = routine.dias.map(d => d.dia);
-    const siguienteDia = diasSemana.find(dia => !diasUsados.includes(dia));
-    
-    if (siguienteDia) {
-      const nuevaRutina = { ...routine };
-      nuevaRutina.dias.push({
-        dia: siguienteDia,
-        grupo: "Nuevo Grupo",
-        ejercicios: [{ nombre: "", series: "3", reps: "12" }]
-      });
-      setRoutine(nuevaRutina);
-    } else {
-      setError("Ya has agregado todos los días de la semana");
-      setTimeout(() => setError(null), 3000);
-    }
-  };
-
-  const eliminarDia = (diaIndex) => {
-    if (routine.dias.length > 1) {
-      const nuevaRutina = { ...routine };
-      nuevaRutina.dias.splice(diaIndex, 1);
-      setRoutine(nuevaRutina);
-    } else {
-      setError("Debes mantener al menos un día en la rutina");
-      setTimeout(() => setError(null), 3000);
-    }
-  };
-
-  const guardarRutina = async () => {
+  const save = async () => {
+    const valido = routine.dias.some(d => d.ejercicios.some(e => e.nombre.trim()));
+    if (!valido) { setError("Agrega al menos un ejercicio con nombre."); return; }
+    setSaving(true); setError(null);
     try {
-      setSaving(true);
-      setError(null);
-      const token = localStorage.getItem("token");
-      
-      // Validar que haya al menos un ejercicio
-      const tieneEjercicios = routine.dias.some(dia => 
-        dia.ejercicios.some(ej => ej.nombre.trim() !== "")
-      );
-      
-      if (!tieneEjercicios) {
-        setError("Debes agregar al menos un ejercicio con nombre");
-        setSaving(false);
-        return;
-      }
-      
+      const url    = routine.id ? `/api/user/routines/${routine.id}` : "/api/user/routines";
       const method = routine.id ? "PUT" : "POST";
-      const url = routine.id 
-        ? `/api/user/routines/${routine.id}`
-        : "/api/user/routines";
-      
-      const response = await fetch(url, {
-        method: method,
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(routine)
+      const res    = await fetch(url, {
+        method,
+        headers: { Authorization:`Bearer ${localStorage.getItem("token")}`, "Content-Type":"application/json" },
+        body: JSON.stringify(routine),
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Error al guardar rutina");
-      }
-
-      const data = await response.json();
-      setSuccessMessage("Rutina guardada exitosamente");
-      
-      // Actualizar ID si es una rutina nueva
-      if (data.rutina && data.rutina.id) {
-        setRoutine({ ...routine, id: data.rutina.id });
-      }
-      
-      setTimeout(() => setSuccessMessage(null), 3000);
-    } catch (err) {
-      console.error("Error:", err);
-      setError(err.message);
-    } finally {
-      setSaving(false);
-    }
+      if (!res.ok) throw new Error((await res.json()).error || "Error");
+      const d = await res.json();
+      if (d.rutina?.id) setRoutine(r => ({ ...r, id: d.rutina.id }));
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 2500);
+    } catch(e) { setError(e.message); }
+    finally { setSaving(false); }
   };
 
-  const duplicarRutina = async () => {
-    try {
-      if (!routine.id) {
-        setError("Primero debes guardar la rutina antes de duplicarla");
-        return;
-      }
-      
-      const token = localStorage.getItem("token");
-      
-      const response = await fetch(`/api/user/routines/${routine.id}/duplicate`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json"
-        }
-      });
-
-      if (!response.ok) throw new Error("Error al duplicar rutina");
-
-      const data = await response.json();
-      setSuccessMessage("Rutina duplicada exitosamente");
-      
-      // Cargar la rutina duplicada
-      if (data.rutina) {
-        setRoutine(data.rutina);
-      }
-      
-      setTimeout(() => setSuccessMessage(null), 3000);
-    } catch (err) {
-      console.error("Error:", err);
-      setError("No se pudo duplicar la rutina");
-    }
-  };
-
-  if (!user) return null;
+  const current = routine.dias[activeDay];
+  const grupo   = current ? (GRUPOS.find(g => g.id === current.grupo) || GRUPOS[0]) : null;
 
   return (
     <div className="dashboard-layout">
       <div className="main-wrapper">
         <header className="top-header">
-          <h2 className="page-title">Creador de Rutinas</h2>
-        </header>
-        
-        <main className="dashboard-content">
-          {/* Mensajes */}
-          {error && (
-            <div style={{ 
-              padding: '15px', 
-              background: 'rgba(255, 59, 48, 0.1)', 
-              borderRadius: '8px', 
-              marginBottom: '20px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              color: 'var(--error-color)'
-            }}>
-              <FiAlertCircle />
-              <span>{error}</span>
-            </div>
-          )}
-
-          {successMessage && (
-            <div style={{ 
-              padding: '15px', 
-              background: 'rgba(76, 217, 100, 0.1)', 
-              borderRadius: '8px', 
-              marginBottom: '20px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              color: 'var(--success-color)'
-            }}>
-              <FiCheckCircle />
-              <span>{successMessage}</span>
-            </div>
-          )}
-
-          <div className="chart-card">
-            <div className="chart-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
-                <GiMuscleUp style={{ fontSize: '24px' }} />
-                <input
-                  type="text"
-                  value={routine.nombre}
-                  onChange={(e) => setRoutine({ ...routine, nombre: e.target.value })}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    fontSize: '20px',
-                    fontWeight: '600',
-                    color: 'var(--text-primary)',
-                    outline: 'none',
-                    flex: 1
-                  }}
-                  placeholder="Nombre de la rutina"
-                />
-              </div>
-              
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <motion.button 
-                  className="btn-outline-small" 
-                  whileHover={{ scale: 1.05 }}
-                  onClick={duplicarRutina}
-                >
-                  <FiCopy style={{ marginRight: 6 }} />
-                  Duplicar
-                </motion.button>
-                
-                <motion.button 
-                  className="btn-outline-small" 
-                  whileHover={{ scale: 1.05 }}
-                  onClick={guardarRutina}
-                  disabled={saving}
-                  style={{
-                    opacity: saving ? 0.6 : 1,
-                    cursor: saving ? 'not-allowed' : 'pointer'
-                  }}
-                >
-                  <FiSave style={{ marginRight: 6 }} />
-                  {saving ? "Guardando..." : "Guardar"}
-                </motion.button>
-              </div>
-            </div>
-            
-            <div style={{ padding: '20px' }}>
-              {routine.dias.map((dia, diaIdx) => (
-                <motion.div 
-                  key={diaIdx} 
-                  initial={{ opacity: 0, y: 20 }} 
-                  animate={{ opacity: 1, y: 0 }} 
-                  transition={{ delay: diaIdx * 0.1 }} 
-                  style={{ 
-                    marginBottom: '25px', 
-                    padding: '20px', 
-                    background: 'var(--bg-input-dark)', 
-                    borderRadius: '12px', 
-                    border: '2px solid var(--border-dark)' 
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
-                    <div style={{ flex: 1 }}>
-                      <h3 style={{ marginBottom: '8px' }}>{dia.dia}</h3>
-                      <input
-                        type="text"
-                        value={dia.grupo}
-                        onChange={(e) => {
-                          const nuevaRutina = { ...routine };
-                          nuevaRutina.dias[diaIdx].grupo = e.target.value;
-                          setRoutine(nuevaRutina);
-                        }}
-                        style={{
-                          background: 'var(--bg-input)',
-                          border: '1px solid var(--border-dark)',
-                          borderRadius: '6px',
-                          padding: '8px',
-                          fontSize: '14px',
-                          color: 'var(--text-secondary)',
-                          width: '100%',
-                          maxWidth: '300px'
-                        }}
-                        placeholder="Grupo muscular"
-                      />
-                    </div>
-                    
-                    <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-                      <motion.button 
-                        onClick={() => agregarEjercicio(diaIdx)} 
-                        whileHover={{ scale: 1.05 }} 
-                        style={{ 
-                          padding: '8px 16px', 
-                          background: 'var(--accent)', 
-                          color: 'var(--bg-input)', 
-                          border: 'none', 
-                          borderRadius: '8px', 
-                          cursor: 'pointer', 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          gap: '6px', 
-                          fontWeight: '600' 
-                        }}
-                      >
-                        <FiPlus />
-                        Ejercicio
-                      </motion.button>
-                      
-                      {routine.dias.length > 1 && (
-                        <motion.button
-                          onClick={() => eliminarDia(diaIdx)}
-                          whileHover={{ scale: 1.1, color: 'var(--error-color)' }}
-                          style={{
-                            padding: '8px',
-                            background: 'transparent',
-                            border: '1px solid var(--border-dark)',
-                            borderRadius: '8px',
-                            cursor: 'pointer',
-                            color: 'var(--text-secondary)'
-                          }}
-                        >
-                          <FiTrash2 />
-                        </motion.button>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {dia.ejercicios.map((ejercicio, ejIdx) => (
-                    <div 
-                      key={ejIdx} 
-                      style={{ 
-                        display: 'grid', 
-                        gridTemplateColumns: '2fr 1fr 1fr auto', 
-                        gap: '12px', 
-                        padding: '12px', 
-                        background: 'var(--bg-input)', 
-                        borderRadius: '8px', 
-                        marginBottom: '10px' 
-                      }}
-                    >
-                      <input 
-                        type="text" 
-                        placeholder="Nombre del ejercicio" 
-                        value={ejercicio.nombre}
-                        onChange={(e) => actualizarEjercicio(diaIdx, ejIdx, 'nombre', e.target.value)}
-                        style={{ 
-                          padding: '10px', 
-                          background: 'var(--bg-input-dark)', 
-                          border: '1px solid var(--border-dark)', 
-                          borderRadius: '6px', 
-                          color: 'var(--text-primary)' 
-                        }} 
-                      />
-                      <input 
-                        type="text" 
-                        placeholder="Series" 
-                        value={ejercicio.series}
-                        onChange={(e) => actualizarEjercicio(diaIdx, ejIdx, 'series', e.target.value)}
-                        style={{ 
-                          padding: '10px', 
-                          background: 'var(--bg-input-dark)', 
-                          border: '1px solid var(--border-dark)', 
-                          borderRadius: '6px', 
-                          color: 'var(--text-primary)' 
-                        }} 
-                      />
-                      <input 
-                        type="text" 
-                        placeholder="Reps" 
-                        value={ejercicio.reps}
-                        onChange={(e) => actualizarEjercicio(diaIdx, ejIdx, 'reps', e.target.value)}
-                        style={{ 
-                          padding: '10px', 
-                          background: 'var(--bg-input-dark)', 
-                          border: '1px solid var(--border-dark)', 
-                          borderRadius: '6px', 
-                          color: 'var(--text-primary)' 
-                        }} 
-                      />
-                      <motion.button 
-                        whileHover={{ scale: 1.1, color: 'var(--error-color)' }} 
-                        onClick={() => eliminarEjercicio(diaIdx, ejIdx)}
-                        style={{ 
-                          padding: '10px', 
-                          background: 'transparent', 
-                          border: 'none', 
-                          cursor: 'pointer', 
-                          color: 'var(--text-secondary)' 
-                        }}
-                      >
-                        <FiTrash2 />
-                      </motion.button>
-                    </div>
-                  ))}
-                </motion.div>
-              ))}
-              
-              {routine.dias.length < 7 && (
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  onClick={agregarDia}
-                  style={{
-                    width: '100%',
-                    padding: '16px',
-                    background: 'var(--bg-input-dark)',
-                    border: '2px dashed var(--border-dark)',
-                    borderRadius: '12px',
-                    cursor: 'pointer',
-                    color: 'var(--text-secondary)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    fontSize: '14px',
-                    fontWeight: '600'
-                  }}
-                >
-                  <FiPlus />
-                  Agregar Día
-                </motion.button>
-              )}
-            </div>
+          <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+            <input
+              value={routine.nombre}
+              onChange={e => setRoutine(r => ({ ...r, nombre:e.target.value }))}
+              style={{
+                background:"transparent", border:"none", fontSize:20, fontWeight:700,
+                color:"var(--text-primary)", outline:"none", maxWidth:300,
+              }}
+              placeholder="Nombre de la rutina"
+            />
           </div>
+          <div style={{ display:"flex", gap:10 }}>
+            <motion.button
+              whileHover={{ scale:1.04 }} whileTap={{ scale:.97 }}
+              onClick={() => setShowTpl(true)}
+              style={{ display:"flex", alignItems:"center", gap:7, padding:"8px 14px", background:"var(--bg-input)", border:"1px solid var(--border)", borderRadius:8, color:"var(--text-secondary)", cursor:"pointer", fontSize:13, fontWeight:600 }}
+            >
+              <FiZap size={13} /> Plantillas
+            </motion.button>
+            <motion.button
+              whileHover={{ scale:1.04 }} whileTap={{ scale:.97 }}
+              onClick={save} disabled={saving}
+              style={{ display:"flex", alignItems:"center", gap:7, padding:"8px 16px", background: saving ? "var(--bg-input)" : "var(--accent)", border:"none", borderRadius:8, color:"#fff", cursor: saving ? "not-allowed" : "pointer", fontSize:13, fontWeight:700, opacity: saving ? .7 : 1 }}
+            >
+              {saving ? <><div className="dashboard-spinner" style={{ width:14,height:14,borderWidth:2 }} /> Guardando…</> : <><FiSave size={13} /> Guardar</>}
+            </motion.button>
+          </div>
+        </header>
+
+        <main className="dashboard-content">
+          {/* Toasts */}
+          <AnimatePresence>
+            {error && (
+              <motion.div key="err" initial={{opacity:0,y:-8}} animate={{opacity:1,y:0}} exit={{opacity:0}}
+                style={{ display:"flex", alignItems:"center", gap:10, padding:"11px 16px", background:"rgba(239,68,68,.1)", border:"1px solid rgba(239,68,68,.3)", borderRadius:9, marginBottom:16, color:"#f87171", fontSize:13 }}>
+                <FiAlertCircle /> {error}
+                <button onClick={() => setError(null)} style={{ marginLeft:"auto", background:"none", border:"none", color:"#f87171", cursor:"pointer" }}>✕</button>
+              </motion.div>
+            )}
+            {success && (
+              <motion.div key="ok" initial={{opacity:0,y:-8}} animate={{opacity:1,y:0}} exit={{opacity:0}}
+                style={{ display:"flex", alignItems:"center", gap:10, padding:"11px 16px", background:"rgba(34,197,94,.1)", border:"1px solid rgba(34,197,94,.3)", borderRadius:9, marginBottom:16, color:"#4ade80", fontSize:13 }}>
+                <FiCheckCircle /> Rutina guardada exitosamente.
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Week bar */}
+          <div style={{ display:"flex", gap:8, marginBottom:20, flexWrap:"wrap" }}>
+            {routine.dias.map((d, i) => {
+              const g = GRUPOS.find(g => g.id === d.grupo) || GRUPOS[0];
+              const isActive = i === activeDay;
+              return (
+                <motion.div
+                  key={i} whileHover={{ scale:1.04 }} onClick={() => setActiveDay(i)}
+                  style={{
+                    padding:"8px 14px", borderRadius:10, cursor:"pointer", fontSize:13, fontWeight:600,
+                    background: isActive ? `${g.color}22` : "var(--bg-card)",
+                    border:`2px solid ${isActive ? g.color : "var(--border)"}`,
+                    color: isActive ? g.color : "var(--text-secondary)",
+                    display:"flex", alignItems:"center", gap:6, transition:"all .2s",
+                  }}
+                >
+                  <span>{g.emoji}</span>
+                  <span style={{ display:"flex", flexDirection:"column", lineHeight:1.2 }}>
+                    <span style={{ fontSize:11, fontWeight:400 }}>{DIAS_CORTO[DIAS_SEMANA.indexOf(d.dia)] ?? d.dia.slice(0,3)}</span>
+                    <span>{g.label}</span>
+                  </span>
+                </motion.div>
+              );
+            })}
+
+            {routine.dias.length < 7 && (
+              <motion.div whileHover={{ scale:1.04 }} onClick={addDay}
+                style={{ padding:"8px 14px", borderRadius:10, cursor:"pointer", fontSize:13, fontWeight:600, background:"var(--bg-card)", border:"2px dashed var(--border)", color:"var(--text-secondary)", display:"flex", alignItems:"center", gap:6 }}>
+                <FiPlus size={14} /> Día
+              </motion.div>
+            )}
+          </div>
+
+          {/* Day editor */}
+          {current ? (
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeDay}
+                initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:-12 }}
+                style={{ background:"var(--bg-card)", border:"1px solid var(--border)", borderRadius:14 }}
+              >
+                {/* Day header */}
+                <div style={{ padding:"16px 20px", borderBottom:"1px solid var(--border)", display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:10 }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:12, flexWrap:"wrap" }}>
+                    {/* Day selector */}
+                    <select
+                      value={current.dia}
+                      onChange={e => setDias(dias => { dias[activeDay].dia = e.target.value; return dias; })}
+                      style={{ padding:"6px 12px", background:"var(--bg-input)", border:"1px solid var(--border)", borderRadius:8, color:"var(--text-primary)", fontSize:14, fontWeight:700 }}
+                    >
+                      {DIAS_SEMANA.map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
+
+                    {/* Grupo selector */}
+                    <GrupoSelector
+                      value={current.grupo}
+                      onChange={v => setDias(dias => { dias[activeDay].grupo = v; return dias; })}
+                    />
+                  </div>
+
+                  <div style={{ display:"flex", gap:8 }}>
+                    <button
+                      onClick={() => addExercise(activeDay)}
+                      style={{ display:"flex", alignItems:"center", gap:6, padding:"7px 14px", background:`${grupo?.color ?? "var(--accent)"}22`, border:`1px solid ${grupo?.color ?? "var(--accent)"}44`, borderRadius:8, cursor:"pointer", color: grupo?.color ?? "var(--accent)", fontSize:13, fontWeight:600 }}
+                    >
+                      <FiPlus size={13} /> Ejercicio
+                    </button>
+                    {routine.dias.length > 1 && (
+                      <button
+                        onClick={() => removeDay(activeDay)}
+                        style={{ padding:"7px 10px", background:"rgba(239,68,68,.1)", border:"1px solid rgba(239,68,68,.3)", borderRadius:8, cursor:"pointer", color:"#f87171", fontSize:13 }}
+                      >
+                        <FiTrash2 size={13} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Exercises */}
+                <div style={{ padding:"16px 20px" }}>
+                  {current.grupo === "descanso" ? (
+                    <div style={{ textAlign:"center", padding:"40px 0", color:"var(--text-secondary)" }}>
+                      <div style={{ fontSize:36, marginBottom:10 }}>😴</div>
+                      <p>Día de descanso — sin ejercicios.</p>
+                    </div>
+                  ) : current.ejercicios.length === 0 ? (
+                    <div style={{ textAlign:"center", padding:"30px 0", color:"var(--text-secondary)" }}>
+                      <div style={{ fontSize:28, marginBottom:8 }}>🏋️</div>
+                      <p style={{ marginBottom:12 }}>No hay ejercicios todavía.</p>
+                      <button onClick={() => addExercise(activeDay)} style={{ padding:"8px 16px", background:`${grupo?.color}22`, border:`1px solid ${grupo?.color}44`, borderRadius:8, cursor:"pointer", color:grupo?.color, fontWeight:600, fontSize:13, display:"inline-flex", alignItems:"center", gap:6 }}>
+                        <FiPlus size={13} /> Agregar ejercicio
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Header row */}
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr 60px 60px 32px", gap:8, padding:"0 12px 8px", fontSize:11, fontWeight:700, color:"var(--text-secondary)", textTransform:"uppercase", letterSpacing:".06em" }}>
+                        <span>Ejercicio</span><span style={{textAlign:"center"}}>Series</span><span style={{textAlign:"center"}}>Reps</span><span></span>
+                      </div>
+                      <AnimatePresence>
+                        {current.ejercicios.map((ej, ei) => (
+                          <motion.div key={ei} initial={{ opacity:0, x:-10 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:10 }}>
+                            <EjercicioRow
+                              ej={ej} idx={ei} grupo={current.grupo}
+                              onUpdate={(f,v) => updateExercise(activeDay, ei, f, v)}
+                              onDelete={() => removeExercise(activeDay, ei)}
+                            />
+                          </motion.div>
+                        ))}
+                      </AnimatePresence>
+                      <button
+                        onClick={() => addExercise(activeDay)}
+                        style={{ marginTop:8, width:"100%", padding:"10px", background:"transparent", border:`1px dashed var(--border)`, borderRadius:9, cursor:"pointer", color:"var(--text-secondary)", fontSize:13, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}
+                      >
+                        <FiPlus size={13} /> Agregar ejercicio
+                      </button>
+                    </>
+                  )}
+                </div>
+              </motion.div>
+            </AnimatePresence>
+          ) : (
+            <div style={{ textAlign:"center", padding:"60px 0", color:"var(--text-secondary)" }}>
+              <div style={{ fontSize:36, marginBottom:12 }}>📋</div>
+              <p>Crea un día para empezar.</p>
+              <button onClick={addDay} style={{ marginTop:12, padding:"9px 18px", background:"var(--accent)", border:"none", borderRadius:9, color:"#fff", fontWeight:700, cursor:"pointer", display:"inline-flex", alignItems:"center", gap:6 }}>
+                <FiPlus /> Agregar día
+              </button>
+            </div>
+          )}
         </main>
       </div>
+
+      {/* Template modal */}
+      <AnimatePresence>
+        {showTpl && (
+          <motion.div
+            initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
+            onClick={() => setShowTpl(false)}
+            style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.5)", zIndex:100, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}
+          >
+            <motion.div
+              initial={{ scale:.9, opacity:0 }} animate={{ scale:1, opacity:1 }} exit={{ scale:.9, opacity:0 }}
+              onClick={e => e.stopPropagation()}
+              style={{ background:"var(--bg-card)", border:"1px solid var(--border)", borderRadius:16, padding:28, maxWidth:500, width:"100%" }}
+            >
+              <h3 style={{ marginBottom:4, fontSize:18, fontWeight:700 }}>⚡ Plantillas de rutina</h3>
+              <p style={{ fontSize:13, color:"var(--text-secondary)", marginBottom:20 }}>Elige una para empezar rápido. Podrás editarla después.</p>
+              <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+                {PLANTILLAS.map((tpl, i) => (
+                  <motion.div
+                    key={i} whileHover={{ scale:1.02 }}
+                    onClick={() => loadTemplate(tpl)}
+                    style={{ padding:"14px 18px", background:"var(--bg-input)", border:"1px solid var(--border)", borderRadius:10, cursor:"pointer" }}
+                  >
+                    <div style={{ fontWeight:700, marginBottom:4 }}>{tpl.nombre}</div>
+                    <div style={{ fontSize:12, color:"var(--text-secondary)" }}>
+                      {tpl.dias.filter(d=>d.grupo!=="descanso").length} días de entrenamiento, {tpl.dias.filter(d=>d.grupo==="descanso").length} de descanso
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+              <button onClick={() => setShowTpl(false)} style={{ marginTop:16, width:"100%", padding:10, background:"transparent", border:"1px solid var(--border)", borderRadius:9, color:"var(--text-secondary)", cursor:"pointer", fontSize:13 }}>
+                Cancelar
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

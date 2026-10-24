@@ -19,7 +19,7 @@ export default function TicketModal({ venta, onClose }) {
 
           <div style={{ padding: "14px 22px 22px", fontFamily: "monospace" }}>
             {/* Encabezado */}
-            <div style={{ textAlign: "center", marginBottom: 16, paddingBottom: 14, borderBottom: "1px dashed rgba(255,255,255,.15)" }}>
+            <div style={{ textAlign: "center", marginBottom: 16, paddingBottom: 14, borderBottom: "1px dashed var(--border)" }}>
               <div style={{ fontSize: 20, fontWeight: 900, color: "var(--accent)", letterSpacing: 3 }}>GYM PRO</div>
               <div style={{ fontSize: 10, color: "var(--text-secondary)", marginTop: 2 }}>Punto de Venta</div>
               <div style={{ fontSize: 10, color: "var(--text-tertiary, var(--text-tertiary))", marginTop: 4 }}>{venta.fecha}</div>
@@ -32,7 +32,7 @@ export default function TicketModal({ venta, onClose }) {
 
             {/* Cliente */}
             {venta.nombre_miembro && (
-              <div style={{ marginBottom: 10, paddingBottom: 10, borderBottom: "1px dashed rgba(255,255,255,.1)", fontSize: 12 }}>
+              <div style={{ marginBottom: 10, paddingBottom: 10, borderBottom: "1px dashed var(--border)", fontSize: 12 }}>
                 <span style={{ color: "var(--text-secondary)" }}>Cliente: </span>
                 <span style={{ color: "var(--text-primary)", fontWeight: 700 }}>{venta.nombre_miembro}</span>
               </div>
@@ -54,7 +54,7 @@ export default function TicketModal({ venta, onClose }) {
             </div>
 
             {/* Total */}
-            <div style={{ borderTop: "1px dashed rgba(255,255,255,.2)", paddingTop: 10, marginBottom: 12 }}>
+            <div style={{ borderTop: "1px dashed var(--border)", paddingTop: 10, marginBottom: 12 }}>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 16, fontWeight: 900 }}>
                 <span style={{ color: "var(--text-primary)" }}>TOTAL</span>
                 <span style={{ color: "var(--success)" }}>{fmt(venta.total)}</span>
@@ -62,7 +62,7 @@ export default function TicketModal({ venta, onClose }) {
             </div>
 
             {/* Metodo de pago */}
-            <div style={{ borderTop: "1px dashed rgba(255,255,255,.1)", paddingTop: 10, fontSize: 11, display: "flex", flexDirection: "column", gap: 4 }}>
+            <div style={{ borderTop: "1px dashed var(--border)", paddingTop: 10, fontSize: 11, display: "flex", flexDirection: "column", gap: 4 }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "var(--text-secondary)" }}>Metodo:</span>
                 <span style={{ color: "var(--text-primary)", fontWeight: 700 }}>{venta.metodo_pago}</span>
@@ -81,7 +81,7 @@ export default function TicketModal({ venta, onClose }) {
               )}
             </div>
 
-            <div style={{ textAlign: "center", marginTop: 18, fontSize: 10, color: "var(--text-tertiary)", borderTop: "1px dashed rgba(255,255,255,.1)", paddingTop: 12 }}>
+            <div style={{ textAlign: "center", marginTop: 18, fontSize: 10, color: "var(--text-tertiary)", borderTop: "1px dashed var(--border)", paddingTop: 12 }}>
               Gracias por tu compra
             </div>
           </div>

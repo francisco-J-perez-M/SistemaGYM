@@ -97,6 +97,10 @@ export default function UserWeightPrediction() {
         `${API_BASE}/api/analytics/regresion/predecir/${userId}?dias=${diasParam}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
+      if (res.status === 404 || res.status === 422) {
+        setError("__no_data__");
+        return;
+      }
       if (!res.ok) throw new Error(`Error ${res.status}: ${res.statusText}`);
       const json = await res.json();
       setData(json);
@@ -168,6 +172,38 @@ export default function UserWeightPrediction() {
     <div className="loading-spinner" style={{ height: "60vh" }}>
       <div className="dashboard-spinner" />
       <p style={{ marginTop: 16, color: "var(--text-secondary)" }}>Cargando tu predicción...</p>
+    </div>
+  );
+
+  if (error === "__no_data__") return (
+    <div className="dashboard-content">
+      <div style={{ textAlign: "center", padding: "60px 20px", maxWidth: 480, margin: "0 auto" }}>
+        <div style={{ fontSize: 64, marginBottom: 20 }}>📊</div>
+        <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 12, color: "var(--text-primary)" }}>
+          Aún no hay datos suficientes
+        </h2>
+        <p style={{ color: "var(--text-secondary)", fontSize: 15, lineHeight: 1.7, marginBottom: 24 }}>
+          La predicción de peso utiliza tu historial de registros corporales.
+          Necesitas al menos <strong>3 registros</strong> en distintas fechas para que la IA pueda generar una predicción.
+        </p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, textAlign: "left", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 14, padding: "20px 24px", marginBottom: 28 }}>
+          {[
+            ["1", "Ve a", "Progreso Físico", "y registra tus medidas y peso"],
+            ["2", "Repite en", "días distintos", "(mínimo 3 registros)"],
+            ["3", "Regresa aquí", "y el modelo", "calculará tu tendencia"],
+          ].map(([n, a, b, c]) => (
+            <div key={n} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--accent)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 13, flexShrink: 0 }}>{n}</div>
+              <p style={{ fontSize: 14, color: "var(--text-primary)", margin: 0 }}>
+                {a} <strong style={{ color: "var(--accent)" }}>{b}</strong> {c}
+              </p>
+            </div>
+          ))}
+        </div>
+        <a href="/user/progress" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 28px", borderRadius: 10, background: "var(--accent)", color: "#fff", fontWeight: 700, fontSize: 15, textDecoration: "none" }}>
+          Ir a Progreso Físico →
+        </a>
+      </div>
     </div>
   );
 
@@ -299,7 +335,7 @@ export default function UserWeightPrediction() {
         {chartData.length > 0 ? (
           <ResponsiveContainer width="100%" height={280}>
             <LineChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
               <XAxis
                 dataKey="label"
                 tick={{ fill: "var(--text-secondary)", fontSize: 11 }}

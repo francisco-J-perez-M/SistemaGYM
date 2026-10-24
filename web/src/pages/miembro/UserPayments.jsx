@@ -76,7 +76,86 @@ export default function UserPaymentsHistory() {
   );
 
   const downloadReceipt = (payment) => {
-    alert(`Descargando recibo ${payment.id}...`);
+    const userData = user || JSON.parse(localStorage.getItem("user") || "{}");
+    const gymName  = userData.gym_name || userData.nombre_gimnasio || "GymPro";
+    const member   = userData.nombre   || userData.name            || "Miembro";
+
+    const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<title>Recibo ${payment.id}</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Inter',sans-serif;background:#f8fafc;color:#1e293b;padding:40px 24px}
+  .page{max-width:520px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)}
+  .header{background:linear-gradient(135deg,#4f46e5,#6366f1);padding:36px 32px;color:#fff;text-align:center}
+  .header h1{font-size:28px;font-weight:800;margin-bottom:4px}
+  .header p{font-size:13px;opacity:.8}
+  .badge{display:inline-block;background:rgba(255,255,255,.2);border-radius:20px;padding:4px 14px;font-size:12px;font-weight:600;margin-top:8px}
+  .body{padding:32px}
+  .receipt-id{font-size:13px;color:#64748b;margin-bottom:24px;text-align:center}
+  .receipt-id span{font-weight:700;color:#4f46e5}
+  .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:28px}
+  .info-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px}
+  .info-box label{display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8;margin-bottom:4px}
+  .info-box value{font-size:14px;font-weight:600;color:#1e293b}
+  .divider{border:none;border-top:1px solid #e2e8f0;margin:20px 0}
+  .total-row{display:flex;justify-content:space-between;align-items:center}
+  .total-row .label{font-size:13px;color:#64748b}
+  .total-row .val{font-size:14px;font-weight:600;color:#1e293b}
+  .total-row.big .label{font-size:16px;font-weight:700;color:#1e293b}
+  .total-row.big .val{font-size:28px;font-weight:800;color:#4f46e5}
+  .status-pill{display:inline-flex;align-items:center;gap:6px;background:#dcfce7;color:#16a34a;border-radius:20px;padding:6px 16px;font-size:13px;font-weight:700;margin-top:24px}
+  .footer{padding:20px 32px;background:#f8fafc;border-top:1px solid #e2e8f0;text-align:center;font-size:12px;color:#94a3b8}
+  @media print{body{background:#fff;padding:0}.page{box-shadow:none;border-radius:0}}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    <h1>🏋️ ${gymName}</h1>
+    <p>Comprobante de Pago</p>
+    <div class="badge">Recibo Oficial</div>
+  </div>
+  <div class="body">
+    <div class="receipt-id">ID de transacción: <span>${payment.id}</span></div>
+    <div class="info-grid">
+      <div class="info-box"><label>Miembro</label><value>${member}</value></div>
+      <div class="info-box"><label>Fecha de pago</label><value>${payment.date}</value></div>
+      <div class="info-box"><label>Concepto</label><value>${payment.concept}</value></div>
+      <div class="info-box"><label>Método</label><value>${payment.method}</value></div>
+    </div>
+    <hr class="divider"/>
+    <div class="total-row" style="margin-bottom:12px">
+      <span class="label">Subtotal</span>
+      <span class="val">$${payment.amount.toLocaleString("es-MX")} MXN</span>
+    </div>
+    <div class="total-row" style="margin-bottom:8px">
+      <span class="label">Descuento</span>
+      <span class="val">$0.00 MXN</span>
+    </div>
+    <hr class="divider"/>
+    <div class="total-row big">
+      <span class="label">Total</span>
+      <span class="val">$${payment.amount.toLocaleString("es-MX")} MXN</span>
+    </div>
+    <div style="text-align:center">
+      <div class="status-pill">✓ Pago Completado</div>
+    </div>
+  </div>
+  <div class="footer">
+    Generado el ${new Date().toLocaleDateString("es-MX",{day:"numeric",month:"long",year:"numeric"})}
+    &nbsp;·&nbsp; ${gymName} &nbsp;·&nbsp; Gracias por tu preferencia
+  </div>
+</div>
+<script>setTimeout(()=>window.print(),400)</script>
+</body>
+</html>`;
+
+    const w = window.open("", "_blank");
+    if (w) { w.document.write(html); w.document.close(); }
   };
 
   // Lógica de Paginación

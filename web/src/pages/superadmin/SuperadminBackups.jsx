@@ -41,7 +41,7 @@ const btnStyle = (variant = "primary", extra = {}) => {
 };
 
 const INPUT = {
-  background: "rgba(255,255,255,.04)",
+  background: "var(--bg-input)",
   border: "1px solid var(--border)",
   borderRadius: 8,
   padding: "9px 12px",
@@ -128,7 +128,7 @@ export default function SuperadminBackups() {
     const { value: tipo } = await Swal.fire({
       title: "Iniciar Backup",
       html: `
-        <select id="swal-tipo" style="width:100%;padding:9px;border-radius:7px;background:#1e2233;color:var(--text-primary);border:1px solid rgba(255,255,255,.1);font-size:14px">
+        <select id="swal-tipo" style="width:100%;padding:9px;border-radius:7px;background:var(--bg-input);color:var(--text-primary);border:1px solid var(--border);font-size:14px">
           <option value="full">Full — volcado completo PG + MongoDB</option>
           <option value="incremental" selected>Incremental — cambios desde último backup</option>
           <option value="differential">Differential — cambios desde último full</option>
@@ -222,7 +222,7 @@ export default function SuperadminBackups() {
                   )}
                 </div>
                 {status.is_running && (
-                  <div style={{ height: 6, background: "rgba(255,255,255,.08)", borderRadius: 99, overflow: "hidden" }}>
+                  <div style={{ height: 6, background: "var(--bg-input)", borderRadius: 99, overflow: "hidden" }}>
                     <div style={{ width: `${status.progress_percentage || 0}%`, height: "100%", background: "var(--accent, var(--accent))", borderRadius: 99, transition: "width .5s ease" }} />
                   </div>
                 )}
@@ -253,7 +253,7 @@ export default function SuperadminBackups() {
               </div>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                 <thead>
-                  <tr style={{ background: "rgba(255,255,255,.03)" }}>
+                  <tr style={{ background: "var(--bg-input)" }}>
                     {["Fecha", "Tipo", "Estado", "Tamaño", "Descargar", ""].map(h => (
                       <th key={h} style={{ textAlign: "left", padding: "10px 16px", color: "var(--text-secondary)", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: ".06em", borderBottom: "1px solid var(--border)" }}>{h}</th>
                     ))}

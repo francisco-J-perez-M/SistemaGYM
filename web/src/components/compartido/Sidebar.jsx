@@ -20,7 +20,7 @@ const P = {
   bgActive:  "var(--accent-dim, rgba(99,102,241,.18))",
   accent:    "var(--accent, #6366f1)",
   accentSoft:"var(--accent-soft, #818cf8)",
-  border:    "var(--border, rgba(255,255,255,.08))",
+  border:    "var(--border)",
   text:      "var(--text-primary, #f1f5f9)",
   muted:     "var(--text-secondary, #94a3b8)",
   dim:       "var(--text-tertiary, #64748b)",
@@ -68,13 +68,7 @@ const MENUS = {
         { id: "prediction",   label: "Mi Predicción",          icon: <FiCpu />        },
       ],
     },
-    {
-      id: "nutrition", label: "Nutrición", icon: <GiMeal />,
-      children: [
-        { id: "meal-plan", label: "Plan de Comidas",  icon: <GiFruitBowl /> },
-        { id: "recipes",   label: "Recetas",          icon: <FiFileText />  },
-      ],
-    },
+    { id: "nutrition", label: "Nutrición & Recetas", icon: <GiMeal /> },
     { type: "divider" },
     {
       id: "membership", label: "Mi Membresía", icon: <FiCreditCard />,
@@ -204,7 +198,7 @@ export default function Sidebar({
       confirmButtonColor: "#6366f1",
       showCancelButton: true,
       cancelButtonText: "Cancelar",
-      background: "var(--bg-card, #1e2233)",
+      background: "var(--bg-card)",
       color: "var(--text-primary, #f1f5f9)",
     }).then(r => { if (r.isConfirmed) onTabChange("renew"); });
   };
@@ -388,7 +382,7 @@ export default function Sidebar({
       bottom: "100%",
       left: 8,
       right: 8,
-      background: "var(--bg-card, #1e2233)",
+      background: "var(--bg-card)",
       border: `1px solid ${P.border}`,
       borderRadius: 10,
       overflow: "hidden",

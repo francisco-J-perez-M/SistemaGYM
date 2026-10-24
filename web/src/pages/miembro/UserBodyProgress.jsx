@@ -784,6 +784,37 @@ export default function UserHealthProgress() {
                     </div>
                   </motion.div>
 
+                  {/* Perfil médico del onboarding */}
+                  {(healthData.condicionesMedicas?.length > 0 || healthData.alergias?.length > 0 || healthData.medicamentos?.length > 0 || healthData.lesiones?.length > 0) && (
+                    <motion.div className="chart-card" initial={{ opacity:0 }} animate={{ opacity:1 }} style={{ marginBottom:20 }}>
+                      <div className="chart-header">
+                        <h3 style={{ display:'flex', alignItems:'center', gap:8 }}>
+                          <FiHeart style={{ color:'#ef4444' }} /> Perfil Médico
+                        </h3>
+                        <span style={{ fontSize:12, color:'var(--text-secondary)' }}>Datos del cuestionario inicial</span>
+                      </div>
+                      <div style={{ padding:'20px', display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(240px,1fr))', gap:16 }}>
+                        {[
+                          { label:"Condiciones médicas", items:healthData.condicionesMedicas, color:"#ef4444", icon:"🏥" },
+                          { label:"Alergias",             items:healthData.alergias,           color:"#f59e0b", icon:"⚠️" },
+                          { label:"Medicamentos",         items:healthData.medicamentos,       color:"#6366f1", icon:"💊" },
+                          { label:"Lesiones / Limitaciones", items:healthData.lesiones,         color:"#8b5cf6", icon:"🦴" },
+                        ].filter(s => s.items?.length > 0).map((sec, si) => (
+                          <div key={si} style={{ background:'var(--bg-input)', borderRadius:10, padding:14, borderLeft:`3px solid ${sec.color}` }}>
+                            <div style={{ fontWeight:700, fontSize:13, marginBottom:10, display:'flex', alignItems:'center', gap:6 }}>
+                              <span>{sec.icon}</span> {sec.label}
+                            </div>
+                            {sec.items.map((it, ii) => (
+                              <div key={ii} style={{ fontSize:13, color:'var(--text-secondary)', padding:'4px 0', borderBottom:`1px solid var(--border)` }}>
+                                {it}
+                              </div>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+
                   {/* Recomendaciones Generales y Personalizadas */}
                   <div className="charts-row" style={{ marginTop: '0', gap: '20px' }}>
                     {/* Recomendaciones Generales */}

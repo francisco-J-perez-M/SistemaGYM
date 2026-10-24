@@ -61,7 +61,7 @@ function GymDetailModal({ gym, onClose }) {
             ["Estado", <span style={badge(gym.activo ? "pos" : "neg")}>{gym.activo ? "Activo" : "Inactivo"}</span>],
             ["Teléfono", gym.telefono || "—"],
           ].map(([k, v]) => (
-            <div key={k} style={{ background: "rgba(255,255,255,.03)", borderRadius: 8, padding: "10px 14px" }}>
+            <div key={k} style={{ background: "var(--bg-input)", borderRadius: 8, padding: "10px 14px" }}>
               <p style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>{k}</p>
               <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>{v}</div>
             </div>
@@ -84,7 +84,7 @@ function GymDetailModal({ gym, onClose }) {
               ["Nuevos Mes",  metricas.nuevos_miembros_mes ?? "—"],
               ["Ticket Prom.","$" + (metricas.ticket_promedio ?? 0).toLocaleString()],
             ].map(([k, v]) => (
-              <div key={k} style={{ background: "rgba(255,255,255,.03)", borderRadius: 8, padding: "10px 14px" }}>
+              <div key={k} style={{ background: "var(--bg-input)", borderRadius: 8, padding: "10px 14px" }}>
                 <p style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>{k}</p>
                 <p style={{ fontSize: 18, fontWeight: 800, color: "var(--text-primary)" }}>{v}</p>
               </div>
@@ -102,7 +102,7 @@ function GymDetailModal({ gym, onClose }) {
             </h3>
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               {gym.staff.map(s => (
-                <div key={s.id} style={{ display: "flex", justifyContent: "space-between", padding: "8px 12px", background: "rgba(255,255,255,.03)", borderRadius: 7, fontSize: 13 }}>
+                <div key={s.id} style={{ display: "flex", justifyContent: "space-between", padding: "8px 12px", background: "var(--bg-input)", borderRadius: 7, fontSize: 13 }}>
                   <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>{s.nombre}</span>
                   <span style={{ color: "var(--text-secondary)" }}>{s.rol} · {s.email}</span>
                 </div>
@@ -217,7 +217,7 @@ export default function SuperadminGimnasios() {
       <div style={card({ padding: 0, overflow: "hidden" })}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
-            <tr style={{ background: "rgba(255,255,255,.03)" }}>
+            <tr style={{ background: "var(--bg-input)" }}>
               {["Gimnasio", "Email", "Plan", "Estado", "Teléfono", "Acciones"].map(h => (
                 <th key={h} style={{ textAlign: "left", padding: "12px 16px", color: "var(--text-secondary)", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: ".06em", borderBottom: "1px solid var(--border)", whiteSpace: "nowrap" }}>
                   {h}

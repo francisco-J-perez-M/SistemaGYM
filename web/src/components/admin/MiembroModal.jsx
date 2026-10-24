@@ -60,7 +60,7 @@ const headerStyle = {
   alignItems: "center",
   gap: 12,
   padding: "20px 24px 16px",
-  borderBottom: "1px solid rgba(255,255,255,0.07)",
+  borderBottom: "1px solid var(--border)",
   position: "sticky",
   top: 0,
   background: "#1a1a2e",
@@ -87,7 +87,7 @@ const titleBlockStyle = {
 };
 
 const closeBtnStyle = {
-  background: "rgba(255,255,255,0.06)",
+  background: "var(--bg-input)",
   border: "none",
   borderRadius: 8,
   color: "rgba(255,255,255,0.6)",

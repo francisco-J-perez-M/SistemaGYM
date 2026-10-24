@@ -149,7 +149,7 @@ function FilterPill({ active, onClick, children, color = "var(--accent)" }) {
         display: "inline-flex", alignItems: "center", gap: 6,
         padding: "6px 14px", borderRadius: 999, fontSize: 12, fontWeight: 600,
         cursor: "pointer", transition: "all .15s",
-        border: active ? `1.5px solid ${color}` : "1.5px solid rgba(255,255,255,.1)",
+        border: active ? `1.5px solid ${color}` : "1.5px solid var(--border)",
         background: active ? `${color}22` : "transparent",
         color: active ? color : "var(--text-secondary)",
       }}
@@ -241,8 +241,8 @@ export default function PagosDashboard() {
         display: "flex", flexDirection: "column", gap: 10,
         marginBottom: 20,
         padding: "14px 16px",
-        background: "var(--bg-card,#1e2233)",
-        border: "1px solid var(--border,rgba(255,255,255,.08))",
+        background: "var(--bg-card)",
+        border: "1px solid var(--border)",
         borderRadius: 12,
       }}>
         {/* Fila 1: tipo */}

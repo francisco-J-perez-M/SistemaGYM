@@ -159,7 +159,7 @@ export default function ReceptionistMessages() {
                     style={{
                       padding: "12px 14px", borderRadius: "var(--r-md)", cursor: "pointer",
                       background: selected?.id === msg.id ? "var(--accent-dim)" :
-                                  !msg.read ? "rgba(255,255,255,0.04)" : "transparent",
+                                  !msg.read ? "var(--bg-input)" : "transparent",
                       border: selected?.id === msg.id ? "1px solid var(--accent)" : "1px solid transparent",
                       position: "relative",
                     }}
@@ -198,13 +198,13 @@ export default function ReceptionistMessages() {
                     <div style={{ position: "absolute", top: "8px", right: "8px", display: "flex", gap: "2px" }}>
                       <button onClick={(e) => toggleStar(msg.id, e)} style={{
                         background: "none", border: "none", cursor: "pointer", padding: "2px",
-                        color: msg.starred ? "var(--warning)" : "rgba(255,255,255,0.2)",
+                        color: msg.starred ? "var(--warning)" : "var(--text-secondary)",
                       }}>
                         <FiStar size={12} />
                       </button>
                       <button onClick={(e) => deleteMsg(msg.id, e)} style={{
                         background: "none", border: "none", cursor: "pointer", padding: "2px",
-                        color: "rgba(255,255,255,0.2)",
+                        color: "var(--text-secondary)",
                       }}>
                         <FiTrash2 size={12} />
                       </button>
