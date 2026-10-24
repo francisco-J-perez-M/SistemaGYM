@@ -36,7 +36,7 @@ export default function AdminLayout() {
         drawerInactiveTintColor: colors.textSecondary,
         drawerItemStyle:         { borderRadius: 12 },
         drawerLabelStyle:        { fontSize: 14, fontWeight: '500', marginLeft: -4 },
-        overlayColor:            'rgba(0,0,0,0.55)',
+        overlayColor:            colors.overlay,
         swipeEnabled:            true,
         sceneStyle:              { backgroundColor: colors.background },
       }}

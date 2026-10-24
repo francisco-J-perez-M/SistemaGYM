@@ -7,7 +7,6 @@ import {
   View, Text, StyleSheet, FlatList, RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors, useFontScale } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
@@ -42,7 +41,6 @@ function beneficiosList(m: TipoMembresia): string[] {
 export default function MembresiasScreen() {
   const colors = useColors();
   const fs = useFontScale();
-  const gradient = colors.gradientAccent;
   const styles = useMemo(() => make_styles(colors, fs), [colors, fs]);
   const insets = useSafeAreaInsets();
   const { data, loading, refetch } = useFetch<TipoMembresia[]>(ENDPOINTS.OWNER_MEMBRESIAS);
@@ -74,11 +72,11 @@ export default function MembresiasScreen() {
           const activa = m.activo !== false;
           return (
             <View style={styles.card}>
-              {/* Encabezado con gradiente */}
-              <LinearGradient colors={gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.head}>
+              {/* Encabezado: superficie neutra; el precio es el protagonista */}
+              <View style={styles.head}>
                 <View style={styles.headTop}>
                   <View style={styles.planIcon}>
-                    <Ionicons name="card" size={18} color="#fff" />
+                    <Ionicons name="card" size={18} color={colors.accent} />
                   </View>
                   <Badge label={activa ? 'Activa' : 'Inactiva'} color={activa ? 'success' : 'error'} />
                 </View>
@@ -87,7 +85,7 @@ export default function MembresiasScreen() {
                   <Text style={styles.price}>${m.precio}</Text>
                   {dur ? <Text style={styles.priceDur}>/ {dur}</Text> : null}
                 </View>
-              </LinearGradient>
+              </View>
 
               {/* Cuerpo */}
               <View style={styles.body}>
@@ -125,14 +123,15 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
       backgroundColor: colors.card, borderRadius: 18, borderWidth: 1, borderColor: colors.border,
       overflow: 'hidden',
     },
-    head:     { padding: 18, gap: 6 },
+    head:     { padding: 18, gap: 6, backgroundColor: colors.cardAlt,
+                borderBottomWidth: 1, borderBottomColor: colors.border },
     headTop:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    planIcon: { width: 34, height: 34, borderRadius: 11, backgroundColor: 'rgba(255,255,255,0.22)',
+    planIcon: { width: 34, height: 34, borderRadius: 11, backgroundColor: colors.accentBg,
                 alignItems: 'center', justifyContent: 'center' },
-    planName: { color: '#fff', fontSize: 18 * fs, fontWeight: '800', marginTop: 4 },
+    planName: { color: colors.text, fontSize: 18 * fs, fontWeight: '800', marginTop: 4 },
     priceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
-    price:    { color: '#fff', fontSize: 28 * fs, fontWeight: '900' },
-    priceDur: { color: 'rgba(255,255,255,0.8)', fontSize: 14 * fs, fontWeight: '600' },
+    price:    { color: colors.accent, fontSize: 28 * fs, fontWeight: '900', letterSpacing: -0.5 },
+    priceDur: { color: colors.textSecondary, fontSize: 14 * fs, fontWeight: '600' },
     body:     { padding: 16, gap: 10 },
     descripcion: { color: colors.textSecondary, fontSize: 13 * fs, lineHeight: 19 },
     benefitsList: { gap: 7 },

@@ -4,7 +4,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors } from '../../constants/Colors';
 import { useColors, useFontScale } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
@@ -113,7 +112,7 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   },
   avatar: {
     width: 44, height: 44, borderRadius: 14,
-    backgroundColor: 'rgba(108,99,255,0.12)', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.accentBg, alignItems: 'center', justifyContent: 'center',
   },
   avatarImg: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.surface },
   initial:   { color: colors.accent, fontSize: 18 * fs, fontWeight: '700' },

@@ -11,7 +11,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors } from '../../constants/Colors';
 import { useColors, useFontScale } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
@@ -262,7 +261,7 @@ function make_fieldStyles(colors: ReturnType<typeof useColors>, fs = 1) {
   row:        { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
   label:      { color: colors.textSecondary, fontSize: 11 * fs, marginBottom: 4 },
   value:      { color: colors.text, fontSize: 14 * fs, fontWeight: '600' },
-  input:      { color: colors.text, fontSize: 14 * fs, backgroundColor: 'rgba(108,99,255,0.06)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: colors.border },
+  input:      { color: colors.text, fontSize: 14 * fs, backgroundColor: colors.accentBg, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: colors.border },
   inputMulti: { minHeight: 72, textAlignVertical: 'top' },
 });
 }
@@ -273,7 +272,7 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   hero:    { alignItems: 'center', paddingBottom: 24, paddingHorizontal: 24, gap: 6, backgroundColor: colors.heroTop },
   avatar:  { width: 80, height: 80, borderRadius: 24, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
   avatarImg: { width: 80, height: 80, borderRadius: 24, backgroundColor: colors.surface, marginBottom: 4 },
-  initials:{ color: '#fff', fontSize: 30 * fs, fontWeight: '800' },
+  initials:{ color: colors.onAccent, fontSize: 30 * fs, fontWeight: '800' },
   name:    { color: colors.text, fontSize: 22 * fs, fontWeight: '700', textAlign: 'center' },
   heroSub: { color: colors.accent, fontSize: 13 * fs },
   heroMeta:{ color: colors.textSecondary, fontSize: 12 * fs },

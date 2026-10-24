@@ -11,7 +11,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors } from '../../constants/Colors';
 import { useColors, useFontScale } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
@@ -48,7 +47,7 @@ function ProductImage({ uri, size, radius, colors }: { uri?: string; size: numbe
   if (!src || err) {
     return (
       <View style={{ width: size, height: size, borderRadius: radius,
-        backgroundColor: 'rgba(108,99,255,0.1)', alignItems: 'center', justifyContent: 'center' }}>
+        backgroundColor: colors.accentBg, alignItems: 'center', justifyContent: 'center' }}>
         <Ionicons name="cube-outline" size={size * 0.4} color={colors.accent} />
       </View>
     );
@@ -273,7 +272,7 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
     gap: 6, paddingVertical: 10, borderRadius: 12,
     backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
   },
-  tabBtnActive:  { backgroundColor: 'rgba(108,99,255,0.15)', borderColor: colors.accent },
+  tabBtnActive:  { backgroundColor: colors.accentBg, borderColor: colors.accent },
   tabLabel:      { color: colors.textSecondary, fontSize: 13 * fs, fontWeight: '600' },
   tabLabelActive:{ color: colors.accent },
   grid:   { padding: 16, gap: 12 },
@@ -284,7 +283,7 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   },
   productIconBox: {
     width: 48, height: 48, borderRadius: 14,
-    backgroundColor: 'rgba(108,99,255,0.1)',
+    backgroundColor: colors.accentBg,
     alignItems: 'center', justifyContent: 'center', marginBottom: 4,
   },
   productName:    { color: colors.text, fontSize: 14 * fs, fontWeight: '600' },

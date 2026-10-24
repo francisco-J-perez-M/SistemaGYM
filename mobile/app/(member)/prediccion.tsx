@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LineChart } from 'react-native-chart-kit';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors, useFontScale } from '../../hooks/useColors';
+import { conAlfa } from '../../constants/themes';
 import { useAuth } from '../../hooks/useAuth';
 import api from '../../services/api';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
@@ -76,7 +77,7 @@ export default function PrediccionScreen() {
     backgroundGradientFrom: colors.card,
     backgroundGradientTo:   colors.card,
     decimalPlaces: 1,
-    color:      (o = 1) => `rgba(108, 99, 255, ${o})`,
+    color:      (o = 1) => conAlfa(colors.dataIa, o),
     labelColor: (o = 1) => colors.textSecondary,
     propsForDots: { r: '3' },
     propsForBackgroundLines: { stroke: colors.border },
@@ -144,7 +145,7 @@ export default function PrediccionScreen() {
                 data={{
                   labels: combinado.map((_, i) => (i === 0 ? 'inicio' : i === idxCorte - 1 ? 'hoy' : i === combinado.length - 1 ? `+${dias}d` : '')),
                   datasets: [
-                    { data: combinado, color: (o = 1) => `rgba(108, 99, 255, ${o})`, strokeWidth: 2 },
+                    { data: combinado, color: (o = 1) => conAlfa(colors.dataIa, o), strokeWidth: 2 },
                   ],
                 }}
                 width={width - 24}
@@ -192,7 +193,7 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
     },
     rangeChipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
     rangeText:       { color: colors.textSecondary, fontSize: 13 * fs, fontWeight: '600' },
-    rangeTextActive: { color: '#fff' },
+    rangeTextActive: { color: colors.onAccent },
     infoCard: { alignItems: 'center', gap: 10, paddingVertical: 24 },
     infoText: { color: colors.textSecondary, fontSize: 13 * fs, textAlign: 'center', lineHeight: 20 },
     kpiRow: { flexDirection: 'row', gap: 12 },

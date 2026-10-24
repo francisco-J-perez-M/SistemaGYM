@@ -7,7 +7,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors } from '../../constants/Colors';
 import { useColors, useFontScale } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
@@ -163,7 +162,7 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   dayChipActive:    { backgroundColor: colors.accent, borderColor: colors.accent },
   dayChipText:      { color: colors.textSecondary, fontSize: 13 * fs, fontWeight: '700' },
   dayChipFull:      { color: colors.textMuted, fontSize: 10 * fs },
-  dayChipTextActive:{ color: '#fff' },
+  dayChipTextActive:{ color: colors.onAccent },
   todayDot: {
     position:        'absolute',
     top:             6,

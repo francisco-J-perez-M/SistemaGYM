@@ -10,7 +10,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors } from '../../constants/Colors';
 import { useColors, useFontScale } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
@@ -122,7 +121,7 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   },
   clientAvatar: {
     width: 44, height: 44, borderRadius: 14,
-    backgroundColor: 'rgba(108,99,255,0.15)', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.accentBg, alignItems: 'center', justifyContent: 'center',
   },
   clientInitial: { color: colors.accent, fontSize: 18 * fs, fontWeight: '700' },
   clientName:    { color: colors.text, fontSize: 15 * fs, fontWeight: '600' },

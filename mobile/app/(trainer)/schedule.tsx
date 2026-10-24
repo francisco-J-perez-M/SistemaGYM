@@ -16,7 +16,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors } from '../../constants/Colors';
 import { useColors, useFontScale } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
@@ -189,7 +188,7 @@ export default function ScheduleScreen() {
           accessibilityLabel="Agendar nueva sesión"
           accessibilityRole="button"
         >
-          <Ionicons name="add" size={22} color="#fff" />
+          <Ionicons name="add" size={22} color={colors.onAccent} />
         </TouchableOpacity>
       </View>
 
@@ -325,7 +324,7 @@ export default function ScheduleScreen() {
                     accessibilityRole="radio"
                     accessibilityState={{ checked: form.tipo === t }}
                   >
-                    <Text style={[styles.tipoText, form.tipo === t && { color: '#fff' }]}>{t}</Text>
+                    <Text style={[styles.tipoText, form.tipo === t && { color: colors.onAccent }]}>{t}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -340,7 +339,7 @@ export default function ScheduleScreen() {
                       style={[styles.clientChip, !form.id_miembro && styles.clientChipActive]}
                       onPress={() => setForm(p => ({ ...p, id_miembro: '' }))}
                     >
-                      <Text style={[styles.clientChipText, !form.id_miembro && { color: '#fff' }]}>Sin asignar</Text>
+                      <Text style={[styles.clientChipText, !form.id_miembro && { color: colors.onAccent }]}>Sin asignar</Text>
                     </TouchableOpacity>
                     {members.map(m => {
                       const isSelected = form.id_miembro === m.id_miembro;
@@ -353,7 +352,7 @@ export default function ScheduleScreen() {
                           accessibilityState={{ checked: isSelected }}
                           accessibilityLabel={m.nombre ?? 'Cliente'}
                         >
-                          <Text style={[styles.clientChipText, isSelected && { color: '#fff' }]}>
+                          <Text style={[styles.clientChipText, isSelected && { color: colors.onAccent }]}>
                             {toStr(m.nombre, m.id_miembro)}
                           </Text>
                         </TouchableOpacity>
@@ -368,7 +367,7 @@ export default function ScheduleScreen() {
                 label={saving ? 'Guardando…' : 'Agendar sesión'}
                 onPress={handleCreate}
                 loading={saving}
-                icon={<Ionicons name="calendar-outline" size={18} color="#fff" />}
+                icon={<Ionicons name="calendar-outline" size={18} color={colors.onAccent} />}
               />
             </ScrollView>
 
@@ -512,7 +511,7 @@ function InlineCalendar({ selectedDate, onSelect, onClose, colors, calStyles }: 
 function make_calStyles(colors: ReturnType<typeof useColors>, fs = 1) {
   return StyleSheet.create({
   overlay:   { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100, justifyContent: 'flex-end' },
-  backdrop:  { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)' },
+  backdrop:  { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: colors.overlay },
   sheet:     { backgroundColor: colors.background, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 32 },
   header:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
   navBtn:    { width: 36, height: 36, borderRadius: 10, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' },
@@ -525,7 +524,7 @@ function make_calStyles(colors: ReturnType<typeof useColors>, fs = 1) {
   cellToday:    { borderWidth: 2, borderColor: colors.accent },
   cellPast:     { opacity: 0.25 },
   cellText:     { color: colors.text, fontSize: 14 * fs, fontWeight: '500' },
-  cellTextSelected: { color: '#fff', fontWeight: '700' },
+  cellTextSelected: { color: colors.onAccent, fontWeight: '700' },
   cellTextToday:    { color: colors.accent, fontWeight: '700' },
   cellTextPast:     { color: colors.textMuted },
   cancelBtn: { marginTop: 16, alignItems: 'center', paddingVertical: 10 },
@@ -551,13 +550,13 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   addBtn:   { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   viewToggle: { flexDirection: 'row', marginHorizontal: 20, marginBottom: 12, backgroundColor: colors.card, borderRadius: 12, padding: 4, borderWidth: 1, borderColor: colors.border },
   viewBtn:    { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8, borderRadius: 10 },
-  viewBtnActive: { backgroundColor: 'rgba(108,99,255,0.15)' },
+  viewBtnActive: { backgroundColor: colors.accentBg },
   viewLabel:     { color: colors.textSecondary, fontSize: 14 * fs, fontWeight: '600' },
   viewLabelActive:{ color: colors.accent },
   list:     { paddingHorizontal: 20, gap: 6, paddingBottom: 32 },
   empty:    { alignItems: 'center', paddingVertical: 60, gap: 10 },
   emptyText:{ color: colors.textMuted, fontSize: 14 * fs, fontWeight: '600', textAlign: 'center' },
-  emptyBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: 'rgba(108,99,255,0.12)', marginTop: 4 },
+  emptyBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: colors.accentBg, marginTop: 4 },
   emptyBtnText: { color: colors.accent, fontSize: 14 * fs, fontWeight: '600' },
   dayRow:   { marginBottom: 4 },
   dayName:  { color: colors.textSecondary, fontSize: 13 * fs, fontWeight: '700', marginBottom: 6, marginTop: 8 },
@@ -572,7 +571,7 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   sessionName:{ color: colors.textSecondary, fontSize: 12 * fs, marginTop: 1 },
   sessionType:{ color: colors.textMuted, fontSize: 12 * fs },
   sessionNotes:{ color: colors.textSecondary, fontSize: 12 * fs, fontStyle: 'italic', borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 6, marginTop: 2 },
-  modalOverlay:{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' },
+  modalOverlay:{ flex: 1, justifyContent: 'flex-end', backgroundColor: colors.overlay },
   modalSheet:  { backgroundColor: colors.background, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, maxHeight: '90%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   modalTitle:  { color: colors.text, fontSize: 20 * fs, fontWeight: '700' },

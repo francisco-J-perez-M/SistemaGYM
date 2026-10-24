@@ -13,7 +13,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors } from '../../constants/Colors';
 import { useColors, useFontScale } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
@@ -89,42 +88,43 @@ export default function AdminDashboardScreen() {
 
       {/* KPIs — mapeados desde la estructura real de /owner_gym/dashboard */}
       <View style={styles.kpiGrid}>
+        {/* El `tono` dice qué significa cada cifra; la paleta pone el color. */}
         <StatCard
           label="Total miembros"
           value={totalMiembros}
-          icon={<Ionicons name="people-outline" size={20} color={colors.accent} />}
-          color={colors.accent}
+          icon={<Ionicons name="people-outline" size={20} color={colors.dataActividad} />}
+          tono="actividad"
         />
         <StatCard
           label="Nuevos este mes"
           value={nuevosMes}
-          icon={<Ionicons name="person-add-outline" size={20} color={colors.success} />}
-          color={colors.success}
+          icon={<Ionicons name="person-add-outline" size={20} color={colors.dataProgreso} />}
+          tono="progreso"
         />
         <StatCard
           label="Ingresos mes"
           value={ingresosMes > 0 ? `$${Math.round(ingresosMes).toLocaleString()}` : '$0'}
-          icon={<Ionicons name="cash-outline" size={20} color={colors.warning} />}
-          color={colors.warning}
+          icon={<Ionicons name="cash-outline" size={20} color={colors.dataProgreso} />}
+          tono="progreso"
           trend={variacion !== 0 ? variacion : undefined}
         />
         <StatCard
           label="Por vencer"
           value={porVencer}
-          icon={<Ionicons name="warning-outline" size={20} color={colors.error} />}
-          color={colors.error}
+          icon={<Ionicons name="warning-outline" size={20} color={colors.dataAtencion} />}
+          tono="atencion"
         />
         <StatCard
           label="Entrenadores"
           value={entrenadores}
-          icon={<Ionicons name="barbell-outline" size={20} color={colors.info} />}
-          color={colors.info}
+          icon={<Ionicons name="barbell-outline" size={20} color={colors.dataActividad} />}
+          tono="actividad"
         />
         <StatCard
           label="Activos"
           value={dash?.miembros?.activos ?? 0}
-          icon={<Ionicons name="checkmark-circle-outline" size={20} color={colors.purple} />}
-          color={colors.purple}
+          icon={<Ionicons name="checkmark-circle-outline" size={20} color={colors.dataProgreso} />}
+          tono="progreso"
         />
       </View>
 
@@ -176,10 +176,10 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   },
   heroIcon: {
     width: 50, height: 50, borderRadius: 16,
-    backgroundColor: 'rgba(108,99,255,0.2)', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.accentBg, alignItems: 'center', justifyContent: 'center',
   },
-  heroTitle:    { color: '#fff', fontSize: 16 * fs, fontWeight: '700' },
-  heroSub:      { color: 'rgba(255,255,255,0.6)', fontSize: 12 * fs },
+  heroTitle:    { color: colors.text, fontSize: 16 * fs, fontWeight: '700' },
+  heroSub:      { color: colors.textSecondary, fontSize: 12 * fs },
   kpiGrid:      { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   sectionTitle: { color: colors.text, fontSize: 16 * fs, fontWeight: '700', marginBottom: 12 },
   memberRow: {
@@ -188,7 +188,7 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   },
   memberAvatar: {
     width: 36, height: 36, borderRadius: 10,
-    backgroundColor: 'rgba(108,99,255,0.12)', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.accentBg, alignItems: 'center', justifyContent: 'center',
   },
   memberAvatarImg: { width: 36, height: 36, borderRadius: 10, backgroundColor: colors.surface },
   memberInitial: { color: colors.accent, fontSize: 15 * fs, fontWeight: '700' },

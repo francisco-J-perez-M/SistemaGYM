@@ -8,6 +8,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useAuthStore } from '../store/authStore';
 import { useAccessibilityStore } from '../store/accessibilityStore';
 import { useColors } from '../hooks/useColors';
+import { darkPalette } from '../constants/themes';
 import {
   configureNotificationHandler,
   registerForPushNotificationsAsync,
@@ -23,7 +24,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, EBState> {
     if (this.state.error) {
       return (
         <View style={eb.container}>
-          <Text style={eb.title}>🚨 Error al iniciar GymPro</Text>
+          <Text style={eb.title}>Error al iniciar GymPro</Text>
           <ScrollView>
             <Text style={eb.msg}>{this.state.error?.message}</Text>
             <Text style={eb.stack}>{this.state.error?.stack}</Text>
@@ -34,11 +35,14 @@ class ErrorBoundary extends Component<{ children: ReactNode }, EBState> {
     return this.props.children;
   }
 }
+// Esta pantalla se dibuja cuando la app falló al arrancar, momento en el que
+// los hooks de tema pueden no estar disponibles. Por eso lee darkPalette
+// directamente en vez de useColors(): sigue siendo la misma fuente de color.
 const eb = StyleSheet.create({
-  container: { flex: 1, padding: 24, paddingTop: 60, backgroundColor: '#0f0f1a' },
-  title:     { color: '#ff4444', fontSize: 18, fontWeight: 'bold', marginBottom: 12 },
-  msg:       { color: '#fff', fontSize: 14, marginBottom: 12 },
-  stack:     { color: '#aaa', fontSize: 11 },
+  container: { flex: 1, padding: 24, paddingTop: 60, backgroundColor: darkPalette.background },
+  title:     { color: darkPalette.dataRiesgo, fontSize: 18, fontWeight: 'bold', marginBottom: 12 },
+  msg:       { color: darkPalette.text, fontSize: 14, marginBottom: 12 },
+  stack:     { color: darkPalette.textMuted, fontSize: 11 },
 });
 
 SplashScreen.preventAutoHideAsync();

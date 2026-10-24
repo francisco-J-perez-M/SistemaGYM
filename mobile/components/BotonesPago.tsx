@@ -17,10 +17,19 @@ import {
   getMetodosPago, pagarEnApp, mensajePorEstado,
   MetodoPago, ProveedorPago, ContextoPago, TransaccionPago,
 } from '../services/pagos';
+import { useColors, useFontScale } from '../hooks/useColors';
 
-const COLORES: Record<string, { bg: string; fg: string }> = {
-  paypal:      { bg: '#ffc439', fg: '#111827' },
-  mercadopago: { bg: '#00b1ea', fg: '#ffffff' },
+/**
+ * EXCEPCIÓN DELIBERADA AL SISTEMA DE COLOR.
+ *
+ * Estos HEX pertenecen a la identidad de PayPal y Mercado Pago, no a GymPro:
+ * sus guías de marca exigen el amarillo y el celeste exactos para que el
+ * usuario reconozca el botón. Por eso NO se mueven al cambiar de paleta y
+ * NO deben migrarse a tokens. Todo lo demás del componente sí usa la paleta.
+ */
+const MARCAS: Record<string, { bg: string; fg: string }> = {
+  paypal:      { bg: '#FFC439', fg: '#111827' },
+  mercadopago: { bg: '#00B1EA', fg: '#FFFFFF' },
 };
 
 interface Props {
@@ -37,6 +46,10 @@ export default function BotonesPago({
   contexto, monto, descripcion, referenciaLocal, emailPagador,
   deshabilitado = false, onPagado,
 }: Props) {
+  const colors = useColors();
+  const fs     = useFontScale();
+  const styles = React.useMemo(() => make_styles(colors, fs), [colors, fs]);
+
   const [metodos, setMetodos]       = useState<MetodoPago[]>([]);
   const [cargando, setCargando]     = useState(true);
   const [procesando, setProcesando] = useState<ProveedorPago | null>(null);
@@ -85,7 +98,7 @@ export default function BotonesPago({
   if (cargando) {
     return (
       <View style={styles.centro}>
-        <ActivityIndicator />
+        <ActivityIndicator color={colors.accent} />
         <Text style={styles.tenue}>Cargando métodos de pago…</Text>
       </View>
     );
@@ -105,7 +118,8 @@ export default function BotonesPago({
   return (
     <View style={styles.contenedor}>
       {metodos.map((m) => {
-        const c = COLORES[m.proveedor] ?? { bg: '#2563eb', fg: '#ffffff' };
+        // Sin marca conocida, el botón cae al acento del producto.
+        const c = MARCAS[m.proveedor] ?? { bg: colors.accent, fg: colors.onAccent };
         const enCurso = procesando === m.proveedor;
         const bloqueado = deshabilitado || procesando !== null;
         return (
@@ -123,7 +137,7 @@ export default function BotonesPago({
               ? <ActivityIndicator color={c.fg} />
               : <Text style={[styles.botonTexto, { color: c.fg }]}>Pagar con {m.nombre}</Text>}
             {m.modo === 'sandbox' && !enCurso && (
-              <Text style={styles.badge}>PRUEBAS</Text>
+              <Text style={[styles.badge, { color: c.fg }]}>PRUEBAS</Text>
             )}
           </TouchableOpacity>
         );
@@ -132,23 +146,29 @@ export default function BotonesPago({
   );
 }
 
-const styles = StyleSheet.create({
-  contenedor: { gap: 10 },
-  boton: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 8, borderRadius: 12, paddingVertical: 14, paddingHorizontal: 18,
-  },
-  botonTexto: { fontSize: 15, fontWeight: '700' },
-  badge: {
-    fontSize: 10, fontWeight: '800', color: '#111827',
-    backgroundColor: 'rgba(0,0,0,0.15)', paddingHorizontal: 6,
-    paddingVertical: 2, borderRadius: 6, overflow: 'hidden',
-  },
-  centro: { alignItems: 'center', gap: 8, paddingVertical: 12 },
-  tenue: { fontSize: 13, color: '#6b7280' },
-  aviso: {
-    backgroundColor: 'rgba(234,179,8,0.12)', borderLeftWidth: 3,
-    borderLeftColor: '#eab308', borderRadius: 8, padding: 12,
-  },
-  avisoTexto: { fontSize: 13, color: '#92400e', lineHeight: 19 },
-});
+function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
+  return StyleSheet.create({
+    contenedor: { gap: 10 },
+    // Fondo y texto del botón vienen de MARCAS (identidad de la pasarela).
+    boton: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+      gap: 8, borderRadius: 12, paddingVertical: 14, paddingHorizontal: 18,
+    },
+    botonTexto: { fontSize: 15 * fs, fontWeight: '700' },
+    // Va dentro del botón de marca: se oscurece el propio fondo de la pasarela,
+    // por eso no usa un token de la paleta.
+    badge: {
+      fontSize: 10 * fs, fontWeight: '800',
+      backgroundColor: 'rgba(0,0,0,0.15)', paddingHorizontal: 6,
+      paddingVertical: 2, borderRadius: 6, overflow: 'hidden',
+    },
+    centro: { alignItems: 'center', gap: 8, paddingVertical: 12 },
+    tenue:  { fontSize: 13 * fs, color: colors.textSecondary },
+    // Aviso de "sin pagos en línea": es una advertencia -> tono atención.
+    aviso: {
+      backgroundColor: colors.dataAtencionBg, borderLeftWidth: 3,
+      borderLeftColor: colors.dataAtencion, borderRadius: 8, padding: 12,
+    },
+    avisoTexto: { fontSize: 13 * fs, color: colors.text, lineHeight: 19 * fs },
+  });
+}

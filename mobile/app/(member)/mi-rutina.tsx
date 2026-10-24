@@ -10,6 +10,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors, useFontScale } from '../../hooks/useColors';
+import type { Palette } from '../../constants/themes';
 import { useFetch } from '../../hooks/useFetch';
 import { ENDPOINTS } from '../../constants/Api';
 import api from '../../services/api';
@@ -19,18 +20,28 @@ import Button from '../../components/ui/Button';
 
 const DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 
-const GRUPOS: { id: string; label: string; color: string }[] = [
-  { id: 'pecho',    label: 'Pecho',    color: '#6c63ff' },
-  { id: 'espalda',  label: 'Espalda',  color: '#3b82f6' },
-  { id: 'piernas',  label: 'Piernas',  color: '#10b981' },
-  { id: 'hombros',  label: 'Hombros',  color: '#f59e0b' },
-  { id: 'brazos',   label: 'Brazos',   color: '#8b5cf6' },
-  { id: 'core',     label: 'Core',     color: '#06b6d4' },
-  { id: 'cardio',   label: 'Cardio',   color: '#ef4444' },
-  { id: 'descanso', label: 'Descanso', color: '#64748b' },
+/**
+ * Grupos musculares. No llevan color propio: son una serie categórica, así que
+ * toman su color de `colors.chartSeries` por POSICIÓN. Al cambiar de paleta,
+ * los siete grupos se repintan solos y mantienen su orden.
+ */
+const GRUPOS: { id: string; label: string }[] = [
+  { id: 'pecho',    label: 'Pecho'    },
+  { id: 'espalda',  label: 'Espalda'  },
+  { id: 'piernas',  label: 'Piernas'  },
+  { id: 'hombros',  label: 'Hombros'  },
+  { id: 'brazos',   label: 'Brazos'   },
+  { id: 'core',     label: 'Core'     },
+  { id: 'cardio',   label: 'Cardio'   },
+  { id: 'descanso', label: 'Descanso' },
 ];
 
-const grupoColor = (id: string) => (GRUPOS.find((g) => g.id === id)?.color ?? '#6c63ff');
+/** Color de un grupo dentro de la paleta activa. 'descanso' va siempre en gris. */
+const grupoColor = (id: string, colors: Palette) => {
+  if (id === 'descanso') return colors.textMuted;
+  const i = GRUPOS.findIndex((g) => g.id === id);
+  return colors.chartSeries[(i < 0 ? 0 : i) % colors.chartSeries.length];
+};
 
 type Ej    = { nombre: string; series: string; reps: string; peso: string; unidad: string };
 type Dia   = { dia: string; grupo: string; ejercicios: Ej[] };
@@ -209,13 +220,14 @@ export default function MiRutinaScreen() {
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {GRUPOS.map((g) => {
                 const active = d.grupo === g.id;
+                const gColor = grupoColor(g.id, colors);
                 return (
                   <TouchableOpacity
                     key={g.id}
-                    style={[styles.chip, active && { backgroundColor: g.color, borderColor: g.color }]}
+                    style={[styles.chip, active && { backgroundColor: gColor, borderColor: gColor }]}
                     onPress={() => setDiaField(di, 'grupo', g.id)}
                   >
-                    <View style={[styles.dot, { backgroundColor: active ? '#fff' : g.color }]} />
+                    <View style={[styles.dot, { backgroundColor: active ? colors.background : gColor }]} />
                     <Text style={[styles.chipText, active && styles.chipTextActive]}>{g.label}</Text>
                   </TouchableOpacity>
                 );
@@ -228,7 +240,7 @@ export default function MiRutinaScreen() {
             ) : (
               <>
                 {d.ejercicios.map((e, ei) => (
-                  <View key={ei} style={[styles.ejBox, { borderLeftColor: grupoColor(d.grupo) }]}>
+                  <View key={ei} style={[styles.ejBox, { borderLeftColor: grupoColor(d.grupo, colors) }]}>
                     <View style={styles.ejTop}>
                       <TextInput
                         style={[styles.input, styles.ejName]}
@@ -290,7 +302,7 @@ export default function MiRutinaScreen() {
           <Button label="Cancelar" variant="secondary" onPress={() => setEditing(null)} style={{ flex: 1 }} />
           <Button label={editing.id ? 'Guardar cambios' : 'Crear rutina'} onPress={guardar}
             loading={saving} style={{ flex: 1 }}
-            icon={<Ionicons name="checkmark-circle-outline" size={18} color="#fff" />} />
+            icon={<Ionicons name="checkmark-circle-outline" size={18} color={colors.onAccent} />} />
         </View>
       </ScrollView>
     );
@@ -312,7 +324,7 @@ export default function MiRutinaScreen() {
       <Button
         label="Crear rutina nueva"
         onPress={() => setEditing(rutinaVacia())}
-        icon={<Ionicons name="add-circle-outline" size={18} color="#fff" />}
+        icon={<Ionicons name="add-circle-outline" size={18} color={colors.onAccent} />}
       />
 
       {lista.length === 0 ? (
@@ -366,7 +378,9 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
     },
     chipActive:     { backgroundColor: colors.accent, borderColor: colors.accent },
     chipText:       { color: colors.textSecondary, fontSize: 12 * fs, fontWeight: '600' },
-    chipTextActive: { color: '#fff' },
+    // El chip activo se llena con el color del grupo (serie), no con el acento:
+    // el texto usa el fondo de pantalla para contrastar en cualquier paleta.
+    chipTextActive: { color: colors.background },
     dot: { width: 8, height: 8, borderRadius: 4 },
     restText: { color: colors.textMuted, fontSize: 13 * fs, fontStyle: 'italic', paddingVertical: 6 },
     // Ejercicio
@@ -388,7 +402,7 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
     unitBtn:       { paddingHorizontal: 10, paddingVertical: 8, backgroundColor: colors.inputBg },
     unitBtnActive: { backgroundColor: colors.accent },
     unitText:      { color: colors.textSecondary, fontSize: 12 * fs, fontWeight: '700' },
-    unitTextActive:{ color: '#fff' },
+    unitTextActive:{ color: colors.onAccent },
     addRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6 },
     addText:{ color: colors.accent, fontSize: 13 * fs, fontWeight: '600' },
     addDia: {

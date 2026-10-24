@@ -1,28 +1,45 @@
-// LinearGradient eliminado: requireNativeViewManager falla en RN 0.85 new arch (Fabric)
-// antes de que el módulo nativo se registre → "undefined is not a function".
-// Se usa View + backgroundColor con el primer color del gradiente.
+/**
+ * KPICard — tarjeta de indicador.
+ *
+ * Estilo "datos primero": la tarjeta es neutra y el color aparece solo en el
+ * icono y en la cifra, según lo que el número SIGNIFICA. No se pasa un color:
+ * se pasa un `tono` (ver TonoDato en constants/themes.ts) y la paleta activa
+ * decide el HEX. Cambiar de paleta no requiere tocar este archivo.
+ *
+ * SECCIONES QUE PINTA
+ *   fondo de la tarjeta ......... colors.card
+ *   borde ....................... colors.border
+ *   caja del icono .............. fondo del tono (dataXBg)
+ *   icono ....................... color del tono (dataX)
+ *   cifra ....................... colors.text
+ *   unidad y etiqueta ........... colors.textSecondary
+ */
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Colors } from '../../constants/Colors';
 import { useColors, useFontScale } from '../../hooks/useColors';
+import { tonoDato, TonoDato } from '../../constants/themes';
 
 interface Props {
-  label:     string;
-  value:     string | number;
-  unit?:     string;
-  icon:      React.ReactNode;
-  gradient?: readonly [string, string];
+  label:  string;
+  value:  string | number;
+  unit?:  string;
+  icon:   React.ReactNode;
+  /** Qué significa el número. Determina el color dentro de la paleta activa. */
+  tono?:  TonoDato;
 }
 
-export default function KPICard({ label, value, unit, icon, gradient }: Props) {
+export default function KPICard({ label, value, unit, icon, tono = 'neutro' }: Props) {
   const colors = useColors();
-  const fs = useFontScale();
+  const fs     = useFontScale();
+  const t      = tonoDato(colors, tono);
   const styles = useMemo(() => make_styles(colors, fs), [colors, fs]);
+
   return (
     <View style={styles.wrapper}>
-      <View style={[styles.card, gradient ? { backgroundColor: gradient[0] } : styles.plain]}>
-        <View style={styles.iconBox}>{icon}</View>
-        <Text style={styles.value} accessibilityRole="text" adjustsFontSizeToFit>
+      <View style={styles.card}>
+        <View style={[styles.iconBox, { backgroundColor: t.bg }]}>{icon}</View>
+        <Text style={[styles.value, { color: tono === 'neutro' ? colors.text : t.color }]}
+              accessibilityRole="text" adjustsFontSizeToFit numberOfLines={1}>
           {value}
           {unit ? <Text style={styles.unit}> {unit}</Text> : null}
         </Text>
@@ -34,33 +51,30 @@ export default function KPICard({ label, value, unit, icon, gradient }: Props) {
 
 function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   return StyleSheet.create({
-  wrapper: { flex: 1, minWidth: 140 },
-  card: {
-    borderRadius: 16,
-    padding:      16,
-    gap:          6,
-  },
-  plain: {
-    backgroundColor: colors.card,
-    borderWidth:     1,
-    borderColor:     colors.border,
-  },
-  iconBox: {
-    width:           40,
-    height:          40,
-    borderRadius:    12,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    alignItems:      'center',
-    justifyContent:  'center',
-    marginBottom:    4,
-  },
-  value: {
-    color:      '#fff',
-    fontSize: 26 * fs,
-    fontWeight: '700',
-    lineHeight: 30,
-  },
-  unit:  { fontSize: 14 * fs, fontWeight: '500' },
-  label: { color: 'rgba(255,255,255,0.75)', fontSize: 12 * fs },
-});
+    wrapper: { flex: 1, minWidth: 140 },
+    card: {
+      borderRadius:    16,
+      padding:         16,
+      gap:             6,
+      backgroundColor: colors.card,
+      borderWidth:     1,
+      borderColor:     colors.border,
+    },
+    iconBox: {
+      width:          38,
+      height:         38,
+      borderRadius:   11,
+      alignItems:     'center',
+      justifyContent: 'center',
+      marginBottom:   4,
+    },
+    value: {
+      fontSize:      26 * fs,
+      fontWeight:    '800',
+      lineHeight:    31 * fs,
+      letterSpacing: -0.5,
+    },
+    unit:  { fontSize: 13 * fs, fontWeight: '600', color: colors.textSecondary },
+    label: { fontSize: 12 * fs, color: colors.textSecondary },
+  });
 }

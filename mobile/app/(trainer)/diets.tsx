@@ -194,7 +194,7 @@ export default function TrainerDietsScreen() {
           <View style={styles.topRow}>
             <Text style={styles.subtitle}>{diets.length} {diets.length === 1 ? 'plan' : 'planes'}</Text>
             <TouchableOpacity style={styles.addBtn} onPress={() => { resetPlan(); setShowPlan(true); }}>
-              <Ionicons name="add" size={18} color="#fff" />
+              <Ionicons name="add" size={18} color={colors.onAccent} />
               <Text style={styles.addBtnText}>Nuevo plan</Text>
             </TouchableOpacity>
           </View>
@@ -243,7 +243,7 @@ export default function TrainerDietsScreen() {
           <View style={styles.topRow}>
             <Text style={styles.subtitle}>{recipes.length} recetas</Text>
             <TouchableOpacity style={styles.addBtn} onPress={() => setShowRecipe(true)}>
-              <Ionicons name="add" size={18} color="#fff" />
+              <Ionicons name="add" size={18} color={colors.onAccent} />
               <Text style={styles.addBtnText}>Nueva receta</Text>
             </TouchableOpacity>
           </View>
@@ -318,7 +318,7 @@ export default function TrainerDietsScreen() {
                   return (
                     <TouchableOpacity key={o} onPress={() => setPForm({ ...pForm, objetivo: o })}
                       style={[styles.objChip, active && styles.objChipActive]}>
-                      <Text style={[styles.objChipText, active && { color: '#fff' }]}>{OBJ_LABEL[o]}</Text>
+                      <Text style={[styles.objChipText, active && { color: colors.onAccent }]}>{OBJ_LABEL[o]}</Text>
                     </TouchableOpacity>
                   );
                 })}
@@ -452,7 +452,7 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
     tabRow:  { flexDirection: 'row', marginHorizontal: 20, marginBottom: 8, backgroundColor: colors.card,
                borderRadius: 12, padding: 4, borderWidth: 1, borderColor: colors.border },
     tabBtn:  { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 9, borderRadius: 10 },
-    tabBtnActive:  { backgroundColor: 'rgba(108,99,255,0.15)' },
+    tabBtnActive:  { backgroundColor: colors.accentBg },
     tabLabel:      { color: colors.textSecondary, fontSize: 14 * fs, fontWeight: '600' },
     tabLabelActive:{ color: colors.accent },
     content: { paddingHorizontal: 20, paddingBottom: 32, gap: 12 },
@@ -460,7 +460,7 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
     subtitle:{ color: colors.textSecondary, fontSize: 13 * fs },
     addBtn:  { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.accent,
                borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9 },
-    addBtnText: { color: '#fff', fontSize: 13 * fs, fontWeight: '700' },
+    addBtnText: { color: colors.onAccent, fontSize: 13 * fs, fontWeight: '700' },
 
     empty:     { alignItems: 'center', paddingVertical: 24, gap: 10 },
     emptyText: { color: colors.textMuted, fontSize: 13 * fs, textAlign: 'center', lineHeight: 20, paddingVertical: 8 },
@@ -512,6 +512,6 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
     pickName:  { color: colors.text, fontSize: 14 * fs, fontWeight: '600' },
     pickMacro: { color: colors.textSecondary, fontSize: 12 * fs, marginTop: 2 },
     memberAvatar:{ width: 38, height: 38, borderRadius: 12, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
-    memberInitial:{ color: '#fff', fontSize: 15 * fs, fontWeight: '700' },
+    memberInitial:{ color: colors.onAccent, fontSize: 15 * fs, fontWeight: '700' },
   });
 }

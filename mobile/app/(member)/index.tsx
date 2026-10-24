@@ -8,7 +8,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors } from '../../constants/Colors';
 import { useColors, useFontScale } from '../../hooks/useColors';
 import { useFetch } from '../../hooks/useFetch';
 import { useAuth } from '../../hooks/useAuth';
@@ -140,7 +139,7 @@ export default function MemberDashboard() {
       {/* ── Racha banner ── */}
       {!!stats?.streakDays && (
         <View style={styles.streakBanner}>
-          <Ionicons name="flame" size={20} color="#fbbf24" />
+          <Ionicons name="flame" size={20} color={colors.dataProgreso} />
           <Text style={styles.streakText}>
             ¡Racha de <Text style={{ fontWeight: '800' }}>{stats.streakDays} días</Text>! Sigue así
           </Text>
@@ -149,31 +148,32 @@ export default function MemberDashboard() {
 
       {/* ── KPIs ── */}
       <View style={styles.kpiGrid}>
+        {/* El `tono` dice qué significa cada cifra; el color lo pone la paleta. */}
         <KPICard
           label="Entrenamientos"
           value={stats?.totalWorkouts ?? 0}
-          icon={<Ionicons name="barbell-outline" size={18} color="#fff" />}
-          gradient={['#6c63ff', '#8b5cf6']}
+          icon={<Ionicons name="barbell-outline" size={18} color={colors.dataActividad} />}
+          tono="actividad"
         />
         <KPICard
           label="Semana actual"
           value={`S${stats?.currentWeek ?? 1}`}
-          icon={<Ionicons name="calendar-outline" size={18} color="#fff" />}
-          gradient={['#3b82f6', '#6366f1']}
+          icon={<Ionicons name="calendar-outline" size={18} color={colors.dataActividad} />}
+          tono="actividad"
         />
         <KPICard
           label="Calorías (est.)"
           value={stats?.caloriesBurned ?? 0}
           unit="kcal"
-          icon={<Ionicons name="flame-outline" size={18} color="#fff" />}
-          gradient={['#ef4444', '#f59e0b']}
+          icon={<Ionicons name="flame-outline" size={18} color={colors.dataProgreso} />}
+          tono="progreso"
         />
         <KPICard
           label="Peso actual"
           value={stats?.currentWeight ?? '—'}
           unit="kg"
-          icon={<Ionicons name="scale-outline" size={18} color="#fff" />}
-          gradient={['#10b981', '#06b6d4']}
+          icon={<Ionicons name="scale-outline" size={18} color={colors.dataProgreso} />}
+          tono="progreso"
         />
       </View>
 
@@ -200,7 +200,7 @@ export default function MemberDashboard() {
                   accessible
                   accessibilityLabel={`${day}: ${done ? 'completado' : 'pendiente'}`}
                 >
-                  {done && <Ionicons name="checkmark" size={12} color="#fff" />}
+                  {done && <Ionicons name="checkmark" size={12} color={colors.onAccent} />}
                 </View>
                 <Text style={[styles.dayLabel, isToday && { color: colors.accent }]}>
                   {day}
@@ -244,7 +244,7 @@ export default function MemberDashboard() {
                 <Ionicons
                   name={workoutDone ? 'checkmark-done' : 'checkmark-circle-outline'}
                   size={18}
-                  color={workoutDone ? colors.success : '#fff'}
+                  color={workoutDone ? colors.dataProgreso : colors.onAccent}
                 />
               }
               style={{ marginTop: 12 }}
@@ -304,9 +304,12 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius:    14,
-    backgroundColor: colors.purple,
+    // La racha es progreso acumulado -> tono progreso, no un color decorativo.
+    backgroundColor: colors.dataProgresoBg,
+    borderWidth:     1,
+    borderColor:     colors.dataProgreso,
   },
-  streakText: { color: '#fff', fontSize: 14 * fs },
+  streakText: { color: colors.dataProgreso, fontSize: 14 * fs, fontWeight: '600' },
   kpiGrid: {
     flexDirection: 'row',
     flexWrap:      'wrap',

@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { BarChart } from 'react-native-chart-kit';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors, useFontScale } from '../../hooks/useColors';
+import { conAlfa } from '../../constants/themes';
 import { ENDPOINTS } from '../../constants/Api';
 import api from '../../services/api';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
@@ -72,7 +73,7 @@ export default function TrainerReportsScreen() {
     backgroundGradientFrom: colors.card,
     backgroundGradientTo:   colors.card,
     decimalPlaces: 0,
-    color:      (o = 1) => `rgba(108, 99, 255, ${o})`,
+    color:      (o = 1) => conAlfa(colors.dataActividad, o),
     labelColor: () => colors.textSecondary,
     propsForBackgroundLines: { stroke: colors.border },
     barPercentage: 0.6,
@@ -215,7 +216,7 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
     },
     rangeChipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
     rangeText:       { color: colors.textSecondary, fontSize: 13 * fs, fontWeight: '600' },
-    rangeTextActive: { color: '#fff' },
+    rangeTextActive: { color: colors.onAccent },
     infoCard: { alignItems: 'center', gap: 10, paddingVertical: 24 },
     infoText: { color: colors.textSecondary, fontSize: 13 * fs, textAlign: 'center' },
     kpiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },

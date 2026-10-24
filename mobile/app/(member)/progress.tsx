@@ -10,8 +10,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { LineChart } from 'react-native-chart-kit';
 import { Dimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors } from '../../constants/Colors';
 import { useColors, useFontScale } from '../../hooks/useColors';
+import { conAlfa } from '../../constants/themes';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
 import { toDateStr, toArray } from '../../utils/format';
@@ -87,7 +87,7 @@ export default function ProgressScreen() {
           accessibilityLabel="Registrar medición"
           accessibilityRole="button"
         >
-          <Ionicons name="add" size={22} color="#fff" />
+          <Ionicons name="add" size={22} color={colors.onAccent} />
         </TouchableOpacity>
       </View>
 
@@ -131,7 +131,7 @@ export default function ProgressScreen() {
               backgroundGradientFrom: colors.card,
               backgroundGradientTo:   colors.card,
               decimalPlaces:          1,
-              color:        (opacity = 1) => `rgba(108,99,255,${opacity})`,
+              color:        (o = 1) => conAlfa(colors.dataProgreso, o),
               labelColor:   () => colors.textSecondary,
               strokeWidth:  2,
               propsForDots: { r: '4', strokeWidth: '2', stroke: colors.accentLight },

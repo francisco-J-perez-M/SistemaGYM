@@ -7,7 +7,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors } from '../../constants/Colors';
 import { useColors, useFontScale } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
@@ -208,13 +207,13 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   tab:          { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 10 },
   tabActive:    { backgroundColor: colors.accent },
   tabText:      { color: colors.textSecondary, fontSize: 14 * fs, fontWeight: '600' },
-  tabTextActive:{ color: '#fff' },
+  tabTextActive:{ color: colors.onAccent },
   catScroll:    { maxHeight: 48, marginTop: 8 },
   catContent:   { paddingHorizontal: 20, gap: 8, alignItems: 'center' },
   catChip:      { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
   catChipActive:{ backgroundColor: colors.accent, borderColor: colors.accent },
   catChipText:  { color: colors.textSecondary, fontSize: 13 * fs, fontWeight: '600' },
-  catChipTextActive: { color: '#fff' },
+  catChipTextActive: { color: colors.onAccent },
   listContent:  { padding: 20, gap: 12, paddingBottom: 32 },
   empty:        { alignItems: 'center', paddingVertical: 40, gap: 10 },
   emptyText:    { color: colors.textMuted, fontSize: 15 * fs, fontWeight: '600', textAlign: 'center' },

@@ -8,7 +8,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors } from '../../constants/Colors';
 import { useColors, useFontScale } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
@@ -73,7 +72,7 @@ export default function GymProfileScreen() {
       {/* Hero */}
       <View style={[styles.hero, { paddingTop: insets.top + 20 }]}>
         <View style={styles.avatar}>
-          <Ionicons name="business" size={36} color="#fff" />
+          <Ionicons name="business" size={36} color={colors.onAccent} />
         </View>
         <Text style={styles.gymName}>{nombre}</Text>
         {gym.plan_gymPro && <Badge label={`Plan ${gym.plan_gymPro}`} color="accent" />}

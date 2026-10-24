@@ -20,7 +20,7 @@ export default function Card({ children, style, padding = 16, elevated = false }
           borderColor:     colors.border,
           padding,
         },
-        elevated && styles.elevated,
+        elevated && [styles.elevated, { shadowColor: colors.shadow }],
         style,
       ]}
       accessible={false}
@@ -36,7 +36,7 @@ const styles = StyleSheet.create({
     borderWidth:  1,
   },
   elevated: {
-    shadowColor:   '#000',
+    // shadowColor lo inyecta la paleta (colors.shadow); aquí solo la geometría.
     shadowOffset:  { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius:  8,

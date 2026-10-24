@@ -12,7 +12,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors } from '../../constants/Colors';
 import { useColors, useFontScale } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
@@ -80,29 +79,30 @@ export default function TrainerDashboardScreen() {
 
       {/* KPIs — campos reales del API */}
       <View style={styles.kpiGrid}>
+        {/* El `tono` dice qué significa cada cifra; la paleta pone el color. */}
         <StatCard
           label="Total clientes"
           value={totalClients}
-          icon={<Ionicons name="people-outline" size={20} color={colors.accent} />}
-          color={colors.accent}
+          icon={<Ionicons name="people-outline" size={20} color={colors.dataActividad} />}
+          tono="actividad"
         />
         <StatCard
           label="Sesiones hoy"
           value={sessionsToday}
-          icon={<Ionicons name="checkmark-circle-outline" size={20} color={colors.success} />}
-          color={colors.success}
+          icon={<Ionicons name="checkmark-circle-outline" size={20} color={colors.dataActividad} />}
+          tono="actividad"
         />
         <StatCard
           label="Sesiones / semana"
           value={sessionsWeek}
-          icon={<Ionicons name="calendar-outline" size={20} color={colors.warning} />}
-          color={colors.warning}
+          icon={<Ionicons name="calendar-outline" size={20} color={colors.dataActividad} />}
+          tono="actividad"
         />
         <StatCard
           label="% Completado"
           value={`${completionRate}%`}
-          icon={<Ionicons name="trending-up-outline" size={20} color={colors.info} />}
-          color={colors.info}
+          icon={<Ionicons name="trending-up-outline" size={20} color={colors.dataProgreso} />}
+          tono="progreso"
         />
       </View>
 
@@ -146,16 +146,16 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   heroBanner: { flexDirection: 'row', alignItems: 'center', borderRadius: 18, padding: 16, gap: 12, backgroundColor: colors.heroTop },
   heroIcon: {
     width: 50, height: 50, borderRadius: 16,
-    backgroundColor: 'rgba(108,99,255,0.2)', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.accentBg, alignItems: 'center', justifyContent: 'center',
   },
-  heroTitle: { color: '#fff', fontSize: 16 * fs, fontWeight: '700' },
-  heroSub:   { color: 'rgba(255,255,255,0.6)', fontSize: 12 * fs },
+  heroTitle: { color: colors.text, fontSize: 16 * fs, fontWeight: '700' },
+  heroSub:   { color: colors.textSecondary, fontSize: 12 * fs },
   kpiGrid:   { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   sectionTitle: { color: colors.text, fontSize: 16 * fs, fontWeight: '700', marginBottom: 12 },
   clientRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
   clientAvatar: {
     width: 38, height: 38, borderRadius: 12,
-    backgroundColor: 'rgba(108,99,255,0.15)', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.accentBg, alignItems: 'center', justifyContent: 'center',
   },
   clientInitial: { color: colors.accent, fontSize: 16 * fs, fontWeight: '700' },
   clientName:    { color: colors.text, fontSize: 14 * fs, fontWeight: '600' },

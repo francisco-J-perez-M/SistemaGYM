@@ -4,7 +4,6 @@ import {
   TextInputProps, ViewStyle,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../constants/Colors';
 import { useColors, useFontScale } from '../../hooks/useColors';
 
 interface Props extends TextInputProps {
