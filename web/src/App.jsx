@@ -22,6 +22,7 @@ import OwnerMemberships   from "./pages/owner_gym/OwnerMemberships";
 import OwnerProfile       from "./pages/owner_gym/OwnerProfile";
 import OwnerMiPerfil      from "./pages/owner_gym/OwnerMiPerfil";
 import OwnerReportes      from "./pages/owner_gym/OwnerReportes";
+import OwnerReportesAutomaticos from "./pages/owner_gym/OwnerReportesAutomaticos";
 import MiembrosDashboard  from "./pages/owner_gym/MiembrosDashboard";
 import PagosDashboard     from "./pages/owner_gym/PagosDashboard";
 import CobrarMembresia    from "./pages/owner_gym/CobrarMembresia";
@@ -142,6 +143,7 @@ function App() {
             <Route path="/owner/profile"       element={<OwnerProfile />}     />
             <Route path="/owner/mi-perfil"     element={<OwnerMiPerfil />}    />
             <Route path="/owner/reportes"      element={<OwnerReportes />}    />
+            <Route path="/owner/reportes-automaticos" element={<OwnerReportesAutomaticos />} />
             <Route path="/owner/subscription"  element={<OwnerSubscription />} />
             <Route path="/owner/pagos-online"  element={<OwnerPagos />}       />
             <Route path="/owner/perfil-publico" element={<OwnerPerfilPublico />} />

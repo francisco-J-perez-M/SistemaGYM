@@ -34,6 +34,26 @@ const formatFecha = (f) => {
   catch { return f || "—"; }
 };
 
+/* Lunes a domingo de la semana que contiene `fechaStr` ("YYYY-MM-DD"). No es
+   semana ISO -- solo "la semana de 7 días que incluye ese día", que es lo
+   que el filtro necesita. */
+const rangoSemana = (fechaStr) => {
+  const [y, m, d] = fechaStr.split("-").map(Number);
+  const base = new Date(y, m - 1, d);
+  const dow = (base.getDay() + 6) % 7; // lunes = 0 ... domingo = 6
+  const lunes = new Date(base); lunes.setDate(base.getDate() - dow);
+  const domingo = new Date(lunes); domingo.setDate(lunes.getDate() + 6);
+  const fmt = (x) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`;
+  return { desde: fmt(lunes), hasta: fmt(domingo) };
+};
+
+const hoyISO = () => new Date().toISOString().slice(0, 10);
+const diasAtrasISO = (n) => {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d.toISOString().slice(0, 10);
+};
+
 const METODO_ICONS = {
   Efectivo:          <CashIcon />,
   Tarjeta:           <CardIcon />,
@@ -186,6 +206,12 @@ export default function PagosDashboard() {
   const [catFiltro,   setCatFiltro]   = useState("");         // "" | nombre categoría
   const [anio,        setAnio]        = useState(0);          // 0 = histórico completo
   const [mes,         setMes]         = useState(0);          // 0 = año completo
+  // Granularidad del periodo: "anio" es el flujo clásico (Todo/Año/Mes);
+  // "dia" y "semana" usan un rango libre (desde/hasta) que el backend ya
+  // soporta en /api/pagos/todos.
+  const [modoPeriodo, setModoPeriodo] = useState("anio");      // anio | dia | semana
+  const [fechaDia,    setFechaDia]    = useState(hoyISO);
+  const [fechaSemana, setFechaSemana] = useState(hoyISO);
 
   // Cargar categorías cuando se activa el filtro POS
   useEffect(() => {
@@ -196,14 +222,29 @@ export default function PagosDashboard() {
     }
   }, [tipoFiltro]); // eslint-disable-line
 
+  // Traduce el modo de periodo activo a lo que entiende la API: desde/hasta
+  // para día y semana, anio/mes para el flujo clásico.
+  const calcularPeriodo = (
+    modo = modoPeriodo, a = anio, m = mes, fd = fechaDia, fs = fechaSemana,
+  ) => {
+    if (modo === "dia")    return { desde: fd, hasta: fd };
+    if (modo === "semana") return rangoSemana(fs);
+    return { anio: a, mes: m };
+  };
+
   const loadData = useCallback(async (
-    page = 1, tipo = tipoFiltro, cat = catFiltro, a = anio, m = mes,
+    page = 1, tipo = tipoFiltro, cat = catFiltro, periodo = calcularPeriodo(),
   ) => {
     setLoading(true);
     try {
       const params = { page, tipo, categoria: cat, per_page: 10 };
-      if (a) params.anio = a;
-      if (a && m) params.mes = m;
+      if (periodo.desde && periodo.hasta) {
+        params.desde = periodo.desde;
+        params.hasta = periodo.hasta;
+      } else if (periodo.anio) {
+        params.anio = periodo.anio;
+        if (periodo.mes) params.mes = periodo.mes;
+      }
 
       const res = await getTodosMovimientos(params);
 
@@ -223,34 +264,57 @@ export default function PagosDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [tipoFiltro, catFiltro, anio, mes]); // eslint-disable-line
+  }, [tipoFiltro, catFiltro, anio, mes, modoPeriodo, fechaDia, fechaSemana]); // eslint-disable-line
 
   // Carga inicial
-  useEffect(() => { loadData(1, "todos", "", 0, 0); }, []); // eslint-disable-line
+  useEffect(() => { loadData(1, "todos", "", { anio: 0, mes: 0 }); }, []); // eslint-disable-line
 
   // Cualquier cambio de filtro vuelve a la primera página: quedarse en la 5
   // de un filtro que ahora tiene 2 páginas mostraría una lista vacía.
   const handleTipo = (nuevoTipo) => {
     setTipoFiltro(nuevoTipo);
     setCatFiltro("");
-    loadData(1, nuevoTipo, "", anio, mes);
+    loadData(1, nuevoTipo, "", calcularPeriodo());
   };
 
   const handleCategoria = (cat) => {
     const nueva = cat === catFiltro ? "" : cat; // toggle
     setCatFiltro(nueva);
-    loadData(1, "venta", nueva, anio, mes);
+    loadData(1, "venta", nueva, calcularPeriodo());
   };
 
   const handlePeriodo = (nuevoAnio, nuevoMes) => {
     setAnio(nuevoAnio);
     setMes(nuevoMes);
-    loadData(1, tipoFiltro, catFiltro, nuevoAnio, nuevoMes);
+    loadData(1, tipoFiltro, catFiltro, { anio: nuevoAnio, mes: nuevoMes });
   };
 
-  const handlePage = (p) => loadData(p, tipoFiltro, catFiltro, anio, mes);
+  // Cambiar de granularidad (Año/Mes ↔ Día ↔ Semana) vuelve a pedir con la
+  // fecha que ya estuviera elegida en ese modo -- no hace falta "Aplicar".
+  const handleModo = (nuevoModo) => {
+    setModoPeriodo(nuevoModo);
+    loadData(1, tipoFiltro, catFiltro, calcularPeriodo(nuevoModo));
+  };
 
-  const etiquetaPeriodo = !anio
+  const handleFechaDia = (valor) => {
+    setFechaDia(valor);
+    loadData(1, tipoFiltro, catFiltro, { desde: valor, hasta: valor });
+  };
+
+  const handleFechaSemana = (valor) => {
+    setFechaSemana(valor);
+    loadData(1, tipoFiltro, catFiltro, rangoSemana(valor));
+  };
+
+  const handlePage = (p) => loadData(p, tipoFiltro, catFiltro, calcularPeriodo());
+
+  const rangoSemanaActual = modoPeriodo === "semana" ? rangoSemana(fechaSemana) : null;
+
+  const etiquetaPeriodo = modoPeriodo === "dia"
+    ? `día ${formatFecha(fechaDia)}`
+    : modoPeriodo === "semana"
+    ? `semana del ${formatFecha(rangoSemanaActual.desde)} al ${formatFecha(rangoSemanaActual.hasta)}`
+    : !anio
     ? "histórico completo"
     : !mes ? `año ${anio}` : `${MESES_CORTOS[mes - 1]} ${anio}`;
 
@@ -296,34 +360,97 @@ export default function PagosDashboard() {
           </FilterPill>
         </div>
 
-        {/* Periodo: año y, si hay uno elegido, mes */}
+        {/* Granularidad del periodo */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <span style={{ fontSize: 12, color: "var(--text-secondary)", fontWeight: 600, marginRight: 4 }}>
-            Periodo:
+            Ver por:
           </span>
-          <FilterPill active={anio === 0} onClick={() => handlePeriodo(0, 0)}>
-            Todo
-          </FilterPill>
-          {(anios.length ? anios : [new Date().getFullYear()]).map((a) => (
-            <FilterPill key={a} active={anio === a} onClick={() => handlePeriodo(a, mes)}>
-              {a}
-            </FilterPill>
-          ))}
+          <FilterPill active={modoPeriodo === "anio"}   onClick={() => handleModo("anio")}>Mes / Año</FilterPill>
+          <FilterPill active={modoPeriodo === "semana"} onClick={() => handleModo("semana")}>Semana</FilterPill>
+          <FilterPill active={modoPeriodo === "dia"}    onClick={() => handleModo("dia")}>Día</FilterPill>
         </div>
 
-        {anio !== 0 && (
-          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 12, color: "var(--text-secondary)", fontWeight: 600, marginRight: 4 }}>
-              Mes:
-            </span>
-            <FilterPill active={mes === 0} onClick={() => handlePeriodo(anio, 0)}>
-              Año
-            </FilterPill>
-            {MESES_CORTOS.map((m, i) => (
-              <FilterPill key={m} active={mes === i + 1} onClick={() => handlePeriodo(anio, i + 1)}>
-                {m}
+        {/* Periodo: año y, si hay uno elegido, mes */}
+        {modoPeriodo === "anio" && (
+          <>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 12, color: "var(--text-secondary)", fontWeight: 600, marginRight: 4 }}>
+                Periodo:
+              </span>
+              <FilterPill active={anio === 0} onClick={() => handlePeriodo(0, 0)}>
+                Todo
               </FilterPill>
-            ))}
+              {(anios.length ? anios : [new Date().getFullYear()]).map((a) => (
+                <FilterPill key={a} active={anio === a} onClick={() => handlePeriodo(a, mes)}>
+                  {a}
+                </FilterPill>
+              ))}
+            </div>
+
+            {anio !== 0 && (
+              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 12, color: "var(--text-secondary)", fontWeight: 600, marginRight: 4 }}>
+                  Mes:
+                </span>
+                <FilterPill active={mes === 0} onClick={() => handlePeriodo(anio, 0)}>
+                  Año
+                </FilterPill>
+                {MESES_CORTOS.map((m, i) => (
+                  <FilterPill key={m} active={mes === i + 1} onClick={() => handlePeriodo(anio, i + 1)}>
+                    {m}
+                  </FilterPill>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Día: fecha exacta, con atajos para hoy/ayer */}
+        {modoPeriodo === "dia" && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 12, color: "var(--text-secondary)", fontWeight: 600, marginRight: 4 }}>
+              Día:
+            </span>
+            <FilterPill active={fechaDia === hoyISO()} onClick={() => handleFechaDia(hoyISO())}>Hoy</FilterPill>
+            <FilterPill active={fechaDia === diasAtrasISO(1)} onClick={() => handleFechaDia(diasAtrasISO(1))}>Ayer</FilterPill>
+            <input
+              type="date"
+              value={fechaDia}
+              max={hoyISO()}
+              onChange={(e) => e.target.value && handleFechaDia(e.target.value)}
+              style={{
+                padding: "6px 12px", borderRadius: 999, fontSize: 12, fontWeight: 600,
+                border: "1.5px solid var(--border)", background: "var(--bg-input, var(--bg-main))",
+                color: "var(--text-primary)",
+              }}
+            />
+          </div>
+        )}
+
+        {/* Semana: cualquier día dentro de ella -- se muestra el lunes a domingo resultante */}
+        {modoPeriodo === "semana" && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 12, color: "var(--text-secondary)", fontWeight: 600, marginRight: 4 }}>
+              Semana:
+            </span>
+            <FilterPill active={fechaSemana === hoyISO()} onClick={() => handleFechaSemana(hoyISO())}>Esta semana</FilterPill>
+            <FilterPill active={fechaSemana === diasAtrasISO(7)} onClick={() => handleFechaSemana(diasAtrasISO(7))}>Semana pasada</FilterPill>
+            <input
+              type="date"
+              value={fechaSemana}
+              max={hoyISO()}
+              onChange={(e) => e.target.value && handleFechaSemana(e.target.value)}
+              style={{
+                padding: "6px 12px", borderRadius: 999, fontSize: 12, fontWeight: 600,
+                border: "1.5px solid var(--border)", background: "var(--bg-input, var(--bg-main))",
+                color: "var(--text-primary)",
+              }}
+            />
+            {rangoSemanaActual && (
+              <span style={{ fontSize: 11.5, color: "var(--text-secondary)" }}>
+                ({formatFecha(rangoSemanaActual.desde)} al {formatFecha(rangoSemanaActual.hasta)})
+              </span>
+            )}
           </div>
         )}
 
