@@ -211,6 +211,9 @@ export default function TrainerProfile() {
         experience:     p.experience     || "",
         bio:            p.bio            || "",
         certifications: certs,
+        // Solo para mostrarla. No se edita desde aquí, pero hay que conservarla
+        // o el guardado la borraría al mandar el formulario sin este campo.
+        photo:          p.photo          || null,
       });
 
       setStats({
@@ -251,6 +254,10 @@ export default function TrainerProfile() {
   const initials = formData.name
     .split(" ").filter(Boolean).slice(0, 2)
     .map(n => n[0].toUpperCase()).join("");
+
+  // El backend la envía en `photo` (GET /trainer/profile) ya validada como data
+  // URL. Puede haberse cargado desde la app móvil.
+  const fotoPerfil = formData.photo || null;
 
   const ratingStars = Math.round(stats.avgRating);
 
@@ -320,14 +327,25 @@ export default function TrainerProfile() {
         style={{ padding: 24, marginBottom: 20 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 24, flexWrap: "wrap" }}>
           <div style={{ position: "relative", flexShrink: 0 }}>
+            {/* Si hay foto se pinta; si no, las iniciales. La foto puede
+                haberse cargado desde la app móvil y hasta ahora la web la
+                ignoraba, mostrando siempre las iniciales. */}
             <div style={{
               width: 80, height: 80, borderRadius: "50%",
               background: "linear-gradient(135deg, var(--accent), var(--accent-hover))",
               display: "flex", alignItems: "center", justifyContent: "center",
               fontSize: 28, fontWeight: 800, color: "#fff",
               border: "3px solid var(--border)", boxShadow: "0 0 0 4px var(--accent-dim)",
+              overflow: "hidden",
             }}>
-              {initials || <FiUser size={32} />}
+              {fotoPerfil ? (
+                <img
+                  src={fotoPerfil}
+                  alt={formData.name || "Foto de perfil"}
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  onError={(e) => { e.currentTarget.style.display = "none"; }}
+                />
+              ) : (initials || <FiUser size={32} />)}
             </div>
             {isEditing && (
               <div style={{
