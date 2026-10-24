@@ -304,7 +304,7 @@ function RecetaForm({ initial, onSave, onClose }) {
             <select value={form.categoria} onChange={e=>set("categoria",e.target.value)}
               style={{ width:"100%", padding:"9px 12px", background:"var(--bg-input)", border:"1px solid var(--border)",
                 borderRadius:8, color:"var(--text-primary)", fontSize:13 }}>
-              {CATEGORIAS.map(c => <option key={c} value={c}>{CAT_EMOJI[c]} {c}</option>)}
+              {CATEGORIAS.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
 
