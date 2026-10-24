@@ -21,6 +21,33 @@ const card = {
   padding: "36px 40px", maxWidth: 520, width: "100%", textAlign: "center",
 };
 
+/**
+ * Panel al que volver según el rol de la sesión. Sin esto, "/" lleva a la
+ * pantalla de acceso y parece que la sesión se cerró.
+ */
+function rutaInicio() {
+  let rol = "";
+  try {
+    const guardado = localStorage.getItem("user") || localStorage.getItem("user_data");
+    rol = (guardado ? JSON.parse(guardado)?.rol || JSON.parse(guardado)?.role : "") || "";
+  } catch {
+    rol = "";
+  }
+  const destinos = {
+    owner_gym:     "/owner",
+    admin:         "/owner",
+    administrador: "/owner",
+    superadmin:    "/superadmin",
+    trainer:       "/trainer",
+    entrenador:    "/trainer",
+    receptionist:  "/receptionist",
+    recepcionista: "/receptionist",
+    user:          "/user/dashboard",
+    miembro:       "/user/dashboard",
+  };
+  return destinos[String(rol).toLowerCase()] || "/user/dashboard";
+}
+
 const ESTADOS = {
   aprobado:  { icon: FiCheckCircle, color: "var(--success)", titulo: "¡Pago completado!",
                texto: "Tu pago se registró correctamente. Gracias." },
@@ -100,7 +127,7 @@ export default function PagoResultado({ resultado = "exito" }) {
             )}
 
             <button
-              onClick={() => navigate("/")}
+              onClick={() => navigate(rutaInicio())}
               style={{
                 border: "none", borderRadius: 8, padding: "10px 18px", fontSize: 14,
                 fontWeight: 600, cursor: "pointer", background: "var(--accent)", color: "#111",

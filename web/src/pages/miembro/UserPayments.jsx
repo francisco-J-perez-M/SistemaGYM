@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { reconciliarSilencioso } from "../../api/pagosOnline";
 import { 
   FiDollarSign, 
   FiCheckCircle,
@@ -47,8 +48,10 @@ export default function UserPaymentsHistory() {
   const fetchPayments = async () => {
     try {
       setLoading(true);
+      // Confirma los pagos en línea pendientes para que aparezcan en el historial
+      await reconciliarSilencioso();
       const token = localStorage.getItem("token");
-      
+
       const response = await fetch("/api/user/payments", {
         headers: {
           "Authorization": `Bearer ${token}`,
