@@ -25,7 +25,33 @@ type Exercise = { nombre: string; grupo?: string; unidad?: string; series: Serie
 
 interface RoutineEx { nombre: string; series?: string | number; reps?: string | number; peso?: string | number; grupo?: string; unidad?: string }
 interface RoutineDay { id: string; dia?: string; grupo?: string; ejercicios: RoutineEx[] }
-interface Routine { id: string; nombre: string; activa?: boolean; duracion_minutos?: number; dias: RoutineDay[] }
+interface Routine {
+  id: string; nombre: string; activa?: boolean; duracion_minutos?: number; dias: RoutineDay[];
+  /** Solo en las asignadas: rutina del catálogo y entrenador que la asignó. */
+  id_rutina?: string | null;
+  nombre_entrenador?: string;
+}
+
+/**
+ * Origen de la rutina.
+ *
+ * Las propias y las asignadas por el entrenador viven en colecciones distintas
+ * y las sirven endpoints distintos. Se unifican aquí para que la bitácora las
+ * trate igual, conservando de dónde viene cada una.
+ */
+type Origen = 'propia' | 'entrenador';
+type RoutineUI = Routine & { origen: Origen; idRutinaOrigen: string | null };
+
+const normalizaRutina = (r: Routine, origen: Origen): RoutineUI => ({
+  ...r,
+  origen,
+  // El id se prefija con el origen: los dos endpoints devuelven ObjectId de
+  // colecciones diferentes y nada garantiza que no coincidan.
+  id: `${origen}:${r.id}`,
+  // Rutina del catálogo que se guarda en la bitácora. En una asignación, `id`
+  // es el documento de asignación y la rutina real viene en `id_rutina`.
+  idRutinaOrigen: origen === 'entrenador' ? (r.id_rutina ?? null) : r.id,
+});
 
 interface WorkoutItem {
   id: string; nombre_rutina: string; fecha: string; duracion_min?: number | null;
@@ -67,9 +93,11 @@ const indiceDeHoy = (dias?: RoutineDay[]): number => {
   const i = lista.findIndex(dayMatchesToday);
   return i >= 0 ? i : 0;
 };
+// Si el ejercicio no trae grupo, hereda el del día: así los de una rutina
+// asignada no caen todos en el cajón "General".
 const exercisesFromDay = (day?: RoutineDay | null): Exercise[] =>
   (day?.ejercicios || []).filter(e => e.nombre).map(e => ({
-    nombre: e.nombre, grupo: e.grupo || '', unidad: e.unidad || 'kg', series: seriesFrom(e),
+    nombre: e.nombre, grupo: e.grupo || day?.grupo || '', unidad: e.unidad || 'kg', series: seriesFrom(e),
   }));
 
 // Interpreta valores multivalor ("7,7,7" / "10,20,30") y convierte lb a kg.
@@ -91,10 +119,20 @@ export default function WorkoutLogScreen() {
   const styles = useMemo(() => make_styles(colors, fs), [colors, fs]);
   const insets = useSafeAreaInsets();
 
-  const { data: routinesData, loading: loadingRoutines } = useFetch<{ rutinas: Routine[] }>(ENDPOINTS.USER_ROUTINES);
+  // Se piden las dos listas: las propias y las que asignó el entrenador. Sin
+  // la segunda, un miembro con rutina asignada veía la pantalla vacía.
+  const { data: routinesData, loading: loadingPropias } =
+    useFetch<{ rutinas: Routine[] }>(ENDPOINTS.USER_ROUTINES);
+  const { data: assignedData, loading: loadingAsignadas } =
+    useFetch<{ rutinas: Routine[] }>(ENDPOINTS.USER_ASSIGNED_ROUTINES);
   const { data: histData, loading: loadingHist, refetch } = useFetch<WorkoutsResponse>(ENDPOINTS.USER_WORKOUTS);
 
-  const routines = toArray<Routine>(routinesData?.rutinas);
+  const loadingRoutines = loadingPropias || loadingAsignadas;
+
+  const routines = useMemo<RoutineUI[]>(() => [
+    ...toArray<Routine>(routinesData?.rutinas).map(r => normalizaRutina(r, 'propia')),
+    ...toArray<Routine>(assignedData?.rutinas).map(r => normalizaRutina(r, 'entrenador')),
+  ], [routinesData, assignedData]);
 
   const [routineId, setRoutineId] = useState('');
   const [dayIdx, setDayIdx] = useState(0);
@@ -110,7 +148,7 @@ export default function WorkoutLogScreen() {
 
   // Aplica una rutina: fija duración y preselecciona el día que cae HOY
   // (o el primero si ninguno coincide), cargando sus ejercicios.
-  const applyRoutine = useCallback((r?: Routine | null) => {
+  const applyRoutine = useCallback((r?: RoutineUI | null) => {
     if (!r) { setRoutineId(''); setDayIdx(0); setExercises([]); return; }
     setRoutineId(r.id);
     setDuracion(r.duracion_minutos ? String(r.duracion_minutos) : '');
@@ -119,14 +157,17 @@ export default function WorkoutLogScreen() {
     setExercises(exercisesFromDay((r.dias || [])[i]));
   }, []);
 
-  const onRoutine = (r: Routine) => applyRoutine(r);
+  const onRoutine = (r: RoutineUI) => applyRoutine(r);
   const onDay = (d: RoutineDay, i: number) => { setDayIdx(i); setExercises(exercisesFromDay(d)); };
 
   // Auto-selección inicial: primera rutina activa + día de hoy (una sola vez).
   const [autoApplied, setAutoApplied] = useState(false);
   useEffect(() => {
     if (!autoApplied && !routineId && routines.length > 0) {
-      applyRoutine(routines.find(r => r.activa !== false) || routines[0]);
+      // Se exige que tenga días: una rutina sin ellos deja la pantalla en
+      // blanco y parece que el registro no funciona.
+      const utilizable = (r: RoutineUI) => r.activa !== false && (r.dias?.length || 0) > 0;
+      applyRoutine(routines.find(utilizable) || routines[0]);
       setAutoApplied(true);
     }
   }, [routines, autoApplied, routineId, applyRoutine]);
@@ -160,7 +201,7 @@ export default function WorkoutLogScreen() {
       const { data: res } = await api.post(ENDPOINTS.WORKOUT_COMPLETE, {
         nombre_rutina: `${selectedRoutine.nombre}${selectedDay.grupo ? ' - ' + selectedDay.grupo : ''}`,
         grupo_muscular: selectedDay.grupo || undefined,
-        id_rutina: selectedRoutine.id,
+        id_rutina: selectedRoutine.idRutinaOrigen ?? undefined,
         duracion_min: duracion ? parseInt(duracion) : undefined,
         peso_corporal: pesoCorporal ? parseFloat(pesoCorporal) : undefined,
         notas: notas.trim() || undefined,
@@ -213,6 +254,14 @@ export default function WorkoutLogScreen() {
                 return (
                   <TouchableOpacity key={r.id} onPress={() => onRoutine(r)}
                     style={[styles.chip, active && { backgroundColor: colors.accent, borderColor: colors.accent }]}>
+                    {/* El icono distingue de un vistazo la rutina propia de la
+                        que asignó el entrenador. */}
+                    <Ionicons
+                      name={r.origen === 'entrenador' ? 'person-outline' : 'create-outline'}
+                      size={12}
+                      color={active ? colors.onAccent : colors.textSecondary}
+                      style={{ marginRight: 5 }}
+                    />
                     <Text style={[styles.chipTxt, active && { color: colors.onAccent }]}>{r.nombre}</Text>
                   </TouchableOpacity>
                 );
@@ -369,7 +418,7 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
     hint: { color: colors.textMuted, fontSize: 11 * fs, marginTop: 6, lineHeight: 16 },
     input: { backgroundColor: colors.inputBg, borderRadius: 10, borderWidth: 1, borderColor: colors.border, color: colors.text, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14 * fs, marginVertical: 2 },
     chips: { flexDirection: 'row', gap: 8, paddingVertical: 2, paddingRight: 8 },
-    chip: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+    chip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
     chipTxt: { color: colors.text, fontSize: 13 * fs, fontWeight: '600' },
     exCard: { backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 12, marginTop: 12, gap: 4 },
     exHead: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
