@@ -564,4 +564,28 @@ export default function Sidebar({
         </button>
       </div>
 
-      {/* User inf
+      {/* User info */}
+      <div style={S.userSection}>
+        <div style={S.avatar}>
+          {(() => {
+            const raw = user.foto || user.foto_perfil;
+            if (!raw) return initials;
+            // If already a data URL or absolute URL, use directly; otherwise prefix with upload path
+            const src = (raw.startsWith("data:") || raw.startsWith("http") || raw.startsWith("/"))
+              ? raw
+              : `/api/uploads/${raw}`;
+            return <img src={src} alt="avatar"
+              style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }}
+              onError={e => { e.currentTarget.style.display = "none"; }} />;
+          })()}
+        </div>
+        {!collapsed && (
+          <div style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            <span style={S.brandText}>GYM PRO</span>
+            <span style={S.badge}>{ROLE_LABELS[role] || "USER"}</span>
+          </div>
+        )}
+      </div>
+    </aside>
+  );
+}

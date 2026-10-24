@@ -468,4 +468,21 @@ export default function UserProfile() {
                       </select>
                     ) : (
                       <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                        <span 
+                        <span style={{ fontSize:14, fontWeight:600, color: levelColor[nivel] || "var(--text-primary)" }}>
+                          {profile.nivelExperiencia || "Sin especificar"}
+                        </span>
+                        {profile.nivelExperiencia && (
+                          <span style={{ width:8, height:8, borderRadius:"50%", background: levelColor[nivel], flexShrink:0 }}/>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+}

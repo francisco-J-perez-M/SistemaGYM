@@ -700,4 +700,16 @@ export default function MiembrosDashboard() {
           </button>
           <span style={{ fontSize: 13, color: C.t2 }}>Página {page} de {totalPages}</span>
           <button disabled={page === totalPages || loading} onClick={() => load(page + 1)}
-            style={{ padding: "7px 16px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transp
+            style={{ padding: "7px 16px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", color: C.t2, cursor: page === totalPages ? "not-allowed" : "pointer", fontSize: 13, fontWeight: 600, opacity: page === totalPages ? 0.4 : 1 }}>
+            Siguiente →
+          </button>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes pulse { 0%,100%{opacity:.4} 50%{opacity:.8} }
+        @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+      `}</style>
+    </div>
+  );
+}
