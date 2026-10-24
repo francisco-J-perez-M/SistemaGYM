@@ -49,6 +49,15 @@ import ReceptionistAppointments from "./pages/recepcionista/ReceptionistAppointm
 import ReceptionistMessages     from "./pages/recepcionista/ReceptionistMessages";
 import ReceptionistTasks        from "./pages/recepcionista/ReceptionistTasks";
 
+// --- PÁGINAS DE SUPERADMIN ---
+import SuperadminDashboard    from "./pages/superadmin/SuperadminDashboard";
+import SuperadminGimnasios    from "./pages/superadmin/SuperadminGimnasios";
+import SuperadminSuscripciones from "./pages/superadmin/SuperadminSuscripciones";
+import SuperadminPlanes       from "./pages/superadmin/SuperadminPlanes";
+import SuperadminUsuarios     from "./pages/superadmin/SuperadminUsuarios";
+import SuperadminBackups      from "./pages/superadmin/SuperadminBackups";
+import SuperadminAnalytics    from "./pages/superadmin/SuperadminAnalytics";
+
 function App() {
   return (
     <ThemeProvider>
@@ -117,7 +126,18 @@ function App() {
             <Route path="/receptionist/tasks"        element={<ReceptionistTasks />} />
           </Route>
 
-          {/* 6. RUTA 404 */}
+          {/* 6. RUTAS SUPERADMIN */}
+          <Route element={<Layout role="superadmin" />}>
+            <Route path="/superadmin"                  element={<SuperadminDashboard />}     />
+            <Route path="/superadmin/gimnasios"        element={<SuperadminGimnasios />}     />
+            <Route path="/superadmin/suscripciones"    element={<SuperadminSuscripciones />} />
+            <Route path="/superadmin/planes"           element={<SuperadminPlanes />}        />
+            <Route path="/superadmin/usuarios"         element={<SuperadminUsuarios />}      />
+            <Route path="/superadmin/backups"          element={<SuperadminBackups />}       />
+            <Route path="/superadmin/analytics"        element={<SuperadminAnalytics />}     />
+          </Route>
+
+          {/* 7. RUTA 404 */}
           <Route path="*" element={
             <div style={{
               color: 'white', 

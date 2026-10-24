@@ -81,8 +81,10 @@ export default function LoginForm() {
 
       // 5️⃣ Redirección normal según Rol
       const userRole = userData.role;
-      
-      if (userRole === "Administrador" || userRole === "admin") {
+
+      if (userRole === "superadmin") {
+        navigate("/superadmin");
+      } else if (userRole === "Administrador" || userRole === "admin" || userRole === "owner_gym") {
         navigate("/dashboard");
       } else if (userRole === "Entrenador" || userRole === "trainer") {
         navigate("/trainer-dashboard");

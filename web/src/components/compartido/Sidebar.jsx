@@ -8,7 +8,8 @@ import {
   FiRefreshCw, FiUser, FiUserCheck, FiCalendar, FiClock,
   FiFileText, FiMail, FiLogOut, FiActivity, FiLock, FiCreditCard,
   FiShoppingCart, FiBookOpen, FiCpu, FiPieChart, FiChevronDown,
-  FiChevronLeft, FiChevronRight,
+  FiChevronLeft, FiChevronRight, FiGlobe, FiPackage, FiServer,
+  FiAlertTriangle,
 } from "react-icons/fi";
 import { GiMuscleUp, GiFruitBowl, GiPineTree, GiMeal } from "react-icons/gi";
 
@@ -104,10 +105,27 @@ const MENUS = {
     { id: "messages", label: "Mensajes", icon: <FiMail />     },
     { id: "tasks",    label: "Tareas",   icon: <FiClipboard /> },
   ],
+  superadmin: [
+    { id: "sa-dashboard",    label: "Plataforma",      icon: <FiGlobe />        },
+    { id: "sa-gimnasios",    label: "Gimnasios",        icon: <FiUsers />        },
+    { id: "sa-suscripciones",label: "Suscripciones",   icon: <FiCreditCard />   },
+    { id: "sa-planes",       label: "Planes",           icon: <FiPackage />      },
+    { type: "divider" },
+    { id: "sa-usuarios",     label: "Usuarios",         icon: <FiUser />         },
+    { type: "divider" },
+    {
+      id: "sa-ops", label: "Operaciones", icon: <FiSettings />,
+      children: [
+        { id: "sa-backups",   label: "Backups",   icon: <FiServer />        },
+        { id: "sa-analytics", label: "Analytics", icon: <FiBarChart2 />     },
+      ],
+    },
+  ],
 };
 
 const ROLE_LABELS = {
   admin: "ADMIN", user: "MIEMBRO", trainer: "ENTRENADOR", receptionist: "RECEPCIÓN",
+  superadmin: "SUPERADMIN",
 };
 
 const THEMES = [
