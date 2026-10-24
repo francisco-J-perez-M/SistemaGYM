@@ -1203,6 +1203,7 @@ export default function TrainerRoutines() {
   const [savingEx, setSavingEx]             = useState(false);
   const [viewingEx, setViewingEx]           = useState(null); // ejercicio en detalle
   const [selectedEx, setSelectedEx]         = useState(() => new Set()); // selección para borrado masivo
+  const [showInactiveEx, setShowInactiveEx] = useState(false); // mostrar ejercicios eliminados (soft-delete)
 
   /* ── Cargar rutinas ── */
   const loadRoutines = useCallback(async () => {
@@ -1230,7 +1231,7 @@ export default function TrainerRoutines() {
     try {
       setLoadingE(true); setErrorE(null);
       setExPage(1); // resetear al buscar
-      const data = await trainerService.getExercises({ search: searchEx });
+      const data = await trainerService.getExercises({ search: searchEx, incluirInactivos: showInactiveEx });
       setExercises(data.exercises || []);
       setSelectedEx(new Set()); // limpiar selección al recargar
     } catch (err) {
@@ -1238,7 +1239,18 @@ export default function TrainerRoutines() {
     } finally {
       setLoadingE(false);
     }
-  }, [searchEx]);
+  }, [searchEx, showInactiveEx]);
+
+  /* ── Reactivar ejercicio soft-deleted ── */
+  const reactivarEjercicio = async (ex) => {
+    try {
+      await trainerService.reactivateExercise(ex.id);
+      toast.success("Ejercicio reactivado", ex.nombre);
+      await loadExercises();
+    } catch (err) {
+      toast.error("No se pudo reactivar", err.message);
+    }
+  };
 
   useEffect(() => {
     if (tab === "exercises") {
@@ -1731,64 +1743,82 @@ export default function TrainerRoutines() {
                       {selectedRoutine.description || "Sin descripción."}
                     </p>
                     <h4 style={{ fontSize: 15, fontWeight: 600, marginBottom: 14 }}>Lista de Ejercicios</h4>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                      {(selectedRoutine.exerciseList || []).map((ex, idx) => (
-                        <div key={idx} style={{
-                          background: "var(--bg-input)", padding: "12px 14px", borderRadius: 8,
-                          border: "1px solid var(--border)",
-                        }}>
-                          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                            <div style={{
-                              width: 28, height: 28, background: "var(--accent)", color: "#fff",
-                              borderRadius: "50%", display: "flex", alignItems: "center",
-                              justifyContent: "center", fontWeight: 700, fontSize: 12, flexShrink: 0,
-                            }}>{idx + 1}</div>
-                            <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: 13, fontWeight: 500 }}>{ex.name}</div>
-                              <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>
-                                {ex.day} · {ex.sets} · {ex.peso ? `${ex.peso} kg` : "Peso libre"}
+                    {(!selectedRoutine.exerciseList || selectedRoutine.exerciseList.length === 0) ? (
+                      <p style={{ color: "var(--text-secondary)", fontSize: 13 }}>Sin ejercicios registrados.</p>
+                    ) : (() => {
+                      // Agrupar por día (preservando el orden) como en la vista del miembro
+                      const grupos = [];
+                      selectedRoutine.exerciseList.forEach((ex, idx) => {
+                        const clave = ex.day || "Sin día";
+                        let g = grupos.find(x => x.day === clave);
+                        if (!g) { g = { day: clave, muscleGroup: ex.muscleGroup || "", items: [] }; grupos.push(g); }
+                        g.items.push({ ...ex, _idx: idx });
+                      });
+                      return (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+                          {grupos.map((g, gi) => (
+                            <div key={gi}>
+                              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--accent)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 8 }}>
+                                {g.day}{g.muscleGroup ? ` — ${g.muscleGroup}` : ""}
+                              </div>
+                              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                                {g.items.map((ex) => (
+                                  <div key={ex._idx} style={{
+                                    background: "var(--bg-input)", padding: "12px 14px", borderRadius: 8,
+                                    border: "1px solid var(--border)",
+                                  }}>
+                                    <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                                      <div style={{
+                                        width: 28, height: 28, background: "var(--accent)", color: "#fff",
+                                        borderRadius: "50%", display: "flex", alignItems: "center",
+                                        justifyContent: "center", fontWeight: 700, fontSize: 12, flexShrink: 0,
+                                      }}>{ex._idx + 1}</div>
+                                      <div style={{ flex: 1 }}>
+                                        <div style={{ fontSize: 13, fontWeight: 500 }}>{ex.name}</div>
+                                        <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>
+                                          {ex.sets} · {ex.peso ? `${ex.peso} kg` : "Peso libre"}
+                                        </div>
+                                      </div>
+                                      <motion.button
+                                        title="Ver ejercicio en biblioteca"
+                                        onClick={() => {
+                                          const found = exercises.find(e => e.nombre === ex.name)
+                                            || exercises.find(e => e.nombre.trim().toLowerCase() === ex.name.trim().toLowerCase());
+                                          setViewingEx(found || {
+                                            nombre:         ex.name,
+                                            imagenes:       ex.imagenes || [],
+                                            video:          ex.video    || null,
+                                            descripcion:    ex.instrucciones || '',
+                                            grupo_muscular: ex.muscleGroup || '',
+                                          });
+                                        }}
+                                        style={{
+                                          width: 28, height: 28, borderRadius: 6, border: "1px solid var(--border)",
+                                          background: "var(--bg-card)", color: "var(--accent)",
+                                          cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                                          flexShrink: 0,
+                                        }}
+                                        whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                                        <FiEye size={13} />
+                                      </motion.button>
+                                    </div>
+                                    {(ex.imagenes || []).length > 0 && (
+                                      <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+                                        {ex.imagenes.map((img, ii) => (
+                                          <img key={ii} src={img} alt={`paso ${ii + 1}`}
+                                            style={{ width: 72, height: 54, objectFit: "cover", borderRadius: 6,
+                                              border: "1px solid var(--border)" }} />
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
                               </div>
                             </div>
-                            <motion.button
-                              title="Ver ejercicio en biblioteca"
-                              onClick={() => {
-                                // Buscar en biblioteca; si no match exacto, usar datos del ejercicio en rutina
-                                const found = exercises.find(e => e.nombre === ex.name)
-                                  || exercises.find(e => e.nombre.trim().toLowerCase() === ex.name.trim().toLowerCase());
-                                setViewingEx(found || {
-                                  nombre:         ex.name,
-                                  imagenes:       ex.imagenes || [],
-                                  video:          ex.video    || null,
-                                  descripcion:    ex.instrucciones || '',
-                                  grupo_muscular: ex.day || '',
-                                });
-                              }}
-                              style={{
-                                width: 28, height: 28, borderRadius: 6, border: "1px solid var(--border)",
-                                background: "var(--bg-card)", color: "var(--accent)",
-                                cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-                                flexShrink: 0,
-                              }}
-                              whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-                              <FiEye size={13} />
-                            </motion.button>
-                          </div>
-                          {/* Imágenes del ejercicio */}
-                          {(ex.imagenes || []).length > 0 && (
-                            <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
-                              {ex.imagenes.map((img, ii) => (
-                                <img key={ii} src={img} alt={`paso ${ii + 1}`}
-                                  style={{ width: 72, height: 54, objectFit: "cover", borderRadius: 6,
-                                    border: "1px solid var(--border)" }} />
-                              ))}
-                            </div>
-                          )}
+                          ))}
                         </div>
-                      ))}
-                      {(!selectedRoutine.exerciseList || selectedRoutine.exerciseList.length === 0) && (
-                        <p style={{ color: "var(--text-secondary)", fontSize: 13 }}>Sin ejercicios registrados.</p>
-                      )}
-                    </div>
+                      );
+                    })()}
                     <div style={{ marginTop: 22, display: "flex", gap: 10 }}>
                       <motion.button className="btn-compact-primary" style={{ flex: 1 }}
                         onClick={e => { setSelectedRoutine(null); openEdit(e, selectedRoutine); }}
@@ -2024,6 +2054,16 @@ export default function TrainerRoutines() {
                   <button className="clear-search" onClick={() => setSearchEx("")}><FiX /></button>
                 )}
               </div>
+              <button className="btn-compact-primary"
+                style={{
+                  background: showInactiveEx ? "var(--accent)" : "transparent",
+                  border: "1px solid var(--border)",
+                  color: showInactiveEx ? "#fff" : "var(--text-primary)",
+                }}
+                onClick={() => setShowInactiveEx(v => !v)}
+                title="Mostrar u ocultar ejercicios eliminados (inactivos)">
+                <FiEye size={15} /> {showInactiveEx ? "Ocultar inactivos" : "Mostrar inactivos"}
+              </button>
               {exercises.length > 0 && (
                 <button className="btn-compact-primary"
                   style={{ background: "transparent", border: "1px solid var(--border)", color: "var(--text-primary)" }}
@@ -2097,15 +2137,25 @@ export default function TrainerRoutines() {
                       </thead>
                       <tbody>
                         {pagedEx.map(ex => (
-                          <tr key={ex.id} style={selectedEx.has(ex.id) ? { background: "var(--accent-soft, rgba(99,102,241,.12))" } : undefined}>
+                          <tr key={ex.id} style={{
+                            ...(selectedEx.has(ex.id) ? { background: "var(--accent-soft, rgba(99,102,241,.12))" } : {}),
+                            ...(ex.activo === false ? { opacity: 0.55 } : {}),
+                          }}>
                             <td style={{ textAlign: "center" }}>
                               <input type="checkbox" style={{ cursor: "pointer" }}
                                 checked={selectedEx.has(ex.id)}
+                                disabled={ex.activo === false}
                                 onChange={() => toggleSelectEx(ex.id)} />
                             </td>
                             <td className="font-bold">
                               <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
                                 {ex.nombre}
+                                {ex.activo === false && (
+                                  <span style={{ fontSize: 10, fontWeight: 700, color: "#f59e0b",
+                                    background: "rgba(245,158,11,.12)", borderRadius: 5, padding: "1px 6px" }}>
+                                    Inactivo
+                                  </span>
+                                )}
                                 {(ex.imagenes?.length > 0) && (
                                   <span title={`${ex.imagenes.length} imagen(es)`}
                                     style={{ color: "var(--accent)", opacity: 0.75, lineHeight: 0 }}>
@@ -2141,12 +2191,21 @@ export default function TrainerRoutines() {
                                   whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
                                   <FiEdit size={13} />
                                 </motion.button>
-                                <motion.button className="icon-btn danger" style={{ padding: 5 }}
-                                  title="Eliminar"
-                                  onClick={() => handleDeleteEx(ex)}
-                                  whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-                                  <FiTrash2 size={13} />
-                                </motion.button>
+                                {ex.activo === false ? (
+                                  <motion.button className="icon-btn" style={{ padding: 5, color: "var(--success)" }}
+                                    title="Reactivar"
+                                    onClick={() => reactivarEjercicio(ex)}
+                                    whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                                    <FiCheckCircle size={13} />
+                                  </motion.button>
+                                ) : (
+                                  <motion.button className="icon-btn danger" style={{ padding: 5 }}
+                                    title="Eliminar"
+                                    onClick={() => handleDeleteEx(ex)}
+                                    whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                                    <FiTrash2 size={13} />
+                                  </motion.button>
+                                )}
                               </div>
                             </td>
                           </tr>
@@ -2189,7 +2248,7 @@ export default function TrainerRoutines() {
         </>
       )}
 
-      {/* ════════════════════════ TAB: IMPORTAR IA ════════════════════════ */}
+      {/* ==================== TAB: IMPORTAR IA ==================== */}
       {tab === "import" && (
         <ImportarIARoutinesTab
           clients={clients}
@@ -2209,7 +2268,7 @@ export default function TrainerRoutines() {
         />
       )}
 
-      {/* Modal detalle ejercicio — global, visible en cualquier tab */}
+      {/* Modal detalle ejercicio - global, visible en cualquier tab */}
       <AnimatePresence>
         {viewingEx && (
           <ExerciseDetailModal
