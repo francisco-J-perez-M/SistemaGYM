@@ -111,7 +111,25 @@ web/src/
 
 ## Autenticación y roles
 
-El login guarda el token JWT y redirige a la vista del rol correspondiente. Las
+El acceso guarda el token JWT y redirige a la vista del rol correspondiente. Las
 llamadas a la API incluyen el token y, cuando aplica, el identificador de gimnasio para
-el aislamiento multi-tenant. Existe recuperación de contraseña por correo (código de 6
-dígitos) accesible desde el enlace "¿Olvidaste tu contraseña?" en el login.
+el aislamiento multi-tenant. Existe recuperación de contraseña por correo mediante un
+código de 6 dígitos, accesible desde el enlace "¿Olvidaste tu contraseña?".
+
+---
+
+## Pagos
+
+El portal cobra membresías, productos del punto de venta y la suscripción del gimnasio
+al SaaS. Los métodos son efectivo, PayPal y Mercado Pago.
+
+Cada gimnasio configura desde el portal las cuentas donde recibe su dinero; las
+suscripciones al SaaS las cobra la plataforma con sus propias credenciales, definidas en
+`api/.env`. La distinción se resuelve en el backend según el contexto del cobro.
+
+Tras volver de la pasarela, `/pago/exito` confirma el estado real contra el proveedor en
+lugar de fiarse de la URL de retorno. En desarrollo, donde los webhooks no alcanzan
+`localhost`, las pantallas de cobro llaman además a un endpoint de reconciliación que
+recupera los pagos que quedaron pendientes.
+
+Alta de cuentas y credenciales: [../doc/PAGOS_CONFIGURACION.md](../doc/PAGOS_CONFIGURACION.md)
