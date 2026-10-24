@@ -158,7 +158,7 @@ export default function AnalyticsKMeans() {
     const pct    = nMinimo > 0 ? Math.min(100, Math.round((nActual / nMinimo) * 100)) : 0;
     const faltan = Math.max(0, nMinimo - nActual);
     return (
-      <div className="empty-state">
+      <div className="empty-state" style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-tertiary)", marginBottom: 12 }}>
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
         </svg>
@@ -189,7 +189,7 @@ export default function AnalyticsKMeans() {
   if (error) {
     const isNoData = error.includes("401") || error.includes("403") || error.includes("404");
     return (
-      <div className="empty-state">
+      <div className="empty-state" style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-tertiary)", marginBottom: 12 }}>
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
         </svg>
