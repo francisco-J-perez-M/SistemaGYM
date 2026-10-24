@@ -28,6 +28,20 @@
  * si ninguna rutina activa tiene un día que coincida con hoy, es el
  * estado alterno "sin rutina para hoy".
  *
+ * Rutina propia vs. asignada (bug reportado por Miguel): antes se tomaba
+ * SIEMPRE la primera rutina del arreglo `routines` cuyo día coincidiera
+ * con hoy, y ese arreglo pone las rutinas propias antes que las asignadas
+ * por un entrenador — así que si el socio tenía una propia Y una asignada
+ * para el mismo día, la asignada nunca se usaba, sin avisar que existía.
+ * Ahora se calculan TODAS las candidatas de hoy (`candidatas`, de
+ * cualquier origen) y, si hay más de una:
+ *   - por defecto se prioriza la asignada por el entrenador (es la que
+ *     alguien más está dando seguimiento, tiene más peso que la propia);
+ *   - pero se muestra un selector (chips) para que el socio la cambie por
+ *     la propia u otra candidata en cualquier momento, antes de marcar
+ *     series o a medias (con confirmación si ya tiene series marcadas,
+ *     porque cambiar de rutina reinicia el progreso de la sesión actual).
+ *
  * Descanso entre series: el modelo de ejercicio del backend todavía no
  * tiene un campo de descanso configurable (ver api/app/routes/miembro/
  * user_routine.py) — se usa un valor por defecto razonable
@@ -140,14 +154,34 @@ export default function StartWorkoutScreen() {
     ...toArray<Routine>(assignedData?.rutinas).map(r => normalizaRutina(r, 'entrenador')),
   ], [routinesData, assignedData]);
 
-  const seleccion = useMemo(() => {
+  // Todas las rutinas de hoy, de cualquier origen — puede haber más de una
+  // (propia + asignada por un entrenador para el mismo día).
+  const candidatas = useMemo(() => {
+    const out: { routine: RoutineUI; day: RoutineDay }[] = [];
     for (const r of routines) {
       if (r.activa === false) continue;
       const idx = (r.dias || []).findIndex(dayMatchesToday);
-      if (idx >= 0) return { routine: r, day: r.dias[idx] };
+      if (idx >= 0) out.push({ routine: r, day: r.dias[idx] });
     }
-    return null;
+    return out;
   }, [routines]);
+
+  // Cuál de las candidatas se está siguiendo hoy. Por defecto, la asignada
+  // por un entrenador si hay una; si no, la primera propia. Se siembra una
+  // sola vez (como `ejercicios` más abajo) para no saltar de rutina solo
+  // porque refetchearon las rutinas/perfil.
+  const [rutinaElegidaId, setRutinaElegidaId] = useState<string | null>(null);
+  useEffect(() => {
+    if (rutinaElegidaId === null && candidatas.length > 0) {
+      const porDefecto = candidatas.find((c) => c.routine.origen === 'entrenador') ?? candidatas[0];
+      setRutinaElegidaId(porDefecto.routine.id);
+    }
+  }, [candidatas, rutinaElegidaId]);
+
+  const seleccion = useMemo(
+    () => candidatas.find((c) => c.routine.id === rutinaElegidaId) ?? candidatas[0] ?? null,
+    [candidatas, rutinaElegidaId],
+  );
 
   const unidadPreferida = (profileData?.unidadMedida || '').toLowerCase().startsWith('imperial') ? 'lb' : 'kg';
 
@@ -302,6 +336,35 @@ export default function StartWorkoutScreen() {
   const hechas = lista.reduce((acc, e) => acc + e.series.filter((s) => s.completada).length, 0);
   const progreso = totalSeries > 0 ? Math.round((hechas / totalSeries) * 100) : 0;
 
+  // Cambiar de candidata (solo tiene sentido cuando hay más de una para
+  // hoy). Como las series de la sesión son de UNA rutina a la vez, cambiar
+  // reinicia el progreso — se avisa si ya había algo marcado.
+  const elegirRutina = (id: string) => {
+    if (id === rutinaElegidaId) return;
+    const cambiar = () => {
+      setRutinaElegidaId(id);
+      setEjercicios(null); // se vuelve a sembrar con los ejercicios de la nueva selección
+      setExpandido(null);
+      setEstado('progreso');
+      setRestante(0);
+      if (timerRef.current) clearInterval(timerRef.current);
+      setSesionIniciada(Date.now());
+      setResultado(null);
+    };
+    if (hechas > 0) {
+      Alert.alert(
+        'Cambiar de rutina',
+        'Tienes series marcadas en la rutina actual que se perderán si cambias. ¿Continuar?',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Cambiar', style: 'destructive', onPress: cambiar },
+        ],
+      );
+    } else {
+      cambiar();
+    }
+  };
+
   // ── Resumen / guardado ───────────────────────────────────────────────────
   if (estado === 'finalizada' || estado === 'guardada') {
     const guardada = estado === 'guardada';
@@ -355,6 +418,33 @@ export default function StartWorkoutScreen() {
   // ── Lista libre de ejercicios de hoy ────────────────────────────────────
   return (
     <ScrollView style={styles.screen} contentContainerStyle={[styles.content, { paddingTop: insets.top + 16 }]}>
+      {candidatas.length > 1 && (
+        <View style={styles.selectorRutina}>
+          {candidatas.map((c) => {
+            const activa = c.routine.id === seleccion.routine.id;
+            const asignada = c.routine.origen === 'entrenador';
+            return (
+              <TouchableOpacity
+                key={c.routine.id}
+                onPress={() => elegirRutina(c.routine.id)}
+                style={[styles.rutinaChip, activa && styles.rutinaChipActiva]}
+                accessibilityRole="button"
+                accessibilityLabel={`${asignada ? 'Rutina asignada' : 'Mi rutina'}: ${c.routine.nombre}${activa ? ', seleccionada' : ''}`}
+              >
+                <Ionicons
+                  name={asignada ? 'school-outline' : 'person-outline'}
+                  size={13}
+                  color={activa ? colors.onAccent : colors.textSecondary}
+                />
+                <Text style={[styles.rutinaChipTexto, activa && styles.rutinaChipTextoActiva]} numberOfLines={1}>
+                  {c.routine.nombre || (asignada ? 'Asignada' : 'Mi rutina')}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
+
       <View style={styles.progresoBar}>
         <View style={[styles.progresoFill, { width: `${progreso}%`, backgroundColor: colors.accent }]} />
       </View>
@@ -479,6 +569,15 @@ function make_styles(colors: any, fs: number) {
     center:  { alignItems: 'center', justifyContent: 'center', padding: 24, gap: 6 },
     emptyTitle: { fontSize: 18 * fs, fontWeight: '700', color: colors.text, marginTop: 14, textAlign: 'center' },
     emptyText:  { fontSize: 14 * fs, color: colors.textMuted, textAlign: 'center', marginTop: 6, lineHeight: 20 },
+    selectorRutina: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
+    rutinaChip: {
+      flexDirection: 'row', alignItems: 'center', gap: 6, maxWidth: '100%',
+      paddingHorizontal: 12, paddingVertical: 7, borderRadius: 18,
+      borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card,
+    },
+    rutinaChipActiva: { backgroundColor: colors.accent, borderColor: colors.accent },
+    rutinaChipTexto: { fontSize: 12.5 * fs, color: colors.textSecondary, fontWeight: '600' },
+    rutinaChipTextoActiva: { color: colors.onAccent },
     progresoBar:  { height: 6, borderRadius: 3, backgroundColor: colors.border, overflow: 'hidden' },
     progresoFill: { height: 6, borderRadius: 3 },
     headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 },
