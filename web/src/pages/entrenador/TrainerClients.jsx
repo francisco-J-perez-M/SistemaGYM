@@ -565,12 +565,19 @@ export default function TrainerClients() {
                           Rutinas trabajadas ({prevHistory.resumen?.total_rutinas ?? prevHistory.rutinas.length}) · {prevHistory.resumen?.total_entrenamientos ?? 0} entrenamientos registrados
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                          {prevHistory.rutinas.slice(0, 6).map((r, i) => (
-                            <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--bg-input)", borderRadius: 8, padding: "8px 12px", fontSize: 12 }}>
-                              <FiActivity size={12} style={{ color: "var(--text-secondary)" }} />
-                              <span style={{ flex: 1, fontWeight: 600 }}>{r.nombre}</span>
-                              {r.nombre_entrenador && <span style={{ color: "var(--text-secondary)" }}>por {r.nombre_entrenador}</span>}
-                              <span style={{ color: "var(--text-secondary)" }}>{r.dias} días</span>
+                          {prevHistory.rutinas.slice(0, 8).map((r, i) => (
+                            <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--bg-input)", borderRadius: 8, padding: "9px 12px", fontSize: 12, flexWrap: "wrap" }}>
+                              <FiActivity size={12} style={{ color: "var(--accent)", flexShrink: 0 }} />
+                              <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{r.nombre}</span>
+                              {r.dias > 0 && <span style={{ color: "var(--text-secondary)" }}>· {r.dias} día{r.dias === 1 ? "" : "s"}</span>}
+                              <div style={{ flex: 1 }} />
+                              {r.origen && (
+                                <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20,
+                                  background: r.origen.startsWith("Asignada") ? "rgba(16,185,129,.15)" : "var(--bg-card)",
+                                  color: r.origen.startsWith("Asignada") ? "var(--success)" : "var(--text-secondary)" }}>
+                                  {r.origen}{r.nombre_entrenador ? `: ${r.nombre_entrenador}` : ""}
+                                </span>
+                              )}
                             </div>
                           ))}
                         </div>
