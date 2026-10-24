@@ -19,6 +19,7 @@ import trainerService from "../../services/entrenador/trainerService";
 import { useToast } from "../../hooks/useToast";
 import {
   useRoutineImportJob, startRoutineImportJob, dismissRoutineImportJob,
+  cancelRoutineImportJob,
 } from "../../hooks/useRoutineImportJob";
 import "../../css/CSSUnificado.css";
 
@@ -900,6 +901,18 @@ function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExe
     finally { setSubmitting(false); }
   };
 
+  const handleCancelImport = () => {
+    // El caso típico: el job se quedó "procesando" para siempre (ej. se
+    // reiniciaron los contenedores a mitad del proceso) y el entrenador
+    // necesita poder desatorarse sin esperar a que expire solo (ver
+    // JOB_STALE_AFTER_SECONDS en ia_jobs.py, 30 min por defecto).
+    const ok = window.confirm(
+      "¿Cancelar la importación en curso? Se perderá el progreso de este intento."
+    );
+    if (!ok) return;
+    cancelRoutineImportJob();
+  };
+
   const handleSave = async () => {
     if (!preview) return;
     setSaving(true); setError(null);
@@ -989,6 +1002,18 @@ function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExe
               más tarde y seguir con tu tarea de asignación de ejercicios mientras tanto.
             </div>
           </div>
+          <button
+            onClick={handleCancelImport}
+            title="Cancelar la importación en curso"
+            style={{
+              border: "1px solid rgba(99,102,241,.35)", background: "transparent",
+              color: "var(--accent)", borderRadius: 6, padding: "5px 10px",
+              fontSize: 11.5, fontWeight: 700, cursor: "pointer", flexShrink: 0,
+              alignSelf: "center",
+            }}
+          >
+            Cancelar
+          </button>
         </div>
       )}
 

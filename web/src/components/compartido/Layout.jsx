@@ -3,7 +3,9 @@ import { useEffect, useState } from "react";
 import { FiLoader, FiCheckCircle, FiAlertCircle, FiX } from "react-icons/fi";
 import Sidebar from "./Sidebar";
 import SystemGuide from "../guide/SystemGuide";
-import { useRoutineImportJob, dismissRoutineImportJob } from "../../hooks/useRoutineImportJob";
+import {
+  useRoutineImportJob, dismissRoutineImportJob, cancelRoutineImportJob,
+} from "../../hooks/useRoutineImportJob";
 
 const ROLE_MAP = {
   owner_gym:    ["owner_gym", "admin", "administrador"],
@@ -202,6 +204,19 @@ export default function Layout({ role = "owner_gym" }) {
       // igual que hacerlo desde el propio módulo de Rutinas.
       dismissRoutineImportJob();
     }
+  };
+
+  // Distinto de closeImportBanner: esto SÍ cancela el job (no solo lo oculta).
+  // Cubre el caso de un job que se quedó "procesando" para siempre -- por
+  // ejemplo, tras reiniciar los contenedores a mitad del proceso -- donde ya
+  // no hay garantía de que el backend vaya a responder nunca. Ver el mismo
+  // botón en TrainerRoutines.jsx y JOB_STALE_AFTER_SECONDS en ia_jobs.py.
+  const cancelImportJob = () => {
+    const ok = window.confirm(
+      "¿Cancelar la importación en curso? Se perderá el progreso de este intento."
+    );
+    if (!ok) return;
+    cancelRoutineImportJob();
   };
 
   const readImpersonationState = () => {
@@ -418,6 +433,19 @@ export default function Layout({ role = "owner_gym" }) {
               >
                 {isDone ? "Ver resultado" : isError ? "Ver detalle" : "Ver progreso"}
               </button>
+              {estado === "procesando" && (
+                <button
+                  onClick={cancelImportJob}
+                  title="Cancelar la importación en curso"
+                  style={{
+                    border: "1px solid rgba(99,102,241,.35)", background: "transparent",
+                    color, borderRadius: 6, padding: "6px 12px", fontSize: 12, fontWeight: 700,
+                    cursor: "pointer", marginLeft: 8,
+                  }}
+                >
+                  Cancelar
+                </button>
+              )}
             </div>
 
             <button
