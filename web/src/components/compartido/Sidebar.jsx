@@ -62,9 +62,10 @@ const MENUS = {
     {
       id: "training", label: "Entrenamiento", icon: <GiMuscleUp />,
       children: [
-        { id: "routine",    label: "Mi Rutina",      icon: <FiFileText />   },
-        { id: "progress",   label: "Progreso Físico", icon: <FiTrendingUp /> },
-        { id: "prediction", label: "Mi Predicción",   icon: <FiCpu />       },
+        { id: "training-hub", label: "Entrenamiento Personal", icon: <GiMuscleUp />   },
+        { id: "routine",      label: "Mi Rutina",              icon: <FiFileText />   },
+        { id: "progress",     label: "Progreso Físico",        icon: <FiTrendingUp /> },
+        { id: "prediction",   label: "Mi Predicción",          icon: <FiCpu />        },
       ],
     },
     {
@@ -85,10 +86,11 @@ const MENUS = {
     { id: "profile", label: "Mi Perfil", icon: <FiUser /> },
   ],
   trainer: [
-    { id: "clients",  label: "Mis Clientes", icon: <FiUsers />    },
-    { id: "schedule", label: "Agenda",       icon: <FiCalendar /> },
-    { id: "sessions", label: "Sesiones",     icon: <FiClock />    },
-    { id: "routines", label: "Rutinas",      icon: <FiFileText /> },
+    { id: "clients",   label: "Mis Clientes",    icon: <FiUsers />        },
+    { id: "requests",  label: "Solicitudes PT",  icon: <GiMuscleUp />     },
+    { id: "schedule",  label: "Agenda",          icon: <FiCalendar />     },
+    { id: "sessions",  label: "Sesiones",        icon: <FiClock />        },
+    { id: "routines",  label: "Rutinas",         icon: <FiFileText />     },
     { type: "divider" },
     {
       id: "ia-coach", label: "IA Coach", icon: <FiCpu />,

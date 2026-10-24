@@ -189,12 +189,12 @@ export default function AuthPage() {
             </button>
           </div>
 
-          <AnimatePresence mode="wait" custom={isLoginView}>
+          <AnimatePresence mode="wait">
             {/* =========================================
                 VISTA DE LOGIN
             ========================================= */}
-            {isLoginView ? (
-              <motion.div key="login" custom={isLoginView} variants={formVariants} initial="hidden" animate="visible" exit="exit">
+            {isLoginView && (
+              <motion.div key="login" variants={formVariants} initial="hidden" animate="visible" exit="exit">
                 <div className="login-header">
                   <h2>Bienvenido de nuevo</h2>
                   <p className="login-subtitle">Ingresa tus credenciales para continuar.</p>
@@ -229,7 +229,6 @@ export default function AuthPage() {
                   </motion.button>
                 </form>
               </motion.div>
-
             )}
           </AnimatePresence>
         </div>

@@ -346,9 +346,10 @@ export default function TrainerProfile() {
               icon={FiBookOpen} label="Especialización" name="specialization"
               value={formData.specialization} editing={isEditing} onChange={handleChange}
             />
+            {/* Experiencia: campo calculado (años desde registro), solo lectura */}
             <ProfileField
               icon={FiClock} label="Experiencia" name="experience"
-              value={formData.experience} editing={isEditing} onChange={handleChange}
+              value={formData.experience} editing={false} onChange={handleChange}
             />
             <ProfileField
               icon={FiAward} label="Certificaciones" name="certifications"
