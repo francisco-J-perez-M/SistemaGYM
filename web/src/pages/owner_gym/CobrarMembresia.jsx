@@ -9,6 +9,7 @@ import { getMiembros } from "../../api/miembros";
 import { getMembresias } from "../../api/membresias";
 import { registrarPago } from "../../api/pagos";
 import { useToast } from "../../hooks/useToast";
+import BotonesPago from "../../components/compartido/BotonesPago";
 import "../../css/CSSUnificado.css";
 
 /* ── Iconos ── */
@@ -281,6 +282,32 @@ export default function CobrarMembresia() {
             >
               {submitting ? "Registrando…" : "Registrar Pago"}
             </button>
+
+            {/* ── Cobro en línea: el miembro paga con PayPal o Mercado Pago ──
+                El dinero llega directo a la cuenta configurada por el gimnasio. */}
+            {miembro && membresia && (
+              <div style={{
+                borderTop: "1px solid var(--border)", paddingTop: 16, marginTop: 4,
+                display: "flex", flexDirection: "column", gap: 10,
+              }}>
+                <div>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
+                    O cobra en línea
+                  </p>
+                  <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "2px 0 0" }}>
+                    Se abrirá la pasarela para cobrar {fmt(membresia.precio)} a {miembro.nombre}.
+                    El pago se registra automáticamente al confirmarse.
+                  </p>
+                </div>
+                <BotonesPago
+                  contexto="membresia"
+                  monto={Number(membresia.precio)}
+                  descripcion={`Membresía ${membresia.nombre || ""} — ${miembro.nombre}`}
+                  referenciaLocal={miembro._id || miembro.id}
+                  emailPagador={miembro.email}
+                />
+              </div>
+            )}
           </form>
 
           {/* ── Columna derecha: resumen / confirmación ── */}

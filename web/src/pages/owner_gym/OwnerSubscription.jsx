@@ -9,8 +9,9 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   FiCreditCard, FiCheckCircle, FiClock, FiRefreshCw, FiArrowUpCircle,
-  FiCalendar, FiFileText, FiX, FiZap, FiAlertCircle, FiRepeat,
+  FiCalendar, FiFileText, FiX, FiZap, FiAlertCircle, FiRepeat, FiCheck,
 } from "react-icons/fi";
+import BotonesPago from "../../components/compartido/BotonesPago";
 import "../../css/CSSUnificado.css";
 
 const authHeaders = () => ({
@@ -188,14 +189,48 @@ export default function OwnerSubscription() {
                 <span style={{ fontWeight: 700, color: "var(--text-primary)", fontSize: 15 }}>{p.nombre}</span>
                 {actual && <span style={{ ...S.badge, background: "var(--accent-dim, rgba(51,119,255,.15))", color: "var(--accent)" }}>Actual</span>}
               </div>
-              <div style={{ color: "var(--accent)", fontWeight: 800, fontSize: 17, margin: "6px 0" }}>{p.precio_display}</div>
+              {p.titulo_comercial && (
+                <p style={{ fontSize: 11.5, color: "var(--accent-soft, var(--accent))", fontWeight: 600, marginTop: 2 }}>
+                  {p.titulo_comercial}
+                </p>
+              )}
+              <div style={{ color: "var(--accent)", fontWeight: 800, fontSize: 17, margin: "6px 0" }}>
+                {p.precio_mensual_mxn === 0 ? "Gratis" : p.precio_display}
+              </div>
               {p.descripcion && <p style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5, minHeight: 34 }}>{p.descripcion}</p>}
-              {p.max_miembros != null && <p style={{ fontSize: 12, color: "var(--text-secondary)" }}>Hasta {p.max_miembros} miembros</p>}
+
+              {/* Beneficios incluidos en el plan */}
+              {Array.isArray(p.caracteristicas) && p.caracteristicas.length > 0 && (
+                <ul style={{ listStyle: "none", padding: 0, margin: "8px 0 10px", display: "flex", flexDirection: "column", gap: 5 }}>
+                  {p.caracteristicas.map((c, i) => (
+                    <li key={i} style={{ display: "flex", gap: 6, fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.4 }}>
+                      <FiCheck style={{ color: "var(--success)", flexShrink: 0, marginTop: 2 }} size={13} />
+                      <span>{c}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {p.max_miembros == null && (
+                <p style={{ fontSize: 12, color: "var(--text-secondary)" }}>Miembros ilimitados</p>
+              )}
+
               <button disabled={actual}
                 onClick={() => { setMetodo("tarjeta"); setPay({ modo: "mejorar", plan: p }); }}
                 style={{ ...S.planBtn, opacity: actual ? 0.5 : 1, cursor: actual ? "default" : "pointer" }}>
                 {actual ? "Plan actual" : <><FiArrowUpCircle size={14} /> Cambiar a este</>}
               </button>
+
+              {/* Pago en línea del plan (lo cobra la plataforma) */}
+              {!actual && p.precio_mensual_mxn > 0 && (
+                <div style={{ marginTop: 10 }}>
+                  <BotonesPago
+                    contexto="suscripcion"
+                    monto={Number((p.precio_mensual_mxn / 100).toFixed(2))}
+                    descripcion={`Suscripción GymPro — plan ${p.nombre}`}
+                    referenciaLocal={sub?.id ?? null}
+                  />
+                </div>
+              )}
             </div>
           );
         })}

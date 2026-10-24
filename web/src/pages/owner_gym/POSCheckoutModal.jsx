@@ -6,6 +6,7 @@ import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { FiX, FiCheck, FiAlertCircle, FiCreditCard, FiRefreshCw, FiDollarSign, FiUser, FiLock } from "react-icons/fi";
 import { registrarVenta } from "../../api/owner_gym";
+import BotonesPago from "../../components/compartido/BotonesPago";
 
 const fmt = (n) => `$${Number(n).toLocaleString("es-MX", { minimumFractionDigits: 2 })}`;
 const nowStr = () => new Date().toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" });
@@ -194,6 +195,22 @@ export default function CheckoutModal({ cart, miembros, onClose, onComplete }) {
                   display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: loading ? 0.8 : 1 }}>
                 {loading ? "Procesando..." : <><FiCheck size={16} /> Confirmar cobro</>}
               </button>
+
+              {/* ── Cobro en línea con pasarela ──
+                  El importe llega directo a la cuenta configurada por el gimnasio. */}
+              {total > 0 && (
+                <div style={{ marginTop: 14, borderTop: "1px dashed var(--border)", paddingTop: 12 }}>
+                  <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 8px" }}>
+                    O cobra en línea: se abrirá la pasarela para pagar {fmt(total)}.
+                  </p>
+                  <BotonesPago
+                    contexto="producto"
+                    monto={Number(total.toFixed(2))}
+                    descripcion={`Venta de productos (${cart.length} artículo${cart.length === 1 ? "" : "s"})`}
+                    referenciaLocal={lockedMiembro || miembro || null}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>
