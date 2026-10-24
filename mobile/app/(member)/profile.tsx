@@ -399,8 +399,8 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   },
   avatarImg: { width: 90, height: 90, borderRadius: 28, backgroundColor: colors.surface },
   initials:  { color: colors.onAccent, fontSize: 32 * fs, fontWeight: '800' },
-  heroName:  { color: colors.text, fontSize: 22 * fs, fontWeight: '700' },
-  heroEmail: { color: colors.textSecondary, fontSize: 13 * fs },
+  heroName:  { color: colors.text, fontSize: 22 * fs, fontWeight: '700', textAlign: 'center' },
+  heroEmail: { color: colors.textSecondary, fontSize: 13 * fs, textAlign: 'center' },
   statsRow:  { flexDirection: 'row', gap: 10, marginTop: 8 },
   statPill: {
     alignItems:      'center',

@@ -27,8 +27,16 @@ import { useColors, useFontScale } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { toStr, toArray } from '../../utils/format';
 import api from '../../services/api';
+import VisorCertificado from './VisorCertificado';
 
-interface Certificacion { nombre?: string; emisor?: string; anio?: string | number }
+interface Certificacion {
+  nombre?:  string;
+  emisor?:  string;
+  anio?:    string | number;
+  /** Documento escaneado en data URL; si viene, se puede previsualizar. */
+  archivo?: string;
+  nombre_archivo?: string;
+}
 
 interface FichaEntrenador {
   id?:              number;
@@ -66,6 +74,7 @@ export default function PerfilEntrenador({
   const [cargando, setCargando] = useState(false);
   const [rating, setRating]   = useState(0);
   const [guardado, setGuardado] = useState(false);
+  const [verCert, setVerCert] = useState<Certificacion | null>(null);
 
   useEffect(() => {
     if (!trainerId) { setFicha(null); return; }
@@ -217,7 +226,17 @@ export default function PerfilEntrenador({
               ) : (
                 <View style={{ gap: 8 }}>
                   {certificaciones.map((c, i) => (
-                    <View key={i} style={styles.certFila}>
+                    <TouchableOpacity
+                      key={i}
+                      style={styles.certFila}
+                      activeOpacity={c.archivo ? 0.85 : 1}
+                      onPress={() => c.archivo && setVerCert(c)}
+                      disabled={!c.archivo}
+                      accessibilityRole={c.archivo ? 'button' : 'text'}
+                      accessibilityLabel={c.archivo
+                        ? `Ver el certificado de ${toStr(c.nombre)}`
+                        : toStr(c.nombre, 'Certificación')}
+                    >
                       <View style={styles.certIcono}>
                         <Ionicons name="ribbon-outline" size={16} color={colors.accent} />
                       </View>
@@ -227,7 +246,11 @@ export default function PerfilEntrenador({
                           {[toStr(c.emisor), c.anio ? String(c.anio) : ''].filter(Boolean).join(' · ') || '—'}
                         </Text>
                       </View>
-                    </View>
+                      {/* El ojo solo aparece si hay documento que revisar */}
+                      {c.archivo ? (
+                        <Ionicons name="eye-outline" size={18} color={colors.accent} />
+                      ) : null}
+                    </TouchableOpacity>
                   ))}
                 </View>
               )}
@@ -270,6 +293,9 @@ export default function PerfilEntrenador({
             </ScrollView>
           )}
         </View>
+
+        {/* Previsualización del certificado, sobre esta misma hoja */}
+        <VisorCertificado certificado={verCert} onClose={() => setVerCert(null)} />
       </View>
     </Modal>
   );

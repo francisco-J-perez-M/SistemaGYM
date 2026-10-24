@@ -23,14 +23,18 @@ import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
 import api from '../../services/api';
+import { elegirDocumento, esPdf } from '../../services/media';
+import VisorCertificado from '../../components/usuarios/VisorCertificado';
 
 /** Certificación tal como la guarda y devuelve la API. */
 interface Certificacion {
-  id?:     string;
-  nombre?: string;
-  emisor?: string;
-  anio?:   string | number;
-  url_archivo?: string;
+  id?:      string;
+  nombre?:  string;
+  emisor?:  string;
+  anio?:    string | number;
+  /** Documento escaneado en data URL (PDF o imagen). */
+  archivo?: string;
+  nombre_archivo?: string;
 }
 
 interface TrainerProfile {
@@ -78,6 +82,7 @@ export default function TrainerProfileScreen() {
   const [specialization, setSpecialization] = useState('');
   const [bio,            setBio]            = useState('');
   const [certifications, setCertifications] = useState<Certificacion[]>([]);
+  const [verCert, setVerCert] = useState<Certificacion | null>(null);
 
   useEffect(() => {
     if (profile) {
@@ -102,6 +107,21 @@ export default function TrainerProfileScreen() {
   const quitarCert = (i: number) =>
     setCertifications((prev) => prev.filter((_, j) => j !== i));
 
+  /** Adjunta el documento escaneado de una certificación. */
+  const adjuntar = async (i: number) => {
+    const r = await elegirDocumento();
+    if (!r.ok) {
+      if (r.error) Alert.alert('No se pudo adjuntar', r.error);
+      return;   // error null significa que el usuario canceló
+    }
+    setCertifications((prev) => prev.map((c, j) =>
+      j === i ? { ...c, archivo: r.dataUrl, nombre_archivo: r.nombre } : c));
+  };
+
+  const quitarArchivo = (i: number) =>
+    setCertifications((prev) => prev.map((c, j) =>
+      j === i ? { ...c, archivo: '', nombre_archivo: '' } : c));
+
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -110,9 +130,11 @@ export default function TrainerProfileScreen() {
       const certs = certifications
         .filter((c) => toStr(c.nombre).trim())
         .map((c) => ({
-          nombre: toStr(c.nombre).trim(),
-          emisor: toStr(c.emisor).trim(),
-          anio:   toStr(c.anio).trim(),
+          nombre:         toStr(c.nombre).trim(),
+          emisor:         toStr(c.emisor).trim(),
+          anio:           toStr(c.anio).trim(),
+          archivo:        toStr(c.archivo),
+          nombre_archivo: toStr(c.nombre_archivo),
         }));
       await api.put(ENDPOINTS.TRAINER_PROFILE, {
         name, email, phone, address, specialization, bio, certifications: certs,
@@ -154,7 +176,11 @@ export default function TrainerProfileScreen() {
           <View style={styles.avatar}><Text style={styles.initials}>{initials}</Text></View>
         )}
         <Text style={styles.name}>{displayName}</Text>
-        <Badge label="Entrenador Personal" color="accent" />
+        {/* La insignia mide lo que su texto; sin contenedor centrado se alinea
+            a la izquierda mientras el nombre va centrado. */}
+        <View style={styles.rolCentrado}>
+          <Badge label="Entrenador Personal" color="accent" />
+        </View>
         {profile?.specialization ? <Text style={styles.heroSub}>{profile.specialization}</Text> : null}
         {profile?.experience ? <Text style={styles.heroMeta}>{profile.experience} de experiencia</Text> : null}
       </View>
@@ -258,9 +284,47 @@ export default function TrainerProfileScreen() {
                         accessibilityLabel="Año"
                       />
                     </View>
+
+                    {/* Documento escaneado */}
+                    {c.archivo ? (
+                      <View style={styles.archivoFila}>
+                        <Ionicons
+                          name={esPdf(c.archivo) ? 'document-text' : 'image'}
+                          size={16} color={colors.dataProgreso}
+                        />
+                        <Text style={styles.archivoNombre} numberOfLines={1}>
+                          {toStr(c.nombre_archivo, 'Documento adjunto')}
+                        </Text>
+                        <TouchableOpacity onPress={() => quitarArchivo(i)} hitSlop={8}
+                                          accessibilityRole="button"
+                                          accessibilityLabel="Quitar el documento">
+                          <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+                        </TouchableOpacity>
+                      </View>
+                    ) : (
+                      <TouchableOpacity
+                        style={styles.adjuntarBtn}
+                        onPress={() => adjuntar(i)}
+                        accessibilityRole="button"
+                        accessibilityLabel="Adjuntar el documento de la certificación"
+                      >
+                        <Ionicons name="attach-outline" size={16} color={colors.accent} />
+                        <Text style={styles.adjuntarText}>Adjuntar certificado (PDF o imagen)</Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                 ) : (
-                  <View key={i} style={styles.certFila}>
+                  <TouchableOpacity
+                    key={i}
+                    style={styles.certFila}
+                    activeOpacity={c.archivo ? 0.85 : 1}
+                    onPress={() => c.archivo && setVerCert(c)}
+                    disabled={!c.archivo}
+                    accessibilityRole={c.archivo ? 'button' : 'text'}
+                    accessibilityLabel={c.archivo
+                      ? `Ver el certificado de ${toStr(c.nombre)}`
+                      : toStr(c.nombre)}
+                  >
                     <View style={styles.certIcono}>
                       <Ionicons name="ribbon-outline" size={16} color={colors.accent} />
                     </View>
@@ -270,7 +334,10 @@ export default function TrainerProfileScreen() {
                         {[toStr(c.emisor), toStr(c.anio)].filter(Boolean).join(' · ') || '—'}
                       </Text>
                     </View>
-                  </View>
+                    {c.archivo ? (
+                      <Ionicons name="eye-outline" size={18} color={colors.accent} />
+                    ) : null}
+                  </TouchableOpacity>
                 )
               ))
             )}
@@ -321,6 +388,7 @@ export default function TrainerProfileScreen() {
         <Text style={styles.version}>GymPro Mobile v1.0.0</Text>
       </View>
       <AccessibilityPanel visible={showA11y} onClose={() => setShowA11y(false)} />
+      <VisorCertificado certificado={verCert} onClose={() => setVerCert(null)} />
     </ScrollView>
   );
 }
@@ -403,14 +471,27 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
     color: colors.text, fontSize: 13 * fs,
     borderWidth: 1, borderColor: colors.border,
   },
+  adjuntarBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
+    paddingVertical: 10, borderRadius: 9,
+    borderWidth: 1, borderColor: colors.accent, borderStyle: 'dashed',
+  },
+  adjuntarText: { color: colors.accent, fontSize: 12 * fs, fontWeight: '600' },
+  archivoFila: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: colors.dataProgresoBg, borderRadius: 9,
+    paddingHorizontal: 11, paddingVertical: 9,
+  },
+  archivoNombre: { color: colors.text, fontSize: 12 * fs, flex: 1, fontWeight: '600' },
 
   hero:    { alignItems: 'center', paddingBottom: 24, paddingHorizontal: 24, gap: 6, backgroundColor: colors.heroTop },
   avatar:  { width: 80, height: 80, borderRadius: 24, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
   avatarImg: { width: 80, height: 80, borderRadius: 24, backgroundColor: colors.surface, marginBottom: 4 },
   initials:{ color: colors.onAccent, fontSize: 30 * fs, fontWeight: '800' },
   name:    { color: colors.text, fontSize: 22 * fs, fontWeight: '700', textAlign: 'center' },
-  heroSub: { color: colors.accent, fontSize: 13 * fs },
-  heroMeta:{ color: colors.textSecondary, fontSize: 12 * fs },
+  rolCentrado: { alignSelf: 'center' },
+  heroSub: { color: colors.accent, fontSize: 13 * fs, textAlign: 'center' },
+  heroMeta:{ color: colors.textSecondary, fontSize: 12 * fs, textAlign: 'center' },
   statsRow:{ flexDirection: 'row', backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.border },
   statBox: { flex: 1, alignItems: 'center', paddingVertical: 14 },
   statVal: { color: colors.text, fontSize: 20 * fs, fontWeight: '800' },

@@ -72,6 +72,7 @@ export const ENDPOINTS = {
   // ── Auth ──────────────────────────────────────────────────────────────────
   LOGIN:              '/auth/login',
   REGISTER:           '/auth/register',
+  REFRESH:            '/auth/refresh',           // POST con el token de refresco
   FORGOT_PASSWORD:    '/auth/forgot-password',   // POST { email }
   RESET_PASSWORD:     '/auth/reset-password',    // POST { email, code, new_password }
 
@@ -160,7 +161,8 @@ export const ENDPOINTS = {
   TRAINER_CHAT_UNREAD:  '/trainer/chat/unread-summary', // GET
 
   // Owner Gym — Perfil del Gym (GET /api/owner_gym/perfil devuelve datos del gimnasio)
-  OWNER_GYM_PROFILE:    '/owner_gym/perfil',      // GET /api/owner_gym/perfil
+  OWNER_GYM_PROFILE:    '/owner_gym/perfil',      // GET/PUT datos del gimnasio
+  OWNER_PERFIL_PROPIETARIO: '/owner_gym/perfil/propietario', // PUT datos de la persona
   OWNER_PRODUCTOS:      '/owner_gym/productos',    // GET /api/owner_gym/productos
   OWNER_VENTAS:         '/ventas',                 // GET /api/ventas (ventas_bp hardcoded)
 

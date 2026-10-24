@@ -12,7 +12,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, RefreshControl,
-  TextInput, TouchableOpacity, Alert,
+  TextInput, TouchableOpacity, Alert, Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,6 +21,7 @@ import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
 import { toStr, toDateStr, toArray } from '../../utils/format';
 import api from '../../services/api';
+import { elegirFoto } from '../../services/media';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
@@ -36,6 +37,7 @@ interface GymProfile {
   telefono?:        string;
   tipo_gimnasio?:   string;   // clave interna
   tipo_gimnasio_label?: string;  // nombre legible
+  logo?:            string | null;  // data URL base64
   tipos_disponibles?: TipoGimnasio[];
   descripcion?:     string;
   plan?:            string;
@@ -74,6 +76,25 @@ export default function GymProfileScreen() {
 
   const [editando, setEditando] = useState(false);
   const [guardando, setGuardando] = useState(false);
+  const [subiendo,  setSubiendo]  = useState(false);
+
+  const cambiarLogo = async () => {
+    const r = await elegirFoto();
+    if (!r.ok) {
+      if (r.error) Alert.alert('No se pudo usar la imagen', r.error);
+      return;   // error null significa que el usuario canceló
+    }
+    setSubiendo(true);
+    try {
+      await api.put(ENDPOINTS.OWNER_GYM_PROFILE, { logo: r.dataUrl });
+      refetch();
+    } catch (e: any) {
+      Alert.alert('No se pudo guardar el logotipo',
+                  e?.response?.data?.msg ?? 'Revisa tu conexión.');
+    } finally {
+      setSubiendo(false);
+    }
+  };
   const [form, setForm] = useState({
     nombre: '', email_contacto: '', telefono: '', tipo_gimnasio: '',
   });
@@ -128,12 +149,32 @@ export default function GymProfileScreen() {
     >
       {/* Hero */}
       <View style={[styles.hero, { paddingTop: insets.top + 20 }]}>
-        <View style={styles.avatar}>
-          <Ionicons name="business" size={36} color={colors.onAccent} />
-        </View>
+        <TouchableOpacity
+          onPress={cambiarLogo}
+          disabled={subiendo}
+          accessibilityRole="button"
+          accessibilityLabel="Cambiar el logotipo del gimnasio"
+        >
+          {gym.logo && gym.logo.startsWith('data:image') ? (
+            <Image source={{ uri: gym.logo }} style={styles.logoImg} resizeMode="cover" />
+          ) : (
+            <View style={styles.avatar}>
+              <Ionicons name="business" size={36} color={colors.onAccent} />
+            </View>
+          )}
+          <View style={styles.camaraBadge}>
+            <Ionicons
+              name={subiendo ? 'hourglass-outline' : 'camera'}
+              size={14} color={colors.onAccent}
+            />
+          </View>
+        </TouchableOpacity>
+
         <Text style={styles.gymName}>{nombre}</Text>
         {gym.tipo_gimnasio_label ? (
-          <Badge label={gym.tipo_gimnasio_label} color="accent" />
+          <View style={styles.tipoCentrado}>
+            <Badge label={gym.tipo_gimnasio_label} color="accent" />
+          </View>
         ) : null}
         {planEtiqueta ? <Text style={styles.heroSub}>Plan {planEtiqueta}</Text> : null}
         {alta ? (
@@ -316,8 +357,18 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
     backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center',
     marginBottom: 4,
   },
+  logoImg: { width: 80, height: 80, borderRadius: 24, backgroundColor: colors.surface, marginBottom: 4 },
+  camaraBadge: {
+    position: 'absolute', right: -2, bottom: 2,
+    width: 26, height: 26, borderRadius: 13,
+    backgroundColor: colors.accent,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: colors.heroTop,
+  },
   gymName:  { color: colors.text, fontSize: 22 * fs, fontWeight: '700', textAlign: 'center' },
-  heroSub:  { color: colors.textSecondary, fontSize: 12 * fs },
+  // La insignia mide lo que su texto; sin contenedor centrado se pega a la izquierda.
+  tipoCentrado: { alignSelf: 'center' },
+  heroSub:  { color: colors.textSecondary, fontSize: 12 * fs, textAlign: 'center' },
   body:     { padding: 20, gap: 16 },
   editBar:  { flexDirection: 'row', gap: 10 },
   sectionTitle: { color: colors.text, fontSize: 15 * fs, fontWeight: '700', marginBottom: 12 },
