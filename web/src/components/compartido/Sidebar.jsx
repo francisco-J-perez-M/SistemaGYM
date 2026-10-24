@@ -110,6 +110,15 @@ const MENUS = {
     { type: "divider" },
     { id: "messages", label: "Mensajes", icon: <FiMail />     },
     { id: "tasks",    label: "Tareas",   icon: <FiClipboard /> },
+    { type: "divider" },
+    {
+      id: "rec-ai", label: "AI Analytics", icon: <FiBarChart2 />,
+      children: [
+        { id: "rec-mapreduce", label: "MapReduce",  icon: <FiBarChart2 /> },
+        { id: "rec-kmeans",    label: "Segmentacion", icon: <FiBarChart2 /> },
+        { id: "rec-regresion", label: "Prediccion",  icon: <FiBarChart2 /> },
+      ],
+    },
   ],
   superadmin: [
     { id: "sa-dashboard",    label: "Plataforma",      icon: <FiGlobe />        },

@@ -55,6 +55,8 @@ import ReceptionistPayments     from "./pages/recepcionista/ReceptionistPayments
 import ReceptionistAppointments from "./pages/recepcionista/ReceptionistAppointments";
 import ReceptionistMessages     from "./pages/recepcionista/ReceptionistMessages";
 import ReceptionistTasks        from "./pages/recepcionista/ReceptionistTasks";
+import ReceptionistCheckin      from "./pages/recepcionista/ReceptionistCheckin";
+import ReceptionistAnalytics    from "./pages/recepcionista/ReceptionistAnalytics";
 
 // --- PÁGINAS DE SUPERADMIN ---
 import SuperadminDashboard    from "./pages/superadmin/SuperadminDashboard";
@@ -130,12 +132,18 @@ function App() {
           {/* 5. RUTAS RECEPCIONISTA */}
           <Route element={<Layout role="receptionist" />}>
             <Route path="/receptionist-dashboard"    element={<ReceptionistDashboard />} />
+            <Route path="/receptionist/checkins"     element={<ReceptionistCheckin />} />
             <Route path="/receptionist/pos"          element={<PointOfSale />} />
             <Route path="/receptionist/appointments" element={<ReceptionistAppointments />} />
             <Route path="/receptionist/payments"     element={<ReceptionistPayments />} />
             <Route path="/receptionist/members"      element={<ReceptionistMembers />} />
             <Route path="/receptionist/messages"     element={<ReceptionistMessages />} />
             <Route path="/receptionist/tasks"        element={<ReceptionistTasks />} />
+            {/* AI Analytics — hub en lenguaje accesible + páginas detalladas del owner */}
+            <Route path="/receptionist/analytics"    element={<ReceptionistAnalytics />} />
+            <Route path="/receptionist/mapreduce"    element={<AnalyticsMapReduce />} />
+            <Route path="/receptionist/kmeans"       element={<AnalyticsKMeans />} />
+            <Route path="/receptionist/regresion"    element={<AnalyticsRegresion />} />
           </Route>
 
           {/* 6. RUTAS SUPERADMIN */}

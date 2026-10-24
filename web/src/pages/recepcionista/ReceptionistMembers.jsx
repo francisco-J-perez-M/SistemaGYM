@@ -8,7 +8,7 @@ import {
 } from "react-icons/fi";
 import "../../css/CSSUnificado.css";
 
-const API_URL = "/api";
+const API_URL = "/api/recepcionista";
 
 const BADGE_STYLES = {
   activa:     { bg: "rgba(34,197,94,0.15)",  color: "#22c55e", icon: <FiCheckCircle size={12} /> },
@@ -44,7 +44,7 @@ export default function ReceptionistMembers() {
     setError(null);
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.get(`${API_URL}/miembro/list`, {
+      const res = await axios.get(`${API_URL}/members`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const list = res.data.miembros || res.data || [];
@@ -79,9 +79,9 @@ export default function ReceptionistMembers() {
 
   const stats = {
     total:      members.length,
-    activos:    members.filter(m => m.estado_membresia === "activa").length,
-    por_vencer: members.filter(m => m.estado_membresia === "por_vencer").length,
-    vencidos:   members.filter(m => m.estado_membresia === "vencida").length,
+    activos:    members.filter(m => m.mem_status === "activa").length,
+    por_vencer: members.filter(m => m.mem_status === "por_vencer").length,
+    vencidos:   members.filter(m => m.mem_status === "vencida").length,
   };
 
   return (
@@ -225,7 +225,7 @@ export default function ReceptionistMembers() {
                       {m.nombre_membresia || m.tipo_membresia || "—"}
                     </td>
                     <td style={{ padding: "12px 14px" }}>
-                      <StatusBadge status={m.estado_membresia} />
+                      <StatusBadge status={m.mem_status} />
                     </td>
                   </motion.tr>
                 ))}
