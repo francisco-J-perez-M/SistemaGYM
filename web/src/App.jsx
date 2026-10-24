@@ -70,6 +70,8 @@ import SuperadminUsuarios     from "./pages/superadmin/SuperadminUsuarios";
 import SuperadminBackups      from "./pages/superadmin/SuperadminBackups";
 import SuperadminAnalytics    from "./pages/superadmin/SuperadminAnalytics";
 import SuperadminModelos      from "./pages/superadmin/SuperadminModelos";
+import OwnerPagos             from "./pages/owner_gym/OwnerPagos";
+import PagoResultado          from "./pages/publico/PagoResultado";
 
 function App() {
   return (
@@ -82,6 +84,9 @@ function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/register-gym"     element={<RegisterGym />} />
           <Route path="/owner/bienvenida" element={<OwnerOnboarding />} />
+          {/* Retorno de las pasarelas de pago (PayPal / Mercado Pago) */}
+          <Route path="/pago/exito"     element={<PagoResultado resultado="exito" />} />
+          <Route path="/pago/cancelado" element={<PagoResultado resultado="cancelado" />} />
 
           {/* 2. RUTAS OWNER GYM */}
           <Route element={<Layout role="owner_gym" />}>
@@ -94,6 +99,7 @@ function App() {
             <Route path="/owner/memberships"   element={<OwnerMemberships />} />
             <Route path="/owner/profile"       element={<OwnerProfile />}     />
             <Route path="/owner/subscription"  element={<OwnerSubscription />} />
+            <Route path="/owner/pagos-online"  element={<OwnerPagos />}       />
             <Route path="/owner/backups"       element={<BackupsDashboard />} />
             <Route path="/owner/mapreduce"     element={<AnalyticsMapReduce />} />
             <Route path="/owner/kmeans"        element={<AnalyticsKMeans />}  />
