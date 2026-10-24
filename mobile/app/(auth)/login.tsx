@@ -48,14 +48,12 @@ export default function LoginScreen() {
         >
           {/* Logo / Hero */}
           <View style={styles.hero} accessible accessibilityRole="header">
-            <LinearGradient
-              colors={colors.gradientAccent}
+            <Image
+              source={require('../../assets/icon.png')}
               style={styles.logoBox}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <Ionicons name="barbell" size={40} color={colors.onAccent} />
-            </LinearGradient>
+              resizeMode="cover"
+              accessibilityLabel="Logo de GymPro"
+            />
             <Text style={styles.appName}>GymPro</Text>
             <Text style={styles.tagline}>Tu gimnasio en tu bolsillo</Text>
           </View>
