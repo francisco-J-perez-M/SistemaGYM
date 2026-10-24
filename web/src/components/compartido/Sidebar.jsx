@@ -53,8 +53,9 @@ const MENUS = {
     {
       id: "ow-config", label: "Configuración", icon: <FiSettings />,
       children: [
-        { id: "ow-profile", label: "Perfil del Gym",            icon: <FiUser />   },
-        { id: "ow-backups", label: "Respaldos y Restauración", icon: <FiUpload /> },
+        { id: "ow-profile",      label: "Perfil del Gym",            icon: <FiUser />       },
+        { id: "ow-subscription", label: "Mi Suscripción",            icon: <FiCreditCard /> },
+        { id: "ow-backups",      label: "Respaldos y Restauración", icon: <FiUpload /> },
       ],
     },
   ],
