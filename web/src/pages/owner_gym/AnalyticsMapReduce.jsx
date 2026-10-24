@@ -416,7 +416,11 @@ export default function AnalyticsMapReduce() {
           <ResponsiveContainer width="100%" height={250}>
             <BarChart data={asistenciaDiaOrdenada} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 22 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} horizontal={false}/>
+              {/* allowDecimals: las visitas son cosas contables. Aunque el dato
+                  sea un promedio, el eje en 0.75 / 1.5 / 2.25 no ayuda a leerlo;
+                  Recharts los generaba al partir el máximo (3) en cinco marcas. */}
               <XAxis type="number" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false}
+                allowDecimals={false}
                 label={ejeX("Visitas promedio")}/>
               <YAxis type="category" dataKey="dia" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false} width={80}
                 label={ejeY("Día de la semana")}/>
@@ -455,6 +459,7 @@ export default function AnalyticsMapReduce() {
               <XAxis dataKey="mes" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false}
                 label={ejeX("Mes")}/>
               <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false}
+                allowDecimals={false}
                 label={ejeY("Visitas registradas")}/>
               <Tooltip content={<CustomTooltip suffix=" visitas"/>}/>
               <Bar dataKey="total" name="Asistencias" radius={[4, 4, 0, 0]}>

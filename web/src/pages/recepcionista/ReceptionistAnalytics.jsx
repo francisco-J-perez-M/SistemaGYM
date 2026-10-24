@@ -338,6 +338,7 @@ export default function ReceptionistAnalytics() {
                 <XAxis dataKey="dia" tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
                   label={ejeX("Día de la semana")} />
                 <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
+                  allowDecimals={false}
                   label={ejeY("Visitas")} />
                 <Tooltip content={<CTip suffix=" visitas" />} />
                 <Bar dataKey="total" name="Visitas" fill={COLORES_GRAFICO.asistencia} radius={[4, 4, 0, 0]} />

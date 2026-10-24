@@ -240,6 +240,7 @@ function TabMapReduce() {
             <BarChart data={asistenciaDia} layout="vertical" margin={{ top: 5, right: 8, left: 0, bottom: 22 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />
               <XAxis type="number" tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
+                     allowDecimals={false}
                      label={ejeX("Visitas")} />
               <YAxis type="category" dataKey="dia" width={80}
                      tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
