@@ -43,11 +43,11 @@ import CompleteProfile       from "./pages/miembro/CompleteProfile";
 import TrainerDashboard from "./pages/entrenador/TrainerDashboard";
 import TrainerClients   from "./pages/entrenador/TrainerClients";
 import TrainerSchedule  from "./pages/entrenador/TrainerSchedule";
-import TrainerSessions  from "./pages/entrenador/TrainerSessions";
 import TrainerRoutines  from "./pages/entrenador/TrainerRoutines";
 import TrainerReports   from "./pages/entrenador/TrainerReports";
 import TrainerProfile   from "./pages/entrenador/TrainerProfile";
 import TrainerRequests  from "./pages/entrenador/TrainerRequests";
+import TrainerDiets     from "./pages/entrenador/TrainerDiets";
 
 // --- PÁGINAS DE RECEPCIONISTA ---
 import ReceptionistDashboard    from "./pages/recepcionista/ReceptionistDashboard";
@@ -121,8 +121,8 @@ function App() {
             <Route path="/trainer-dashboard"         element={<TrainerDashboard />} />
             <Route path="/trainer/clients"           element={<TrainerClients />} />
             <Route path="/trainer/schedule"          element={<TrainerSchedule />} />
-            <Route path="/trainer/sessions"          element={<TrainerSessions />} />
             <Route path="/trainer/routines"          element={<TrainerRoutines />} />
+            <Route path="/trainer/diets"             element={<TrainerDiets />} />
             <Route path="/trainer/trainer-kmeans"    element={<TrainerKMeans />} />
             <Route path="/trainer/trainer-regresion" element={<TrainerRegresion />} />
             <Route path="/trainer/reports"           element={<TrainerReports />} />

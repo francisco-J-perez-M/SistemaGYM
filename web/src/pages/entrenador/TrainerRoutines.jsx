@@ -248,6 +248,7 @@ function ImageSlots({ images = [], onChange }) {
           </div>
         );
       })}
+
     </div>
   );
 }
@@ -355,6 +356,7 @@ function VideoSlot({ video, onChange, exerciseId }) {
         style={{ display: "none" }}
         onChange={e => handleFile(e.target.files?.[0])}
       />
+
     </div>
   );
 }
@@ -625,6 +627,7 @@ function Pagination({ page, total, perPage, onPage }) {
       <span style={{ fontSize: 11, color: "var(--text-tertiary)", marginLeft: 6 }}>
         {page}/{totalPages}
       </span>
+
     </div>
   );
 }
@@ -940,21 +943,33 @@ export default function TrainerRoutines() {
     setShowForm(true);
   };
 
-  const openEdit = (e, routine) => {
+  const openEdit = async (e, routine) => {
     e && e.stopPropagation();
+    setEditingId(routine.id);
     setFormData({
       name: routine.name, category: routine.category,
       difficulty: routine.difficulty,
       duration_minutes: parseInt(routine.duration) || 60,
       description: routine.description, days: [],
     });
-    setEditingId(routine.id);
     setShowForm(true);
+    try {
+      const detail = await trainerService.getRoutineDetail(routine.id);
+      if (detail?.days) {
+        setFormData(f => ({ ...f, days: detail.days }));
+      }
+    } catch (err) {
+      console.error("No se pudo cargar el detalle de la rutina:", err);
+    }
   };
 
   const handleSave = async () => {
     if (!formData.name.trim()) {
       toast.warning("Campo requerido", "El nombre es obligatorio."); return;
+    }
+    const missingEx = formData.days.some(d => d.exercises.some(ex => !ex.name.trim()));
+    if (missingEx) {
+      toast.warning("Ejercicio sin nombre", "Selecciona un ejercicio de la biblioteca en cada fila."); return;
     }
     try {
       setActionLoading(true);
@@ -1348,6 +1363,29 @@ export default function TrainerRoutines() {
                                 {ex.day} · {ex.sets} · {ex.peso ? `${ex.peso} kg` : "Peso libre"}
                               </div>
                             </div>
+                            <motion.button
+                              title="Ver ejercicio en biblioteca"
+                              onClick={() => {
+                                // Buscar en biblioteca; si no match exacto, usar datos del ejercicio en rutina
+                                const found = exercises.find(e => e.nombre === ex.name)
+                                  || exercises.find(e => e.nombre.trim().toLowerCase() === ex.name.trim().toLowerCase());
+                                setViewingEx(found || {
+                                  nombre:         ex.name,
+                                  imagenes:       ex.imagenes || [],
+                                  video:          ex.video    || null,
+                                  descripcion:    ex.instrucciones || '',
+                                  grupo_muscular: ex.day || '',
+                                });
+                              }}
+                              style={{
+                                width: 28, height: 28, borderRadius: 6, border: "1px solid var(--border)",
+                                background: "var(--bg-card)", color: "var(--accent)",
+                                cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                                flexShrink: 0,
+                              }}
+                              whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                              <FiEye size={13} />
+                            </motion.button>
                           </div>
                           {/* Imágenes del ejercicio */}
                           {(ex.imagenes || []).length > 0 && (
@@ -1507,24 +1545,30 @@ export default function TrainerRoutines() {
                                     gridTemplateColumns: "2fr 0.7fr 0.7fr 0.7fr auto auto",
                                     gap: 6, alignItems: "center",
                                   }}>
-                                    <input className="input-compact" placeholder="Nombre del ejercicio"
-                                      value={ex.name} onChange={e => updateExercise(di, ei, "name", e.target.value)} />
+                                    {/* Nombre: solo lectura, requiere selección desde biblioteca */}
+                                    <button
+                                      onClick={() => pickFromLibrary(di, ei)}
+                                      title="Cambiar ejercicio"
+                                      style={{
+                                        background: "var(--bg-input)", border: "1px solid var(--border)",
+                                        borderRadius: 6, padding: "5px 8px", cursor: "pointer",
+                                        textAlign: "left", fontSize: 12, color: ex.name ? "var(--text-primary)" : "var(--text-secondary)",
+                                        display: "flex", alignItems: "center", gap: 6, overflow: "hidden",
+                                        whiteSpace: "nowrap",
+                                      }}>
+                                      <FiBookOpen size={11} style={{ flexShrink: 0, color: "var(--accent)" }} />
+                                      <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+                                        {ex.name || "Seleccionar ejercicio…"}
+                                      </span>
+                                    </button>
                                     <input className="input-compact" placeholder="Series"
                                       value={ex.sets} onChange={e => updateExercise(di, ei, "sets", e.target.value)} />
                                     <input className="input-compact" placeholder="Reps"
                                       value={ex.reps} onChange={e => updateExercise(di, ei, "reps", e.target.value)} />
                                     <input className="input-compact" placeholder="Peso"
                                       value={ex.peso} onChange={e => updateExercise(di, ei, "peso", e.target.value)} />
-                                    {/* Botón biblioteca */}
-                                    <button title="Seleccionar de biblioteca"
-                                      onClick={() => pickFromLibrary(di, ei)}
-                                      style={{
-                                        width: 28, height: 28, borderRadius: 6, border: "1px solid var(--border)",
-                                        background: "var(--bg-input)", color: "var(--accent)",
-                                        cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-                                      }}>
-                                      <FiBookOpen size={13} />
-                                    </button>
+                                    {/* Icono de biblioteca desplazado — ya integrado en el nombre */}
+                                    <div style={{ width: 28 }} />
                                     <motion.button className="icon-btn danger" style={{ padding: 4 }}
                                       onClick={() => removeExercise(di, ei)}
                                       whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
@@ -1532,11 +1576,7 @@ export default function TrainerRoutines() {
                                     </motion.button>
                                   </div>
 
-                                  {/* Fila de imágenes */}
-                                  <ImageSlots
-                                    images={ex.imagenes || []}
-                                    onChange={imgs => updateExercise(di, ei, "imagenes", imgs)}
-                                  />
+
                                 </div>
                               ))}
                               <motion.button className="btn-outline-small" style={{ marginTop: 4 }}
@@ -1712,21 +1752,6 @@ export default function TrainerRoutines() {
             })()}
           </motion.div>
 
-          {/* Modal detalle ejercicio */}
-          <AnimatePresence>
-            {viewingEx && (
-              <ExerciseDetailModal
-                exercise={viewingEx}
-                onClose={() => setViewingEx(null)}
-                onEdit={() => {
-                  setEditingEx(viewingEx);
-                  setShowExForm(true);
-                  setViewingEx(null);
-                }}
-              />
-            )}
-          </AnimatePresence>
-
           {/* Modal crear / editar ejercicio */}
           <AnimatePresence>
             {showExForm && (
@@ -1750,6 +1775,21 @@ export default function TrainerRoutines() {
           </AnimatePresence>
         </>
       )}
+
+      {/* Modal detalle ejercicio — global, visible en cualquier tab */}
+      <AnimatePresence>
+        {viewingEx && (
+          <ExerciseDetailModal
+            exercise={viewingEx}
+            onClose={() => setViewingEx(null)}
+            onEdit={() => {
+              setEditingEx(viewingEx);
+              setShowExForm(true);
+              setViewingEx(null);
+            }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
