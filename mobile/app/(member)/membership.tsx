@@ -5,9 +5,9 @@
  *   GET  /api/user/membership        → { tieneMembresia, membresia?, mensaje? }
  *   GET  /api/user/membership/plans  → { planes: [...] }
  *   POST /api/user/membership/renew  → body { id_membresia, metodo_pago }
- *                                       metodo_pago ∈ Efectivo | Tarjeta | Transferencia
+ *                                       metodo_pago ∈ Efectivo | PayPal | Mercado Pago
  */
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert,
 } from 'react-native';
@@ -23,16 +23,13 @@ import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
 import api from '../../services/api';
-import BotonesPago from '../../components/BotonesPago';
+import {
+  getMetodosPago, pagarEnApp, mensajePorEstado,
+  type MetodoPago as MetodoPagoDisponible, type ProveedorPago,
+} from '../../services/pagos';
 import type {
   MembershipResponse, PlansResponse, MembershipPlan, MetodoPago,
 } from '../../types';
-
-const METODOS: { key: MetodoPago; label: string; icon: React.ComponentProps<typeof Ionicons>['name'] }[] = [
-  { key: 'Efectivo',      label: 'Efectivo',      icon: 'cash-outline' },
-  { key: 'Tarjeta',       label: 'Tarjeta',       icon: 'card-outline' },
-  { key: 'Transferencia', label: 'Transferencia', icon: 'swap-horizontal-outline' },
-];
 
 function estadoBadge(estado: string): { label: string; color: 'success' | 'warning' | 'error' } {
   if (estado === 'activa')     return { label: 'Activa',     color: 'success' };
@@ -53,6 +50,32 @@ export default function MembershipScreen() {
   const [metodo, setMetodo]   = useState<MetodoPago>('Efectivo');
   const [renewing, setRenewing] = useState(false);
   const [showRenew, setShowRenew] = useState(false);
+  const [pagando, setPagando] = useState(false);
+  // Efectivo + las pasarelas activas del gimnasio (PayPal / Mercado Pago)
+  const [pasarelas, setPasarelas] = useState<MetodoPagoDisponible[]>([]);
+
+  useEffect(() => {
+    let vivo = true;
+    (async () => {
+      try {
+        const lista = await getMetodosPago();
+        if (vivo) setPasarelas(lista);
+      } catch {
+        if (vivo) setPasarelas([]);
+      }
+    })();
+    return () => { vivo = false; };
+  }, []);
+
+  const metodosPago = useMemo(() => ([
+    { id: 'Efectivo', label: 'Efectivo', esPasarela: false, proveedor: null as ProveedorPago | null },
+    ...pasarelas.map((p) => ({
+      id: p.proveedor as string,
+      label: p.nombre,
+      esPasarela: true,
+      proveedor: p.proveedor,
+    })),
+  ]), [pasarelas]);
 
   const planes = plansData?.planes ?? [];
 
@@ -75,8 +98,43 @@ export default function MembershipScreen() {
     }
   };
 
+  /** Cobro en línea: abre la pasarela y confirma el resultado al volver. */
+  const pagarEnLinea = async (proveedor: ProveedorPago) => {
+    if (!selectedPlan) return;
+    setPagando(true);
+    try {
+      const res = await pagarEnApp({
+        proveedor,
+        contexto: 'membresia',
+        monto: Number(selectedPlan.precio),
+        descripcion: `Membresía ${selectedPlan.nombre}`,
+        referenciaLocal: selectedPlan.id_membresia,
+      });
+      const info = mensajePorEstado(res.estado);
+      Alert.alert(info.titulo, res.mensaje ?? info.texto);
+      if (res.estado === 'aprobado' || res.estado === 'pendiente') {
+        setShowRenew(false);
+        setSelectedPlan(null);
+        refetch();
+      }
+    } catch (e: any) {
+      Alert.alert('No se pudo iniciar el pago',
+        e?.response?.data?.msg ?? 'Intenta de nuevo más tarde.');
+    } finally {
+      setPagando(false);
+    }
+  };
+
   const confirmRenew = () => {
     if (!selectedPlan) return;
+
+    // Con PayPal o Mercado Pago el cobro ocurre en la pasarela
+    const metodoSel = metodosPago.find((m) => m.id === metodo);
+    if (metodoSel?.esPasarela && metodoSel.proveedor) {
+      pagarEnLinea(metodoSel.proveedor);
+      return;
+    }
+
     Alert.alert(
       'Confirmar renovación',
       `${selectedPlan.nombre}\nMétodo: ${metodo}\nTotal: $${selectedPlan.precio}`,
@@ -163,29 +221,88 @@ export default function MembershipScreen() {
             <Text style={styles.emptyText}>No hay planes disponibles en este gimnasio.</Text>
           ) : (
             planes.map((plan) => {
-              const isSel = selectedPlan?.id_membresia === plan.id_membresia;
+              const isSel   = selectedPlan?.id_membresia === plan.id_membresia;
+              const esPromo = plan.tipo === 'promocion';
               return (
                 <TouchableOpacity
                   key={plan.id_membresia}
-                  style={[styles.planRow, isSel && styles.planRowActive]}
+                  activeOpacity={0.85}
+                  style={[
+                    styles.planCard,
+                    esPromo && styles.planCardPromo,
+                    isSel && styles.planCardActive,
+                  ]}
                   onPress={() => setSelectedPlan(isSel ? null : plan)}
                   accessibilityRole="radio"
                   accessibilityState={{ checked: isSel }}
                   accessibilityLabel={`${plan.nombre}, $${plan.precio}, ${plan.duracion_meses} meses`}
                 >
-                  <View style={[styles.radio, isSel && styles.radioActive]}>
-                    {isSel && <View style={styles.radioDot} />}
+                  {/* Encabezado: nombre + precio */}
+                  <View style={styles.planHeader}>
+                    <View style={styles.planHeaderLeft}>
+                      <View style={[styles.radio, isSel && styles.radioActive]}>
+                        {isSel && <View style={styles.radioDot} />}
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.planName}>{plan.nombre}</Text>
+                        <Text style={styles.planDuration}>
+                          {plan.duracion_meses} {plan.duracion_meses === 1 ? 'mes' : 'meses'}
+                          {plan.duracion_meses > 1 &&
+                            ` · $${Math.round(plan.precio / plan.duracion_meses)}/mes`}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text style={styles.planPrice}>${plan.precio}</Text>
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.planName}>{plan.nombre}</Text>
-                    <Text style={styles.planDuration}>
-                      {plan.duracion_meses} {plan.duracion_meses === 1 ? 'mes' : 'meses'}
-                    </Text>
+
+                  {/* Etiquetas: ahorro y vigencia de la promoción */}
+                  <View style={styles.planTags}>
                     {!!plan.ahorro && plan.ahorro > 0 && (
-                      <Text style={styles.planSave}>Ahorras ${plan.ahorro.toFixed(0)}</Text>
+                      <View style={styles.tagSave}>
+                        <Text style={styles.tagSaveText}>Ahorras ${plan.ahorro.toFixed(0)}</Text>
+                      </View>
+                    )}
+                    {esPromo && (
+                      <View style={styles.tagPromo}>
+                        <Ionicons name="flame" size={11} color="#f59e0b" />
+                        <Text style={styles.tagPromoText}>
+                          {plan.dias_restantes_promo == null
+                            ? 'Promoción'
+                            : plan.dias_restantes_promo === 0
+                              ? 'Último día'
+                              : `Solo ${plan.dias_restantes_promo} día${plan.dias_restantes_promo === 1 ? '' : 's'}`}
+                        </Text>
+                      </View>
                     )}
                   </View>
-                  <Text style={styles.planPrice}>${plan.precio}</Text>
+
+                  {!!plan.descripcion && (
+                    <Text style={styles.planDesc}>{plan.descripcion}</Text>
+                  )}
+
+                  {/* Beneficios definidos por el gimnasio */}
+                  {Array.isArray(plan.beneficios) && plan.beneficios.length > 0 && (
+                    <View style={styles.beneficios}>
+                      {plan.beneficios.map((b, i) => (
+                        <View key={i} style={styles.beneficioRow}>
+                          <Ionicons name="checkmark-circle" size={14} color="#22c55e" />
+                          <Text style={styles.beneficioText}>{b}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+
+                  {/* Qué incluye el combo */}
+                  {plan.es_combo && !!plan.items_combo?.length && (
+                    <View style={styles.comboBox}>
+                      <Text style={styles.comboTitle}>COMBO INCLUYE</Text>
+                      {plan.items_combo.map((it, i) => (
+                        <Text key={i} style={styles.comboItem}>
+                          {it.cantidad}× {it.nombre}
+                        </Text>
+                      ))}
+                    </View>
+                  )}
                 </TouchableOpacity>
               );
             })
@@ -194,19 +311,24 @@ export default function MembershipScreen() {
           {selectedPlan && (
             <>
               <Text style={[styles.sectionTitle, { marginTop: 18 }]}>2. Método de pago</Text>
+              {/* Efectivo + las pasarelas que el gimnasio tenga activas */}
               <View style={styles.metodosRow}>
-                {METODOS.map((m) => {
-                  const active = metodo === m.key;
+                {metodosPago.map((m) => {
+                  const active = metodo === m.id;
                   return (
                     <TouchableOpacity
-                      key={m.key}
+                      key={m.id}
                       style={[styles.metodoChip, active && styles.metodoChipActive]}
-                      onPress={() => setMetodo(m.key)}
+                      onPress={() => setMetodo(m.id as MetodoPago)}
                       accessibilityRole="radio"
                       accessibilityState={{ checked: active }}
                       accessibilityLabel={m.label}
                     >
-                      <Ionicons name={m.icon} size={16} color={active ? '#fff' : colors.textSecondary} />
+                      <Ionicons
+                        name={m.id === 'Efectivo' ? 'cash-outline' : 'card-outline'}
+                        size={16}
+                        color={active ? '#fff' : colors.textSecondary}
+                      />
                       <Text style={[styles.metodoText, active && { color: '#fff' }]}>{m.label}</Text>
                     </TouchableOpacity>
                   );
@@ -219,24 +341,15 @@ export default function MembershipScreen() {
               </View>
 
               <Button
-                label={`Renovar con ${selectedPlan.nombre}`}
+                label={
+                  metodosPago.find((m) => m.id === metodo)?.esPasarela
+                    ? `Pagar con ${metodosPago.find((m) => m.id === metodo)?.label}`
+                    : `Renovar con ${selectedPlan.nombre}`
+                }
                 onPress={confirmRenew}
-                loading={renewing}
+                loading={renewing || pagando}
                 style={{ marginTop: 12 }}
               />
-
-              {/* ── Pago en línea con PayPal / Mercado Pago ──
-                  Abre la pasarela en el navegador seguro y regresa a la app. */}
-              <View style={{ marginTop: 16 }}>
-                <Text style={styles.sectionTitle}>O paga en línea ahora</Text>
-                <BotonesPago
-                  contexto="membresia"
-                  monto={Number(selectedPlan.precio)}
-                  descripcion={`Membresía ${selectedPlan.nombre}`}
-                  referenciaLocal={selectedPlan.id_membresia}
-                  onPagado={() => { setShowRenew(false); setSelectedPlan(null); refetch(); }}
-                />
-              </View>
             </>
           )}
         </Card>
@@ -291,17 +404,49 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
     sectionTitle: { color: colors.text, fontSize: 15 * fs, fontWeight: '700', marginBottom: 12 },
     emptyText:    { color: colors.textMuted, fontSize: 13 * fs },
 
-    planRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14,
-               borderBottomWidth: 1, borderBottomColor: colors.border },
-    planRowActive: { backgroundColor: colors.accent + '14', borderRadius: 12, paddingHorizontal: 8 },
+    // ── Tarjetas de plan ─────────────────────────────────────────────────
+    planCard: {
+      borderWidth: 1, borderColor: colors.border, borderRadius: 14,
+      padding: 14, marginBottom: 12, backgroundColor: colors.inputBg,
+    },
+    planCardActive: {
+      borderColor: colors.accent, borderWidth: 2,
+      backgroundColor: colors.accent + '12',
+    },
+    // Las promociones se destacan con un halo ámbar, como en la web
+    planCardPromo: {
+      borderColor: 'rgba(245,158,11,0.55)',
+      shadowColor: '#f59e0b', shadowOpacity: 0.35, shadowRadius: 10,
+      shadowOffset: { width: 0, height: 0 }, elevation: 6,
+    },
+    planHeader:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+    planHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
+
     radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: colors.border,
              alignItems: 'center', justifyContent: 'center' },
     radioActive: { borderColor: colors.accent },
     radioDot:    { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.accent },
-    planName:     { color: colors.text, fontSize: 15 * fs, fontWeight: '600' },
-    planDuration: { color: colors.textSecondary, fontSize: 12 * fs },
-    planSave:     { color: colors.success, fontSize: 12 * fs, marginTop: 2, fontWeight: '600' },
-    planPrice:    { color: colors.accent, fontSize: 18 * fs, fontWeight: '700' },
+
+    planName:     { color: colors.text, fontSize: 16 * fs, fontWeight: '700' },
+    planDuration: { color: colors.textSecondary, fontSize: 12 * fs, marginTop: 2 },
+    planPrice:    { color: colors.accent, fontSize: 22 * fs, fontWeight: '800' },
+    planDesc:     { color: colors.textSecondary, fontSize: 12.5 * fs, lineHeight: 18 * fs, marginTop: 10 },
+
+    planTags:     { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
+    tagSave:      { backgroundColor: 'rgba(34,197,94,0.14)', borderRadius: 7, paddingHorizontal: 8, paddingVertical: 3 },
+    tagSaveText:  { color: '#22c55e', fontSize: 11 * fs, fontWeight: '700' },
+    tagPromo:     { flexDirection: 'row', alignItems: 'center', gap: 4,
+                    backgroundColor: 'rgba(245,158,11,0.16)', borderRadius: 7,
+                    paddingHorizontal: 8, paddingVertical: 3 },
+    tagPromoText: { color: '#f59e0b', fontSize: 11 * fs, fontWeight: '700' },
+
+    beneficios:    { marginTop: 12, gap: 6 },
+    beneficioRow:  { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+    beneficioText: { color: colors.text, fontSize: 12.5 * fs, lineHeight: 17 * fs, flex: 1 },
+
+    comboBox:   { marginTop: 12, backgroundColor: colors.card, borderRadius: 10, padding: 10 },
+    comboTitle: { color: colors.accent, fontSize: 10 * fs, fontWeight: '800', letterSpacing: 0.5, marginBottom: 4 },
+    comboItem:  { color: colors.textSecondary, fontSize: 12 * fs, lineHeight: 18 * fs },
 
     metodosRow:  { flexDirection: 'row', gap: 8 },
     metodoChip:  { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
