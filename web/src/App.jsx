@@ -37,6 +37,7 @@ import UserHealthUpdate      from "./pages/miembro/UserHealthUpdate";
 import UserMembershipRenewal from "./pages/miembro/UserMembershipRenewal";
 import UserWeightPrediction  from "./pages/miembro/UserWeightPrediction";
 import UserTraining          from "./pages/miembro/UserTraining";
+import UserWorkoutLog        from "./pages/miembro/UserWorkoutLog";
 import CompleteProfile       from "./pages/miembro/CompleteProfile";
 
 // --- PÁGINAS DE ENTRENADOR ---
@@ -100,6 +101,7 @@ function App() {
           <Route element={<Layout role="user" />}>
             <Route path="/user/dashboard"    element={<UserDashboard />} />
             <Route path="/user/routine"      element={<UserRoutineCreator />} />
+            <Route path="/user/workout-log"  element={<UserWorkoutLog />} />
             <Route path="/user/progress"     element={<UserBodyProgress />} />
             <Route path="/user/prediction"   element={<UserWeightPrediction />} />
             <Route path="/user/body-metrics" element={<UserBodyProgress />} />

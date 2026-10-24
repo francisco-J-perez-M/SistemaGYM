@@ -82,7 +82,8 @@ export const ENDPOINTS = {
   MEMBERSHIP_RENEW:   '/user/membership/renew',  // POST /api/user/membership/renew
   USER_PROGRESS:      '/user/progress',          // POST /api/user/progress
   BODY_PROGRESS:      '/user/body-progress',     // GET/POST /api/user/body-progress
-  WORKOUT_COMPLETE:   '/user/workout/complete',  // POST /api/user/workout/complete
+  WORKOUT_COMPLETE:   '/user/workout/complete',  // POST /api/user/workout/complete (bitácora)
+  USER_WORKOUTS:      '/user/workouts',           // GET  /api/user/workouts (historial bitácora)
   USER_ROUTINES:      '/user/routines',          // GET  /api/user/routines (user_routines_bp prefix=/api/user)
   USER_PAYMENTS:      '/user/payments',          // GET  /api/user/payments  (stats + historial)
   USER_HEALTH:        '/user/health',            // GET/POST /api/user/health (condiciones + medidas)

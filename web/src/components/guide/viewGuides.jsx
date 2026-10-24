@@ -223,6 +223,14 @@ const USER = {
     ],
   },
   "/user/pos": POS,
+  "/user/workout-log": {
+    title: "Registrar entrenamiento",
+    steps: [
+      s(FiActivity, "Anota tu entrenamiento", "Agrega los ejercicios que hiciste y, en cada uno, tus series con repeticiones y peso levantado. Puedes cargar tu rutina de hoy para llenarlo más rápido."),
+      s(FiTrendingUp, "Tu peso del día", "Al terminar, registra tu peso corporal: con eso tus gráficas, metas y predicción de peso se actualizan automáticamente."),
+      s(FiList, "Tu bitácora", "A la derecha ves el historial de tus entrenamientos con su volumen y constancia, para que veas cómo avanzas."),
+    ],
+  },
 };
 
 // ── Entrenador ───────────────────────────────────────────────────────────────

@@ -56,6 +56,7 @@ const ROUTE_MAP = {
   user: {
     "/user/dashboard":    "dashboard",
     "/user/routine":      "routine",
+    "/user/workout-log":  "workout-log",
     "/user/progress":     "progress",
     "/user/body-metrics": "body-metrics",
     "/user/meal-plan":    "nutrition",
@@ -126,6 +127,7 @@ const NAV_MAP = {
   user: {
     dashboard:     "/user/dashboard",
     routine:       "/user/routine",
+    "workout-log": "/user/workout-log",
     progress:      "/user/progress",
     "body-metrics":"/user/body-metrics",
     nutrition:     "/user/nutrition",
