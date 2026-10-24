@@ -29,6 +29,10 @@ import { FiHelpCircle, FiX } from "react-icons/fi";
 export default function InfoGrafico({
   titulo,
   subtitulo,
+  /** Periodo que abarcan los datos. Se muestra junto al título. */
+  periodo,
+  /** Resultado de describirTendencia(): qué hace la serie y cuánto. */
+  comportamiento,
   series = [],
   notas = [],
   children,
@@ -56,18 +60,46 @@ export default function InfoGrafico({
     <div style={{ position: "relative", marginBottom: 14 }}>
       <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <h3 style={{
-            fontSize: 15, fontWeight: 700, margin: 0,
-            color: "var(--text-primary)",
-          }}>
-            {titulo}
-          </h3>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+            <h3 style={{
+              fontSize: 15, fontWeight: 700, margin: 0,
+              color: "var(--text-primary)",
+            }}>
+              {titulo}
+            </h3>
+            {/* El periodo va en una etiqueta junto al título: así se sabe qué
+                rango se está viendo sin bajar la vista al eje, que es lo que
+                pasaba con títulos genéricos como "últimos 6 meses". */}
+            {periodo && (
+              <span style={{
+                fontSize: 10.5, fontWeight: 700, letterSpacing: ".02em",
+                padding: "2px 8px", borderRadius: 20,
+                background: "var(--bg-input)", color: "var(--text-secondary)",
+                border: "1px solid var(--border)", whiteSpace: "nowrap",
+              }}>
+                {periodo}
+              </span>
+            )}
+          </div>
+
           {subtitulo && (
             <p style={{
               fontSize: 12, color: "var(--text-secondary)", margin: "3px 0 0",
               lineHeight: 1.45,
             }}>
               {subtitulo}
+            </p>
+          )}
+
+          {/* Qué hace la serie. Sin esto cada quien estima la pendiente a ojo,
+              con el riesgo de leerla al revés si el eje no arranca en cero. */}
+          {comportamiento?.texto && (
+            <p style={{
+              fontSize: 12, margin: "5px 0 0", lineHeight: 1.45,
+              color: comportamiento.color || "var(--text-secondary)",
+              fontWeight: 600,
+            }}>
+              {comportamiento.texto}
             </p>
           )}
         </div>
@@ -272,3 +304,80 @@ export const ejeY = (titulo) => ({
   fontSize: 11,
   fontWeight: 600,
 });
+
+/**
+ * Rango que abarcan los datos, en texto.
+ *
+ * Un título como "Ingresos últimos 6 meses" no dice CUÁLES seis meses, y el
+ * lector tiene que bajar la vista al eje para averiguarlo. Peor aún si el
+ * gráfico se comparte en una captura, donde el eje puede quedar fuera.
+ *
+ * Se calcula del propio dato en lugar de escribirlo a mano, para que no quede
+ * desfasado cuando cambie el periodo consultado.
+ *
+ *   rangoPeriodo(ingresos)                 → "Mar 2026 a Ago 2026"
+ *   rangoPeriodo(ventas, "mes")            → "2026-05 a 2026-07"
+ */
+export function rangoPeriodo(items, campo = "label") {
+  const etiquetas = (items || [])
+    .map((d) => d?.[campo])
+    .filter((v) => v != null && String(v).trim() !== "");
+
+  if (etiquetas.length === 0) return "";
+  if (etiquetas.length === 1) return String(etiquetas[0]);
+  return `${etiquetas[0]} a ${etiquetas[etiquetas.length - 1]}`;
+}
+
+/**
+ * Cómo se comporta la serie: si sube, baja o se mantiene, y cuánto.
+ *
+ * Compara el primer y el último valor. Es la lectura que casi siempre se busca
+ * en una serie temporal y que, sin decirla, cada quien estima a ojo mirando la
+ * pendiente —con el riesgo de leerla al revés cuando el eje no arranca en cero.
+ *
+ * Devuelve null cuando no hay base de comparación: inventar un porcentaje sobre
+ * un punto de partida en cero daría un "+∞ %" que no significa nada.
+ */
+export function describirTendencia(valores, { unidad = "", esDinero = false } = {}) {
+  const nums = (valores || [])
+    .map((v) => (typeof v === "number" ? v : Number(v)))
+    .filter((v) => Number.isFinite(v));
+
+  if (nums.length < 2) return null;
+
+  const inicio = nums[0];
+  const fin    = nums[nums.length - 1];
+  const delta  = fin - inicio;
+
+  const fmt = (v) =>
+    esDinero
+      ? `$${Math.round(v).toLocaleString("es-MX")}`
+      : `${Math.round(v).toLocaleString("es-MX")}${unidad}`;
+
+  if (inicio <= 0) {
+    return {
+      direccion: delta > 0 ? "sube" : delta < 0 ? "baja" : "estable",
+      texto: `Cerró en ${fmt(fin)}. Sin base de comparación al inicio del periodo.`,
+      color: "var(--text-secondary)",
+    };
+  }
+
+  const pct = (delta / inicio) * 100;
+  // Bajo el 2 % es ruido, no una tendencia: llamarlo subida o bajada sería
+  // darle un significado que no tiene.
+  if (Math.abs(pct) < 2) {
+    return {
+      direccion: "estable",
+      texto: `Se mantiene estable: ${fmt(inicio)} al inicio y ${fmt(fin)} al final.`,
+      color: "var(--text-secondary)",
+    };
+  }
+
+  const sube = pct > 0;
+  return {
+    direccion: sube ? "sube" : "baja",
+    texto: `${sube ? "Al alza" : "A la baja"}: de ${fmt(inicio)} a ${fmt(fin)} `
+         + `(${sube ? "+" : ""}${pct.toFixed(1)} % en el periodo).`,
+    color: sube ? COLORES_GRAFICO.alta : COLORES_GRAFICO.baja,
+  };
+}

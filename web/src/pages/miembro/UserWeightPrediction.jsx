@@ -6,7 +6,7 @@ import {
 } from "recharts";
 import { useMetricsHistory } from "../../hooks/useMetricsHistory";
 import InfoGrafico, {
-  COLORES_GRAFICO, COLOR_REJILLA, ejeX, ejeY,
+  COLORES_GRAFICO, COLOR_REJILLA, ejeX, ejeY, rangoPeriodo, describirTendencia,
 } from "../../components/compartido/InfoGrafico";
 import "../../css/CSSUnificado.css";
 
@@ -392,8 +392,16 @@ export default function UserWeightPrediction() {
         </div>
 
         <InfoGrafico
-          titulo="Tu peso a lo largo del tiempo"
-          subtitulo="Lo que has registrado y hacia dónde apunta tu tendencia."
+          titulo="Tu peso registrado y hacia dónde va"
+          periodo={
+            historial.length
+              ? `Registrado: ${rangoPeriodo(historial, "fecha")} · Proyecta ${dias} días`
+              : ""
+          }
+          subtitulo="Lo que has anotado y la tendencia que se desprende de ello."
+          comportamiento={describirTendencia(
+            historial.map((r) => _pesoVal(r)), { unidad: " kg" },
+          )}
           series={[
             {
               color: COLORES_GRAFICO.real,

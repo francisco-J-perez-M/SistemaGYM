@@ -15,7 +15,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import InfoGrafico, {
-  COLORES_GRAFICO, COLOR_REJILLA, ejeX, ejeY,
+  COLORES_GRAFICO, COLOR_REJILLA, ejeX, ejeY, rangoPeriodo, describirTendencia,
 } from "../../components/compartido/InfoGrafico";
 import "../../css/CSSUnificado.css";
 
@@ -247,12 +247,22 @@ function PredictionModal({ member, onClose }) {
 
               {/* Cabecera del gráfico con la explicación de qué es cada trazo */}
               <InfoGrafico
-                titulo="Evolución del peso"
+                titulo="Peso registrado y proyección"
+                periodo={
+                  data?.historial_peso?.length
+                    ? `Medido: ${rangoPeriodo(data.historial_peso, "fecha")} · `
+                      + `Proyecta ${data.horizonte_dias ?? dias} días`
+                    : ""
+                }
                 subtitulo={
                   data?.modelo === "personal"
                     ? "Proyección calculada con las mediciones de este miembro."
                     : "Proyección calculada con el modelo del gimnasio."
                 }
+                comportamiento={describirTendencia(
+                  (data?.historial_peso || []).map((r) => r.peso),
+                  { unidad: " kg" },
+                )}
                 series={[
                   {
                     color: COLORES_GRAFICO.real,
@@ -550,12 +560,25 @@ export default function TrainerRegresion() {
 
           {/* Gráfico tendencia */}
           <div className="chart-card">
-            <div className="chart-header" style={{ marginBottom: 4 }}>
-              <h3>Tendencia de peso promedio del gimnasio</h3>
-            </div>
-            <p style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 12 }}>
-              Evolución histórica del peso corporal promedio de todos los miembros.
-            </p>
+            <InfoGrafico
+              titulo="Peso promedio de tus clientes, mes a mes"
+              periodo={rangoPeriodo(tendenciaGlobal, "mes")}
+              subtitulo="Evolución del peso corporal medio de los miembros con mediciones registradas."
+              comportamiento={describirTendencia(
+                (tendenciaGlobal || []).map((r) => r.peso), { unidad: " kg" },
+              )}
+              series={[
+                {
+                  color: COLORES_GRAFICO.real,
+                  nombre: "Promedio del grupo",
+                  descripcion: "Media de todas las mediciones registradas ese mes por el conjunto de tus clientes.",
+                },
+              ]}
+              notas={[
+                "Es un promedio del grupo, no de una persona: un cliente nuevo con peso muy distinto mueve la línea sin que nadie haya cambiado.",
+                "Los meses sin mediciones no aparecen en el eje.",
+              ]}
+            />
             <ResponsiveContainer width="100%" height={235}>
               <LineChart data={tendenciaGlobal} margin={{ top: 5, right: 10, left: 6, bottom: 24 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />

@@ -12,7 +12,7 @@ import {
 } from "recharts";
 import { getOwnerDashboard, getOwnerIngresos, getOwnerActividad, getOwnerAlertas } from "../../api/owner_gym";
 import InfoGrafico, {
-  COLORES_GRAFICO, COLOR_REJILLA, ejeX, ejeY,
+  COLORES_GRAFICO, COLOR_REJILLA, ejeX, ejeY, rangoPeriodo, describirTendencia,
 } from "../../components/compartido/InfoGrafico";
 
 // ─── helpers ───────────────────────────────────────────────────────────────
@@ -265,8 +265,13 @@ export default function OwnerDashboard() {
         {/* Ingresos históricos */}
         <div style={S.section}>
           <InfoGrafico
-            titulo="Ingresos últimos 6 meses"
-            subtitulo="De dónde vino el dinero, mes a mes."
+            titulo="Ingresos por origen, mes a mes"
+            periodo={rangoPeriodo(ingresos)}
+            subtitulo="De dónde vino el dinero en cada uno de los últimos seis meses."
+            comportamiento={describirTendencia(
+              ingresos.map((d) => (d.pagos || 0) + (d.ventas || 0)),
+              { esDinero: true },
+            )}
             series={[
               {
                 color: COLORES_GRAFICO.ingresos,
@@ -306,8 +311,13 @@ export default function OwnerDashboard() {
         {/* Barras por mes */}
         <div style={S.section}>
           <InfoGrafico
-            titulo="Total por mes"
+            titulo="Ingreso total cobrado por mes"
+            periodo={rangoPeriodo(ingresos)}
             subtitulo="Membresías y punto de venta sumados en una sola barra."
+            comportamiento={describirTendencia(
+              ingresos.map((d) => d.total || 0),
+              { esDinero: true },
+            )}
             series={[
               {
                 color: COLORES_GRAFICO.ingresos,
