@@ -412,7 +412,14 @@ function ImportarIATab({clients,onPlanExtracted}){
   const [error,setError]=useState(null); const [preview,setPreview]=useState(null);
   const [clientId,setClientId]=useState(""); const [saving,setSaving]=useState(false);
   const [saved,setSaved]=useState(false); const [drag,setDrag]=useState(false);
+  const [aiStatus,setAiStatus]=useState(null); // {disponible,modelo_activo,modelo}
   const fileRef=useRef();
+
+  useEffect(()=>{
+    trainerService.getAIStatus()
+      .then(s=>setAiStatus(s))
+      .catch(()=>setAiStatus({disponible:false,modelo_activo:false,modelo:"phi3:mini"}));
+  },[]);
 
   const handleFile=(f)=>{
     if(!f) return;
@@ -450,12 +457,26 @@ function ImportarIATab({clients,onPlanExtracted}){
 
   return(
     <div style={{maxWidth:700}}>
+      {/* Estado del servicio Ollama */}
+      {aiStatus&&(
+        <div style={{background:aiStatus.disponible&&aiStatus.modelo_activo?"rgba(16,185,129,.08)":"rgba(239,68,68,.08)",border:`1px solid ${aiStatus.disponible&&aiStatus.modelo_activo?"rgba(16,185,129,.25)":"rgba(239,68,68,.25)"}`,borderRadius:10,padding:"10px 14px",marginBottom:14,display:"flex",alignItems:"center",gap:10,fontSize:12}}>
+          <div style={{width:8,height:8,borderRadius:"50%",background:aiStatus.disponible&&aiStatus.modelo_activo?"var(--success)":"var(--danger)",flexShrink:0}}/>
+          {aiStatus.disponible&&aiStatus.modelo_activo?(
+            <span><strong style={{color:"var(--success)"}}>Ollama listo</strong> — modelo <code style={{background:"rgba(0,0,0,.1)",padding:"1px 5px",borderRadius:4}}>{aiStatus.modelo}</code> activo</span>
+          ):aiStatus.disponible&&!aiStatus.modelo_activo?(
+            <span><strong style={{color:"var(--danger)"}}>Modelo no descargado</strong> — ejecuta: <code style={{background:"rgba(0,0,0,.1)",padding:"1px 5px",borderRadius:4}}>docker compose exec ollama ollama pull {aiStatus.modelo}</code></span>
+          ):(
+            <span><strong style={{color:"var(--danger)"}}>Servicio Ollama no disponible</strong> — verifica que el contenedor esté corriendo: <code style={{background:"rgba(0,0,0,.1)",padding:"1px 5px",borderRadius:4}}>docker compose up -d ollama</code></span>
+          )}
+        </div>
+      )}
+
       {/* Info */}
       <div style={{background:"rgba(99,102,241,.08)",border:"1px solid rgba(99,102,241,.2)",borderRadius:10,padding:"12px 16px",marginBottom:20,display:"flex",gap:10,alignItems:"flex-start"}}>
         <MdOutlineSmartToy size={18} style={{color:"var(--accent)",flexShrink:0,marginTop:1}}/>
         <div style={{fontSize:12,color:"var(--text-secondary)",lineHeight:1.6}}>
-          <strong style={{color:"var(--text-primary)"}}>ETL con Inteligencia Artificial</strong><br/>
-          Sube el plan alimenticio de tu cliente en PDF o Excel. Claude leerá y extraerá la estructura de comidas, macros y horarios automáticamente para que puedas revisarlo y guardarlo.
+          <strong style={{color:"var(--text-primary)"}}>ETL con IA local (Ollama)</strong><br/>
+          Sube el plan alimenticio en PDF o Excel. El modelo de lenguaje local leerá y extraerá la estructura de comidas, macros y horarios automáticamente — sin enviar datos a servidores externos.
         </div>
       </div>
 
@@ -486,7 +507,10 @@ function ImportarIATab({clients,onPlanExtracted}){
             </select>
           </div>
           <div style={{display:"flex",alignItems:"flex-end"}}>
-            <button className="btn-compact-primary" onClick={handleProcess} disabled={!file||loading} style={{height:36}}>
+            <button className="btn-compact-primary" onClick={handleProcess}
+              disabled={!file||loading||(aiStatus&&(!aiStatus.disponible||!aiStatus.modelo_activo))}
+              style={{height:36}}
+              title={aiStatus&&(!aiStatus.disponible||!aiStatus.modelo_activo)?"Ollama no disponible":""}>
               {loading?<><FiRefreshCw size={13} style={{animation:"spin 1s linear infinite"}}/> Procesando...</>:<><MdOutlineSmartToy size={14}/> Procesar con IA</>}
             </button>
           </div>
@@ -739,39 +763,4 @@ export default function TrainerDiets(){
       )}
 
       {/* RECETAS */}
-      {tab==="recetas"&&(
-        <>
-          <div style={{marginBottom:16}}>
-            <div style={{position:"relative",maxWidth:320}}>
-              <FiSearch size={12} style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:"var(--text-secondary)"}}/>
-              <input className="input-compact" placeholder="Buscar receta..." value={search} onChange={e=>setSearch(e.target.value)} style={{paddingLeft:28}}/>
-            </div>
-          </div>
-          {filteredRecipes.length===0?(
-            <div style={{textAlign:"center",padding:"60px 20px",background:"var(--bg-card)",borderRadius:16,border:"1px solid var(--border)"}}>
-              <GiCookingPot size={44} style={{color:"var(--text-secondary)",marginBottom:12,opacity:.3}}/>
-              <p style={{fontSize:14,color:"var(--text-secondary)"}}>{recipes.length===0?"Sin recetas. Crea la primera.":"Sin resultados."}</p>
-            </div>
-          ):(
-            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:14}}>
-              {filteredRecipes.map(r=>(
-                <RecetaCard key={r.id} recipe={r} deleting={deletingId===r.id}
-                  onEdit={rec=>{setEditRecipe(rec);setShowRecipe(true);}} onDelete={handleDeleteRecipe}/>
-              ))}
-            </div>
-          )}
-        </>
-      )}
-
-      {/* IMPORTAR IA */}
-      {tab==="ia"&&<ImportarIATab clients={clients} onPlanExtracted={()=>loadAll()}/>}
-
-      <AnimatePresence>
-        {showPlan&&<PlanBuilderModal plan={editPlan} clients={clients} recipes={recipes} onSave={handleSavePlan} onClose={()=>{setShowPlan(false);setEditPlan(null);}} saving={saving}/>}
-      </AnimatePresence>
-      <AnimatePresence>
-        {showRecipe&&<RecetaFormModal recipe={editRecipe} onSave={handleSaveRecipe} onClose={()=>{setShowRecipe(false);setEditRecipe(null);}} saving={saving}/>}
-      </AnimatePresence>
-    </div>
-  );
-}
+      {t
