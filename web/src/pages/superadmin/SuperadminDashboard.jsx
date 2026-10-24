@@ -77,11 +77,11 @@ function GymRow({ gym }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "10px 14px", borderRadius: 8, background: "var(--bg-input)", marginBottom: 4 }}>
       <div style={{ width: 36, height: 36, borderRadius: 8, background: "var(--accent-dim, var(--accent-dim))", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 15, fontWeight: 700, color: "var(--accent, var(--accent))" }}>
-        {(gym.nombre || "G").charAt(0)}
+        {(gym.gimnasio || gym.nombre || "G").charAt(0)}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {gym.nombre}
+          {gym.gimnasio || gym.nombre || "—"}
         </p>
         <p style={{ fontSize: 11, color: "var(--text-secondary)" }}>
           {gym.plan} · {gym.total_miembros ?? "—"} miembros

@@ -444,7 +444,7 @@ function SummaryTable({ data, page, setPage }) {
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
           <thead>
             <tr>
-              {["Gimnasio", "Plan", "Ingresos", "Transacciones", "Ticket Prom.", "Miembros", "Activos"].map(h => (
+              {["Gimnasio", "Estado", "Plan", "Ingresos", "Transacciones", "Ticket Prom.", "Miembros", "Activos"].map(h => (
                 <th key={h} style={{ textAlign: "left", padding: "8px 12px", color: "var(--text-secondary)", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: ".06em", borderBottom: "1px solid var(--border)" }}>{h}</th>
               ))}
             </tr>
@@ -453,6 +453,12 @@ function SummaryTable({ data, page, setPage }) {
             {slice.map((r, i) => (
               <tr key={i} style={{ borderBottom: "1px solid var(--border, rgba(255,255,255,.04))" }}>
                 <td style={{ padding: "8px 12px", fontWeight: 600, color: "var(--text-primary)" }}>{r.gimnasio || r.id_gimnasio}</td>
+                <td style={{ padding: "8px 12px" }}>
+                  {r.activo == null
+                    ? <span style={{ color: "var(--text-secondary)", fontSize: 12 }}>—</span>
+                    : <span style={badge(r.activo ? "pos" : "neg")}>{r.activo ? "Activo" : "Inactivo"}</span>
+                  }
+                </td>
                 <td style={{ padding: "8px 12px", color: "var(--text-secondary)" }}>{r.plan || "—"}</td>
                 <td style={{ padding: "8px 12px", color: "var(--success)", fontWeight: 600 }}>${(r.ingresos_totales || 0).toLocaleString("es-MX", { minimumFractionDigits: 2 })}</td>
                 <td style={{ padding: "8px 12px", color: "var(--text-secondary)" }}>{r.total_transacciones}</td>
