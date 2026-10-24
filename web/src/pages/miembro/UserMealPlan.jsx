@@ -195,7 +195,7 @@ function RecetaCard({ rec, ownUserId, onEdit, onDelete, onConsume, selectMode, s
             style={{ overflow:"hidden" }}
           >
             <div style={{ padding:"0 18px 18px", borderTop:"1px solid var(--border)" }}>
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginTop:14 }}>
+              <div className="grid-2col-responsive" style={{ display:"grid", gap:16, marginTop:14 }}>
                 {rec.ingredientes?.length > 0 && (
                   <div>
                     <h5 style={{ fontSize:11, fontWeight:700, textTransform:"uppercase",
@@ -334,7 +334,7 @@ function RecetaForm({ initial, onSave, onClose }) {
                 borderRadius:8, color:"var(--text-primary)", fontSize:13, resize:"vertical" }} />
           </div>
 
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+          <div className="grid-2col-responsive" style={{ display:"grid", gap:12 }}>
             <Inp label="Tiempo prep (min)" fk="tiempo_prep" type="number" min="0" />
             <Inp label="Porciones" fk="porciones" type="number" min="1" />
             <Inp label="Calorías" fk="calorias" type="number" min="0" />

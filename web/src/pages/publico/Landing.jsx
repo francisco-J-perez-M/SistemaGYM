@@ -44,7 +44,7 @@ const ROLES = [
 
 const S = {
   page: { minHeight: "100vh", background: "var(--bg-main)", color: "var(--text-primary)", fontFamily: "Inter, system-ui, sans-serif" },
-  nav: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 28px", borderBottom: "1px solid var(--border)", position: "sticky", top: 0, background: "var(--bg-main)", zIndex: 20 },
+  nav: { display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", rowGap: 10, padding: "16px 28px", borderBottom: "1px solid var(--border)", position: "sticky", top: 0, background: "var(--bg-main)", zIndex: 20 },
   brand: { display: "flex", alignItems: "center", gap: 8, fontWeight: 800, fontSize: 18, color: "var(--text-primary)", textDecoration: "none" },
   navLinks: { display: "flex", alignItems: "center", gap: 24 },
   navLink: { color: "var(--text-secondary)", textDecoration: "none", fontSize: 14, fontWeight: 600, cursor: "pointer" },
@@ -217,9 +217,12 @@ export default function Landing() {
           .gympro-hero { grid-template-columns: 1fr !important; }
           .gympro-nav-links { display: none !important; }
         }
+        @media (max-width: 480px) {
+          .gympro-nav { padding: 12px 16px; }
+        }
       `}</style>
 
-      <nav style={S.nav}>
+      <nav className="gympro-nav" style={S.nav}>
         <Link to="/" style={S.brand}>
           <img src="/logo64.png" alt="GymPro" style={{ width: 26, height: 26, borderRadius: 6 }} />
           GymPro

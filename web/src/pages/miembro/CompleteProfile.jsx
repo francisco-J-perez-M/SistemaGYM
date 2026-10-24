@@ -102,7 +102,7 @@ const S = {
     outline: "none",
     boxSizing: "border-box",
   },
-  row2: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 },
+  row2: { display: "grid", gap: 16 },
   optBtn: (on) => ({
     padding: "12px 16px", borderRadius: 12,
     border: `1.5px solid ${on ? "var(--accent)" : "var(--border)"}`,
@@ -160,7 +160,7 @@ function Step1({ form, set, errors }) {
         </div>
       </Field>
 
-      <div style={S.row2}>
+      <div className="grid-2col-responsive" style={S.row2}>
         <Field label="Fecha de nacimiento *" error={errors.fechaNacimiento}>
           <Inp type="date" value={form.fechaNacimiento} onChange={e => set("fechaNacimiento", e.target.value)} />
         </Field>
@@ -177,7 +177,7 @@ function Step1({ form, set, errors }) {
         <p style={{ fontWeight: 700, fontSize: 13, color: "#f87171", marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
           <FiAlertTriangle /> Contacto de emergencia *
         </p>
-        <div style={S.row2}>
+        <div className="grid-2col-responsive" style={S.row2}>
           <Field label="Nombre" error={errors.contactoEmergenciaNombre}>
             <Inp placeholder="Nombre completo" value={form.contactoEmergenciaNombre} onChange={e => set("contactoEmergenciaNombre", e.target.value)} />
           </Field>
@@ -217,7 +217,7 @@ function Step2({ form, set, errors }) {
           rows={2} style={{ ...S.inp, resize: "vertical", minHeight: 60 }} />
       </Field>
 
-      <div style={S.row2}>
+      <div className="grid-2col-responsive" style={S.row2}>
         <Field label="Alergias conocidas">
           <Inp placeholder="Ej. Polen, látex…" value={form.alergias} onChange={e => set("alergias", e.target.value)} />
         </Field>
@@ -282,7 +282,7 @@ function Step3({ form, set, errors }) {
       </Field>
 
       <Field label="Actividad fuera del gym *" error={errors.nivelActividad}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div className="grid-2col-responsive" style={{ display: "grid", gap: 10 }}>
           {ACTIVIDAD.map(a => (
             <button key={a.id} onClick={() => set("nivelActividad", a.id)}
               style={{ ...S.optBtn(form.nivelActividad === a.id), display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 4, padding: "12px 14px" }}>
@@ -293,7 +293,7 @@ function Step3({ form, set, errors }) {
         </div>
       </Field>
 
-      <div style={S.row2}>
+      <div className="grid-2col-responsive" style={S.row2}>
         <Field label="Días disponibles / semana">
           <div style={{ display: "flex", gap: 8 }}>
             {DIAS.map(d => (
@@ -345,7 +345,7 @@ function Step4({ form, set, errors }) {
         Registra tu punto de partida. Las medidas opcionales están en centímetros.
       </p>
 
-      <div style={S.row2}>
+      <div className="grid-2col-responsive" style={S.row2}>
         <Field label="Peso actual (kg) *" error={errors.peso}>
           <Inp type="number" placeholder="ej. 75.5" value={form.peso} onChange={e => set("peso", e.target.value)} />
         </Field>
