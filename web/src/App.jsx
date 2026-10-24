@@ -15,7 +15,6 @@ import MiembrosDashboard  from "./pages/owner_gym/MiembrosDashboard";
 import PagosDashboard     from "./pages/owner_gym/PagosDashboard";
 import PointOfSale        from "./pages/owner_gym/PointOfSale";
 import BackupsDashboard   from "./pages/owner_gym/BackupsDashboard";
-import RestoreDashboard   from "./pages/owner_gym/RestoreDashboard";
 import AdminAnalytics     from "./pages/owner_gym/AdminAnalytics";
 import AnalyticsMapReduce from "./pages/owner_gym/AnalyticsMapReduce";
 import AnalyticsKMeans    from "./pages/owner_gym/AnalyticsKMeans";
@@ -82,7 +81,6 @@ function App() {
             <Route path="/owner/memberships"   element={<OwnerMemberships />} />
             <Route path="/owner/profile"       element={<OwnerProfile />}     />
             <Route path="/owner/backups"       element={<BackupsDashboard />} />
-            <Route path="/owner/restore"       element={<RestoreDashboard />} />
             <Route path="/owner/mapreduce"     element={<AnalyticsMapReduce />} />
             <Route path="/owner/kmeans"        element={<AnalyticsKMeans />}  />
             <Route path="/owner/regresion"     element={<AnalyticsRegresion />} />

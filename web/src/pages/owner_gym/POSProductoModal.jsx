@@ -38,16 +38,35 @@ export default function ProductoModal({ producto, onClose, onSaved }) {
 
   const setField = (f, v) => setForm(p => ({ ...p, [f]: v }));
 
-  const handleImages = (e) => {
-    const files = Array.from(e.target.files).slice(0, 3 - form.imagenes.length);
-    files.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = (ev) =>
-        setForm(p => p.imagenes.length < 3
-          ? { ...p, imagenes: [...p.imagenes, ev.target.result] }
-          : p);
-      reader.readAsDataURL(file);
+  // Comprime a máx 800×800 JPEG q=0.75 — evita 413 en nginx/Flask
+  const compressImage = (file) =>
+    new Promise((resolve) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        const MAX = 800;
+        let { width: w, height: h } = img;
+        if (w > MAX || h > MAX) {
+          if (w > h) { h = Math.round((h * MAX) / w); w = MAX; }
+          else       { w = Math.round((w * MAX) / h); h = MAX; }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        URL.revokeObjectURL(url);
+        resolve(canvas.toDataURL("image/jpeg", 0.75));
+      };
+      img.src = url;
     });
+
+  const handleImages = async (e) => {
+    const files = Array.from(e.target.files).slice(0, 3 - form.imagenes.length);
+    for (const file of files) {
+      const compressed = await compressImage(file);
+      setForm(p => p.imagenes.length < 3
+        ? { ...p, imagenes: [...p.imagenes, compressed] }
+        : p);
+    }
     e.target.value = "";
   };
 

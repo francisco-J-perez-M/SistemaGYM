@@ -483,9 +483,136 @@ function TabCancelaciones() {
       const r = await fetch(`${API_BASE}/api/analytics/cancelaciones/train`, { method: "POST", headers });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || "Error");
-      setData(j); setTrainMsg("Modelo Random Forest actualizado");
+      setData(j); setTrainMsg("Modelo actualizado correctamente");
     } catch (e) { setError(e.message); }
     finally { setTL(false); }
+  };
+
+  // ── Exportar reporte PDF via ventana de impresión ─────────────────────────
+  const exportPDF = () => {
+    if (!data) return;
+    const now = new Date().toLocaleString();
+    const acc = ((data.metricas?.accuracy || 0) * 100).toFixed(1);
+    const auc = ((data.metricas?.auc_roc || 0)).toFixed(3);
+    const preds = (data.predicciones || []).slice(0, 50);
+
+    const distRows = [
+      { label: "Riesgo Alto",   value: data.resumen?.riesgo_alto || 0,  color: "#ef4444" },
+      { label: "Riesgo Medio",  value: data.resumen?.riesgo_medio || 0, color: "#f59e0b" },
+      { label: "Activos",       value: data.resumen?.activos || 0,       color: "#10b981" },
+    ];
+    const featRows = (data.importancia_features || []).slice(0, 8);
+
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+<title>Reporte Cancelaciones IA — ${now}</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; font-size: 12px; color: #1a1a1a; padding: 30px 40px; }
+  h1 { font-size: 20px; color: #1a1a2e; margin-bottom: 4px; }
+  .sub { color: #666; font-size: 11px; margin-bottom: 24px; }
+  h2 { font-size: 14px; color: #1a1a2e; margin: 20px 0 8px; border-bottom: 2px solid #6366f1; padding-bottom: 4px; }
+  .explain { background: #f5f5ff; border-left: 3px solid #6366f1; padding: 8px 12px; font-size: 11px; color: #444; margin-bottom: 12px; border-radius: 0 4px 4px 0; }
+  .kpis { display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+  .kpi { background: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 8px; padding: 12px 16px; flex: 1; min-width: 120px; }
+  .kpi-v { font-size: 22px; font-weight: 700; color: #1a1a2e; }
+  .kpi-l { font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: .05em; margin-top: 2px; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+  th { background: #1a1a2e; color: #fff; padding: 7px 10px; text-align: left; font-size: 11px; }
+  td { padding: 6px 10px; border-bottom: 1px solid #eee; font-size: 11px; }
+  tr:nth-child(even) td { background: #fafafa; }
+  .badge-alto  { background:#fee2e2; color:#b91c1c; border-radius:4px; padding:2px 8px; font-weight:700; }
+  .badge-medio { background:#fef3c7; color:#92400e; border-radius:4px; padding:2px 8px; font-weight:700; }
+  .badge-bajo  { background:#d1fae5; color:#065f46; border-radius:4px; padding:2px 8px; font-weight:700; }
+  .bar-wrap { background:#e5e7eb; border-radius:4px; height:12px; }
+  .bar { background:#6366f1; border-radius:4px; height:12px; }
+  footer { margin-top: 32px; font-size: 10px; color: #999; border-top: 1px solid #eee; padding-top: 8px; }
+  @media print { body { padding: 20px; } }
+</style></head><body>
+<h1>Reporte de Riesgo de Cancelación — IA</h1>
+<p class="sub">Generado el ${now} &nbsp;|&nbsp; Algoritmo: Random Forest Classifier</p>
+
+<div class="kpis">
+  <div class="kpi"><div class="kpi-v" style="color:#ef4444">${data.resumen?.riesgo_alto || 0}</div><div class="kpi-l">Riesgo Alto</div></div>
+  <div class="kpi"><div class="kpi-v" style="color:#f59e0b">${data.resumen?.riesgo_medio || 0}</div><div class="kpi-l">Riesgo Medio</div></div>
+  <div class="kpi"><div class="kpi-v" style="color:#10b981">${data.resumen?.activos || 0}</div><div class="kpi-l">Activos Estables</div></div>
+  <div class="kpi"><div class="kpi-v" style="color:#6366f1">${acc}%</div><div class="kpi-l">Precisión Modelo</div></div>
+  <div class="kpi"><div class="kpi-v" style="color:#6366f1">${auc}</div><div class="kpi-l">AUC-ROC</div></div>
+</div>
+
+<h2>¿Qué mide este modelo?</h2>
+<div class="explain">
+  El modelo <strong>Random Forest Classifier</strong> analiza el comportamiento de cada miembro para predecir la probabilidad de que
+  cancele o no renueve su membresía en los próximos días.<br><br>
+  <strong>Criterio de riesgo:</strong> un miembro se clasifica como "en riesgo" si lleva más de 21 días sin asistir
+  o si su membresía está vencida. El modelo aprende de 5 variables (features) y produce una probabilidad entre 0 y 1.<br><br>
+  <strong>Precisión (accuracy):</strong> porcentaje de predicciones correctas en el conjunto de prueba.<br>
+  <strong>AUC-ROC:</strong> capacidad del modelo de distinguir entre miembros en riesgo y activos (1.0 = perfecto, 0.5 = azar).
+</div>
+
+<h2>Distribución de Riesgo</h2>
+<table>
+  <thead><tr><th>Categoría</th><th>Miembros</th><th>%</th><th>Barra</th></tr></thead>
+  <tbody>
+    ${distRows.map(r => {
+      const total = (data.resumen?.riesgo_alto||0)+(data.resumen?.riesgo_medio||0)+(data.resumen?.activos||0);
+      const pct = total > 0 ? ((r.value / total)*100).toFixed(1) : "0.0";
+      return `<tr>
+        <td><span style="color:${r.color};font-weight:700">${r.label}</span></td>
+        <td>${r.value}</td><td>${pct}%</td>
+        <td><div class="bar-wrap"><div class="bar" style="background:${r.color};width:${pct}%"></div></div></td>
+      </tr>`;
+    }).join("")}
+  </tbody>
+</table>
+
+<h2>Importancia de Variables (Features)</h2>
+<div class="explain">
+  Indica qué tan decisiva es cada variable para la predicción. Valores más altos = mayor influencia en el resultado.
+  <ul style="margin-top:6px;padding-left:18px">
+    <li><strong>dias_sin_asistir</strong>: días desde la última asistencia registrada</li>
+    <li><strong>num_asistencias_ult60</strong>: cuántas veces asistió en los últimos 60 días</li>
+    <li><strong>tiene_membresia_activa</strong>: 1 si la membresía está vigente, 0 si venció</li>
+    <li><strong>total_pagos</strong>: total de pagos históricos del miembro</li>
+    <li><strong>meses_activo</strong>: meses desde que se registró en el gimnasio</li>
+  </ul>
+</div>
+<table>
+  <thead><tr><th>Variable</th><th>Importancia</th><th>Barra</th></tr></thead>
+  <tbody>
+    ${featRows.map(f => `<tr>
+      <td>${f.feature}</td><td>${(f.importancia*100).toFixed(1)}%</td>
+      <td><div class="bar-wrap"><div class="bar" style="width:${(f.importancia*100).toFixed(1)}%"></div></div></td>
+    </tr>`).join("")}
+  </tbody>
+</table>
+
+<h2>Miembros en Riesgo (top ${Math.min(50, preds.length)})</h2>
+<div class="explain">
+  Lista ordenada de mayor a menor probabilidad de cancelación. Prioriza contactar a los de <strong>Riesgo Alto</strong> primero.
+</div>
+<table>
+  <thead><tr><th>#</th><th>Miembro</th><th>Días sin asistir</th><th>Membresía activa</th><th>Prob. cancelación</th><th>Riesgo</th></tr></thead>
+  <tbody>
+    ${preds.map((p, i) => `<tr>
+      <td>${i+1}</td>
+      <td>${p.nombre || p.id_miembro}</td>
+      <td>${p.dias_sin_asistir ?? "—"}</td>
+      <td>${p.membresia_activa ? "Sí" : "No"}</td>
+      <td style="font-weight:700;color:${p.riesgo==="alto"?"#b91c1c":p.riesgo==="medio"?"#92400e":"#065f46"}">
+        ${((p.probabilidad||0)*100).toFixed(1)}%
+      </td>
+      <td><span class="badge-${p.riesgo}">${(p.riesgo||"").toUpperCase()}</span></td>
+    </tr>`).join("")}
+  </tbody>
+</table>
+
+<footer>GymPro — Análisis de Cancelaciones IA &nbsp;|&nbsp; ${now} &nbsp;|&nbsp; Random Forest · ${data.resumen?.total || 0} miembros analizados</footer>
+</body></html>`;
+
+    const win = window.open("", "_blank", "width=900,height=700");
+    win.document.write(html);
+    win.document.close();
+    win.onload = () => win.print();
   };
 
   useEffect(() => { fetchData(); }, [fetchData]);
@@ -509,20 +636,49 @@ function TabCancelaciones() {
 
   return (
     <div>
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 20 }}>
-        <StatCard label="En riesgo alto"  value={data.resumen?.riesgo_alto || 0}  color={DANGER} />
-        <StatCard label="En riesgo medio" value={data.resumen?.riesgo_medio || 0} color={WARNING} />
-        <StatCard label="Activos estables" value={data.resumen?.activos || 0}     color={SUCCESS} />
-        <StatCard label="Precisión modelo" value={`${((data.metricas?.accuracy||0)*100).toFixed(1)}%`} color={INFO} />
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
+      {/* KPIs + acciones */}
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
+        <StatCard label="En riesgo alto"   value={data.resumen?.riesgo_alto || 0}  color={DANGER} />
+        <StatCard label="En riesgo medio"  value={data.resumen?.riesgo_medio || 0} color={WARNING} />
+        <StatCard label="Activos estables" value={data.resumen?.activos || 0}      color={SUCCESS} />
+        <StatCard label="Precisión (acc)"  value={`${((data.metricas?.accuracy||0)*100).toFixed(1)}%`} color={INFO} />
+        <StatCard label="AUC-ROC"          value={(data.metricas?.auc_roc||0).toFixed(3)} color={PURPLE} />
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <TrainBtn loading={trainLoading} onClick={handleTrain} label="Reentrenar Random Forest" />
+          <button onClick={exportPDF}
+            style={{ display: "flex", alignItems: "center", gap: 7, padding: "8px 16px", borderRadius: 8,
+              background: "rgba(99,102,241,.15)", border: "1px solid rgba(99,102,241,.4)",
+              color: "#818cf8", cursor: "pointer", fontSize: 13, fontWeight: 700 }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+            </svg>
+            Exportar PDF
+          </button>
           {trainMsg && <span style={{ color: SUCCESS, fontSize: 13 }}>{trainMsg}</span>}
         </div>
+      </div>
+
+      {/* Explicación del modelo */}
+      <div style={{ background: "rgba(99,102,241,.07)", border: "1px solid rgba(99,102,241,.2)",
+        borderRadius: 10, padding: "12px 16px", marginBottom: 20, fontSize: 13, color: "var(--text-secondary)",
+        lineHeight: 1.6 }}>
+        <strong style={{ color: "var(--text-primary)" }}>¿Qué estás viendo?</strong>{" "}
+        Este análisis usa un <strong>Random Forest Classifier</strong> entrenado con el historial de asistencia,
+        pagos y estado de membresía de tus miembros. El modelo predice la probabilidad de que un miembro
+        cancele o no renueve. Un miembro se considera "en riesgo" si lleva más de 21 días sin asistir
+        o si su membresía está vencida. La <strong>precisión</strong> indica qué tan acertado es el modelo
+        en datos de prueba; el <strong>AUC-ROC</strong> mide su capacidad de distinguir entre activos
+        y en riesgo (1.0 = perfecto).
       </div>
 
       <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
         <div style={{ flex: 1, minWidth: 240 }}>
           <SectionTitle>Distribución de riesgo</SectionTitle>
+          <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "-4px 0 8px" }}>
+            Porcentaje de tu base de miembros por nivel de riesgo de cancelación.
+          </p>
           <ResponsiveContainer width="100%" height={200}>
             <PieChart>
               <Pie data={distribucion} dataKey="value" nameKey="name"
@@ -538,12 +694,15 @@ function TabCancelaciones() {
 
         {importancia.length > 0 && (
           <div style={{ flex: 1, minWidth: 260 }}>
-            <SectionTitle>Importancia de features (Random Forest)</SectionTitle>
+            <SectionTitle>Importancia de variables (Random Forest)</SectionTitle>
+            <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "-4px 0 8px" }}>
+              Qué tan determinante es cada variable para la predicción. Mayor valor = más influencia.
+            </p>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={importancia} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border-dark)" />
                 <XAxis type="number" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} />
-                <YAxis type="category" dataKey="feature" width={130}
+                <YAxis type="category" dataKey="feature" width={155}
                        tick={{ fill: "var(--text-secondary)", fontSize: 11 }} />
                 <Tooltip content={<CustomTooltip />} />
                 <Bar dataKey="valor" name="Importancia" fill={PURPLE} radius={[0,4,4,0]} />
@@ -556,11 +715,14 @@ function TabCancelaciones() {
       {altaRiesgo.length > 0 && (
         <>
           <SectionTitle>Miembros con mayor riesgo de cancelación</SectionTitle>
+          <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "-8px 0 10px" }}>
+            Ordenados de mayor a menor probabilidad. Contáctalos para evitar que se vayan.
+          </p>
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
                 <tr style={{ background: "var(--bg-input)" }}>
-                  {["Miembro","Días sin asistir","Prob. cancelación","Riesgo"].map(h => (
+                  {["Miembro","Días sin asistir","Membresía activa","Prob. cancelación","Riesgo"].map(h => (
                     <th key={h} style={{ padding: "8px 12px", textAlign: "left", color: "var(--text-secondary)", fontWeight: 500 }}>{h}</th>
                   ))}
                 </tr>
@@ -570,6 +732,11 @@ function TabCancelaciones() {
                   <tr key={i} style={{ borderBottom: "1px solid var(--border-dark)" }}>
                     <td style={{ padding: "8px 12px" }}>{p.nombre || p.id_miembro}</td>
                     <td style={{ padding: "8px 12px" }}>{p.dias_sin_asistir ?? "—"}</td>
+                    <td style={{ padding: "8px 12px" }}>
+                      <span style={{ color: p.membresia_activa ? SUCCESS : DANGER, fontWeight: 600 }}>
+                        {p.membresia_activa ? "Sí" : "No"}
+                      </span>
+                    </td>
                     <td style={{ padding: "8px 12px", color: DANGER, fontWeight: 600 }}>
                       {((p.probabilidad || 0) * 100).toFixed(1)}%
                     </td>
