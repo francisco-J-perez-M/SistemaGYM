@@ -237,7 +237,7 @@ export default function PagosDashboard() {
       </div>
 
       {/* ── Barra de filtros ── */}
-      <div style={{
+      <div data-guide="ow-pay-filtros" style={{
         display: "flex", flexDirection: "column", gap: 10,
         marginBottom: 20,
         padding: "14px 16px",
@@ -306,7 +306,7 @@ export default function PagosDashboard() {
         </div>
       ) : (
         <>
-          <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}>
+          <div data-guide="ow-pay-historial" className="kpi-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}>
             {movimientos.map(m => <MovimientoCard key={m.id} m={m} />)}
           </div>
 

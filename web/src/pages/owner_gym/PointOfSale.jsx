@@ -331,11 +331,11 @@ function TabVenta() {
           {!loadingInit && !isMiembroRole && <StockAlertBar productos={productos} />}
 
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", flexShrink: 0, alignItems: "center" }}>
-            <input style={{ ...inputSt, width: 170 }} placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)} />
+            <input data-guide="pos-search" style={{ ...inputSt, width: 170 }} placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)} />
             {cats.map(c => <button key={c} style={filterBtnSt(catFilter === c)} onClick={() => setCatFilter(c)}>{c}</button>)}
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(175px, 1fr))", gap: 12, overflowY: "auto", flex: 1, alignContent: "start" }}>
+          <div data-guide="pos-catalog" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(175px, 1fr))", gap: 12, overflowY: "auto", flex: 1, alignContent: "start" }}>
             {loadingInit
               ? [0,1,2,3,4,5].map(i => <div key={i} className="skeleton" style={{ height: 150, borderRadius: 12 }} />)
               : visible.map(p => {
@@ -420,7 +420,7 @@ function TabVenta() {
         </div>
 
         {/* Carrito */}
-        <div style={{ ...cardSt({ padding: "16px", width: 270, flexShrink: 0, display: "flex", flexDirection: "column" }) }}>
+        <div data-guide="pos-cart" style={{ ...cardSt({ padding: "16px", width: 270, flexShrink: 0, display: "flex", flexDirection: "column" }) }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexShrink: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <FiShoppingCart size={15} color="var(--accent)" />
@@ -471,7 +471,7 @@ function TabVenta() {
               <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>Total</span>
               <span style={{ fontSize: 20, fontWeight: 800, color: "var(--text-primary)" }}>{fmt(total)}</span>
             </div>
-            <button disabled={!cart.length} onClick={() => setCheckout(true)}
+            <button data-guide="pos-cobrar" disabled={!cart.length} onClick={() => setCheckout(true)}
               style={{ width: "100%", padding: "11px 0", borderRadius: 10, border: "none",
                 background: cart.length ? "var(--accent)" : "var(--bg-input, rgba(255,255,255,.05))",
                 color: cart.length ? "#fff" : "var(--text-secondary)",

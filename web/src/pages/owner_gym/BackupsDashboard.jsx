@@ -122,7 +122,7 @@ function TabGenerar({ summary, onRefresh }) {
 
       {/* Selector + Acción */}
       <div className="charts-row" style={{ gridTemplateColumns: "1.5fr 1fr" }}>
-        <div className="stat-card" style={{ padding: 24 }}>
+        <div className="stat-card" data-guide="ow-bk-generar" style={{ padding: 24 }}>
           <h3 style={{ margin: "0 0 6px", fontSize: 15 }}>Tipo de respaldo</h3>
           <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--text-secondary)" }}>
             Los datos se guardan como JSON filtrado por tu gimnasio. Solo se conservan los últimos 3 respaldos.
@@ -182,7 +182,7 @@ function TabGenerar({ summary, onRefresh }) {
       </div>
 
       {/* Historial */}
-      <div className="chart-card">
+      <div className="chart-card" data-guide="ow-bk-historial">
         <div className="chart-header">
           <h3>Historial (últimos 3)</h3>
         </div>

@@ -122,7 +122,7 @@ export default function OwnerProfile() {
           </div>
         </div>
 
-        <form onSubmit={handleSave}>
+        <form onSubmit={handleSave} data-guide="ow-profile-form">
           <div style={S.field}>
             <label style={S.label}>Nombre del Gimnasio *</label>
             <input style={S.input} name="nombre" value={form.nombre || ""} onChange={handleChange} placeholder="Nombre del gimnasio" required />
