@@ -84,6 +84,16 @@
   --danger-color:     var(--danger);
   --warning-color:    var(--warning);
   --transition:       all var(--t-base) var(--ease);
+
+  /* ── Barra lateral: su fondo es oscuro en TODOS los temas, así que su
+     texto debe ser siempre claro. Estas variables no se redefinen por tema,
+     de modo que la barra se ve consistente en claro/oscuro/bosque/nebulosa. ── */
+  --sidebar-text:        #F3F5F9;
+  --sidebar-text-muted:  #9AA4B8;
+  --sidebar-text-dim:    #5E687E;
+  --sidebar-border:      rgba(255, 255, 255, 0.10);
+  --sidebar-hover:       rgba(255, 255, 255, 0.06);
+  --sidebar-elevated:    #232A3D;
 }
 
 [data-theme="light"] {
