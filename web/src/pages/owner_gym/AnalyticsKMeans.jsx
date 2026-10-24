@@ -130,15 +130,27 @@ export default function AnalyticsKMeans() {
     </div>
   );
 
-  if (error) return (
-    <div className="empty-state">
-      <h3>Error al cargar datos</h3>
-      <p>{error}</p>
-      <button className="btn-primary" style={{ marginTop: 16 }} onClick={() => fetchData(kValue)}>
-        Reintentar
-      </button>
-    </div>
-  );
+  if (error) {
+    const isNoData = error.includes("401") || error.includes("403") || error.includes("404");
+    return (
+      <div className="empty-state">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-tertiary)", marginBottom: 12 }}>
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+        <h3 style={{ color: "var(--text-secondary)", margin: "0 0 8px" }}>
+          {isNoData ? "Sin miembros suficientes" : "Error al cargar datos"}
+        </h3>
+        <p style={{ color: "var(--text-tertiary)", margin: 0, fontSize: 13 }}>
+          {isNoData
+            ? "Registra miembros con datos de progreso físico para ver el análisis de grupos."
+            : error}
+        </p>
+        <button className="btn-primary" style={{ marginTop: 16 }} onClick={() => fetchData(kValue)}>
+          {isNoData ? "Actualizar" : "Reintentar"}
+        </button>
+      </div>
+    );
+  }
 
   const clusters          = data?.resumen_clusters || [];
   const recomendaciones   = data?.recomendaciones  || [];

@@ -83,13 +83,34 @@ export default function AnalyticsMapReduce() {
     </div>
   );
 
-  if (error) return (
-    <div className="empty-state">
-      <h3>Error al cargar datos</h3>
-      <p>{error}</p>
-      <button className="btn-primary" style={{ marginTop: 16 }} onClick={fetchData}>Reintentar</button>
-    </div>
-  );
+  if (error) {
+    const isNoData = error.includes("401") || error.includes("403") || error.includes("404");
+    return (
+      <div className="empty-state">
+        {isNoData ? (
+          <>
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-tertiary)", marginBottom: 12 }}>
+              <path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 5-5"/><circle cx="18" cy="9" r="0" fill="currentColor" strokeWidth="2"/>
+            </svg>
+            <h3 style={{ color: "var(--text-secondary)", margin: "0 0 8px" }}>Sin datos aún</h3>
+            <p style={{ color: "var(--text-tertiary)", margin: 0, fontSize: 13 }}>
+              Registra pagos y visitas para comenzar a ver análisis financieros.
+            </p>
+            <button className="btn-primary" style={{ marginTop: 16 }} onClick={fetchData}>Actualizar</button>
+          </>
+        ) : (
+          <>
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: "#ef4444", marginBottom: 12 }}>
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <h3 style={{ color: "var(--text-secondary)", margin: "0 0 8px" }}>Error al cargar datos</h3>
+            <p style={{ color: "var(--text-tertiary)", margin: 0, fontSize: 13 }}>{error}</p>
+            <button className="btn-primary" style={{ marginTop: 16 }} onClick={fetchData}>Reintentar</button>
+          </>
+        )}
+      </div>
+    );
+  }
 
   const resumenIngresos     = data?.resumen_ingresos          || [];
   const ingresosPorPeriodo  = data?.ingresos_por_periodo      || [];

@@ -379,9 +379,25 @@ export default function AnalyticsRegresion() {
         </div>
       ) : globalError ? (
         <div className="empty-state" style={{ marginBottom: 20 }}>
-          <h3>Error cargando tendencia global</h3>
-          <p>{globalError}</p>
-          <button className="btn-primary" style={{ marginTop: 12 }} onClick={fetchGlobal}>Reintentar</button>
+          {globalError.includes("401") || globalError.includes("403") || globalError.includes("404") ? (
+            <>
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-tertiary)", marginBottom: 12 }}>
+                <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+              </svg>
+              <h3 style={{ margin: "0 0 8px" }}>Sin datos de progreso</h3>
+              <p style={{ color: "var(--text-secondary)", fontSize: 13, margin: 0 }}>
+                Registra medidas de progreso físico de tus miembros para activar las predicciones.
+              </p>
+            </>
+          ) : (
+            <>
+              <h3>Error cargando tendencia global</h3>
+              <p>{globalError}</p>
+            </>
+          )}
+          <button className="btn-primary" style={{ marginTop: 12 }} onClick={fetchGlobal}>
+            {globalError.includes("401") || globalError.includes("403") ? "Actualizar" : "Reintentar"}
+          </button>
         </div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16, marginBottom: 28 }}>

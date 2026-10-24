@@ -157,7 +157,20 @@ function TabMapReduce() {
     : [];
 
   if (loading) return <LoadingSpinner />;
-  if (error) return <ErrorBox msg={error} />;
+  if (error) {
+    const isNoData = error.includes("401") || error.includes("403") || error.includes("404");
+    if (isNoData) return (
+      <div style={{ textAlign: "center", padding: "48px 24px", color: "var(--text-secondary)" }}>
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-tertiary)", marginBottom: 16 }}>
+          <path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 5-5"/>
+        </svg>
+        <p style={{ fontWeight: 600, margin: "0 0 6px" }}>Sin datos aún</p>
+        <p style={{ fontSize: 13, color: "var(--text-tertiary)", margin: 0 }}>Registra pagos y visitas para comenzar a ver análisis.</p>
+        <button onClick={fetchData} style={{ marginTop: 16, padding: "8px 18px", background: "var(--accent-dim)", border: "1px solid var(--accent)", color: "var(--accent-soft)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>Actualizar</button>
+      </div>
+    );
+    return <ErrorBox msg={error} />;
+  }
   if (!data) return null;
 
   const totalIngresos = ingresosAgrupados.reduce((s, r) => s + r.total, 0);
@@ -269,7 +282,20 @@ function TabKMeans() {
   }));
 
   if (loading) return <LoadingSpinner />;
-  if (error)   return <ErrorBox msg={error} />;
+  if (error) {
+    const isNoData = error.includes("401") || error.includes("403") || error.includes("404");
+    if (isNoData) return (
+      <div style={{ textAlign: "center", padding: "48px 24px", color: "var(--text-secondary)" }}>
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-tertiary)", marginBottom: 16 }}>
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+        <p style={{ fontWeight: 600, margin: "0 0 6px" }}>Sin miembros suficientes</p>
+        <p style={{ fontSize: 13, color: "var(--text-tertiary)", margin: 0 }}>Registra miembros con datos de progreso para ver el análisis de grupos.</p>
+        <button onClick={() => fetchData(kValue)} style={{ marginTop: 16, padding: "8px 18px", background: "var(--accent-dim)", border: "1px solid var(--accent)", color: "var(--accent-soft)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>Actualizar</button>
+      </div>
+    );
+    return <ErrorBox msg={error} />;
+  }
   if (!data)   return null;
 
   const silConfig = {
@@ -404,7 +430,20 @@ function TabRegresion() {
     : [];
 
   if (loading) return <LoadingSpinner />;
-  if (error)   return <ErrorBox msg={error} />;
+  if (error) {
+    const isNoData = error.includes("401") || error.includes("403") || error.includes("404");
+    if (isNoData) return (
+      <div style={{ textAlign: "center", padding: "48px 24px", color: "var(--text-secondary)" }}>
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-tertiary)", marginBottom: 16 }}>
+          <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+        </svg>
+        <p style={{ fontWeight: 600, margin: "0 0 6px" }}>Sin datos de progreso</p>
+        <p style={{ fontSize: 13, color: "var(--text-tertiary)", margin: 0 }}>Registra medidas de progreso de tus miembros para ver predicciones de tendencias.</p>
+        <button onClick={fetchData} style={{ marginTop: 16, padding: "8px 18px", background: "var(--accent-dim)", border: "1px solid var(--accent)", color: "var(--accent-soft)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>Actualizar</button>
+      </div>
+    );
+    return <ErrorBox msg={error} />;
+  }
   if (!data)   return null;
 
   return (
@@ -648,7 +687,20 @@ function TabCancelaciones() {
     .slice(0, 15);
 
   if (loading) return <LoadingSpinner />;
-  if (error)   return <ErrorBox msg={error} />;
+  if (error) {
+    const isNoData = error.includes("401") || error.includes("403") || error.includes("404");
+    if (isNoData) return (
+      <div style={{ textAlign: "center", padding: "48px 24px", color: "var(--text-secondary)" }}>
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-tertiary)", marginBottom: 16 }}>
+          <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+        </svg>
+        <p style={{ fontWeight: 600, margin: "0 0 6px" }}>Sin datos de retención</p>
+        <p style={{ fontSize: 13, color: "var(--text-tertiary)", margin: 0 }}>Registra miembros y su asistencia para detectar riesgos de cancelación.</p>
+        <button onClick={fetchData} style={{ marginTop: 16, padding: "8px 18px", background: "var(--accent-dim)", border: "1px solid var(--accent)", color: "var(--accent-soft)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>Actualizar</button>
+      </div>
+    );
+    return <ErrorBox msg={error} />;
+  }
   if (!data)   return null;
 
   const totalAnalizado = (data.resumen?.riesgo_alto || 0) + (data.resumen?.riesgo_medio || 0) + (data.resumen?.activos || 0);

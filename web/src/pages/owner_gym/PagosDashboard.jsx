@@ -329,8 +329,13 @@ export default function PagosDashboard() {
       setMovimientos(res.movimientos || []);
       setPagination({ page: res.page, pages: res.pages, total: res.total });
     } catch (err) {
-      console.error(err);
-      toast.error("Error de conexión", "No se pudieron cargar los movimientos.");
+      const status = err.response?.status;
+      // 401/403 es esperado en gym nuevo (sin pagos aún)
+      if (status !== 401 && status !== 403) {
+        console.error(err);
+        toast.error("Error de conexión", "No se pudieron cargar los movimientos.");
+      }
+      setMovimientos([]);
     } finally {
       setLoading(false);
     }
