@@ -6,7 +6,7 @@ import { getOwnerPerfil, updateOwnerPerfil } from "../../api/owner_gym";
 const getSwalTheme = () => {
   const s = getComputedStyle(document.documentElement);
   return {
-    background: s.getPropertyValue("--bg-card").trim() || "#1e2233",
+    background: s.getPropertyValue("--bg-card").trim() || "var(--bg-card)",
     color:      s.getPropertyValue("--text-primary").trim() || "#f1f5f9",
   };
 };
@@ -38,7 +38,7 @@ const S = {
   readonly: { padding: "10px 14px", background: "var(--bg-main)", border: "1px solid rgba(255,255,255,.04)", borderRadius: 8, color: "var(--text-tertiary,#64748b)", fontSize: 14 },
 };
 
-const PLAN_COLOR = { basico: "#64748b", pro: "#6366f1", enterprise: "#f59e0b" };
+const PLAN_COLOR = { basico: "var(--text-secondary)", pro: "#6366f1", enterprise: "#f59e0b" };
 
 export default function OwnerProfile() {
   const [perfil,    setPerfil]    = useState(null);
@@ -82,13 +82,13 @@ export default function OwnerProfile() {
   };
 
   if (loading) return (
-    <div style={{ ...S.page, display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b" }}>
+    <div style={{ ...S.page, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-secondary)" }}>
       Cargando…
     </div>
   );
 
   if (loadError) return (
-    <div style={{ ...S.page, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, color: "#64748b" }}>
+    <div style={{ ...S.page, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, color: "var(--text-secondary)" }}>
       <FiAlertCircle size={36} color="#475569" />
       <p style={{ margin: 0, fontSize: 14 }}>No se pudo cargar el perfil del gimnasio</p>
       <button onClick={loadPerfil} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 18px", background: "var(--accent-dim)", border: "1px solid var(--accent)", color: "var(--accent-soft)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
@@ -107,17 +107,17 @@ export default function OwnerProfile() {
         <div style={{ display: "flex", gap: 16, marginBottom: 24, padding: "14px 18px", background: "var(--bg-main)", borderRadius: 10, border: "1px solid rgba(255,255,255,.06)", alignItems: "center" }}>
           <FiInfo color="#6366f1" size={18} />
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 12, color: "#94a3b8" }}>Plan activo</div>
+            <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Plan activo</div>
             <div style={{ marginTop: 4 }}>
               <span style={S.badge(PLAN_COLOR[perfil?.plan] || "#6366f1")}>
                 {(perfil?.plan || "—").toUpperCase()}
               </span>
-              <span style={{ marginLeft: 12, fontSize: 12, color: "#64748b" }}>
+              <span style={{ marginLeft: 12, fontSize: 12, color: "var(--text-secondary)" }}>
                 ID #{perfil?.id} · Activo: {perfil?.activo ? "Sí" : "No"}
               </span>
             </div>
           </div>
-          <div style={{ fontSize: 11, color: "#475569" }}>
+          <div style={{ fontSize: 11, color: "var(--text-primary)" }}>
             Desde {perfil?.created_at ? perfil.created_at.slice(0, 10) : "—"}
           </div>
         </div>

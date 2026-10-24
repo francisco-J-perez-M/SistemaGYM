@@ -43,7 +43,7 @@ const overlayStyle = {
 };
 
 const cardStyle = {
-  background: "#1a1a2e",
+  background: "var(--bg-card)",
   border: "1px solid var(--border)",
   borderRadius: 16,
   width: "100%",
@@ -63,7 +63,7 @@ const headerStyle = {
   borderBottom: "1px solid var(--border)",
   position: "sticky",
   top: 0,
-  background: "#1a1a2e",
+  background: "var(--bg-card)",
   zIndex: 1,
   borderRadius: "16px 16px 0 0",
 };

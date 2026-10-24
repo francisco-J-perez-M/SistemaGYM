@@ -229,7 +229,7 @@ const RestoreDashboard = () => {
         <div className="table-section">
           <div className="section-header">
             <h3>Respaldos Disponibles</h3>
-            <span style={{ fontSize: "0.85em", color: "#666" }}>
+            <span style={{ fontSize: "0.85em", color: "var(--text-secondary)" }}>
               Página {currentPage} de {totalPages || 1}
             </span>
           </div>
@@ -339,7 +339,7 @@ const RestoreDashboard = () => {
           <div className="table-section" style={{ opacity: 0.85, marginTop: '40px' }}>
             <div className="section-header">
               <h3>Historial de Restauraciones</h3>
-              <span style={{ fontSize: "0.85em", color: "#666" }}>
+              <span style={{ fontSize: "0.85em", color: "var(--text-secondary)" }}>
                 Página {restorePage} de {totalRestorePages || 1}
               </span>
             </div>
