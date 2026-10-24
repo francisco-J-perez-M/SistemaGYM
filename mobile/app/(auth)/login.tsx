@@ -34,7 +34,7 @@ export default function LoginScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <LinearGradient
-        colors={[colors.background, '#0d0d2e']}
+        colors={[colors.background, colors.gradientDark[1]]}
         style={{ flex: 1 }}
       >
         <ScrollView

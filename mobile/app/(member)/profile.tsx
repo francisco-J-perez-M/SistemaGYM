@@ -222,7 +222,7 @@ function make_styles(colors: ReturnType<typeof useColors>) {
     paddingBottom: 32,
     paddingHorizontal: 24,
     gap:           10,
-    backgroundColor: '#1e1b4b',
+    backgroundColor: colors.heroTop,
   },
   avatarWrap: { marginBottom: 4 },
   avatar: {

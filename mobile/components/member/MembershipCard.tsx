@@ -57,7 +57,7 @@ function make_styles(colors: ReturnType<typeof useColors>) {
     borderRadius:    20,
     padding:         20,
     gap:             10,
-    backgroundColor: '#1e1b4b',
+    backgroundColor: colors.heroTop,
   },
   topRow: {
     flexDirection:  'row',

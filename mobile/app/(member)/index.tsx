@@ -255,7 +255,7 @@ function make_styles(colors: ReturnType<typeof useColors>) {
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius:    14,
-    backgroundColor: '#7c3aed',  // equivale al primer color del gradiente anterior
+    backgroundColor: colors.purple,
   },
   streakText: { color: '#fff', fontSize: 14 },
   kpiGrid: {
