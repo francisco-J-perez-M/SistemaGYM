@@ -9,7 +9,7 @@ import {
   FiFileText, FiLogOut, FiActivity, FiLock, FiCreditCard,
   FiShoppingCart, FiCpu, FiPieChart, FiChevronDown,
   FiChevronLeft, FiChevronRight, FiGlobe, FiPackage, FiServer,
-  FiMoreHorizontal, FiHelpCircle, FiMapPin, FiSearch, FiBriefcase,
+  FiMoreHorizontal, FiHelpCircle, FiMapPin, FiSearch, FiBriefcase, FiImage,
 } from "react-icons/fi";
 import { GiMuscleUp, GiMeal } from "react-icons/gi";
 // HU-45: para ocultar "Sucursales" a Administrador -- comparte el panel
@@ -76,6 +76,7 @@ const MENUS = {
         { id: "ow-profile",      label: "Perfil del Gym",            icon: <FiGlobe />      },
         { id: "ow-subscription", label: "Mi Suscripción",            icon: <FiCreditCard /> },
         { id: "ow-pagos-online", label: "Cobros en línea",           icon: <FiDollarSign /> },
+        { id: "ow-perfil-publico", label: "Perfil público",          icon: <FiImage />      },
         { id: "ow-backups",      label: "Respaldos y Restauración", icon: <FiUpload /> },
       ],
     },

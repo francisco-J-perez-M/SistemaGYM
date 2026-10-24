@@ -250,8 +250,8 @@ export default function RegisterGym() {
                             onClick={() => { setSelectedType(tipo.id); setError(""); }}
                             style={{
                               padding: "12px 8px", borderRadius: 10,
-                              border: `2px solid ${isSelected ? "var(--accent)" : "var(--border-color, #333)"}`,
-                              background: isSelected ? "var(--accent, #6c63ff)22" : "var(--card-bg, #1e1e2e)",
+                              border: `2px solid ${isSelected ? "var(--accent)" : "var(--border)"}`,
+                              background: isSelected ? "var(--accent, #6c63ff)22" : "var(--bg-card)",
                               cursor: "pointer", textAlign: "center",
                               display: "flex", flexDirection: "column", alignItems: "center", gap: 6, position: "relative",
                             }}
@@ -281,7 +281,7 @@ export default function RegisterGym() {
                       Siguiente <FiArrowRight style={{ marginLeft: 8 }} />
                     </button>
                     <p className="register-link" style={{ marginTop: 16 }}>
-                      ¿Ya tienes cuenta? <Link to="/">Inicia sesión</Link>
+                      ¿Ya tienes cuenta? <Link to="/login">Inicia sesión</Link>
                     </p>
                   </motion.div>
                 )}

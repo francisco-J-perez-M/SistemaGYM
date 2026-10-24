@@ -76,7 +76,7 @@ export default function ForgotPassword() {
   return (
     <div style={wrap}>
       <div style={card}>
-        <Link to="/" style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "var(--text-secondary, #94a3b8)", textDecoration: "none", fontSize: 13, marginBottom: 14 }}>
+        <Link to="/login" style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "var(--text-secondary, #94a3b8)", textDecoration: "none", fontSize: 13, marginBottom: 14 }}>
           <FiArrowLeft /> Volver a iniciar sesión
         </Link>
 

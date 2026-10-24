@@ -43,7 +43,7 @@ export async function peticion(ruta, opciones = {}) {
   if (respuesta.status === 401) {
     // Sesión vencida o revocada: no tiene sentido devolver el error al
     // componente que llamó, directo al inicio de sesión.
-    window.location.replace("/");
+    window.location.replace("/login");
     return null;
   }
 
