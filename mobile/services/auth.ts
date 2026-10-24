@@ -21,9 +21,14 @@ export interface LoginResponse {
   user:           AuthUser;
 }
 
-const CLAVE_ACCESO   = 'access_token';
-const CLAVE_REFRESCO = 'refresh_token';
-const CLAVE_USUARIO  = 'user_data';
+const CLAVE_ACCESO             = 'access_token';
+const CLAVE_REFRESCO           = 'refresh_token';
+const CLAVE_USUARIO            = 'user_data';
+// Actividad 09, PR-01 (J. C. Pérez Nava): revocación en el servidor
+// pendiente de confirmar. Si clearSession() no pudo avisar al backend
+// (sin red, por ejemplo), el refresco queda aquí y se reintenta en el
+// siguiente arranque con conexión -- ver loadSession().
+const CLAVE_REVOCAR_PENDIENTE  = 'revoke_pending_refresh_token';
 
 export async function loginRequest(
   email: string,
@@ -86,13 +91,25 @@ export async function refrescarSesion(): Promise<{ token: string; user?: AuthUse
   const refresh = await getRefreshToken();
   if (!refresh) return null;
   try {
-    const { data } = await axios.post<{ access_token: string; user?: AuthUser }>(
+    // Actividad 09, PR-02 (J. C. Pérez Nava): el servidor ROTA el token de
+    // refresco en cada renovación y revoca el presentado. Antes solo se
+    // guardaba el access_token nuevo y el de refresco original se seguía
+    // usando sin límite durante sus 90 días completos.
+    const { data } = await axios.post<{
+      access_token: string; refresh_token?: string; user?: AuthUser;
+    }>(
       `${API_BASE_URL}${ENDPOINTS.REFRESH}`,
       {},
       { headers: { Authorization: `Bearer ${refresh}` }, timeout: 15_000 },
     );
     if (!data?.access_token) return null;
+
     await actualizarAccessToken(data.access_token);
+    if (data.refresh_token) {
+      // Guardar el nuevo ANTES de devolver: si la aplicación muere aquí,
+      // el token viejo ya no sirve y el usuario simplemente vuelve a entrar.
+      await SecureStore.setItemAsync(CLAVE_REFRESCO, data.refresh_token);
+    }
     if (data.user) await actualizarUsuario(data.user);
     return { token: data.access_token, user: data.user };
   } catch {
@@ -100,8 +117,53 @@ export async function refrescarSesion(): Promise<{ token: string; user?: AuthUse
   }
 }
 
+/**
+ * Cierra la sesión en el servidor y luego limpia el dispositivo.
+ *
+ * Actividad 09, PR-01 (J. C. Pérez Nava): antes clearSession() solo
+ * borraba el almacén local -- el token de refresco seguía siendo válido
+ * en el servidor durante sus 90 días completos, así que quien tuviera una
+ * copia conservaba el acceso aunque el usuario "cerrara sesión".
+ */
 export async function clearSession(): Promise<void> {
+  const refresco = await SecureStore.getItemAsync(CLAVE_REFRESCO);
+
+  if (refresco) {
+    try {
+      await axios.post(
+        `${API_BASE_URL}${ENDPOINTS.LOGOUT}`,
+        {},
+        { headers: { Authorization: `Bearer ${refresco}` }, timeout: 8_000 },
+      );
+    } catch {
+      // Sin red o el servidor no respondió: queda pendiente y se reintenta
+      // en el siguiente arranque (ver loadSession). El usuario debe poder
+      // salir de la aplicación igual, estando desconectado.
+      try { await SecureStore.setItemAsync(CLAVE_REVOCAR_PENDIENTE, refresco); } catch { /* best-effort */ }
+    }
+  }
+
   await SecureStore.deleteItemAsync(CLAVE_ACCESO);
   await SecureStore.deleteItemAsync(CLAVE_REFRESCO);
   await SecureStore.deleteItemAsync(CLAVE_USUARIO);
+}
+
+/**
+ * Reintenta revocar en el servidor un cierre de sesión que quedó pendiente
+ * por falta de red. Pensada para llamarse una vez al arrancar la app
+ * (junto a loadSession), cuando ya puede haber conexión de nuevo.
+ */
+export async function reintentarRevocacionPendiente(): Promise<void> {
+  const pendiente = await SecureStore.getItemAsync(CLAVE_REVOCAR_PENDIENTE);
+  if (!pendiente) return;
+  try {
+    await axios.post(
+      `${API_BASE_URL}${ENDPOINTS.LOGOUT}`,
+      {},
+      { headers: { Authorization: `Bearer ${pendiente}` }, timeout: 8_000 },
+    );
+    await SecureStore.deleteItemAsync(CLAVE_REVOCAR_PENDIENTE);
+  } catch {
+    // Sigue sin red; se reintentará en el próximo arranque.
+  }
 }
