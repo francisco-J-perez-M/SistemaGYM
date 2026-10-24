@@ -21,7 +21,16 @@ export const updateOwnerPropietario = (data) =>
   API.put("/owner_gym/perfil/propietario", data);
 
 // ── Reportes ejecutivos ───────────────────────────────────────────────────
-export const getReporteOpciones = () => API.get("/owner_gym/reportes/opciones");
+// idGimnasio: opcional -- reporte de OTRA sucursal de la misma organización
+// (ver _resolver_gimnasio_objetivo() en reportes_negocio.py). Sin él, la
+// propia sucursal del token.
+export const getReporteOpciones = (idGimnasio) =>
+  API.get("/owner_gym/reportes/opciones", {
+    params: idGimnasio ? { id_gimnasio: idGimnasio } : {},
+  });
+/** Sucursales sobre las que el usuario puede pedir reporte (todas si es
+ *  Propietario, solo las asignadas si es Administrador). */
+export const getReporteSucursales = () => API.get("/owner_gym/reportes/sucursales");
 /** Descarga el PDF como blob; el navegador no puede seguir un enlace con JWT. */
 export const descargarReportePdf = (params) =>
   API.get("/owner_gym/reportes/pdf", { params, responseType: "blob" });
@@ -62,6 +71,9 @@ export const eliminarProducto    = (id)          => API.delete(`/owner_gym/produ
 // de su organización y su ocupación (miembros/staff) frente al plan.
 export const getSucursales         = ()        => API.get("/owner_gym/sucursales");
 export const getSucursalesCapacidad = ()       => API.get("/owner_gym/sucursales/capacidad");
+// SCRUM-223: sucursales usadas vs. tope del plan de TODA mi organización
+// (antes el plan vivía por sucursal; ahora lo contrata la organización).
+export const getLimiteSucursales    = ()       => API.get("/owner_gym/sucursales/limite");
 export const crearSucursal         = (data)     => API.post("/owner_gym/sucursales", data);
 export const editarSucursal        = (id, data) => API.put(`/owner_gym/sucursales/${id}`, data);
 export const toggleSucursal        = (id)       => API.patch(`/owner_gym/sucursales/${id}/toggle`);

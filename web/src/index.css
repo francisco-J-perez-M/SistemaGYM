@@ -52,3 +52,43 @@ select option {
   color:            var(--text-primary);
   padding:          8px 12px;
 }
+
+/* ── Scrollbar global — mismo estilo en toda la app, no solo en la barra
+   lateral: usa las variables del tema activo (--border-hover/--accent) para
+   que nunca desentone, sea cual sea el tema o el navegador.
+   Firefox lee scrollbar-width/scrollbar-color; Chrome/Edge/Safari leen los
+   pseudo-elementos ::-webkit-scrollbar-*. Se aplica a "*" para alcanzar
+   también el scroll propio del documento (<html>) y cualquier contenedor
+   con overflow, no solo los paneles con su propio scroll interno. ────────
+*/
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-hover) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: var(--border-hover);
+  border-radius: var(--r-full);
+  /* El borde transparente + background-clip "encoge" visualmente el thumb
+     unos px respecto al ancho de la pista, para que no se vea pegado al
+     borde del contenedor. */
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--accent);
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
