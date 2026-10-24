@@ -13,6 +13,7 @@ const SCREENS: Screen[] = [
   { name: 'pt-requests', title: 'Solicitudes PT',  icon: 'hand-left-outline',  iconActive: 'hand-left' },
   { name: 'chat',        title: 'Mensajes',         icon: 'chatbubbles-outline', iconActive: 'chatbubbles' },
   { name: 'schedule',    title: 'Agenda',           icon: 'calendar-outline',   iconActive: 'calendar'  },
+  { name: 'reports',     title: 'Reportes',         icon: 'bar-chart-outline',  iconActive: 'bar-chart' },
   { name: 'routines',    title: 'Rutinas',          icon: 'barbell-outline',    iconActive: 'barbell'   },
   { name: 'diets',       title: 'Dietas',           icon: 'nutrition-outline',  iconActive: 'nutrition' },
   { name: 'profile',     title: 'Perfil',           icon: 'person-outline',     iconActive: 'person'    },

@@ -2,7 +2,7 @@
  * Dashboard del Miembro.
  * Muestra: saludo, racha, KPIs, membresía, rutina de hoy, logros.
  */
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl,
 } from 'react-native';
@@ -22,6 +22,7 @@ import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import type { DashboardData, Exercise } from '../../types';
 import api from '../../services/api';
+import { refreshMemberReminders } from '../../services/reminders';
 
 export default function MemberDashboard() {
   const colors = useColors();
@@ -30,6 +31,15 @@ export default function MemberDashboard() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { data, loading, error, refetch } = useFetch<DashboardData>(ENDPOINTS.USER_DASHBOARD);
+
+  // Programa recordatorios locales (racha diaria + vencimiento de membresía).
+  useEffect(() => {
+    if (!data) return;
+    refreshMemberReminders({
+      membershipEnd: data.membership?.fecha_fin ?? null,
+      streakDays:    data.workoutStats?.streakDays ?? 0,
+    });
+  }, [data]);
 
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [checkinDone, setCheckinDone] = useState(false);

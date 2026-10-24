@@ -102,6 +102,7 @@ export const ENDPOINTS = {
   TRAINER_ROUTINES:   '/trainer/routines',       // GET /api/trainer/routines
   TRAINER_SCHEDULE:   '/trainer/schedule',       // GET /api/trainer/schedule
   TRAINER_SESSIONS:   '/trainer/sessions',       // GET /api/trainer/sessions
+  TRAINER_REPORTS:    '/trainer/reports',        // GET /api/trainer/reports?range=week|month|quarter
   TRAINER_MEMBERS:    '/trainer/members',        // GET /api/trainer/members
   TRAINER_DIETS:      '/trainer/diets',          // GET/POST/PUT/DELETE /api/trainer/diets
   TRAINER_RECIPES:    '/trainer/recipes',        // GET/POST /api/trainer/recipes
