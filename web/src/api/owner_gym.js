@@ -22,6 +22,7 @@ export const getStaff            = (params = {}) => API.get("/owner_gym/staff", 
 export const getStaffMember      = (id)          => API.get(`/owner_gym/staff/${id}`);
 export const crearStaff          = (data)        => API.post("/owner_gym/staff", data);
 export const toggleStaff         = (id)          => API.patch(`/owner_gym/staff/${id}/toggle`);
+export const updateStaff         = (id, data)    => API.put(`/owner_gym/staff/${id}`, data);
 
 // ── Tipos de membresía ────────────────────────────────────────────────────
 export const getMembresias       = (params = {}) => API.get("/owner_gym/membresias", { params });
