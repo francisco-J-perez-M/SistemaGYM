@@ -60,11 +60,33 @@ const S = {
 };
 
 const FRECUENCIAS = [
-  { id: "diaria",  label: "Diaria",  detalle: "Cada día, con el corte del día anterior" },
-  { id: "semanal", label: "Semanal", detalle: "Cada lunes, con el corte de la semana anterior" },
-  { id: "mensual", label: "Mensual", detalle: "El día 1 de cada mes, con el corte del mes anterior" },
-  { id: "anual",   label: "Anual",   detalle: "El 1 de enero, con el corte del año anterior" },
+  { id: "diaria",  label: "Diaria",  detalle: "Un reporte del día" },
+  { id: "semanal", label: "Semanal", detalle: "Un reporte de la semana (lunes a domingo)" },
+  { id: "mensual", label: "Mensual", detalle: "Un reporte del mes completo" },
+  { id: "anual",   label: "Anual",   detalle: "Un reporte del año completo" },
 ];
+
+// Cuándo se manda dentro del periodo -- ver nota en el modelo
+// (ConfiguracionReporteAutomatico.MOMENTOS_VALIDOS) sobre el porqué.
+const MOMENTOS = [
+  { id: "dia_siguiente", label: "Día siguiente", detalle: "Después de que el periodo cierra, con el corte ya completo" },
+  { id: "mismo_dia",     label: "Mismo día",     detalle: "El último día del periodo, con lo acumulado hasta esa hora" },
+];
+
+const detalleEnvio = (frecuencia, momento, hora) => {
+  const horaTxt = `${String(hora).padStart(2, "0")}:00`;
+  const MAPA = {
+    diaria:  { mismo_dia: `Hoy mismo a las ${horaTxt}, con los datos de hoy`,
+               dia_siguiente: `Mañana a las ${horaTxt}, con el corte de ayer` },
+    semanal: { mismo_dia: `El domingo a las ${horaTxt}, con el corte de esta semana`,
+               dia_siguiente: `El lunes a las ${horaTxt}, con el corte de la semana pasada` },
+    mensual: { mismo_dia: `El último día del mes a las ${horaTxt}, con el corte de este mes`,
+               dia_siguiente: `El día 1 a las ${horaTxt}, con el corte del mes pasado` },
+    anual:   { mismo_dia: `El 31 de diciembre a las ${horaTxt}, con el corte de este año`,
+               dia_siguiente: `El 1 de enero a las ${horaTxt}, con el corte del año pasado` },
+  };
+  return MAPA[frecuencia]?.[momento] || "";
+};
 
 const SECCIONES_DEFAULT = ["resumen", "ingresos", "membresias", "pos", "asistencias", "miembros"];
 
@@ -96,6 +118,8 @@ export default function OwnerReportesAutomaticos() {
   const [editandoId,  setEditandoId]  = useState(null);
   const [nombre,      setNombre]      = useState("");
   const [frecuencia,  setFrecuencia]  = useState("semanal");
+  const [momentoEnvio, setMomentoEnvio] = useState("dia_siguiente");
+  const [horaEnvio,    setHoraEnvio]    = useState(6);
   const [secciones,   setSecciones]   = useState(SECCIONES_DEFAULT);
   const [comparar,    setComparar]    = useState(true);
   const [graficas,    setGraficas]    = useState(true);
@@ -132,6 +156,8 @@ export default function OwnerReportesAutomaticos() {
     setEditandoId(null);
     setNombre("");
     setFrecuencia("semanal");
+    setMomentoEnvio("dia_siguiente");
+    setHoraEnvio(6);
     setSecciones(SECCIONES_DEFAULT);
     setComparar(true);
     setGraficas(true);
@@ -143,6 +169,8 @@ export default function OwnerReportesAutomaticos() {
     setEditandoId(cfg.id);
     setNombre(cfg.nombre);
     setFrecuencia(cfg.frecuencia);
+    setMomentoEnvio(cfg.momento_envio || "dia_siguiente");
+    setHoraEnvio(typeof cfg.hora_envio === "number" ? cfg.hora_envio : 6);
     setSecciones(cfg.secciones?.length ? cfg.secciones : SECCIONES_DEFAULT);
     setComparar(cfg.comparar);
     setGraficas(cfg.graficas);
@@ -163,7 +191,10 @@ export default function OwnerReportesAutomaticos() {
     }
     setGuardando(true);
     try {
-      const payload = { nombre: nombre.trim(), frecuencia, secciones, comparar, graficas };
+      const payload = {
+        nombre: nombre.trim(), frecuencia, secciones, comparar, graficas,
+        momento_envio: momentoEnvio, hora_envio: horaEnvio,
+      };
       if (editandoId) {
         await actualizarReporteAutomatico(editandoId, payload);
       } else {
@@ -322,6 +353,46 @@ export default function OwnerReportesAutomaticos() {
             })}
           </div>
 
+          <label style={S.label}><FiClock style={{ verticalAlign: -2 }} /> Cuándo enviarlo</label>
+          <div style={{ display: "grid", gap: 9, marginBottom: 14 }}>
+            {MOMENTOS.map((m) => {
+              const activa = momentoEnvio === m.id;
+              return (
+                <div
+                  key={m.id}
+                  onClick={() => setMomentoEnvio(m.id)}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 12, cursor: "pointer",
+                    padding: "13px 15px", borderRadius: 11, background: C.input,
+                    border: `1px solid ${activa ? C.accent : C.border}`,
+                  }}
+                >
+                  <span style={{ color: activa ? C.accent : C.t2, display: "flex" }}>
+                    {activa ? <FiCheckSquare size={19} /> : <FiSquare size={19} />}
+                  </span>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700 }}>{m.label}</p>
+                    <p style={{ margin: "2px 0 0", fontSize: 11.5, color: C.t2 }}>{m.detalle}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <label style={S.label}>Hora</label>
+          <select
+            value={horaEnvio}
+            onChange={(e) => setHoraEnvio(Number(e.target.value))}
+            style={{ ...S.input, width: 130, marginBottom: 6 }}
+          >
+            {Array.from({ length: 24 }, (_, h) => (
+              <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>
+            ))}
+          </select>
+          <p style={{ margin: "0 0 22px", fontSize: 12.5, color: C.accent, fontWeight: 600 }}>
+            {detalleEnvio(frecuencia, momentoEnvio, horaEnvio)}
+          </p>
+
           <label style={S.label}>Qué incluir</label>
           <div style={{ display: "grid", gap: 9, marginBottom: 22 }}>
             {catalogoSecciones.map((s) => {
@@ -422,6 +493,9 @@ export default function OwnerReportesAutomaticos() {
                   {cfg.secciones.length} sección{cfg.secciones.length === 1 ? "" : "es"}
                   {cfg.graficas && " · con gráficas"}
                   {cfg.comparar && " · con comparativa"}
+                </p>
+                <p style={{ margin: "4px 0 0", fontSize: 12, color: C.t2 }}>
+                  Se envía: {cfg.momento_envio_label} · {String(cfg.hora_envio).padStart(2, "0")}:00
                 </p>
                 <p style={{ margin: "4px 0 0", fontSize: 12, color: C.t2 }}>
                   {cfg.ultima_ejecucion

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { getTodosMovimientos, getCategoriasVentas } from "../../api/pagos";
 import { useToast } from "../../hooks/useToast";
+import SelectorFecha from "../../components/compartido/SelectorFecha";
 import "../../css/CSSUnificado.css";
 
 /* ── Iconos SVG inline ── */
@@ -413,16 +414,12 @@ export default function PagosDashboard() {
             </span>
             <FilterPill active={fechaDia === hoyISO()} onClick={() => handleFechaDia(hoyISO())}>Hoy</FilterPill>
             <FilterPill active={fechaDia === diasAtrasISO(1)} onClick={() => handleFechaDia(diasAtrasISO(1))}>Ayer</FilterPill>
-            <input
-              type="date"
+            <SelectorFecha
+              modo="dia"
               value={fechaDia}
               max={hoyISO()}
-              onChange={(e) => e.target.value && handleFechaDia(e.target.value)}
-              style={{
-                padding: "6px 12px", borderRadius: 999, fontSize: 12, fontWeight: 600,
-                border: "1.5px solid var(--border)", background: "var(--bg-input, var(--bg-main))",
-                color: "var(--text-primary)",
-              }}
+              onChange={handleFechaDia}
+              label={formatFecha(fechaDia)}
             />
           </div>
         )}
@@ -435,22 +432,15 @@ export default function PagosDashboard() {
             </span>
             <FilterPill active={fechaSemana === hoyISO()} onClick={() => handleFechaSemana(hoyISO())}>Esta semana</FilterPill>
             <FilterPill active={fechaSemana === diasAtrasISO(7)} onClick={() => handleFechaSemana(diasAtrasISO(7))}>Semana pasada</FilterPill>
-            <input
-              type="date"
+            <SelectorFecha
+              modo="semana"
               value={fechaSemana}
               max={hoyISO()}
-              onChange={(e) => e.target.value && handleFechaSemana(e.target.value)}
-              style={{
-                padding: "6px 12px", borderRadius: 999, fontSize: 12, fontWeight: 600,
-                border: "1.5px solid var(--border)", background: "var(--bg-input, var(--bg-main))",
-                color: "var(--text-primary)",
-              }}
+              onChange={handleFechaSemana}
+              label={rangoSemanaActual
+                ? `${formatFecha(rangoSemanaActual.desde)} – ${formatFecha(rangoSemanaActual.hasta)}`
+                : "Elegir semana"}
             />
-            {rangoSemanaActual && (
-              <span style={{ fontSize: 11.5, color: "var(--text-secondary)" }}>
-                ({formatFecha(rangoSemanaActual.desde)} al {formatFecha(rangoSemanaActual.hasta)})
-              </span>
-            )}
           </div>
         )}
 
