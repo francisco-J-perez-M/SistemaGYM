@@ -119,6 +119,13 @@ export const trainerService = {
     return await apiFetch(`${API_BASE_URL}/trainer/diets/${id}`, { method: 'DELETE' });
   },
 
+  bulkDeleteDiets: async (ids) => {
+    return await apiFetch(`${API_BASE_URL}/trainer/diets/bulk-delete`, {
+      method: 'POST',
+      body: JSON.stringify({ ids }),
+    });
+  },
+
   assignDiet: async (id, id_miembro_pg) => {
     return await apiFetch(`${API_BASE_URL}/trainer/diets/${id}/assign`, {
       method: 'POST',
@@ -151,6 +158,13 @@ export const trainerService = {
     return await apiFetch(`${API_BASE_URL}/trainer/recipes/${id}`, { method: 'DELETE' });
   },
 
+  bulkDeleteRecipes: async (ids) => {
+    return await apiFetch(`${API_BASE_URL}/trainer/recipes/bulk-delete`, {
+      method: 'POST',
+      body: JSON.stringify({ ids }),
+    });
+  },
+
   // ─── AI ETL — Importar plan alimenticio (LLM local vía Ollama) ───────────
 
   /**
@@ -181,6 +195,25 @@ export const trainerService = {
       throw new Error(data.error || data.message || data.msg || 'Error en la importación');
     }
     return data;
+  },
+
+  /**
+   * Persiste el plan + recetas extraídos por IA.
+   * @param {Object} plan        Estructura de dieta v2
+   * @param {Array}  recetas     Lista de recetas a crear en la biblioteca
+   * @param {Object} [opts]      { id_miembro_pg, nombre_plan, archivo }
+   */
+  confirmDietImport: async (plan, recetas, opts = {}) => {
+    return await apiFetch(`${API_BASE_URL}/trainer/diets/confirm-import`, {
+      method: 'POST',
+      body: JSON.stringify({
+        plan,
+        recetas,
+        id_miembro_pg: opts.id_miembro_pg || null,
+        nombre_plan:   opts.nombre_plan   || null,
+        archivo:       opts.archivo       || null,
+      }),
+    });
   },
 
   // ─── DASHBOARD ─────────────────────────────────────────────────────────────
