@@ -1,438 +1,488 @@
 /**
  * OwnerStaff.jsx — Gestión de entrenadores y recepcionistas del gimnasio.
- * Reemplaza el diseño basado en Swal por modales nativos + useToast.
+ * Diseño de cards con foto de perfil (base64, sin filesystem).
  */
-import { useEffect, useState, useRef } from "react";
-import {
-  FiUsers, FiUserPlus, FiToggleLeft, FiToggleRight,
-  FiSearch, FiEdit2, FiX, FiUser, FiMail, FiLock, FiShield,
-} from "react-icons/fi";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { getStaff, crearStaff, toggleStaff, updateStaff } from "../../api/owner_gym";
-import { useToast } from "../../hooks/useToast";
-import "../../css/CSSUnificado.css";
 
-/* ── Constantes ── */
-const ROLE_COLOR  = { Entrenador: "#6366f1", Recepcionista: "#14b8a6" };
-const EMPTY_FORM  = { nombre: "", email: "", password: "", rol: "" };
+// ── Tokens ────────────────────────────────────────────────────────────────────
+const C = {
+  bg:      "var(--bg-main,#0f1117)",
+  card:    "var(--bg-card,#1a1d27)",
+  input:   "var(--bg-input,#12151e)",
+  border:  "var(--border,rgba(255,255,255,.08))",
+  accent:  "var(--accent,#6366f1)",
+  success: "var(--success,#22c55e)",
+  danger:  "var(--danger,#ef4444)",
+  t1:      "var(--text-primary,#f1f5f9)",
+  t2:      "var(--text-secondary,#94a3b8)",
+  t3:      "var(--text-tertiary,#64748b)",
+};
 
-/* ── Avatar iniciales ── */
-function Avatar({ nombre, size = 40 }) {
-  const initials = (nombre || "?")
-    .split(" ").slice(0, 2).map(w => w[0]?.toUpperCase() || "").join("");
+const ROLE_COLOR = { Entrenador: "#6366f1", Recepcionista: "#14b8a6" };
+const ROLE_BG    = { Entrenador: "#6366f122", Recepcionista: "#14b8a622" };
+
+const VALID_PREFIXES = ["data:image/jpeg;base64,","data:image/png;base64,",
+                        "data:image/webp;base64,","data:image/gif;base64,"];
+const validFoto = (v) => v && VALID_PREFIXES.some(p => v.startsWith(p)) ? v : null;
+
+// ── Íconos SVG ────────────────────────────────────────────────────────────────
+const IcoUser   = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
+const IcoMail   = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>;
+const IcoLock   = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>;
+const IcoShield = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>;
+const IcoCamera = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>;
+const IcoEdit   = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>;
+const IcoSearch = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>;
+const IcoPlus   = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14"/></svg>;
+const IcoX      = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>;
+
+// ── Avatar ────────────────────────────────────────────────────────────────────
+function Avatar({ src, name, size = 52 }) {
+  const [broken, setBroken] = useState(false);
+  useEffect(() => setBroken(false), [src]);
+  const initials = (name || "?").split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase();
+  const palette  = ["#6366f1","#8b5cf6","#ec4899","#14b8a6","#f59e0b","#10b981"];
+  const bg       = palette[(name?.charCodeAt(0) || 0) % palette.length];
+  const st = { width: size, height: size, borderRadius: "50%", flexShrink: 0, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", background: bg, fontWeight: 700, fontSize: size * 0.36, color: "#fff", letterSpacing: "-0.5px" };
+  if (src && !broken) return <div style={st}><img src={src} alt={name} onError={() => setBroken(true)} style={{ width: "100%", height: "100%", objectFit: "cover" }} /></div>;
+  return <div style={st}>{initials}</div>;
+}
+
+// ── PhotoUploader ─────────────────────────────────────────────────────────────
+function PhotoUploader({ preview, onChange, name }) {
+  const ref = useRef();
+  const [broken, setBroken]     = useState(false);
+  const [selected, setSelected] = useState(false);
+  useEffect(() => { setBroken(false); setSelected(false); }, [name]);
+
+  const initials = (name || "?").split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase();
+  const palette  = ["#6366f1","#8b5cf6","#ec4899","#14b8a6","#f59e0b","#10b981"];
+  const bg       = palette[(name?.charCodeAt(0) || 0) % palette.length];
+
+  const handleFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => { setBroken(false); setSelected(true); onChange(ev.target.result); };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
   return (
-    <div style={{
-      width: size, height: size, borderRadius: "50%", flexShrink: 0,
-      background: "var(--accent-dim)", display: "flex",
-      alignItems: "center", justifyContent: "center",
-      color: "var(--accent-soft)", fontWeight: 700, fontSize: size * 0.35,
-    }}>
-      {initials}
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 20, gap: 6 }}>
+      <div style={{ position: "relative" }}>
+        <div onClick={() => ref.current?.click()} title="Clic para cambiar foto"
+          style={{ width: 88, height: 88, borderRadius: "50%", overflow: "hidden", border: `2px solid ${selected ? C.success : C.accent}`, background: C.input, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+          {preview && !broken
+            ? <img src={preview} alt="foto" onError={() => setBroken(true)} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: bg, fontWeight: 700, fontSize: 28, color: "#fff" }}>{initials}</div>
+          }
+        </div>
+        <button type="button" onClick={() => ref.current?.click()}
+          style={{ position: "absolute", bottom: 0, right: 0, width: 28, height: 28, borderRadius: "50%", border: `2px solid ${C.card}`, background: selected ? C.success : C.accent, color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 8px rgba(0,0,0,.5)", fontSize: 12 }}>
+          {selected ? "✓" : <IcoCamera />}
+        </button>
+        <input ref={ref} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleFile} style={{ display: "none" }} />
+      </div>
+      <p style={{ fontSize: 11, color: selected ? C.success : C.t3, margin: 0, fontWeight: selected ? 700 : 400 }}>
+        {selected ? "✓ Foto lista — guarda para aplicar" : "Clic en la foto para cambiarla"}
+      </p>
     </div>
   );
 }
 
-/* ── Modal de Crear / Editar Staff ── */
-function StaffModal({ open, onClose, onSave, initialData = null, loading }) {
+// ── Toast ─────────────────────────────────────────────────────────────────────
+let _setToasts = () => {};
+const toast = {
+  success: (msg) => _setToasts(t => [...t, { id: Date.now(), type: "success", msg }]),
+  error:   (msg) => _setToasts(t => [...t, { id: Date.now(), type: "error",   msg }]),
+};
+function Toasts() {
+  const [toasts, setToasts] = useState([]);
+  _setToasts = setToasts;
+  useEffect(() => {
+    if (!toasts.length) return;
+    const t = setTimeout(() => setToasts(ts => ts.slice(1)), 3200);
+    return () => clearTimeout(t);
+  }, [toasts]);
+  return (
+    <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 9999, display: "flex", flexDirection: "column", gap: 8 }}>
+      {toasts.map(t => (
+        <div key={t.id} style={{ background: t.type === "success" ? C.success : C.danger, color: "#fff", padding: "10px 18px", borderRadius: 10, fontSize: 13, fontWeight: 600, boxShadow: "0 4px 20px rgba(0,0,0,.4)" }}>
+          {t.type === "success" ? "✓" : "✕"} {t.msg}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── ConfirmDialog ─────────────────────────────────────────────────────────────
+function ConfirmDialog({ open, title, message, onConfirm, onCancel, danger }) {
+  if (!open) return null;
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 9500, background: "rgba(0,0,0,.7)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: "28px 32px", maxWidth: 400, width: "100%", textAlign: "center" }}>
+        <p style={{ fontSize: 17, fontWeight: 700, color: C.t1, marginBottom: 8 }}>{title}</p>
+        <p style={{ fontSize: 13, color: C.t2, marginBottom: 24, lineHeight: 1.6 }}>{message}</p>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={onCancel} style={{ flex: 1, padding: "10px 0", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", color: C.t2, fontWeight: 600, cursor: "pointer" }}>Cancelar</button>
+          <button onClick={onConfirm} style={{ flex: 1, padding: "10px 0", borderRadius: 8, border: "none", background: danger ? `${C.danger}22` : `${C.success}22`, color: danger ? C.danger : C.success, fontWeight: 700, cursor: "pointer" }}>Confirmar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Modal ─────────────────────────────────────────────────────────────────────
+const EMPTY_FORM = { nombre: "", email: "", password: "", rol: "", foto_base64: "" };
+
+function StaffModal({ open, onClose, onSave, initial, saving }) {
   const [form, setForm] = useState(EMPTY_FORM);
+  const isEdit = Boolean(initial);
 
   useEffect(() => {
-    if (open) {
-      setForm(initialData
-        ? { nombre: initialData.nombre || "", email: initialData.email || "", password: "", rol: initialData.rol || "" }
-        : EMPTY_FORM
-      );
-    }
-  }, [open, initialData]);
+    if (!open) return;
+    setForm(initial
+      ? { nombre: initial.nombre || "", email: initial.email || "", password: "", rol: initial.rol || "", foto_base64: "" }
+      : EMPTY_FORM
+    );
+  }, [open, initial]);
 
   if (!open) return null;
-  const isEdit = Boolean(initialData);
 
-  const field = (id, label, icon, type = "text", placeholder = "") => (
-    <div className="form-group compact">
-      <label className="form-label-compact">
-        {icon} {label}{!isEdit || id !== "password" ? " *" : " (dejar vacía para mantener)"}
+  const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
+
+  const inputSt = {
+    width: "100%", boxSizing: "border-box", background: C.input,
+    border: `1px solid ${C.border}`, borderRadius: 8,
+    padding: "9px 12px 9px 32px", color: C.t1, fontSize: 13, outline: "none",
+  };
+
+  const Field = ({ label, required, children }) => (
+    <div style={{ flex: "1 1 calc(50% - 6px)", minWidth: 0 }}>
+      <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: C.t2, textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 5 }}>
+        {label}{required && <span style={{ color: C.accent, marginLeft: 2 }}>*</span>}
       </label>
-      <input
-        className="input-compact"
-        type={type}
-        placeholder={placeholder || label}
-        value={form[id]}
-        onChange={e => setForm(f => ({ ...f, [id]: e.target.value }))}
-        required={!isEdit || id !== "password"}
-      />
+      {children}
+    </div>
+  );
+
+  const IcoWrap = ({ icon, children }) => (
+    <div style={{ position: "relative" }}>
+      <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: C.t3, display: "flex" }}>{icon}</span>
+      {children}
     </div>
   );
 
   return (
-    <div style={{
-      position: "fixed", inset: 0, background: "rgba(0,0,0,.65)",
-      display: "flex", alignItems: "center", justifyContent: "center",
-      zIndex: 1100, padding: 20,
-    }}
-      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      <div style={{
-        background: "var(--bg-card)", borderRadius: "var(--r-lg)",
-        border: "1px solid var(--border)", width: "100%", maxWidth: 460,
-        overflow: "hidden", boxShadow: "0 24px 64px rgba(0,0,0,.5)",
-      }}>
+    <div onClick={e => e.target === e.currentTarget && onClose()}
+      style={{ position: "fixed", inset: 0, zIndex: 9000, background: "rgba(0,0,0,.65)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, width: "100%", maxWidth: 520, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 24px 64px rgba(0,0,0,.6)" }}>
+
         {/* Header */}
-        <div style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "18px 22px", borderBottom: "1px solid var(--border)",
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{
-              width: 36, height: 36, borderRadius: "var(--r-md)",
-              background: "rgba(99,102,241,.12)", display: "flex",
-              alignItems: "center", justifyContent: "center", color: "#6366f1",
-            }}>
-              {isEdit ? <FiEdit2 size={16} /> : <FiUserPlus size={16} />}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 24px 16px", borderBottom: `1px solid ${C.border}`, position: "sticky", top: 0, background: C.card, zIndex: 1 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: `${C.accent}20`, display: "flex", alignItems: "center", justifyContent: "center", color: C.accent }}>
+              {isEdit ? <IcoEdit /> : <IcoPlus />}
             </div>
             <div>
-              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>
-                {isEdit ? "Editar Staff" : "Agregar Staff"}
-              </h3>
-              <p style={{ margin: 0, fontSize: 12, color: "var(--text-secondary)" }}>
-                {isEdit ? `Editando a ${initialData?.nombre}` : "Entrenador o recepcionista"}
-              </p>
+              <h2 style={{ fontSize: 16, fontWeight: 700, color: C.t1, margin: 0 }}>{isEdit ? "Editar Staff" : "Agregar Staff"}</h2>
+              <p style={{ fontSize: 12, color: C.t2, margin: "2px 0 0" }}>{isEdit ? `Editando a ${initial?.nombre}` : "Entrenador o recepcionista"}</p>
             </div>
           </div>
-          <button className="icon-btn" onClick={onClose} style={{ width: 30, height: 30, padding: 0 }}>
-            <FiX size={16} />
-          </button>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: C.t2, cursor: "pointer", fontSize: 20, lineHeight: 1, padding: 4 }}>✕</button>
         </div>
 
-        {/* Form */}
-        <form
-          onSubmit={e => { e.preventDefault(); onSave(form); }}
-          style={{ padding: "20px 22px" }}
-        >
-          <div className="compact-form-grid">
-            {field("nombre",   "Nombre completo", <FiUser size={13} />, "text",     "Juan Pérez")}
-            {field("email",    "Email",           <FiMail size={13} />, "email",    "juan@gym.com")}
-          </div>
-          <div className="compact-form-grid">
-            {field("password", "Contraseña",      <FiLock size={13} />, "password", isEdit ? "••••••" : "Mínimo 6 caracteres")}
-            <div className="form-group compact">
-              <label className="form-label-compact"><FiShield size={13} /> Rol *</label>
-              <select
-                className="input-compact"
-                value={form.rol}
-                onChange={e => setForm(f => ({ ...f, rol: e.target.value }))}
-                required
-              >
-                <option value="">Seleccionar rol…</option>
-                <option value="Entrenador">Entrenador</option>
-                <option value="Recepcionista">Recepcionista</option>
-              </select>
+        {/* Body */}
+        <form onSubmit={e => { e.preventDefault(); onSave(form); }} style={{ padding: "20px 24px 24px" }}>
+          <PhotoUploader
+            preview={form.foto_base64 || (initial?.foto_perfil || null)}
+            onChange={(b64) => setForm(f => ({ ...f, foto_base64: b64 }))}
+            name={form.nombre}
+          />
+
+          <div style={{ background: C.input, borderRadius: 10, padding: "14px 16px", marginBottom: 14, display: "flex", flexDirection: "column", gap: 12 }}>
+            <p style={{ fontSize: 11, fontWeight: 700, color: C.t3, textTransform: "uppercase", letterSpacing: ".06em", margin: 0 }}>Datos de cuenta</p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+              <Field label="Nombre completo" required>
+                <IcoWrap icon={<IcoUser />}>
+                  <input style={inputSt} value={form.nombre} onChange={set("nombre")} placeholder="Juan Pérez" required={!isEdit} />
+                </IcoWrap>
+              </Field>
+              <Field label="Email" required>
+                <IcoWrap icon={<IcoMail />}>
+                  <input style={inputSt} type="email" value={form.email} onChange={set("email")} placeholder="juan@gym.com" required={!isEdit} />
+                </IcoWrap>
+              </Field>
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+              <Field label={isEdit ? "Contraseña — vacío para mantener" : "Contraseña"} required={!isEdit}>
+                <IcoWrap icon={<IcoLock />}>
+                  <input style={inputSt} type="password" value={form.password} onChange={set("password")} placeholder={isEdit ? "••••••••" : "Mínimo 6 caracteres"} required={!isEdit} />
+                </IcoWrap>
+              </Field>
+              <Field label="Rol" required>
+                <IcoWrap icon={<IcoShield />}>
+                  <select style={inputSt} value={form.rol} onChange={set("rol")} required>
+                    <option value="">Seleccionar rol…</option>
+                    <option value="Entrenador">Entrenador</option>
+                    <option value="Recepcionista">Recepcionista</option>
+                  </select>
+                </IcoWrap>
+              </Field>
             </div>
           </div>
 
-          <div style={{ display: "flex", gap: 10, marginTop: 20, justifyContent: "flex-end" }}>
-            <button type="button" className="btn-outline-small" onClick={onClose} disabled={loading}>
-              Cancelar
-            </button>
-            <button type="submit" className="btn-compact-primary" disabled={loading}
-              style={{ minWidth: 110 }}>
-              {loading
-                ? <span className="spinner-small" />
-                : isEdit ? "Guardar cambios" : "Crear usuario"}
-            </button>
-          </div>
+          <button type="submit" disabled={saving}
+            style={{ width: "100%", padding: 12, borderRadius: 10, border: "none", fontWeight: 700, fontSize: 14, cursor: saving ? "not-allowed" : "pointer", background: saving ? C.input : C.accent, color: saving ? C.t2 : "#fff", transition: "all .15s" }}>
+            {saving ? "Guardando…" : isEdit ? "Guardar cambios" : "Crear usuario"}
+          </button>
+          <button type="button" onClick={onClose}
+            style={{ width: "100%", marginTop: 8, padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", color: C.t2, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+            Cancelar
+          </button>
         </form>
       </div>
     </div>
   );
 }
 
-/* ═══════════════════════════════════════════════════
-   COMPONENTE PRINCIPAL
-═══════════════════════════════════════════════════ */
+// ── StaffCard ─────────────────────────────────────────────────────────────────
+function StaffCard({ u, onEdit, onToggle }) {
+  return (
+    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, overflow: "hidden", opacity: u.activo ? 1 : 0.7, transition: "box-shadow .15s" }}>
+      {/* Header */}
+      <div style={{ padding: "16px 18px 12px", display: "flex", gap: 14, alignItems: "flex-start" }}>
+        <Avatar src={u.foto_perfil} name={u.nombre} size={52} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ fontSize: 15, fontWeight: 700, color: C.t1, margin: "0 0 3px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.nombre}</p>
+          <p style={{ fontSize: 12, color: C.t2, margin: "0 0 7px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.email}</p>
+          <span style={{ display: "inline-flex", alignItems: "center", padding: "2px 9px", borderRadius: 99, fontSize: 11, fontWeight: 700, background: ROLE_BG[u.rol] || `${C.accent}22`, color: ROLE_COLOR[u.rol] || C.accent }}>
+            {u.rol}
+          </span>
+        </div>
+        <span style={{ display: "inline-flex", padding: "3px 9px", borderRadius: 99, fontSize: 11, fontWeight: 700, background: u.activo ? `${C.success}20` : `${C.danger}18`, color: u.activo ? C.success : C.danger, flexShrink: 0 }}>
+          {u.activo ? "Activo" : "Inactivo"}
+        </span>
+      </div>
+
+      {/* Footer */}
+      <div style={{ borderTop: `1px solid ${C.border}`, padding: "8px 12px", display: "flex", gap: 6, justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontSize: 11, color: C.t3 }}>Desde {u.created_at ? u.created_at.slice(0, 10) : "—"}</span>
+        <div style={{ display: "flex", gap: 6 }}>
+          <button onClick={() => onEdit(u)}
+            style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", color: C.t2, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+            <IcoEdit /> Editar
+          </button>
+          <button onClick={() => onToggle(u)}
+            style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 8, border: "none", background: u.activo ? `${C.danger}18` : `${C.success}20`, color: u.activo ? C.danger : C.success, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+            {u.activo ? "Desactivar" : "Activar"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Skeleton ──────────────────────────────────────────────────────────────────
+function Skeleton() {
+  const p = { animation: "pulse 1.5s ease-in-out infinite", background: C.input, borderRadius: 6 };
+  return (
+    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: "16px 18px" }}>
+      <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
+        <div style={{ ...p, width: 52, height: 52, borderRadius: "50%", flexShrink: 0 }} />
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ ...p, height: 14, width: "60%" }} />
+          <div style={{ ...p, height: 11, width: "80%" }} />
+          <div style={{ ...p, height: 18, width: "35%", borderRadius: 99 }} />
+        </div>
+      </div>
+      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+        <div style={{ ...p, width: 70, height: 30, borderRadius: 8 }} />
+        <div style={{ ...p, width: 90, height: 30, borderRadius: 8 }} />
+      </div>
+    </div>
+  );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// COMPONENTE PRINCIPAL
+// ═════════════════════════════════════════════════════════════════════════════
 export default function OwnerStaff() {
-  const { toast, confirm, ToastPortal } = useToast();
+  const [staff,   setStaff]   = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving,  setSaving]  = useState(false);
+  const [search,  setSearch]  = useState("");
+  const [rolFil,  setRolFil]  = useState("");
+  const [activos, setActivos] = useState("true");
+  const [modal,   setModal]   = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [confirm, setConfirm] = useState(null);
 
-  const [staff,    setStaff]    = useState([]);
-  const [loading,  setLoading]  = useState(true);
-  const [saving,   setSaving]   = useState(false);
-  const [search,   setSearch]   = useState("");
-  const [rolFil,   setRolFil]   = useState("");
-  const [activos,  setActivos]  = useState("true");
-  const [modal,    setModal]    = useState(false);
-  const [editing,  setEditing]  = useState(null);   // usuario a editar (o null = crear)
-  const searchRef = useRef(null);
-
-  /* ── Carga ── */
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const params = { activos };
       if (rolFil) params.rol = rolFil;
-      if (search) params.q  = search;
+      if (search) params.q   = search;
       const { data } = await getStaff(params);
       setStaff(data);
     } catch (err) {
-      const status = err.response?.status;
-      // 401/403 es esperado en un gym recién registrado (sin staff aún)
-      if (status !== 401 && status !== 403) {
-        toast.error("Error de conexión", "No se pudo cargar el staff.");
-      }
+      const s = err.response?.status;
+      if (s !== 401 && s !== 403) toast.error("No se pudo cargar el staff");
       setStaff([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [activos, rolFil, search]);
 
-  useEffect(() => { load(); }, [activos, rolFil]);
-
-  /* ── Búsqueda con debounce ── */
   useEffect(() => {
-    const t = setTimeout(load, 420);
+    const t = setTimeout(load, search ? 420 : 0);
     return () => clearTimeout(t);
-  }, [search]);
+  }, [load]);
 
-  /* ── Toggle activo/inactivo ── */
-  const handleToggle = async (u) => {
-    const accion = u.activo ? "desactivar" : "activar";
-    const ok = await confirm({
-      title: `¿${accion.charAt(0).toUpperCase() + accion.slice(1)} a ${u.nombre}?`,
+  const handleToggle = (u) => {
+    setConfirm({
+      title:   `¿${u.activo ? "Desactivar" : "Activar"} a ${u.nombre}?`,
       message: u.activo
         ? "El usuario no podrá iniciar sesión mientras esté desactivado."
         : "El usuario podrá volver a iniciar sesión.",
-      type: u.activo ? "danger" : "success",
-      confirmText: `Sí, ${accion}`,
-      cancelText:  "Cancelar",
+      danger: u.activo,
+      onConfirm: async () => {
+        setConfirm(null);
+        try {
+          await toggleStaff(u.id);
+          toast.success(`${u.nombre} ${u.activo ? "desactivado" : "activado"}`);
+          load();
+        } catch { toast.error("No se pudo cambiar el estado"); }
+      },
     });
-    if (!ok) return;
-    try {
-      await toggleStaff(u.id);
-      toast.success("Estado actualizado", `${u.nombre} fue ${u.activo ? "desactivado" : "activado"}.`);
-      load();
-    } catch {
-      toast.error("Error", "No se pudo cambiar el estado.");
-    }
   };
 
-  /* ── Crear o editar ── */
   const handleSave = async (form) => {
     if (!form.nombre || !form.email || !form.rol || (!editing && !form.password)) {
-      toast.warning("Campos incompletos", "Completa todos los campos requeridos.");
+      toast.error("Completa todos los campos requeridos");
       return;
     }
     setSaving(true);
     try {
+      const payload = { nombre: form.nombre, email: form.email, rol: form.rol };
+      if (form.password)             payload.password   = form.password;
+      if (validFoto(form.foto_base64)) payload.foto_base64 = form.foto_base64;
+
       if (editing) {
-        // Editar — omitir password si está vacío
-        const payload = { nombre: form.nombre, email: form.email, rol: form.rol };
-        if (form.password.trim()) payload.password = form.password;
         await updateStaff(editing.id, payload);
-        toast.success("Staff actualizado", `Los datos de ${form.nombre} fueron guardados.`);
+        toast.success(`${form.nombre} actualizado`);
       } else {
-        await crearStaff(form);
-        toast.success("Usuario creado", `${form.nombre} fue registrado en el sistema.`);
+        await crearStaff(payload);
+        toast.success(`${form.nombre} registrado`);
       }
-      setModal(false);
-      setEditing(null);
-      load();
+      setModal(false); setEditing(null); load();
     } catch (e) {
-      toast.error("Error al guardar", e.response?.data?.msg || "No se pudo guardar el usuario.");
+      toast.error(e.response?.data?.msg || "Error al guardar");
     } finally {
       setSaving(false);
     }
   };
 
-  const openEdit  = (u) => { setEditing(u); setModal(true);  };
-  const openCreate= ()  => { setEditing(null); setModal(true); };
-
-  /* ── Contadores para el header ── */
-  const totalEntrenadores   = staff.filter(u => u.rol === "Entrenador").length;
-  const totalRecepcionistas = staff.filter(u => u.rol === "Recepcionista").length;
+  const nEnt = staff.filter(u => u.rol === "Entrenador").length;
+  const nRec = staff.filter(u => u.rol === "Recepcionista").length;
 
   return (
     <div className="dashboard-content">
-      <ToastPortal />
+      <Toasts />
+      <ConfirmDialog
+        open={Boolean(confirm)} title={confirm?.title} message={confirm?.message}
+        danger={confirm?.danger} onConfirm={confirm?.onConfirm} onCancel={() => setConfirm(null)}
+      />
 
-      {/* ── Encabezado ── */}
-      <div className="section-header">
+      {/* Header */}
+      <div className="section-header" style={{ marginBottom: 24 }}>
         <div>
-          <h2 className="page-title">Staff del Gimnasio</h2>
-          <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)" }}>
-            {totalEntrenadores} entrenador{totalEntrenadores !== 1 ? "es" : ""} ·{" "}
-            {totalRecepcionistas} recepcionista{totalRecepcionistas !== 1 ? "s" : ""}
+          <h2 className="page-title" style={{ margin: "0 0 4px" }}>Staff del Gimnasio</h2>
+          <p style={{ margin: 0, fontSize: 13, color: C.t2 }}>
+            {nEnt} entrenador{nEnt !== 1 ? "es" : ""} · {nRec} recepcionista{nRec !== 1 ? "s" : ""}
           </p>
         </div>
-        <button className="btn-compact-primary" onClick={openCreate}>
-          <FiUserPlus size={14} /> Agregar Staff
+        <button onClick={() => { setEditing(null); setModal(true); }}
+          style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 18px", borderRadius: 10, border: "none", background: C.accent, color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+          <IcoPlus /> Agregar Staff
         </button>
       </div>
 
-      {/* ── Toolbar ── */}
+      {/* Toolbar */}
       <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap", alignItems: "center" }}>
-        {/* Buscador */}
-        <div className="input-dark-container with-icon" style={{ flex: 1, minWidth: 220 }}>
-          <FiSearch size={15} style={{ color: "var(--text-tertiary)" }} />
+        <div style={{ flex: 1, minWidth: 220, position: "relative", display: "flex", alignItems: "center" }}>
+          <span style={{ position: "absolute", left: 12, color: C.t3, display: "flex" }}><IcoSearch /></span>
           <input
-            ref={searchRef}
-            className="search-input"
+            style={{ width: "100%", boxSizing: "border-box", background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, padding: "9px 36px 9px 34px", color: C.t1, fontSize: 13, outline: "none" }}
             placeholder="Buscar por nombre o email…"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
+            value={search} onChange={e => setSearch(e.target.value)}
           />
           {search && (
-            <button className="clear-search" onClick={() => setSearch("")}>×</button>
+            <button onClick={() => setSearch("")}
+              style={{ position: "absolute", right: 10, background: "none", border: "none", color: C.t3, cursor: "pointer", display: "flex" }}>
+              <IcoX />
+            </button>
           )}
         </div>
 
-        {/* Filtro rol */}
-        <select
-          className="input-compact"
-          style={{ width: "auto", minWidth: 160 }}
-          value={rolFil}
-          onChange={e => setRolFil(e.target.value)}
-        >
+        <select value={rolFil} onChange={e => setRolFil(e.target.value)}
+          style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, padding: "9px 14px", color: C.t1, fontSize: 13, outline: "none", minWidth: 160 }}>
           <option value="">Todos los roles</option>
           <option value="Entrenador">Entrenadores</option>
           <option value="Recepcionista">Recepcionistas</option>
         </select>
 
-        {/* Filtro activo */}
         <div style={{ display: "flex", gap: 6 }}>
           {[{ v: "true", label: "Activos" }, { v: "false", label: "Inactivos" }].map(({ v, label }) => (
-            <button
-              key={v}
-              className="btn-outline-small"
-              onClick={() => setActivos(v)}
-              style={{
-                background:  activos === v ? (v === "true" ? "var(--accent)" : "var(--danger)") : "transparent",
-                color:       activos === v ? "#fff" : "var(--text-secondary)",
-                borderColor: activos === v ? (v === "true" ? "var(--accent)" : "var(--danger)") : "var(--border)",
-              }}
-            >
+            <button key={v} onClick={() => setActivos(v)}
+              style={{ padding: "8px 16px", borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: "pointer", border: `1px solid ${activos === v ? (v === "true" ? C.accent : C.danger) : C.border}`, background: activos === v ? (v === "true" ? C.accent : C.danger) : "transparent", color: activos === v ? "#fff" : C.t2 }}>
               {label}
             </button>
           ))}
         </div>
       </div>
 
-      {/* ── Tabla ── */}
-      <div className="stat-card" style={{ padding: 0, overflow: "hidden" }}>
-        {loading ? (
-          <div style={{ padding: "40px", textAlign: "center", color: "var(--text-tertiary)", fontSize: 13 }}>
-            Cargando staff…
-          </div>
-        ) : staff.length === 0 ? (
-          <div className="empty-state" style={{ padding: "48px 24px" }}>
-            <FiUsers size={36} style={{ opacity: .3, marginBottom: 12 }} />
-            <h3>No hay staff {activos === "true" ? "activo" : "inactivo"}</h3>
-            <p style={{ marginBottom: 20 }}>
-              {search ? `Sin resultados para "${search}"` : "Agrega el primer miembro del staff."}
-            </p>
-            {!search && (
-              <button className="btn-compact-primary" onClick={openCreate}>
-                <FiUserPlus size={14} /> Agregar Staff
-              </button>
-            )}
-          </div>
-        ) : (
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-            <thead>
-              <tr>
-                {["Usuario", "Email", "Rol", "Desde", "Estado", "Acciones"].map(h => (
-                  <th key={h} style={{
-                    padding: "11px 16px", textAlign: "left",
-                    color: "var(--text-secondary)", fontWeight: 600,
-                    fontSize: 11, textTransform: "uppercase", letterSpacing: ".05em",
-                    borderBottom: "1px solid var(--border)",
-                  }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {staff.map(u => (
-                <tr
-                  key={u.id}
-                  style={{ transition: "background .12s" }}
-                  onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,.025)"}
-                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-                >
-                  {/* Nombre + avatar */}
-                  <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <Avatar nombre={u.nombre} />
-                      <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{u.nombre}</span>
-                    </div>
-                  </td>
+      {/* Grid */}
+      {loading ? (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: 16 }}>
+          {[...Array(4)].map((_, i) => <Skeleton key={i} />)}
+        </div>
+      ) : staff.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "64px 24px", color: C.t3 }}>
+          <div style={{ fontSize: 40, marginBottom: 12, opacity: .4 }}>👥</div>
+          <p style={{ fontSize: 16, fontWeight: 700, color: C.t2, margin: "0 0 8px" }}>
+            No hay staff {activos === "true" ? "activo" : "inactivo"}
+          </p>
+          <p style={{ fontSize: 13, margin: "0 0 20px" }}>
+            {search ? `Sin resultados para "${search}"` : "Agrega el primer miembro del staff."}
+          </p>
+          {!search && (
+            <button onClick={() => { setEditing(null); setModal(true); }}
+              style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 10, border: "none", background: C.accent, color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+              <IcoPlus /> Agregar Staff
+            </button>
+          )}
+        </div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: 16 }}>
+          {staff.map(u => (
+            <StaffCard key={u.id} u={u}
+              onEdit={(u) => { setEditing(u); setModal(true); }}
+              onToggle={handleToggle}
+            />
+          ))}
+        </div>
+      )}
 
-                  {/* Email */}
-                  <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", color: "var(--text-secondary)" }}>
-                    {u.email}
-                  </td>
-
-                  {/* Rol */}
-                  <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)" }}>
-                    <span style={{
-                      padding: "3px 10px", borderRadius: 999, fontSize: 11, fontWeight: 700,
-                      background: `${ROLE_COLOR[u.rol] || "#6366f1"}20`,
-                      color:       ROLE_COLOR[u.rol] || "#6366f1",
-                    }}>
-                      {u.rol}
-                    </span>
-                  </td>
-
-                  {/* Fecha registro */}
-                  <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", color: "var(--text-tertiary)", fontSize: 12 }}>
-                    {u.created_at ? u.created_at.slice(0, 10) : "—"}
-                  </td>
-
-                  {/* Estado */}
-                  <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)" }}>
-                    <span style={{
-                      padding: "3px 10px", borderRadius: 999, fontSize: 11, fontWeight: 700,
-                      background: u.activo ? "rgba(34,197,94,.12)"  : "rgba(239,68,68,.12)",
-                      color:       u.activo ? "#22c55e"              : "#ef4444",
-                    }}>
-                      {u.activo ? "Activo" : "Inactivo"}
-                    </span>
-                  </td>
-
-                  {/* Acciones */}
-                  <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)" }}>
-                    <div style={{ display: "flex", gap: 6 }}>
-                      <button
-                        className="icon-btn"
-                        title="Editar"
-                        onClick={() => openEdit(u)}
-                        style={{ width: 30, height: 30, padding: 0 }}
-                      >
-                        <FiEdit2 size={14} />
-                      </button>
-                      <button
-                        className="icon-btn"
-                        title={u.activo ? "Desactivar" : "Activar"}
-                        onClick={() => handleToggle(u)}
-                        style={{
-                          width: 30, height: 30, padding: 0,
-                          color: u.activo ? "var(--danger)" : "var(--success)",
-                        }}
-                      >
-                        {u.activo ? <FiToggleRight size={17} /> : <FiToggleLeft size={17} />}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      {/* ── Modal crear / editar ── */}
       <StaffModal
         open={modal}
         onClose={() => { setModal(false); setEditing(null); }}
         onSave={handleSave}
-        initialData={editing}
-        loading={saving}
+        initial={editing}
+        saving={saving}
       />
     </div>
   );

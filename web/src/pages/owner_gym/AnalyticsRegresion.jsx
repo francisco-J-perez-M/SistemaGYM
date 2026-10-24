@@ -367,36 +367,33 @@ export default function AnalyticsRegresion() {
       )}
 
       {/* ── Tendencia Global ─────────────────────────────────────────────── */}
-      <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 1, color: "var(--text-secondary)", marginBottom: 14, display: "flex", alignItems: "center", gap: 10 }}>
-        Tendencia global del gimnasio
-        <div style={{ flex: 1, height: 1, background: "var(--border-dark)" }} />
+      <div style={{ marginBottom: 14 }}>
+        <h2 style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 4px" }}>
+          ¿Cómo está evolucionando el peso de tus miembros?
+        </h2>
+        <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0 }}>
+          Promedio del gimnasio en los últimos meses y predicción de la tendencia
+        </p>
       </div>
 
       {globalLoading ? (
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "60px 20px", textAlign: "center", background: "var(--bg-card)", borderRadius: 12, border: "1px solid var(--border-dark)" }}>
           <div className="dashboard-spinner" />
-          <h3 style={{ marginTop: 20, marginBottom: 8 }}>Cargando modelo...</h3>
+          <h3 style={{ marginTop: 20, marginBottom: 8 }}>Calculando tendencia…</h3>
         </div>
       ) : globalError ? (
-        <div className="empty-state" style={{ marginBottom: 20 }}>
-          {globalError.includes("401") || globalError.includes("403") || globalError.includes("404") ? (
-            <>
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-tertiary)", marginBottom: 12 }}>
-                <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
-              </svg>
-              <h3 style={{ margin: "0 0 8px" }}>Sin datos de progreso</h3>
-              <p style={{ color: "var(--text-secondary)", fontSize: 13, margin: 0 }}>
-                Registra medidas de progreso físico de tus miembros para activar las predicciones.
-              </p>
-            </>
-          ) : (
-            <>
-              <h3>Error cargando tendencia global</h3>
-              <p>{globalError}</p>
-            </>
-          )}
-          <button className="btn-primary" style={{ marginTop: 12 }} onClick={fetchGlobal}>
-            {globalError.includes("401") || globalError.includes("403") ? "Actualizar" : "Reintentar"}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", padding: "48px 32px", background: "var(--bg-card)", borderRadius: 12, border: "1px solid var(--border-dark)", marginBottom: 20 }}>
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-tertiary)", marginBottom: 16 }}>
+            <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+          </svg>
+          <h3 style={{ margin: "0 0 10px", fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>Todavía no hay suficientes datos</h3>
+          <p style={{ color: "var(--text-secondary)", fontSize: 13, margin: "0 0 16px", maxWidth: 360, lineHeight: 1.6 }}>
+            Para ver la tendencia de peso del gimnasio necesitamos que tus miembros
+            tengan registros de progreso físico. Cuando haya información suficiente,
+            la gráfica aparecerá aquí automáticamente.
+          </p>
+          <button className="btn-primary" onClick={fetchGlobal}>
+            Volver a intentar
           </button>
         </div>
       ) : (
@@ -434,9 +431,13 @@ export default function AnalyticsRegresion() {
       )}
 
       {/* ── Predicción individual: lista de miembros ─────────────────────── */}
-      <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 1, color: "var(--text-secondary)", marginBottom: 14, display: "flex", alignItems: "center", gap: 10 }}>
-        Predicción individual por miembro
-        <div style={{ flex: 1, height: 1, background: "var(--border-dark)" }} />
+      <div style={{ marginBottom: 14, marginTop: 8 }}>
+        <h2 style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 4px" }}>
+          ¿Qué pasará con el peso de cada miembro?
+        </h2>
+        <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0 }}>
+          Predicción individual basada en su historial de progreso físico
+        </p>
       </div>
 
       {/* Buscador */}

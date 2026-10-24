@@ -1,554 +1,703 @@
-// MiembrosDashboard.jsx — versión mejorada
-// Cambios principales:
-//   • Reemplaza window.confirm/alert → confirm dialog + toasts
-//   • Cards rediseñadas con mejor jerarquía visual
-//   • Skeleton loader en lugar de spinner simple
-//   • Empty state mejorado con ilustración
-
-import { useEffect, useState } from "react";
+/**
+ * MiembrosDashboard.jsx — Gestión de miembros del gimnasio
+ *
+ * Fotos: base64 comprimida en canvas antes de enviar al backend.
+ * Se almacena en MongoDB directamente — sin filesystem ni volúmenes.
+ */
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
-  getMiembros,
-  createMiembro,
-  updateMiembro,
-  deleteMiembro,
-  reactivateMiembro,
-  BASE_URL,
+  getMiembros, createMiembro, updateMiembro,
+  deleteMiembro, reactivateMiembro,
 } from "../../api/miembros";
-import { useToast } from "../../hooks/useToast";
-import MiembroForm from "../../components/admin/MiembroForm";
-import MiembroModal from "../../components/admin/MiembroModal";
-import "../../css/CSSUnificado.css";
 
-/* ── Iconos ── */
-const RefreshIcon  = () => (<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>);
-const MailIcon     = () => (<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>);
-const PhoneIcon    = () => (<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>);
-const EditIcon     = () => (<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>);
-const TrashIcon    = () => (<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>);
-const PlusIcon     = () => (<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>);
-const SearchIcon   = () => (<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>);
-const UserIcon     = () => (<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>);
-const WeightIcon   = () => (<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="5" r="3"/><path d="M6.5 8a2 2 0 0 0-1.905 1.46L2.1 18.5A2 2 0 0 0 4 21h16a2 2 0 0 0 1.925-2.54L19.4 9.5A2 2 0 0 0 17.48 8Z"/></svg>);
-const HeightIcon   = () => (<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m18 16 4-4-4-4"/><path d="m6 8-4 4 4 4"/><path d="M14.5 4v16"/></svg>);
-const GenderIcon   = () => (<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>);
-const ChevronLeft  = () => (<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>);
-const ChevronRight = () => (<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>);
+// ── Paleta / tokens ───────────────────────────────────────────────────────────
+const C = {
+  bg:       "var(--bg-main,#0f1117)",
+  card:     "var(--bg-card,#1a1d27)",
+  input:    "var(--bg-input,#12151e)",
+  border:   "var(--border,rgba(255,255,255,.08))",
+  accent:   "var(--accent,#6366f1)",
+  success:  "var(--success,#22c55e)",
+  danger:   "var(--danger,#ef4444)",
+  warn:     "var(--warning,#f59e0b)",
+  t1:       "var(--text-primary,#f1f5f9)",
+  t2:       "var(--text-secondary,#94a3b8)",
+  t3:       "var(--text-tertiary,#64748b)",
+};
 
-/* ── Helpers ── */
-function calcularIMC(peso, altura) {
-  if (!peso || !altura || Number(altura) === 0) return null;
-  return (Number(peso) / (Number(altura) ** 2)).toFixed(1);
+// ── Utilidades ────────────────────────────────────────────────────────────────
+
+/** Lee un File y lo devuelve como data URL base64 (sin resize para máxima compatibilidad) */
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload  = (e) => resolve(e.target.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
-function imcLabel(imc) {
-  if (!imc) return { label: "N/A", color: "var(--text-tertiary)" };
-  const v = parseFloat(imc);
-  if (v < 18.5) return { label: "Bajo", color: "var(--info)" };
-  if (v < 25)   return { label: "Normal", color: "var(--success)" };
-  if (v < 30)   return { label: "Sobrepeso", color: "var(--warning)" };
-  return         { label: "Obesidad", color: "var(--danger)" };
-}
+const imc = (kg, m) => {
+  const k = parseFloat(kg), h = parseFloat(m);
+  return k > 0 && h > 0 ? (k / (h * h)).toFixed(1) : "";
+};
 
-/* ── Skeleton card ── */
-function SkeletonCard() {
-  return (
-    <div className="stat-card" style={{ gap: 0 }}>
-      <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
-        <div className="skeleton" style={{ width: 90, height: 90, borderRadius: "50%", flexShrink: 0 }} />
-        <div style={{ flex: 1, paddingTop: 4 }}>
-          <div className="skeleton" style={{ height: 11, width: "75%", borderRadius: 6, marginBottom: 10 }} />
-          <div className="skeleton" style={{ height: 11, width: "55%", borderRadius: 6, marginBottom: 10 }} />
-          <div className="skeleton" style={{ height: 11, width: "40%", borderRadius: 6 }} />
-        </div>
-      </div>
-      <div style={{ borderTop: "1px solid var(--border)", marginTop: 16, paddingTop: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div>
-          <div className="skeleton" style={{ height: 14, width: 120, borderRadius: 6, marginBottom: 8 }} />
-          <div className="skeleton" style={{ height: 20, width: 80, borderRadius: 10 }} />
-        </div>
-        <div className="skeleton" style={{ height: 22, width: 60, borderRadius: 20 }} />
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginTop: 14 }}>
-        {[0,1,2].map(i => (
-          <div key={i} className="skeleton" style={{ height: 52, borderRadius: "var(--r-md)" }} />
-        ))}
-      </div>
-    </div>
-  );
-}
+const imcLabel = (val) => {
+  const v = parseFloat(val);
+  if (!v) return null;
+  if (v < 18.5) return { text: "Bajo peso",    color: C.warn };
+  if (v < 25)   return { text: "Normal",        color: C.success };
+  if (v < 30)   return { text: "Sobrepeso",     color: C.warn };
+  return           { text: "Obesidad",           color: C.danger };
+};
 
-/* ── Avatar inteligente con foto o iniciales ── */
-function MemberAvatar({ src, name, size = 90 }) {
-  const [imgError, setImgError] = useState(false);
+// ── Avatar ────────────────────────────────────────────────────────────────────
+function Avatar({ src, name, size = 48 }) {
+  const [broken, setBroken] = useState(false);
+  useEffect(() => setBroken(false), [src]);
+
   const initials = (name || "?")
-    .split(" ")
-    .slice(0, 2)
-    .map(w => w[0]?.toUpperCase() || "")
-    .join("");
+    .split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase();
+
+  const colors = ["#6366f1","#8b5cf6","#ec4899","#14b8a6","#f59e0b","#10b981"];
+  const bg = colors[(name?.charCodeAt(0) || 0) % colors.length];
+
+  const style = {
+    width: size, height: size, borderRadius: "50%",
+    flexShrink: 0, overflow: "hidden",
+    display: "flex", alignItems: "center", justifyContent: "center",
+    background: bg, fontWeight: 700, fontSize: size * 0.36,
+    color: "#fff", letterSpacing: "-0.5px",
+  };
+
+  if (src && !broken) {
+    return (
+      <div style={style}>
+        <img
+          src={src} alt={name}
+          onError={() => setBroken(true)}
+          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+        />
+      </div>
+    );
+  }
+  return <div style={style}>{initials}</div>;
+}
+
+// ── Badge ─────────────────────────────────────────────────────────────────────
+const Badge = ({ children, color = C.accent }) => (
+  <span style={{
+    display: "inline-flex", alignItems: "center",
+    padding: "2px 8px", borderRadius: 99,
+    fontSize: 11, fontWeight: 700,
+    background: `${color}22`, color,
+  }}>{children}</span>
+);
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+let _setToasts = () => {};
+const toast = {
+  success: (msg) => _setToasts(t => [...t, { id: Date.now(), type: "success", msg }]),
+  error:   (msg) => _setToasts(t => [...t, { id: Date.now(), type: "error",   msg }]),
+};
+
+function Toasts() {
+  const [toasts, setToasts] = useState([]);
+  _setToasts = setToasts;
+  useEffect(() => {
+    if (!toasts.length) return;
+    const t = setTimeout(() => setToasts(ts => ts.slice(1)), 3200);
+    return () => clearTimeout(t);
+  }, [toasts]);
 
   return (
-    <div style={{
-      width: size, height: size, borderRadius: "50%",
-      overflow: "hidden", background: "var(--accent-dim)",
-      border: "2.5px solid var(--border)",
-      flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center",
-      color: "var(--accent-soft)", fontWeight: 700,
-      fontSize: size * 0.28, transition: "border-color 0.2s ease",
-    }}>
-      {src && !imgError ? (
-        <img src={src} alt={name} onError={() => setImgError(true)}
-          style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-      ) : (
-        <span>{initials}</span>
-      )}
+    <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 9999, display: "flex", flexDirection: "column", gap: 8 }}>
+      {toasts.map(t => (
+        <div key={t.id} style={{
+          background: t.type === "success" ? C.success : C.danger,
+          color: "#fff", padding: "10px 18px", borderRadius: 10,
+          fontSize: 13, fontWeight: 600, boxShadow: "0 4px 20px rgba(0,0,0,.4)",
+          animation: "fadeIn .2s ease",
+        }}>
+          {t.type === "success" ? "✓" : "✕"} {t.msg}
+        </div>
+      ))}
     </div>
   );
 }
 
-/* ── Tarjeta de miembro ── */
-function MemberCard({ m, verInactivos, onEdit, onDelete, onReactivate }) {
-  const imc = calcularIMC(m.peso_inicial, m.estatura);
-  const imcInfo = imcLabel(imc);
-  const fotoSrc = m.foto_perfil ? `${BASE_URL}${m.foto_perfil}` : null;
+// ── Modal base ────────────────────────────────────────────────────────────────
+function Modal({ open, onClose, title, subtitle, children }) {
+  useEffect(() => {
+    const handler = (e) => { if (e.key === "Escape") onClose(); };
+    if (open) window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [open, onClose]);
 
+  if (!open) return null;
   return (
     <div
-      className="stat-card member-card-hover"
-      style={{ padding: "20px", gap: 0, opacity: verInactivos ? 0.88 : 1 }}
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+      style={{
+        position: "fixed", inset: 0, zIndex: 9000,
+        background: "rgba(0,0,0,.65)", backdropFilter: "blur(4px)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: 24,
+      }}
     >
-      {/* Cabecera: foto + datos + acciones */}
-      <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
-        <MemberAvatar src={fotoSrc} name={m.nombre} />
-
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div className="member-details" style={{ gap: 6 }}>
-            <div className="detail-row" style={{ fontSize: 12 }}>
-              <MailIcon />
-              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {m.email || "Sin email"}
-              </span>
-            </div>
-            <div className="detail-row" style={{ fontSize: 12 }}>
-              <PhoneIcon />
-              <span>{m.telefono || "Sin teléfono"}</span>
-            </div>
-            <div className="detail-row" style={{ fontSize: 12 }}>
-              <GenderIcon />
-              <span>
-                {m.sexo === "M" ? "Masculino" : m.sexo === "F" ? "Femenino" : m.sexo || "No especificado"}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Acciones */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 }}>
-          {!verInactivos ? (
-            <>
-              <button className="icon-btn" onClick={() => onEdit(m)} title="Editar miembro"
-                style={{ width: 32, height: 32, padding: 0 }}>
-                <EditIcon />
-              </button>
-              <button className="icon-btn danger" onClick={() => onDelete(m)} title="Desactivar"
-                style={{ width: 32, height: 32, padding: 0 }}>
-                <TrashIcon />
-              </button>
-            </>
-          ) : (
-            <button className="icon-btn" onClick={() => onReactivate(m)} title="Reactivar"
-              style={{ width: 32, height: 32, padding: 0, color: "var(--success)" }}>
-              <RefreshIcon />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Separador + Nombre + Membresía + Estado */}
       <div style={{
-        display: "flex", justifyContent: "space-between", alignItems: "flex-end",
-        marginTop: 14, paddingTop: 14,
-        borderTop: "1px solid var(--border)",
+        background: C.card, border: `1px solid ${C.border}`,
+        borderRadius: 16, width: "100%", maxWidth: 560,
+        maxHeight: "90vh", overflowY: "auto",
+        boxShadow: "0 24px 64px rgba(0,0,0,.6)",
       }}>
-        <div>
-          <h4 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--text-primary)", lineHeight: 1.2 }}>
-            {m.nombre || "Usuario Anónimo"}
-          </h4>
-          <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-            <span style={{
-              padding: "3px 10px", borderRadius: 999, fontSize: 11, fontWeight: 700,
-              background: m.membresia ? "var(--success-bg)" : "var(--bg-input)",
-              color: m.membresia ? "var(--success)" : "var(--text-tertiary)",
-              border: `1px solid ${m.membresia ? "var(--success)" : "var(--border)"}`,
-              whiteSpace: "nowrap",
-            }}>
-              {m.membresia ? m.membresia.nombre : "Sin membresía"}
-            </span>
-            {m.membresia?.fecha_fin && (
-              <span style={{ fontSize: 10, color: "var(--text-tertiary)" }}>
-                vence {m.membresia.fecha_fin}
-              </span>
-            )}
-          </div>
-        </div>
-        <span className={`status-badge ${verInactivos ? "urgent" : "normal"}`}>
-          {verInactivos ? "Inactivo" : "Activo"}
-        </span>
-      </div>
-
-      {/* Métricas */}
-      <div className="metrics-grid" style={{ marginTop: 12 }}>
-        <div className="metric">
-          <div className="metric-icon"><WeightIcon /></div>
+        {/* Header */}
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "20px 24px 16px", borderBottom: `1px solid ${C.border}`,
+          position: "sticky", top: 0, background: C.card, zIndex: 1,
+        }}>
           <div>
-            <div className="metric-label">Peso</div>
-            <div className="metric-value">{m.peso_inicial ? `${m.peso_inicial} kg` : "—"}</div>
+            <h2 style={{ fontSize: 17, fontWeight: 700, color: C.t1, margin: 0 }}>{title}</h2>
+            {subtitle && <p style={{ fontSize: 12, color: C.t2, margin: "3px 0 0" }}>{subtitle}</p>}
           </div>
+          <button
+            onClick={onClose}
+            style={{ background: "none", border: "none", color: C.t2, cursor: "pointer", fontSize: 20, lineHeight: 1, padding: 4 }}
+          >✕</button>
         </div>
-        <div className="metric">
-          <div className="metric-icon"><HeightIcon /></div>
-          <div>
-            <div className="metric-label">Estatura</div>
-            <div className="metric-value">{m.estatura ? `${m.estatura} m` : "—"}</div>
-          </div>
-        </div>
-        <div className="metric" style={{ borderLeft: imc ? `2px solid ${imcInfo.color}` : undefined }}>
-          <div className="metric-icon" style={{ fontSize: 9, fontWeight: 800, color: imcInfo.color }}>IMC</div>
-          <div>
-            <div className="metric-label">Índice</div>
-            <div className="metric-value" style={{ color: imcInfo.color }}>
-              {imc ?? "—"}
-              {imc && <span style={{ fontSize: 9, marginLeft: 4, fontWeight: 400, color: imcInfo.color }}>{imcInfo.label}</span>}
-            </div>
-          </div>
+        <div style={{ padding: "20px 24px 24px" }}>
+          {children}
         </div>
       </div>
     </div>
   );
 }
 
-/* ═══════════════════════════════════════════════
-   COMPONENTE PRINCIPAL
-═══════════════════════════════════════════════ */
-export default function MiembrosDashboard() {
-  const { toast, confirm, ToastPortal } = useToast();
+// ── Campo de formulario ───────────────────────────────────────────────────────
+const inputSt = {
+  width: "100%", boxSizing: "border-box",
+  background: C.input, border: `1px solid ${C.border}`,
+  borderRadius: 8, padding: "9px 12px",
+  color: C.t1, fontSize: 13, outline: "none",
+};
 
-  const [miembros, setMiembros]       = useState([]);
-  const [searchTerm, setSearchTerm]   = useState("");
-  const [editingId, setEditingId]     = useState(null);
-  const [loading, setLoading]         = useState(false);
-  const [page, setPage]               = useState(1);
-  const [totalPages, setTotalPages]   = useState(1);
-  const [verInactivos, setVerInactivos] = useState(false);
-  const [showModal, setShowModal]     = useState(false);
+function Field({ label, required, children, half }) {
+  return (
+    <div style={{ flex: half ? "1 1 calc(50% - 6px)" : "1 1 100%", minWidth: 0 }}>
+      <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: C.t2, textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 5 }}>
+        {label}{required && <span style={{ color: C.accent, marginLeft: 2 }}>*</span>}
+      </label>
+      {children}
+    </div>
+  );
+}
 
+// ── Foto uploader ─────────────────────────────────────────────────────────────
+function PhotoUploader({ preview, onChange, name }) {
+  const ref = useRef();
+  const [broken, setBroken] = useState(false);
+  const [selected, setSelected] = useState(false);
+  useEffect(() => { setBroken(false); setSelected(false); }, [name]); // reset al cambiar de miembro
+
+  const initials = (name || "?").split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase();
+
+  const handleFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const b64 = ev.target.result;
+      setBroken(false);
+      setSelected(true);
+      onChange(b64);
+    };
+    reader.onerror = () => toast.error("Error al leer la imagen");
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  const trigger = () => ref.current?.click();
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 20, gap: 8 }}>
+      <div style={{ position: "relative" }}>
+        <div
+          onClick={trigger}
+          title="Haz clic para cambiar la foto"
+          style={{
+            width: 96, height: 96, borderRadius: "50%", overflow: "hidden",
+            border: `2px solid ${selected ? C.success : C.accent}`,
+            background: C.input,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            cursor: "pointer",
+          }}
+        >
+          {preview && !broken ? (
+            <img src={preview} alt="foto" onError={() => setBroken(true)} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          ) : (
+            <span style={{ fontSize: 28, fontWeight: 800, color: C.accent, letterSpacing: "-1px" }}>{initials}</span>
+          )}
+        </div>
+        {/* Botón cámara */}
+        <button type="button" onClick={trigger}
+          style={{
+            position: "absolute", bottom: 0, right: 0,
+            width: 30, height: 30, borderRadius: "50%", border: `2px solid ${C.card}`,
+            background: selected ? C.success : C.accent,
+            color: "#fff", cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 14, boxShadow: "0 2px 8px rgba(0,0,0,.5)",
+          }}
+        >{selected ? "✓" : "📷"}</button>
+        <input ref={ref} type="file" accept="image/jpeg,image/png,image/webp"
+          onChange={handleFile}
+          style={{ display: "none" }} />
+      </div>
+      {/* Texto de ayuda */}
+      <p style={{ fontSize: 11, color: selected ? C.success : C.t3, margin: 0, fontWeight: selected ? 700 : 400 }}>
+        {selected ? "✓ Foto lista — guarda para aplicar" : "Haz clic en la foto para cambiarla"}
+      </p>
+    </div>
+  );
+}
+
+// ── Formulario crear/editar ───────────────────────────────────────────────────
+function MiembroForm({ initial, onSave, onCancel }) {
+  const isEdit = Boolean(initial?.id);
   const [form, setForm] = useState({
-    nombre: "", email: "", password: "",
-    telefono: "", sexo: "", peso_inicial: "", estatura: "",
+    nombre:      initial?.nombre      ?? "",
+    email:       initial?.email       ?? "",
+    password:    "",
+    telefono:    initial?.telefono    ?? "",
+    sexo:        initial?.sexo        ?? "",
+    peso_inicial:initial?.peso_inicial?? "",
+    estatura:    initial?.estatura    ?? "",
+    foto_base64: initial?.foto_perfil?.startsWith("data:") ? initial.foto_perfil : "",
   });
-  const [fotoFile, setFotoFile]       = useState(null);
-  const [fotoPreview, setFotoPreview] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [err,    setErr]    = useState("");
 
-  /* ── API ── */
-  const loadMiembros = async () => {
-    setLoading(true);
-    try {
-      const { data } = await getMiembros(page, verInactivos, searchTerm);
-      setMiembros(data.miembros);
-      setTotalPages(data.pages);
-      if (data.miembros.length === 0 && page > 1) setPage(page - 1);
-    } catch (err) {
-      const status = err.response?.status;
-      // 401/403 en un gym nuevo es normal (sin datos aún), no es un error de sesión
-      if (status !== 401 && status !== 403) {
-        toast.error("Error de conexión", "No se pudieron cargar los miembros.");
-      }
-      setMiembros([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    const t = setTimeout(loadMiembros, 500);
-    return () => clearTimeout(t);
-  }, [page, verInactivos, searchTerm]);
-
-  /* ── Handlers ── */
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) { setFotoFile(file); setFotoPreview(URL.createObjectURL(file)); }
-  };
-
-  const handleSearchChange = (e) => {
-    setSearchTerm(e.target.value);
-    setPage(1);
-  };
-
-  const resetForm = () => {
-    setForm({ nombre: "", email: "", password: "", telefono: "", sexo: "", peso_inicial: "", estatura: "" });
-    setFotoFile(null); setFotoPreview(null); setEditingId(null);
-  };
+  const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
+  const imcVal   = imc(form.peso_inicial, form.estatura);
+  const imcMeta  = imcLabel(imcVal);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.telefono.trim() || !form.sexo) {
-      toast.warning("Campos incompletos", "Completa el teléfono y el sexo.");
-      return;
-    }
-    if (!editingId && (!form.nombre.trim() || !form.email.trim())) {
-      toast.warning("Campos requeridos", "Nombre y email son obligatorios.");
-      return;
-    }
+    setErr("");
+    if (!form.telefono.trim() || !form.sexo) { setErr("Teléfono y sexo son obligatorios."); return; }
+    if (!isEdit && (!form.nombre.trim() || !form.email.trim())) { setErr("Nombre y email son obligatorios."); return; }
 
-    setLoading(true);
-    const formData = new FormData();
-    Object.entries(form).forEach(([k, v]) => formData.append(k, v));
-    if (fotoFile) formData.append("foto", fotoFile);
-
+    setSaving(true);
     try {
-      if (editingId) {
-        await updateMiembro(editingId, formData);
-        toast.success("Miembro actualizado", `Los datos de ${form.nombre} fueron guardados.`);
+      const payload = {
+        nombre:       form.nombre.trim(),
+        email:        form.email.trim(),
+        telefono:     form.telefono.trim(),
+        sexo:         form.sexo,
+        peso_inicial: form.peso_inicial,
+        estatura:     form.estatura,
+        foto_base64:  form.foto_base64,
+      };
+      if (form.password) payload.password = form.password;
+
+      if (isEdit) {
+        await updateMiembro(initial.id, payload);
+        toast.success("Miembro actualizado");
       } else {
-        await createMiembro(formData);
-        toast.success("Miembro creado", `${form.nombre} fue registrado exitosamente.`);
+        await createMiembro(payload);
+        toast.success(`${form.nombre} registrado`);
       }
-      resetForm();
-      setShowModal(false);
-      loadMiembros();
-    } catch (err) {
-      const msg = err.response?.data?.error || "Error al guardar el miembro";
-      toast.error("Error al guardar", msg);
+      onSave();
+    } catch (e) {
+      setErr(e?.response?.data?.error || "Error al guardar");
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
-  // Normaliza valores de sexo legacy almacenados como texto completo
-  const normalizeSexo = (sexo) => {
-    if (!sexo) return "";
-    const s = sexo.toString().trim();
-    if (s === "M" || s === "F" || s === "O") return s;
-    const lower = s.toLowerCase();
-    if (lower === "masculino" || lower === "male")   return "M";
-    if (lower === "femenino"  || lower === "female") return "F";
-    return "O";
+  const sectionSt = {
+    background: C.input, borderRadius: 10,
+    padding: "14px 16px", marginBottom: 14,
+    display: "flex", flexDirection: "column", gap: 12,
   };
 
-  const handleEdit = (m) => {
-    setForm({
-      nombre: m.nombre || "", email: m.email || "", password: "",
-      telefono: m.telefono || "", sexo: normalizeSexo(m.sexo),
-      peso_inicial: m.peso_inicial || "", estatura: m.estatura || "",
-    });
-    setFotoPreview(m.foto_perfil ? `${BASE_URL}${m.foto_perfil}` : null);
-    setFotoFile(null);
-    setEditingId(m.id);
-    setShowModal(true);
-  };
-
-  const handleDelete = async (m) => {
-    const ok = await confirm({
-      title: `¿Desactivar a ${m.nombre}?`,
-      message: "El miembro pasará a la papelera. Podrás reactivarlo en cualquier momento.",
-      type: "danger",
-      confirmText: "Sí, desactivar",
-      cancelText: "Cancelar",
-    });
-    if (!ok) return;
-
-    setLoading(true);
-    try {
-      await deleteMiembro(m.id);
-      toast.success("Miembro desactivado", `${m.nombre} fue movido a la papelera.`);
-      loadMiembros();
-    } catch {
-      toast.error("Error", "No se pudo desactivar el miembro.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleReactivate = async (m) => {
-    const ok = await confirm({
-      title: `¿Reactivar a ${m.nombre}?`,
-      message: "El miembro volverá a estar activo en el sistema.",
-      type: "success",
-      confirmText: "Sí, reactivar",
-      cancelText: "Cancelar",
-    });
-    if (!ok) return;
-
-    setLoading(true);
-    try {
-      await reactivateMiembro(m.id);
-      toast.success("Miembro reactivado", `${m.nombre} está activo nuevamente.`);
-      loadMiembros();
-    } catch {
-      toast.error("Error", "No se pudo reactivar el miembro.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const imcActual = calcularIMC(parseFloat(form.peso_inicial), parseFloat(form.estatura));
-
-  /* ── Render ── */
   return (
-    <div className="dashboard-content">
-      {/* Portal de toasts y confirmaciones */}
-      <ToastPortal />
+    <form onSubmit={handleSubmit}>
+      <PhotoUploader
+        preview={form.foto_base64 || null}
+        onChange={(b64) => setForm(f => ({ ...f, foto_base64: b64 }))}
+        name={form.nombre}
+      />
 
-      {/* Encabezado */}
-      <div className="section-header">
-        <h2 className="page-title">Gestión de Miembros</h2>
-        <div className="header-actions" style={{ gap: 10 }}>
-          <button
-            className="btn-compact-primary"
-            onClick={() => { resetForm(); setShowModal(true); }}
-          >
-            <PlusIcon /> Nuevo Miembro
-          </button>
-          <div style={{ display: "flex", gap: 6 }}>
-            <button
-              className="btn-outline-small"
-              onClick={() => { setVerInactivos(false); setPage(1); resetForm(); }}
-              style={{
-                background: !verInactivos ? "var(--accent)" : "transparent",
-                color: !verInactivos ? "#fff" : "var(--text-secondary)",
-                borderColor: !verInactivos ? "var(--accent)" : "var(--border)",
-              }}
-            >
-              Activos
-            </button>
-            <button
-              className="btn-outline-small"
-              onClick={() => { setVerInactivos(true); setPage(1); resetForm(); }}
-              style={{
-                background: verInactivos ? "var(--danger)" : "transparent",
-                color: verInactivos ? "#fff" : "var(--text-secondary)",
-                borderColor: verInactivos ? "var(--danger)" : "var(--border)",
-              }}
-            >
-              Papelera
-            </button>
-          </div>
+      {/* Cuenta */}
+      <div style={sectionSt}>
+        <p style={{ fontSize: 11, fontWeight: 700, color: C.t3, textTransform: "uppercase", letterSpacing: ".06em", margin: 0 }}>Datos de cuenta</p>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+          <Field label="Nombre completo" required half>
+            <input style={inputSt} value={form.nombre} onChange={set("nombre")} placeholder="Ej: Juan Pérez" required={!isEdit} />
+          </Field>
+          <Field label="Email" required half>
+            <input style={inputSt} type="email" value={form.email} onChange={set("email")} placeholder="ejemplo@gym.com" required={!isEdit} />
+          </Field>
         </div>
+        <Field label={isEdit ? "Contraseña — vacío para mantener" : "Contraseña"}>
+          <input style={inputSt} type="password" value={form.password} onChange={set("password")} placeholder={isEdit ? "••••••••" : "Crear contraseña"} />
+        </Field>
       </div>
 
-      {/* Modal */}
-      <MiembroModal
-        open={showModal}
-        title={editingId ? "Editar Miembro" : "Registrar Nuevo Miembro"}
-        onClose={() => { resetForm(); setShowModal(false); }}
-        editingId={editingId}
+      {/* Perfil físico */}
+      <div style={sectionSt}>
+        <p style={{ fontSize: 11, fontWeight: 700, color: C.t3, textTransform: "uppercase", letterSpacing: ".06em", margin: 0 }}>Perfil físico</p>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+          <Field label="Teléfono" required half>
+            <input style={inputSt} value={form.telefono} onChange={set("telefono")} placeholder="+52 664 123 4567" required />
+          </Field>
+          <Field label="Sexo" required half>
+            <select style={inputSt} value={form.sexo} onChange={set("sexo")} required>
+              <option value="">Seleccionar…</option>
+              <option value="M">Masculino</option>
+              <option value="F">Femenino</option>
+              <option value="O">Otro</option>
+            </select>
+          </Field>
+          <Field label="Peso inicial (kg)" half>
+            <input style={inputSt} type="number" step="0.1" value={form.peso_inicial} onChange={set("peso_inicial")} placeholder="75.5" />
+          </Field>
+          <Field label="Estatura (m)" half>
+            <input style={inputSt} type="number" step="0.01" value={form.estatura} onChange={set("estatura")} placeholder="1.75" />
+          </Field>
+        </div>
+        {imcVal && (
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: C.card, borderRadius: 8 }}>
+            <span style={{ fontSize: 12, color: C.t2, fontWeight: 600 }}>IMC Calculado</span>
+            <span style={{ fontSize: 18, fontWeight: 800, color: imcMeta?.color || C.accent }}>
+              {imcVal} <span style={{ fontSize: 12, fontWeight: 600 }}>— {imcMeta?.text}</span>
+            </span>
+          </div>
+        )}
+      </div>
+
+      {err && <p style={{ color: C.danger, fontSize: 12, marginBottom: 10 }}>{err}</p>}
+
+      <button
+        type="submit" disabled={saving}
+        style={{ width: "100%", padding: 12, borderRadius: 10, border: "none", fontWeight: 700, fontSize: 14, cursor: saving ? "not-allowed" : "pointer", background: saving ? C.input : C.accent, color: saving ? C.t2 : "#fff", transition: "all .15s" }}
       >
-        <MiembroForm
-          form={form} setForm={setForm} loading={loading}
-          editingId={editingId} fotoPreview={fotoPreview}
-          onFileChange={handleFileChange} onSubmit={handleSubmit}
-          onCancel={() => { resetForm(); setShowModal(false); }}
-          imcActual={imcActual}
-        />
-      </MiembroModal>
+        {saving ? "Guardando…" : isEdit ? "Guardar cambios" : "Registrar miembro"}
+      </button>
+      <button type="button" onClick={onCancel} style={{ width: "100%", marginTop: 8, padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", color: C.t2, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+        Cancelar
+      </button>
+    </form>
+  );
+}
 
-      {/* Buscador */}
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ maxWidth: 480, margin: "0 auto" }}>
-          <div className="input-dark-container with-icon">
-            <SearchIcon />
-            <input
-              placeholder="Buscar por nombre o email..."
-              value={searchTerm}
-              onChange={handleSearchChange}
-              className="search-input"
-            />
-            {searchTerm && (
-              <button className="clear-search" onClick={() => { setSearchTerm(""); setPage(1); }}>×</button>
-            )}
-          </div>
+// ── Card de miembro ───────────────────────────────────────────────────────────
+function MemberCard({ m, inactivos, onEdit, onDelete, onReactivate }) {
+  const imcVal  = imc(m.peso_inicial, m.estatura);
+  const imcMeta = imcLabel(imcVal);
+
+  return (
+    <div style={{
+      background: C.card, border: `1px solid ${C.border}`,
+      borderRadius: 14, overflow: "hidden",
+      opacity: inactivos ? 0.7 : 1,
+      transition: "box-shadow .15s",
+    }}>
+      {/* Header */}
+      <div style={{ padding: "16px 18px 12px", display: "flex", gap: 14, alignItems: "flex-start" }}>
+        <Avatar src={m.foto_perfil} name={m.nombre} size={52} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ fontSize: 15, fontWeight: 700, color: C.t1, margin: "0 0 4px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {m.nombre}
+          </p>
+          <p style={{ fontSize: 12, color: C.t2, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {m.email}
+          </p>
+          {m.membresia_activa && (
+            <p style={{ fontSize: 11, color: C.accent, margin: "4px 0 0" }}>
+              {m.membresia_activa.nombre}
+            </p>
+          )}
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end" }}>
+          <Badge color={m.estado === "Activo" ? C.success : C.t3}>
+            {m.estado}
+          </Badge>
+          {m.sexo && (
+            <span style={{ fontSize: 11, color: C.t3 }}>
+              {m.sexo === "M" ? "Masc." : m.sexo === "F" ? "Fem." : "Otro"}
+            </span>
+          )}
         </div>
       </div>
 
-      {/* Contenido */}
-      {loading && miembros.length === 0 ? (
-        /* Skeleton */
-        <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))" }}>
-          {[0,1,2,3,4,5].map(i => <SkeletonCard key={i} />)}
-        </div>
-      ) : (
-        <>
-          <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))" }}>
-            {miembros.map((m) => (
-              <MemberCard
-                key={m.id}
-                m={m}
-                verInactivos={verInactivos}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-                onReactivate={handleReactivate}
-              />
-            ))}
-          </div>
-
-          {/* Paginación */}
-          {totalPages > 1 && (
-            <div className="pagination-controls">
-              <button
-                className="btn-outline-small"
-                onClick={() => setPage(p => p - 1)}
-                disabled={page === 1 || loading}
-                style={{ display: "flex", alignItems: "center", gap: 4 }}
-              >
-                <ChevronLeft /> Anterior
-              </button>
-              <span className="page-info">Página {page} de {totalPages}</span>
-              <button
-                className="btn-outline-small"
-                onClick={() => setPage(p => p + 1)}
-                disabled={page === totalPages || loading}
-                style={{ display: "flex", alignItems: "center", gap: 4 }}
-              >
-                Siguiente <ChevronRight />
-              </button>
-            </div>
-          )}
-
-          {/* Empty state */}
-          {miembros.length === 0 && (
-            <div className="empty-state" style={{ padding: "64px 24px" }}>
-              <div style={{
-                width: 72, height: 72, borderRadius: "50%",
-                background: "var(--bg-input)", display: "flex",
-                alignItems: "center", justifyContent: "center",
-                margin: "0 auto 20px", color: "var(--text-tertiary)",
-              }}>
-                <UserIcon />
-              </div>
-              <h3 style={{ marginBottom: 8 }}>
-                {searchTerm
-                  ? "Sin resultados"
-                  : verInactivos ? "Papelera vacía" : "Sin miembros activos"}
-              </h3>
-              <p style={{ marginBottom: 24 }}>
-                {searchTerm
-                  ? `No se encontraron miembros para "${searchTerm}".`
-                  : verInactivos
-                    ? "No hay miembros desactivados actualmente."
-                    : "Registra el primer miembro para comenzar."}
-              </p>
-              {!searchTerm && !verInactivos && (
-                <button
-                  className="btn-compact-primary"
-                  onClick={() => { resetForm(); setShowModal(true); }}
-                >
-                  <PlusIcon /> Nuevo Miembro
-                </button>
+      {/* Stats */}
+      {(m.peso_inicial || m.estatura) && (
+        <div style={{ display: "flex", borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}` }}>
+          {[
+            { label: "Peso", val: m.peso_inicial ? `${m.peso_inicial} kg` : "—" },
+            { label: "Estatura", val: m.estatura ? `${m.estatura} m` : "—" },
+            ...(imcVal ? [{ label: "IMC", val: imcVal, color: imcMeta?.color }] : []),
+          ].map((s, i) => (
+            <div key={i} style={{ flex: 1, padding: "10px 0", textAlign: "center", borderRight: i < 2 ? `1px solid ${C.border}` : "none" }}>
+              <p style={{ fontSize: 11, color: C.t3, margin: "0 0 2px", textTransform: "uppercase", letterSpacing: ".04em" }}>{s.label}</p>
+              <p style={{ fontSize: 14, fontWeight: 700, color: s.color || C.t1, margin: 0 }}>{s.val}</p>
+              {s.label === "IMC" && imcMeta && (
+                <p style={{ fontSize: 10, color: imcMeta.color, margin: 0 }}>{imcMeta.text}</p>
               )}
             </div>
-          )}
-        </>
+          ))}
+        </div>
       )}
+
+      {/* Acciones */}
+      <div style={{ padding: "10px 14px", display: "flex", gap: 8 }}>
+        <button
+          onClick={() => onEdit(m)}
+          style={{ flex: 1, padding: "7px 0", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", color: C.t2, fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+        >
+          Editar
+        </button>
+        {inactivos ? (
+          <button
+            onClick={() => onReactivate(m)}
+            style={{ flex: 1, padding: "7px 0", borderRadius: 8, border: "none", background: `${C.success}22`, color: C.success, fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+          >
+            Reactivar
+          </button>
+        ) : (
+          <button
+            onClick={() => onDelete(m)}
+            style={{ flex: 1, padding: "7px 0", borderRadius: 8, border: "none", background: `${C.danger}18`, color: C.danger, fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+          >
+            Desactivar
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Skeleton ──────────────────────────────────────────────────────────────────
+function Skeleton() {
+  const pulse = { animation: "pulse 1.5s ease-in-out infinite", background: C.input, borderRadius: 6 };
+  return (
+    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: "16px 18px" }}>
+      <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
+        <div style={{ ...pulse, width: 52, height: 52, borderRadius: "50%", flexShrink: 0 }} />
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ ...pulse, height: 14, width: "65%" }} />
+          <div style={{ ...pulse, height: 11, width: "80%" }} />
+        </div>
+      </div>
+      <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ ...pulse, flex: 1, height: 30 }} />
+        <div style={{ ...pulse, flex: 1, height: 30 }} />
+      </div>
+    </div>
+  );
+}
+
+// ── Diálogo de confirmación ───────────────────────────────────────────────────
+function ConfirmDialog({ open, title, message, onConfirm, onCancel, danger }) {
+  if (!open) return null;
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 9500, background: "rgba(0,0,0,.7)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: "28px 32px", maxWidth: 400, width: "100%", textAlign: "center" }}>
+        <p style={{ fontSize: 17, fontWeight: 700, color: C.t1, marginBottom: 8 }}>{title}</p>
+        <p style={{ fontSize: 13, color: C.t2, marginBottom: 24, lineHeight: 1.6 }}>{message}</p>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={onCancel} style={{ flex: 1, padding: "10px 0", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", color: C.t2, fontWeight: 600, cursor: "pointer" }}>Cancelar</button>
+          <button onClick={onConfirm} style={{ flex: 1, padding: "10px 0", borderRadius: 8, border: "none", background: danger ? `${C.danger}22` : `${C.success}22`, color: danger ? C.danger : C.success, fontWeight: 700, cursor: "pointer" }}>Confirmar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Página principal ──────────────────────────────────────────────────────────
+export default function MiembrosDashboard() {
+  const [miembros,   setMiembros]   = useState([]);
+  const [loading,    setLoading]    = useState(true);
+  const [page,       setPage]       = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total,      setTotal]      = useState(0);
+  const [search,     setSearch]     = useState("");
+  const [inactivos,  setInactivos]  = useState(false);
+  const [modal,      setModal]      = useState(null);   // null | {} | {miembro}
+  const [confirm,    setConfirm]    = useState(null);   // null | {title,msg,fn,danger}
+
+  const load = useCallback(async (p = page) => {
+    setLoading(true);
+    try {
+      const { data } = await getMiembros(p, inactivos, search);
+      setMiembros(data.miembros  || []);
+      setTotal(data.total        || 0);
+      setTotalPages(data.pages   || 1);
+      setPage(p);
+    } catch { toast.error("Error al cargar miembros"); }
+    finally  { setLoading(false); }
+  }, [inactivos, search, page]);
+
+  // Debounce search
+  useEffect(() => {
+    const t = setTimeout(() => load(1), 400);
+    return () => clearTimeout(t);
+  }, [search, inactivos]); // eslint-disable-line
+
+  const handleEdit   = (m) => setModal(m);
+  const handleNew    = ()  => setModal({});
+
+  const handleDelete = (m) => setConfirm({
+    title:   `¿Desactivar a ${m.nombre}?`,
+    msg:     "Podrás reactivarlo en cualquier momento desde la papelera.",
+    danger:  true,
+    fn:      async () => {
+      try { await deleteMiembro(m.id); toast.success(`${m.nombre} desactivado`); load(1); }
+      catch { toast.error("No se pudo desactivar"); }
+      setConfirm(null);
+    },
+  });
+
+  const handleReactivate = (m) => setConfirm({
+    title:  `¿Reactivar a ${m.nombre}?`,
+    msg:    "El miembro volverá a estar activo.",
+    danger: false,
+    fn:     async () => {
+      try { await reactivateMiembro(m.id); toast.success(`${m.nombre} reactivado`); load(1); }
+      catch { toast.error("No se pudo reactivar"); }
+      setConfirm(null);
+    },
+  });
+
+  const handleSave = () => { setModal(null); load(page); };
+
+  return (
+    <div style={{ padding: "24px 28px", background: C.bg, minHeight: "100vh", fontFamily: "Inter,system-ui,sans-serif" }}>
+      <Toasts />
+
+      {/* Modal crear/editar */}
+      <Modal
+        open={modal !== null}
+        onClose={() => setModal(null)}
+        title={modal?.id ? "Editar Miembro" : "Registrar Nuevo Miembro"}
+        subtitle={modal?.id ? "Modifica los datos del miembro" : "Completa los datos para registrar al miembro"}
+      >
+        {modal !== null && (
+          <MiembroForm
+            initial={modal?.id ? modal : null}
+            onSave={handleSave}
+            onCancel={() => setModal(null)}
+          />
+        )}
+      </Modal>
+
+      {/* Confirm */}
+      <ConfirmDialog
+        open={Boolean(confirm)}
+        title={confirm?.title}
+        message={confirm?.msg}
+        danger={confirm?.danger}
+        onConfirm={confirm?.fn}
+        onCancel={() => setConfirm(null)}
+      />
+
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: C.t1, margin: 0 }}>Gestión de Miembros</h1>
+          <p style={{ fontSize: 13, color: C.t2, marginTop: 4 }}>
+            {total} miembro{total !== 1 ? "s" : ""} {inactivos ? "en papelera" : "activos"}
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button
+            onClick={() => { setInactivos(v => !v); setPage(1); }}
+            style={{ padding: "9px 16px", borderRadius: 8, border: `1px solid ${C.border}`, background: inactivos ? `${C.danger}18` : "transparent", color: inactivos ? C.danger : C.t2, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+          >
+            {inactivos ? "Ver activos" : "Papelera"}
+          </button>
+          {!inactivos && (
+            <button
+              onClick={handleNew}
+              style={{ padding: "9px 18px", borderRadius: 8, border: "none", background: C.accent, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}
+            >
+              + Nuevo Miembro
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Búsqueda */}
+      <div style={{ position: "relative", marginBottom: 20, maxWidth: 440 }}>
+        <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: C.t3, pointerEvents: "none" }}>🔍</span>
+        <input
+          value={search}
+          onChange={e => { setSearch(e.target.value); setPage(1); }}
+          placeholder="Buscar por nombre o email…"
+          style={{ ...inputSt, paddingLeft: 36, width: "100%", borderRadius: 10 }}
+        />
+        {search && (
+          <button onClick={() => { setSearch(""); setPage(1); }} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: C.t3, cursor: "pointer", fontSize: 16 }}>✕</button>
+        )}
+      </div>
+
+      {/* Grid */}
+      {loading && miembros.length === 0 ? (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: 16 }}>
+          {[...Array(6)].map((_, i) => <Skeleton key={i} />)}
+        </div>
+      ) : miembros.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "64px 24px", color: C.t2 }}>
+          <p style={{ fontSize: 40, marginBottom: 12 }}>👥</p>
+          <p style={{ fontSize: 16, fontWeight: 700, color: C.t1, marginBottom: 8 }}>
+            {search ? "Sin resultados" : inactivos ? "Papelera vacía" : "Sin miembros activos"}
+          </p>
+          <p style={{ fontSize: 13, marginBottom: 20 }}>
+            {search ? `No se encontró "${search}"` : inactivos ? "No hay miembros desactivados." : "Registra el primer miembro para comenzar."}
+          </p>
+          {!search && !inactivos && (
+            <button onClick={handleNew} style={{ padding: "10px 24px", borderRadius: 8, border: "none", background: C.accent, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+              + Nuevo Miembro
+            </button>
+          )}
+        </div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: 16 }}>
+          {miembros.map(m => (
+            <MemberCard
+              key={m.id}
+              m={m}
+              inactivos={inactivos}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              onReactivate={handleReactivate}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Paginación */}
+      {totalPages > 1 && (
+        <div style={{ display: "flex", justifyContent: "center", gap: 8, marginTop: 28, alignItems: "center" }}>
+          <button disabled={page === 1 || loading} onClick={() => load(page - 1)}
+            style={{ padding: "7px 16px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", color: C.t2, cursor: page === 1 ? "not-allowed" : "pointer", fontSize: 13, fontWeight: 600, opacity: page === 1 ? 0.4 : 1 }}>
+            ← Anterior
+          </button>
+          <span style={{ fontSize: 13, color: C.t2 }}>Página {page} de {totalPages}</span>
+          <button disabled={page === totalPages || loading} onClick={() => load(page + 1)}
+            style={{ padding: "7px 16px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", color: C.t2, cursor: page === totalPages ? "not-allowed" : "pointer", fontSize: 13, fontWeight: 600, opacity: page === totalPages ? 0.4 : 1 }}>
+            Siguiente →
+          </button>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes pulse { 0%,100%{opacity:.4} 50%{opacity:.8} }
+        @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+      `}</style>
     </div>
   );
 }

@@ -99,6 +99,7 @@ services:
       PYTHONUNBUFFERED:   "1"
     volumes:
       - ./backups:/app/storage/backups
+      - ./uploads:/app/storage/uploads
     depends_on:
       mongo:
         condition: service_healthy
