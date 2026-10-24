@@ -37,6 +37,61 @@ siguiente cuatrimestre.
 
 ---
 
+## v1.1 — Predicciones que sí predicen y gráficos que se explican · 7 de agosto de 2026
+
+**Predicciones** · Completo
+
+- Corregido el fallo por el que "Mi Predicción" mostraba "6 / 3 registros" con la
+  barra llena y, debajo, que faltaban datos. La predicción individual exigía que el
+  modelo del gimnasio estuviera entrenado —10 registros repartidos entre varios
+  miembros—, así que alguien con seis mediciones propias se quedaba sin proyección.
+  Ahora hay un segundo modelo que ajusta una recta sobre el historial del propio
+  miembro y basta con tres mediciones. Es además más fiel para el individuo, porque
+  describe su tendencia real en lugar de aplicarle los coeficientes promedio.
+- El modelo del gimnasio entrenaba solo con miembros en estado "Activo". Las
+  mediciones de un miembro con la membresía vencida siguen siendo válidas para
+  relacionar peso con tiempo, y descartarlas dejaba sin datos a gimnasios donde la
+  mayoría figura como inactiva.
+- Cuando de verdad faltan datos, la respuesta dice cuántos registros hay y cuántos
+  se necesitan, en vez de un mensaje genérico. La pantalla usa esas cifras en lugar
+  de contarlas por su cuenta, que era el origen de la contradicción.
+- La proyección se acota a un rango humano: un ajuste lineal extrapolado a seis
+  meses podía dar pesos negativos o de 300 kg.
+
+**Gráficos** · Completo
+
+- Nuevo componente `InfoGrafico` con un botón "Cómo leerlo" que explica qué
+  representa cada color, de dónde salen los datos y cómo interpretar los ejes.
+  Aplicado a las predicciones de los tres roles, al panel del propietario y a
+  Finanzas y Flujo.
+- Paleta única con significado fijo: el dinero, lo medido y lo proyectado se ven
+  igual en todo el sistema, sin tener que releer la leyenda en cada pantalla.
+
+**Reportes** · Completo
+
+- Los PDF admiten gráficas: reparto por método de pago, origen de los ingresos,
+  rankings de membresías y productos, sesiones mes a mes y tipos de sesión. Se
+  dibujan con `reportlab.graphics`, que ya venía incluido, en lugar de añadir
+  matplotlib y unos 60 MB a la imagen de Docker.
+- Casilla "Incluir gráficas" en el reporte del propietario y en el del entrenador,
+  tanto en web como en móvil.
+
+**Mis Clientes del entrenador** · Completo
+
+- La edad mostraba un "?" porque el backend nunca la enviaba. Ahora se calcula y,
+  si no hay fecha de nacimiento, se omite en lugar de pintar un interrogante que
+  parecía un error.
+- La ficha del cliente incorpora correo, teléfono, sexo, antigüedad y su última
+  medición corporal con peso, IMC y grasa.
+
+**Limpieza** · Completo
+
+- Retirados los emojis que el backend enviaba en las alertas del panel. El icono es
+  decisión de presentación y cada cliente elige el suyo según el nivel de la alerta.
+- Las casillas del reporte del entrenador usan iconos en lugar de caracteres.
+
+---
+
 ## v1.0 — Paridad web/móvil, respaldos y arranque reproducible · 5 de agosto de 2026
 
 **Arranque en cualquier computadora** · Completo

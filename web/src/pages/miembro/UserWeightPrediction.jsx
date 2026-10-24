@@ -5,6 +5,7 @@ import {
   ResponsiveContainer, Scatter,
 } from "recharts";
 import { useMetricsHistory } from "../../hooks/useMetricsHistory";
+import InfoGrafico, { COLORES_GRAFICO } from "../../components/compartido/InfoGrafico";
 import "../../css/CSSUnificado.css";
 
 const API_BASE = "";
@@ -81,6 +82,10 @@ export default function UserWeightPrediction() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  // Detalle que envía el backend cuando faltan mediciones: cuántas hay y
+  // cuántas se necesitan. Evita que la pantalla cuente por su cuenta y acabe
+  // contradiciéndose.
+  const [faltaDatos, setFaltaDatos] = useState(null);
 
   // Hook: raw time-series from historial_metricas — used to show progress
   // toward the minimum 3 records needed for the ML prediction.
@@ -103,9 +108,18 @@ export default function UserWeightPrediction() {
         `${API_BASE}/api/analytics/regresion/predecir/${userId}?dias=${diasParam}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      // 400/404/422 = datos insuficientes para entrenar/predecir → estado amigable
-      // (el backend lanza 400 cuando aún no hay suficientes registros de progreso)
+      // 400/404/422 = datos insuficientes → estado amigable.
+      // Se guarda lo que el backend informa (cuántos registros hay y cuántos
+      // hacen falta) en lugar de contarlos aquí: la pantalla llegó a mostrar
+      // "6 / 3 registros" con la barra llena y, debajo, que faltaban datos.
+      // Dos fuentes de verdad para el mismo número siempre acaban así.
       if (res.status === 400 || res.status === 404 || res.status === 422) {
+        const detalle = await res.json().catch(() => ({}));
+        setFaltaDatos({
+          registros: detalle.registros,
+          minimo:    detalle.minimo_requerido,
+          mensaje:   detalle.sugerencia || detalle.error,
+        });
         setError("__no_data__");
         return;
       }
@@ -186,8 +200,10 @@ export default function UserWeightPrediction() {
   );
 
   if (error === "__no_data__") {
-    const registrosActuales = rawHistory.filter(r => r.peso != null).length;
-    const MIN_REGISTROS = 3;
+    // Manda lo que informa el backend; contar aquí es el respaldo por si la
+    // respuesta no trajo el detalle.
+    const registrosActuales = faltaDatos?.registros ?? rawHistory.filter(r => r.peso != null).length;
+    const MIN_REGISTROS = faltaDatos?.minimo ?? 3;
     const faltantes = Math.max(0, MIN_REGISTROS - registrosActuales);
     return (
     <div className="dashboard-content">
@@ -364,13 +380,37 @@ export default function UserWeightPrediction() {
           <h3>Tu peso: lo que pasó y lo que se espera</h3>
         </div>
 
+        <InfoGrafico
+          titulo="Tu peso a lo largo del tiempo"
+          subtitulo="Lo que has registrado y hacia dónde apunta tu tendencia."
+          series={[
+            {
+              color: COLORES_GRAFICO.real,
+              nombre: "Lo que ya registraste",
+              descripcion: "Cada punto es una vez que anotaste tu peso en Progreso Físico. Son tus datos reales.",
+            },
+            {
+              color: COLORES_GRAFICO.prediccion,
+              nombre: "Lo que podría pasar",
+              descripcion: "La línea punteada estima tu peso si sigues con el mismo ritmo. No es una promesa: cambia si cambian tu dieta o tu entrenamiento.",
+            },
+          ]}
+          notas={[
+            data?.registros ? `Calculado con tus ${data.registros} mediciones.` : null,
+            data?.calidad_ajuste != null
+              ? `Qué tan regular ha sido tu evolución: ${(data.calidad_ajuste * 100).toFixed(0)} %. Si el número es bajo, tu peso ha subido y bajado mucho y la estimación es menos certera.`
+              : null,
+            "El eje de la izquierda son kilogramos y el de abajo, fechas.",
+          ].filter(Boolean)}
+        />
+
         <div style={{ display: "flex", gap: 20, marginBottom: 14, fontSize: 12, color: "var(--text-secondary)", flexWrap: "wrap" }}>
           <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ width: 24, height: 3, background: "#38bdf8", borderRadius: 2, display: "inline-block" }} />
+            <span style={{ width: 24, height: 3, background: COLORES_GRAFICO.real, borderRadius: 2, display: "inline-block" }} />
             Lo que ya registraste
           </span>
           <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ width: 24, height: 0, borderTop: "3px dashed #a78bfa", display: "inline-block" }} />
+            <span style={{ width: 24, height: 0, borderTop: `3px dashed ${COLORES_GRAFICO.prediccion}`, display: "inline-block" }} />
             Lo que podría pasar si sigues igual
           </span>
         </div>
@@ -393,15 +433,15 @@ export default function UserWeightPrediction() {
               <Tooltip content={<CustomTooltip />} />
               <Line
                 type="monotone" dataKey="real" name="Historial"
-                stroke="#38bdf8" strokeWidth={2.5}
-                dot={{ r: 4, fill: "#38bdf8", strokeWidth: 0 }}
+                stroke={COLORES_GRAFICO.real} strokeWidth={2.5}
+                dot={{ r: 4, fill: COLORES_GRAFICO.real, strokeWidth: 0 }}
                 activeDot={{ r: 6 }}
                 connectNulls={false}
               />
               <Line
                 type="monotone" dataKey="prediccion" name="Predicción"
-                stroke="#a78bfa" strokeWidth={2.5} strokeDasharray="6 4"
-                dot={{ r: 4, fill: "#a78bfa", strokeWidth: 0 }}
+                stroke={COLORES_GRAFICO.prediccion} strokeWidth={2.5} strokeDasharray="6 4"
+                dot={{ r: 4, fill: COLORES_GRAFICO.prediccion, strokeWidth: 0 }}
                 activeDot={{ r: 6 }}
                 connectNulls={false}
               />

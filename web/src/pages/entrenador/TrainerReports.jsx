@@ -24,7 +24,7 @@ import {
   FiBarChart2, FiTrendingUp, FiUsers, FiCalendar,
   FiAward, FiDownload, FiRefreshCw, FiAlertCircle, FiX,
   FiCheckCircle, FiXCircle, FiTarget, FiStar, FiFileText,
-  FiLoader, FiClock,
+  FiLoader, FiClock, FiCheckSquare, FiSquare,
 } from "react-icons/fi";
 import axios from "axios";
 import trainerService from "../../services/entrenador/trainerService";
@@ -394,6 +394,7 @@ export default function TrainerReports() {
   const [mes,        setMes]        = useState(hoy.getMonth() + 1);  // 0 = año completo
   const [secciones,  setSecciones]  = useState(["resumen", "sesiones", "clientes", "tipos"]);
   const [generando,  setGenerando]  = useState(false);
+  const [graficas,   setGraficas]   = useState(true);
 
   useEffect(() => {
     if (!cfgAbierta || opciones) return;
@@ -423,7 +424,7 @@ export default function TrainerReports() {
       // Va por axios y no por un enlace directo porque el endpoint exige el JWT,
       // que el navegador no adjuntaría al seguir un href.
       const { data: blob } = await axios.get("/api/trainer/reportes/pdf", {
-        params: { anio, mes, secciones: secciones.join(",") },
+        params: { anio, mes, secciones: secciones.join(","), ...(graficas ? { graficas: 1 } : {}) },
         headers: authHeaders(),
         responseType: "blob",
       });
@@ -569,6 +570,28 @@ export default function TrainerReports() {
               ))}
             </div>
 
+            <label style={CFG.label}>Formato</label>
+            <div
+              onClick={() => setGraficas((v) => !v)}
+              style={{
+                display: "flex", alignItems: "center", gap: 11, cursor: "pointer",
+                padding: "11px 13px", borderRadius: 10, marginBottom: 18,
+                background: "var(--bg-input)",
+                border: `1px solid ${graficas ? "var(--accent)" : "var(--border)"}`,
+              }}
+            >
+              <span style={{ color: graficas ? "var(--accent)" : "var(--text-secondary)", fontSize: 15 }}>
+                {graficas ? <FiCheckSquare size={17} /> : <FiSquare size={17} />}
+              </span>
+              <div>
+                <div style={{ fontSize: 13.5, fontWeight: 700 }}>Incluir gráficas</div>
+                <div style={{ fontSize: 11.5, color: "var(--text-secondary)" }}>
+                  Añade las barras de sesiones por mes, el ranking de clientes y el
+                  reparto por tipo de sesión.
+                </div>
+              </div>
+            </div>
+
             <label style={CFG.label}>Qué incluir</label>
             <div style={{ display:"grid", gap:8, marginBottom:20 }}>
               {(opciones?.secciones ?? []).map((s) => {
@@ -585,7 +608,7 @@ export default function TrainerReports() {
                     }}
                   >
                     <span style={{ color: activa ? "var(--accent)" : "var(--text-secondary)", fontSize:15 }}>
-                      {activa ? "☑" : "☐"}
+                      {activa ? <FiCheckSquare size={17} /> : <FiSquare size={17} />}
                     </span>
                     <div>
                       <div style={{ fontSize:13.5, fontWeight:700 }}>{s.label}</div>

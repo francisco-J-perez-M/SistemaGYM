@@ -16,7 +16,7 @@ import { useEffect, useMemo, useState } from "react";
 import Swal from "sweetalert2";
 import {
   FiFileText, FiDownload, FiCheckSquare, FiSquare, FiCalendar,
-  FiBarChart2, FiRefreshCw, FiAlertCircle, FiTrendingUp,
+  FiBarChart2, FiRefreshCw, FiAlertCircle, FiTrendingUp, FiPieChart,
 } from "react-icons/fi";
 import { getReporteOpciones, descargarReportePdf } from "../../api/owner_gym";
 
@@ -70,6 +70,9 @@ export default function OwnerReportes() {
   const [anio, setAnio] = useState(hoy.getFullYear());
   const [mes,  setMes]  = useState(hoy.getMonth() + 1);   // 0 = año completo
   const [comparar, setComparar] = useState(true);
+  // Las gráficas van activadas por omisión aquí: en pantalla el dueño suele
+  // querer ver el reparto de un vistazo antes de leer las tablas.
+  const [graficas, setGraficas] = useState(true);
   const [secciones, setSecciones] = useState([
     "resumen", "ingresos", "membresias", "pos", "asistencias", "miembros",
   ]);
@@ -111,6 +114,7 @@ export default function OwnerReportes() {
         mes,
         secciones: secciones.join(","),
         ...(comparar ? { comparar: 1 } : {}),
+        ...(graficas ? { graficas: 1 } : {}),
       });
 
       // Se crea un enlace temporal en memoria para disparar la descarga; el
@@ -230,6 +234,31 @@ export default function OwnerReportes() {
             })}
           </div>
 
+          {/* Gráficas */}
+          <div
+            onClick={() => setGraficas((v) => !v)}
+            style={{
+              display: "flex", alignItems: "center", gap: 12, cursor: "pointer",
+              padding: "13px 15px", borderRadius: 11, background: C.input,
+              border: `1px solid ${graficas ? C.accent : C.border}`,
+              marginBottom: 12,
+            }}
+          >
+            <span style={{ color: graficas ? C.accent : C.t2, display: "flex" }}>
+              {graficas ? <FiCheckSquare size={19} /> : <FiSquare size={19} />}
+            </span>
+            <div style={{ flex: 1 }}>
+              <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700 }}>
+                <FiPieChart style={{ verticalAlign: -2, marginRight: 6 }} />
+                Incluir gráficas
+              </p>
+              <p style={{ margin: "2px 0 0", fontSize: 11.5, color: C.t2 }}>
+                Añade el reparto por método de pago, el origen de los ingresos y los
+                rankings de membresías y productos.
+              </p>
+            </div>
+          </div>
+
           {/* Comparativa */}
           <div
             onClick={() => setComparar((v) => !v)}
@@ -276,6 +305,11 @@ export default function OwnerReportes() {
                   </li>
                 ))}
             </ul>
+            {graficas && (
+              <p style={{ margin: "10px 0 0", fontSize: 12, color: C.accent, fontWeight: 600 }}>
+                Con gráficas
+              </p>
+            )}
             {comparar && (
               <p style={{ margin: "10px 0 0", fontSize: 12, color: C.accent, fontWeight: 600 }}>
                 Con comparativa

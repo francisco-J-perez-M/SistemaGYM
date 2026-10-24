@@ -4,6 +4,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import "../../css/CSSUnificado.css";
+import InfoGrafico, { COLORES_GRAFICO } from "../../components/compartido/InfoGrafico";
 
 const API_BASE = "";
 
@@ -164,14 +165,42 @@ function PredictionModal({ member, onClose }) {
           </div>
         ) : (
           <>
+            <InfoGrafico
+              titulo="Evolución del peso"
+              subtitulo={
+                data?.modelo === "personal"
+                  ? "Proyección calculada con las mediciones de este miembro."
+                  : "Proyección calculada con el modelo del gimnasio."
+              }
+              series={[
+                {
+                  color: COLORES_GRAFICO.real,
+                  nombre: "Historial real",
+                  descripcion: "Cada punto es una medición registrada en Progreso Físico. Dato medido, no estimado.",
+                },
+                {
+                  color: COLORES_GRAFICO.prediccion,
+                  nombre: "Predicción",
+                  descripcion: "Línea discontinua: hacia dónde apunta la tendencia si se mantiene el ritmo actual.",
+                },
+              ]}
+              notas={[
+                data?.registros ? `Basado en ${data.registros} medicion${data.registros === 1 ? "" : "es"}.` : null,
+                data?.calidad_ajuste != null
+                  ? `Ajuste del modelo: ${(data.calidad_ajuste * 100).toFixed(0)} %. Cuanto más alto, más regular ha sido la evolución y más fiable la proyección.`
+                  : null,
+                "El eje vertical está en kilogramos. El tramo punteado empieza donde acaban las mediciones reales.",
+              ].filter(Boolean)}
+            />
+
             {/* Leyenda */}
             <div style={{ display: "flex", gap: 16, marginBottom: 12, fontSize: 12, color: "var(--text-secondary)" }}>
               <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <span style={{ width: 24, height: 3, background: "#38bdf8", borderRadius: 2, display: "inline-block" }} />
+                <span style={{ width: 24, height: 3, background: COLORES_GRAFICO.real, borderRadius: 2, display: "inline-block" }} />
                 Historial real
               </span>
               <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <span style={{ width: 24, height: 0, borderTop: "3px dashed #a78bfa", display: "inline-block" }} />
+                <span style={{ width: 24, height: 0, borderTop: `3px dashed ${COLORES_GRAFICO.prediccion}`, display: "inline-block" }} />
                 Predicción IA
               </span>
             </div>
@@ -181,8 +210,8 @@ function PredictionModal({ member, onClose }) {
                 <XAxis dataKey="label" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `${v.toFixed(0)} kg`} />
                 <Tooltip content={<CustomTooltip />} />
-                <Line type="monotone" dataKey="real" name="Historial" stroke="#38bdf8" strokeWidth={2.5} dot={{ r: 4, fill: "#38bdf8", strokeWidth: 0 }} connectNulls={false} />
-                <Line type="monotone" dataKey="prediccion" name="Predicción" stroke="#a78bfa" strokeWidth={2.5} strokeDasharray="6 4" dot={{ r: 4, fill: "#a78bfa", strokeWidth: 0 }} connectNulls={false} />
+                <Line type="monotone" dataKey="real" name="Historial" stroke={COLORES_GRAFICO.real} strokeWidth={2.5} dot={{ r: 4, fill: COLORES_GRAFICO.real, strokeWidth: 0 }} connectNulls={false} />
+                <Line type="monotone" dataKey="prediccion" name="Predicción" stroke={COLORES_GRAFICO.prediccion} strokeWidth={2.5} strokeDasharray="6 4" dot={{ r: 4, fill: COLORES_GRAFICO.prediccion, strokeWidth: 0 }} connectNulls={false} />
               </LineChart>
             </ResponsiveContainer>
 
@@ -399,14 +428,28 @@ export default function AnalyticsRegresion() {
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16, marginBottom: 28 }}>
           <div className="chart-card">
-            <div className="chart-header"><h3>Peso promedio del gimnasio</h3></div>
+            <InfoGrafico
+              titulo="Peso promedio del gimnasio"
+              subtitulo="Cómo evoluciona el peso medio de todos los miembros con mediciones."
+              series={[
+                {
+                  color: COLORES_GRAFICO.real,
+                  nombre: "Promedio global",
+                  descripcion: "Media de todas las mediciones registradas en ese mes por el conjunto de miembros.",
+                },
+              ]}
+              notas={[
+                "Es un promedio del gimnasio, no de una persona: un miembro nuevo con peso muy distinto puede mover la línea sin que nadie haya cambiado.",
+                "Los meses sin mediciones no aparecen en el eje.",
+              ]}
+            />
             <ResponsiveContainer width="100%" height={220}>
               <LineChart data={globalChartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="mes" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `${v.toFixed(0)} kg`} />
                 <Tooltip content={<CustomTooltip />} />
-                <Line type="monotone" dataKey="peso" name="Promedio global" stroke="#38bdf8" strokeWidth={2.5} dot={{ r: 4, fill: "#38bdf8", strokeWidth: 0 }} connectNulls={false} />
+                <Line type="monotone" dataKey="peso" name="Promedio global" stroke={COLORES_GRAFICO.real} strokeWidth={2.5} dot={{ r: 4, fill: COLORES_GRAFICO.real, strokeWidth: 0 }} connectNulls={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>

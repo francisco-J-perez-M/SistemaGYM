@@ -4,6 +4,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
 import "../../css/CSSUnificado.css";
+import InfoGrafico, { COLORES_GRAFICO } from "../../components/compartido/InfoGrafico";
 
 const API_BASE = "";
 const DIAS_SEMANA = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
@@ -308,22 +309,45 @@ export default function AnalyticsMapReduce() {
       {/* Gráficos línea + pie */}
       <div className="charts-row" style={{ marginBottom: 20 }}>
         <div className="chart-card">
-          <div className="chart-header">
-            <h3>Evolución de ingresos</h3>
-          </div>
+          <InfoGrafico
+            titulo="Evolución de ingresos"
+            subtitulo="Cuánto entró cada mes, sumando membresías y punto de venta."
+            series={[
+              {
+                color: COLORES_GRAFICO.ingresos,
+                nombre: "Ingresos del mes",
+                descripcion: "Total cobrado en ese mes. Cada punto es un mes cerrado.",
+              },
+            ]}
+            notas={[
+              "Una línea que sube indica más dinero cobrado, no necesariamente más miembros: una sola venta grande también la levanta.",
+              "El eje vertical está en miles de pesos (k = mil).",
+            ]}
+          />
           <ResponsiveContainer width="100%" height={220}>
             <LineChart data={lineData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)"/>
               <XAxis dataKey="mes" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false}/>
               <YAxis tick={{ fill: "var(--text-secondary)", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}/>
               <Tooltip content={<CustomTooltip prefix="$"/>}/>
-              <Line type="monotone" dataKey="total" name="Ingresos" stroke="var(--accent)" strokeWidth={2.5} dot={{ r: 4, fill: "var(--accent)", strokeWidth: 0 }} activeDot={{ r: 6 }}/>
+              <Line type="monotone" dataKey="total" name="Ingresos" stroke={COLORES_GRAFICO.ingresos} strokeWidth={2.5} dot={{ r: 4, fill: COLORES_GRAFICO.ingresos, strokeWidth: 0 }} activeDot={{ r: 6 }}/>
             </LineChart>
           </ResponsiveContainer>
         </div>
 
         <div className="chart-card">
-          <div className="chart-header"><h3>Métodos de pago</h3></div>
+          <InfoGrafico
+            titulo="Métodos de pago"
+            subtitulo="Con qué paga la gente, en porcentaje del total cobrado."
+            series={metodosData.map((m, i) => ({
+              color: COLORS_PIE[i % COLORS_PIE.length],
+              nombre: m.name,
+              descripcion: `${m.value != null ? `$${Number(m.value).toLocaleString("es-MX")} cobrados` : "Sin importe"} con este método.`,
+            }))}
+            notas={[
+              "El tamaño de cada porción es proporción del dinero, no número de transacciones: un pago grande pesa más que varios pequeños.",
+            ]}
+          />
           {metodosData.length > 0 ? (
             <>
               <ResponsiveContainer width="100%" height={160}>
@@ -356,7 +380,26 @@ export default function AnalyticsMapReduce() {
       {/* Asistencia por día y por mes */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
         <div className="chart-card">
-          <div className="chart-header"><h3>Asistencia por día de la semana</h3></div>
+          <InfoGrafico
+            titulo="Asistencia por día de la semana"
+            subtitulo="Qué días se llena el gimnasio."
+            series={[
+              {
+                color: COLORES_GRAFICO.asistencia,
+                nombre: "Día con más visitas",
+                descripcion: "La barra resaltada marca el día de mayor afluencia del periodo.",
+              },
+              {
+                color: "var(--border)",
+                nombre: "Resto de días",
+                descripcion: "Los demás días, a la misma escala, para comparar de un vistazo.",
+              },
+            ]}
+            notas={[
+              "Son promedios de todo el periodo registrado, no de una semana concreta.",
+              "Sirve para decidir en qué días conviene reforzar personal o programar clases.",
+            ]}
+          />
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={asistenciaDiaOrdenada} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false}/>
@@ -373,7 +416,20 @@ export default function AnalyticsMapReduce() {
         </div>
 
         <div className="chart-card">
-          <div className="chart-header"><h3>Asistencia por mes</h3></div>
+          <InfoGrafico
+            titulo="Asistencia por mes"
+            subtitulo="Cuántas visitas se registraron cada mes."
+            series={[
+              {
+                color: COLORES_GRAFICO.asistencia,
+                nombre: "Visitas registradas",
+                descripcion: "Total de asistencias del mes. Cuenta entradas, no personas distintas: un miembro que va diez veces suma diez.",
+              },
+            ]}
+            notas={[
+              "El mes en curso aparece incompleto hasta que termine, así que suele verse más bajo.",
+            ]}
+          />
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={asistenciaMesNorm} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)"/>
