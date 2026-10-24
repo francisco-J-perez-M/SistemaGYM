@@ -57,6 +57,18 @@ const STATUS_BADGE = {
   fallido: "neg", restore: "warn",
 };
 
+// Vocabulario canónico único para mostrar el estado (el backend puede enviar
+// indistintamente "iniciado"/"running" o "error"/"fallido"; aquí se normalizan
+// a una sola etiqueta en español para no mostrar dos términos para lo mismo).
+const STATUS_LABEL = {
+  completado: "Completado",
+  iniciado:   "En progreso",
+  running:    "En progreso",
+  error:      "Error",
+  fallido:    "Error",
+  restore:    "Restauración",
+};
+
 // Descarga un archivo de backup con autenticación JWT
 async function downloadBackupFile(filename) {
   try {
@@ -88,6 +100,16 @@ const FILE_LABELS = {
 
 const TYPE_BADGE = {
   full: "pos", incremental: "info", differential: "warn", restore: "warn",
+};
+
+const TYPE_LABEL = {
+  full: "Completo", incremental: "Incremental", differential: "Diferencial", restore: "Restauración",
+};
+
+// Días de la semana en español (el valor persistido/backend sigue en inglés: monday..sunday)
+const DIA_LABEL = {
+  monday: "Lunes", tuesday: "Martes", wednesday: "Miércoles", thursday: "Jueves",
+  friday: "Viernes", saturday: "Sábado", sunday: "Domingo",
 };
 
 // Artefactos que SÍ se pueden restaurar (reconstruyen una base de datos).
@@ -172,9 +194,9 @@ export default function SuperadminBackups() {
       title: "Iniciar Backup",
       html: `
         <select id="swal-tipo" style="width:100%;padding:9px;border-radius:7px;background:var(--bg-input);color:var(--text-primary);border:1px solid var(--border);font-size:14px">
-          <option value="full">Full — volcado completo PG + MongoDB</option>
+          <option value="full">Completo — volcado completo PG + MongoDB</option>
           <option value="incremental" selected>Incremental — cambios desde último backup</option>
-          <option value="differential">Differential — cambios desde último full</option>
+          <option value="differential">Diferencial — cambios desde último respaldo completo</option>
         </select>
       `,
       showCancelButton: true,
@@ -430,11 +452,11 @@ export default function SuperadminBackups() {
                     <tr key={i} style={{ borderBottom: "1px solid var(--border, rgba(255,255,255,.04))" }}>
                       <td style={{ padding: "10px 16px", color: "var(--text-secondary)", whiteSpace: "nowrap" }}>{fmtDate(h.date)}</td>
                       <td style={{ padding: "10px 16px" }}>
-                        <span style={badge(TYPE_BADGE[h.type] || "muted")}>{h.type}</span>
+                        <span style={badge(TYPE_BADGE[h.type] || "muted")}>{TYPE_LABEL[h.type] || h.type}</span>
                       </td>
                       <td style={{ padding: "10px 16px" }}>
                         {h.status
-                          ? <span style={badge(STATUS_BADGE[h.status] || "muted")}>{h.status}</span>
+                          ? <span style={badge(STATUS_BADGE[h.status] || "muted")}>{STATUS_LABEL[h.status] || h.status}</span>
                           : <span style={{ color: "var(--text-secondary)" }}>—</span>
                         }
                         {h.error && (
@@ -508,8 +530,8 @@ export default function SuperadminBackups() {
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                   <Row label="Habilitado" value={<span style={badge(schedule?.enabled ? "pos" : "neg")}>{schedule?.enabled ? "Sí" : "No"}</span>} />
                   <Row label="Cron" value={<code style={{ background: "rgba(255,255,255,.06)", padding: "2px 8px", borderRadius: 5, fontSize: 12, color: "var(--accent-soft)" }}>{schedule?.cron || "—"}</code>} />
-                  <Row label="Tipo default" value={<span style={badge(TYPE_BADGE[schedule?.tipo_default] || "info")}>{schedule?.tipo_default || "—"}</span>} />
-                  <Row label="Full día" value={schedule?.full_dia || "—"} />
+                  <Row label="Tipo predeterminado" value={<span style={badge(TYPE_BADGE[schedule?.tipo_default] || "info")}>{TYPE_LABEL[schedule?.tipo_default] || schedule?.tipo_default || "—"}</span>} />
+                  <Row label="Día del respaldo completo" value={DIA_LABEL[schedule?.full_dia] || schedule?.full_dia || "—"} />
                   <Row label="Retener" value={`${schedule?.retener_dias || "—"} días`} />
                 </div>
               )}
@@ -525,17 +547,17 @@ export default function SuperadminBackups() {
                     <input style={{ ...INPUT, width: "100%", boxSizing: "border-box" }} value={schedForm.cron || ""} onChange={e => setSchedForm(f => ({ ...f, cron: e.target.value }))} placeholder="0 3 * * *" />
                   </div>
                   <div>
-                    <p style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 5 }}>Tipo default</p>
+                    <p style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 5 }}>Tipo predeterminado</p>
                     <select style={{ ...INPUT, width: "100%" }} value={schedForm.tipo_default || "incremental"} onChange={e => setSchedForm(f => ({ ...f, tipo_default: e.target.value }))}>
-                      <option value="full">Full</option>
+                      <option value="full">Completo</option>
                       <option value="incremental">Incremental</option>
-                      <option value="differential">Differential</option>
+                      <option value="differential">Diferencial</option>
                     </select>
                   </div>
                   <div>
-                    <p style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 5 }}>Día del full</p>
+                    <p style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 5 }}>Día del respaldo completo</p>
                     <select style={{ ...INPUT, width: "100%" }} value={schedForm.full_dia || "sunday"} onChange={e => setSchedForm(f => ({ ...f, full_dia: e.target.value }))}>
-                      {["monday","tuesday","wednesday","thursday","friday","saturday","sunday"].map(d => <option key={d} value={d}>{d}</option>)}
+                      {["monday","tuesday","wednesday","thursday","friday","saturday","sunday"].map(d => <option key={d} value={d}>{DIA_LABEL[d]}</option>)}
                     </select>
                   </div>
                   <div>

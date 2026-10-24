@@ -42,52 +42,97 @@ const INPUT = {
   boxSizing: "border-box",
 };
 
-const FEATURES_DEFAULT = [
-  "Gestión de miembros",
-  "Control de pagos",
-  "Reportes básicos",
-];
+// Conversión de precio: el formulario captura pesos, la API espera centavos.
+// Se aísla aquí para que ningún componente tenga que hacer la aritmética a mano.
+const pesosACentavos = (pesos) => Math.round((Number(pesos) || 0) * 100);
+const centavosAPesos = (centavos) => (Number(centavos) || 0) / 100;
 
-function PlanForm({ plan, onSave, onCancel }) {
+// Un nombre de plan válido: letras, números, espacios y guiones, sin dejarlo vacío.
+const NOMBRE_PLAN_RE = /^[\p{L}0-9][\p{L}0-9\s-]{1,49}$/u;
+
+function PlanForm({ plan, planesExistentes = [], onSave, onCancel }) {
   const [form, setForm] = useState({
-    nombre:             plan?.nombre             || "",
-    precio_mensual_mxn: plan?.precio_mensual_mxn || 0,
-    descripcion:        plan?.descripcion        || "",
-    max_miembros:       plan?.max_miembros       || null,
+    nombre:           plan?.nombre           || "",
+    titulo_comercial: plan?.titulo_comercial || "",
+    precio_pesos:     plan ? centavosAPesos(plan.precio_mensual_mxn) : 0,
+    descripcion:      plan?.descripcion      || "",
+    max_miembros:     plan?.max_miembros     || null,
+    caracteristicas:  (plan?.caracteristicas || []).join("\n"),
   });
+  const [saving, setSaving] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return; // evita doble envío por doble clic
+
+    const nombre = form.nombre.trim();
+    if (!NOMBRE_PLAN_RE.test(nombre)) {
+      Swal.fire({ icon: "warning", title: "Nombre inválido", text: "Usa solo letras, números, espacios y guiones (2-50 caracteres).", background: "var(--bg-card)", color: "var(--text-primary)" });
+      return;
+    }
+    const duplicado = planesExistentes.some(
+      p => p.id !== plan?.id && p.nombre.trim().toLowerCase() === nombre.toLowerCase()
+    );
+    if (duplicado) {
+      Swal.fire({ icon: "warning", title: "Nombre en uso", text: `Ya existe un plan llamado "${nombre}".`, background: "var(--bg-card)", color: "var(--text-primary)" });
+      return;
+    }
+
+    const payload = {
+      nombre,
+      titulo_comercial:   form.titulo_comercial.trim() || null,
+      precio_mensual_mxn: pesosACentavos(form.precio_pesos),
+      descripcion:        form.descripcion,
+      max_miembros:       form.max_miembros,
+      caracteristicas:    form.caracteristicas.split("\n").map(s => s.trim()).filter(Boolean),
+    };
+
+    setSaving(true);
     try {
-      if (plan?.id) await editarPlan(plan.id, form);
-      else          await crearPlan(form);
+      if (plan?.id) await editarPlan(plan.id, payload);
+      else          await crearPlan(payload);
       onSave();
     } catch (err) {
       const msg = err?.response?.data?.msg || "Error al guardar";
       Swal.fire({ icon: "error", title: "Error", text: msg, background: "var(--bg-card)", color: "var(--text-primary)" });
+    } finally {
+      setSaving(false);
     }
   };
 
   return (
     <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <div>
-        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>Nombre del Plan</label>
-        <input style={INPUT} value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} required placeholder="Ej: enterprise" />
+        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>Nombre comercial del plan</label>
+        <input style={INPUT} value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} required placeholder="Ej: Enterprise" maxLength={50} />
       </div>
       <div>
-        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>Precio mensual (centavos MXN)</label>
-        <input style={INPUT} type="number" min={0} value={form.precio_mensual_mxn} onChange={e => setForm(f => ({ ...f, precio_mensual_mxn: parseInt(e.target.value) || 0 }))} required placeholder="149900 = $1,499/mes" />
+        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>Frase comercial (opcional)</label>
+        <input style={INPUT} value={form.titulo_comercial} onChange={e => setForm(f => ({ ...f, titulo_comercial: e.target.value }))} placeholder="Ej: Ideal para gimnasios en crecimiento" maxLength={120} />
+      </div>
+      <div>
+        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>Precio mensual (MXN)</label>
+        <input style={INPUT} type="number" min={0} step="0.01" value={form.precio_pesos} onChange={e => setForm(f => ({ ...f, precio_pesos: e.target.value }))} required placeholder="1499.00" />
         <p style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 4 }}>
-          = ${((form.precio_mensual_mxn || 0) / 100).toLocaleString("es-MX", { minimumFractionDigits: 2 })} MXN/mes
+          Se guardará como ${pesosACentavos(form.precio_pesos).toLocaleString("es-MX")} centavos internamente.
         </p>
       </div>
       <div>
         <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>Descripción</label>
         <textarea
-          style={{ ...INPUT, minHeight: 80, resize: "vertical", fontFamily: "inherit" }}
+          style={{ ...INPUT, minHeight: 60, resize: "vertical", fontFamily: "inherit" }}
           value={form.descripcion}
           onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))}
-          placeholder="Describe las características del plan"
+          placeholder="Describe brevemente el plan"
+        />
+      </div>
+      <div>
+        <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>Beneficios incluidos (uno por línea)</label>
+        <textarea
+          style={{ ...INPUT, minHeight: 100, resize: "vertical", fontFamily: "inherit" }}
+          value={form.caracteristicas}
+          onChange={e => setForm(f => ({ ...f, caracteristicas: e.target.value }))}
+          placeholder={"Gestión de miembros\nControl de pagos\nReportes básicos"}
         />
       </div>
       <div>
@@ -95,21 +140,27 @@ function PlanForm({ plan, onSave, onCancel }) {
         <input style={INPUT} type="number" min={1} value={form.max_miembros || ""} onChange={e => setForm(f => ({ ...f, max_miembros: e.target.value ? parseInt(e.target.value) : null }))} placeholder="Ej: 500" />
       </div>
       <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-        <button type="button" style={btnStyle("ghost")} onClick={onCancel}>Cancelar</button>
-        <button type="submit" style={btnStyle("primary")}>{plan?.id ? "Guardar cambios" : "Crear plan"}</button>
+        <button type="button" style={btnStyle("ghost")} onClick={onCancel} disabled={saving}>Cancelar</button>
+        <button type="submit" style={{ ...btnStyle("primary"), opacity: saving ? .6 : 1, cursor: saving ? "not-allowed" : "pointer" }} disabled={saving}>
+          {saving ? "Guardando…" : (plan?.id ? "Guardar cambios" : "Crear plan")}
+        </button>
       </div>
     </form>
   );
 }
 
 function PlanCard({ plan, onEdit, onToggle }) {
-  const precio = ((plan.precio_mensual_mxn || 0) / 100).toLocaleString("es-MX", { minimumFractionDigits: 2 });
+  const precio = centavosAPesos(plan.precio_mensual_mxn).toLocaleString("es-MX", { minimumFractionDigits: 2 });
+  const beneficios = plan.caracteristicas || [];
   return (
     <div style={{ ...card(), borderTop: `3px solid ${plan.activo ? "var(--accent, var(--accent))" : "rgba(100,116,139,.4)"}`, display: "flex", flexDirection: "column", gap: 12 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
           <h3 style={{ fontSize: 17, fontWeight: 800, color: "var(--text-primary)", marginBottom: 4 }}>{plan.nombre}</h3>
-          <p style={{ fontSize: 12, color: "var(--text-secondary)" }}>{plan.descripcion || "Sin descripción"}</p>
+          {/* La frase comercial y la descripción se muestran cada una una sola vez */}
+          {plan.titulo_comercial && (
+            <p style={{ fontSize: 12, color: "var(--text-secondary)" }}>{plan.titulo_comercial}</p>
+          )}
         </div>
         <span style={badge(plan.activo ? "pos" : "neg")}>{plan.activo ? "Activo" : "Inactivo"}</span>
       </div>
@@ -119,14 +170,24 @@ function PlanCard({ plan, onEdit, onToggle }) {
         <span style={{ fontSize: 13, color: "var(--text-secondary)", marginLeft: 4 }}>MXN/mes</span>
       </div>
 
+      {plan.descripcion && (
+        <p style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5 }}>{plan.descripcion}</p>
+      )}
+
       {plan.max_miembros && (
         <p style={{ fontSize: 12, color: "var(--text-secondary)" }}>
           Máx: {plan.max_miembros.toLocaleString()} miembros
         </p>
       )}
 
-      {plan.descripcion && (
-        <p style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5 }}>{plan.descripcion}</p>
+      {beneficios.length > 0 && (
+        <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 6 }}>
+          {beneficios.map((b, i) => (
+            <li key={i} style={{ fontSize: 12, color: "var(--text-secondary)", display: "flex", gap: 6, alignItems: "flex-start" }}>
+              <span style={{ color: "var(--success)" }}>✓</span> {b}
+            </li>
+          ))}
+        </ul>
       )}
 
       {plan.suscriptores_activos != null && (
@@ -206,7 +267,7 @@ export default function SuperadminPlanes() {
             <h2 style={{ fontSize: 18, fontWeight: 800, color: "var(--text-primary)", marginBottom: 20 }}>
               {editing?.id ? "Editar Plan" : "Nuevo Plan"}
             </h2>
-            <PlanForm plan={editing} onSave={handleSave} onCancel={() => { setShowForm(false); setEditing(null); }} />
+            <PlanForm plan={editing} planesExistentes={planes} onSave={handleSave} onCancel={() => { setShowForm(false); setEditing(null); }} />
           </div>
         </div>
       )}
