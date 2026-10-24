@@ -12,7 +12,7 @@
 import { useState, useEffect } from "react";
 import { FiCreditCard, FiLoader } from "react-icons/fi";
 import Swal from "sweetalert2";
-import { getMetodosPago, getMetodosPlataforma, pagarYRedirigir } from "../../api/pagos";
+import { getMetodosPago, getMetodosPlataforma, pagarYRedirigir } from "../../api/pagosOnline";
 
 const COLORES = {
   paypal:      { bg: "#ffc439", fg: "#111827" },

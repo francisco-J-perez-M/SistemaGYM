@@ -1,5 +1,9 @@
 /**
- * api/pagos.js — Cliente de las pasarelas de pago (PayPal y Mercado Pago).
+ * api/pagosOnline.js — Cliente de las pasarelas de pago (PayPal y Mercado Pago).
+ *
+ * NOTA: el archivo api/pagos.jsx (sin "Online") es el cliente histórico de pagos
+ * internos del gimnasio —registrarPago, getPagos, movimientos—. Este módulo es
+ * independiente y cubre solo los cobros en línea con pasarela.
  *
  * Dos grupos de llamadas:
  *   - Configuración (solo dueño del gimnasio): registra las credenciales con las

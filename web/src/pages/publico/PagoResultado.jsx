@@ -10,7 +10,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { FiCheckCircle, FiXCircle, FiClock, FiArrowLeft } from "react-icons/fi";
-import { getEstadoPago } from "../../api/pagos";
+import { getEstadoPago } from "../../api/pagosOnline";
 
 const wrap = {
   minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center",
