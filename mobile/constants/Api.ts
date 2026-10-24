@@ -125,6 +125,10 @@ export const ENDPOINTS = {
   BILLING_FACTURAS:    '/billing/facturas',      // GET ?limit=10 historial
   BILLING_RENOVAR:     '/billing/suscripcion/renovar', // POST { id_plan? } renovar o mejorar
 
+  // ── Reporte ejecutivo del gimnasio ────────────────────────────────────────
+  REPORTES_OPCIONES:   '/owner_gym/reportes/opciones', // GET años y secciones disponibles
+  REPORTES_PDF:        '/owner_gym/reportes/pdf',      // GET ?anio=&mes=&secciones=&comparar=
+
   // ── IA / Analítica (Spark) — /api/analytics/* ─────────────────────────────
   ANALYTICS_KMEANS:        '/analytics/kmeans',        // GET ?k=3 → segmentación de miembros
   ANALYTICS_CANCELACIONES: '/analytics/cancelaciones', // GET → riesgo de cancelación

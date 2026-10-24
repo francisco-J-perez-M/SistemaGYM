@@ -84,6 +84,16 @@ interface NewSessionForm {
 
 const TIPOS_SESION = ['Personal', 'Grupal', 'Evaluación', 'Rehabilitación'];
 
+/**
+ * Horas seleccionables, de 06:00 a 22:30 en tramos de media hora.
+ * Se ofrecen como lista para no depender de que el entrenador escriba un
+ * formato HH:MM válido a mano.
+ */
+const HORAS: string[] = Array.from({ length: 34 }, (_, i) => {
+  const minutos = 6 * 60 + i * 30;
+  return `${String(Math.floor(minutos / 60)).padStart(2, '0')}:${minutos % 60 === 0 ? '00' : '30'}`;
+});
+
 function FormField({ label, value, onChange, placeholder, keyboardType, multiline, fStyles, colors }: {
   label: string; value: string; onChange: (v: string) => void;
   placeholder?: string; keyboardType?: any; multiline?: boolean;
@@ -129,7 +139,10 @@ export default function ScheduleScreen() {
   });
 
   const { data, loading, refetch }           = useFetch<ScheduleResponse>(ENDPOINTS.TRAINER_SCHEDULE);
-  const { data: membersData, loading: loadM } = useFetch<{ members: Member[] }>(ENDPOINTS.TRAINER_MEMBERS);
+  // my_clients=1: la agenda solo debe ofrecer los clientes asignados a este
+  // entrenador. Sin el parámetro salían todos los miembros del gimnasio.
+  const { data: membersData, loading: loadM } =
+    useFetch<{ members: Member[] }>(`${ENDPOINTS.TRAINER_MEMBERS}?my_clients=1`);
 
   const members = toArray(membersData?.members ?? []);
 
@@ -150,6 +163,12 @@ export default function ScheduleScreen() {
       Alert.alert('Requerido', 'Completa la fecha y hora de inicio.');
       return;
     }
+    // El cliente es obligatorio: una sesión sin destinatario no le sirve a nadie
+    // y ensuciaba la agenda con huecos imposibles de interpretar.
+    if (!form.id_miembro) {
+      Alert.alert('Falta el cliente', 'Elige a quién va dirigida la sesión.');
+      return;
+    }
     setSaving(true);
     try {
       const payload: Record<string, any> = {
@@ -159,8 +178,8 @@ export default function ScheduleScreen() {
         tipo:             form.tipo,
         nombre_sesion:    form.nombre_sesion.trim() || undefined,
         notas:            form.notas.trim() || undefined,
+        id_miembro:       form.id_miembro,
       };
-      if (form.id_miembro) payload.id_miembro = form.id_miembro;
       await api.post(ENDPOINTS.TRAINER_SESSIONS, payload);
       setShowModal(false);
       setForm({ fecha: today, hora_inicio: '08:00', duracion_minutos: '60', tipo: 'Personal', nombre_sesion: '', notas: '', id_miembro: '' });
@@ -300,9 +319,28 @@ export default function ScheduleScreen() {
                   <Ionicons name="chevron-down" size={16} color={colors.textSecondary} />
                 </TouchableOpacity>
               </View>
-              <FormField label="Hora de inicio (HH:MM)" value={form.hora_inicio}
-                onChange={setField('hora_inicio')} placeholder="08:00"
-                fStyles={fStyles} colors={colors} />
+              {/* Hora: rejilla de medias horas en vez de escribir HH:MM a mano,
+                  que dejaba pasar formatos inválidos. */}
+              <Text style={fStyles.label}>Hora de inicio</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}
+                          contentContainerStyle={{ gap: 6, paddingBottom: 6 }}>
+                {HORAS.map((h) => {
+                  const activa = form.hora_inicio === h;
+                  return (
+                    <TouchableOpacity
+                      key={h}
+                      style={[styles.horaChip, activa && styles.horaChipActive]}
+                      onPress={() => setForm(p => ({ ...p, hora_inicio: h }))}
+                      accessibilityRole="radio"
+                      accessibilityState={{ checked: activa }}
+                      accessibilityLabel={`Hora ${h}`}
+                    >
+                      <Text style={[styles.horaText, activa && { color: colors.onAccent }]}>{h}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
               <FormField label="Duración (minutos)" value={form.duracion_minutos}
                 onChange={setField('duracion_minutos')} keyboardType="numeric"
                 fStyles={fStyles} colors={colors} />
@@ -329,18 +367,12 @@ export default function ScheduleScreen() {
                 ))}
               </View>
 
-              {/* Seleccionar cliente */}
-              {members.length > 0 && (
+              {/* Seleccionar cliente: obligatorio y solo los asignados */}
+              {members.length > 0 ? (
                 <>
-                  <Text style={[fStyles.label, { marginTop: 8 }]}>Cliente (opcional)</Text>
+                  <Text style={[fStyles.label, { marginTop: 8 }]}>Cliente</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false}
                     contentContainerStyle={{ gap: 8, paddingBottom: 4 }}>
-                    <TouchableOpacity
-                      style={[styles.clientChip, !form.id_miembro && styles.clientChipActive]}
-                      onPress={() => setForm(p => ({ ...p, id_miembro: '' }))}
-                    >
-                      <Text style={[styles.clientChipText, !form.id_miembro && { color: colors.onAccent }]}>Sin asignar</Text>
-                    </TouchableOpacity>
                     {members.map(m => {
                       const isSelected = form.id_miembro === m.id_miembro;
                       return (
@@ -360,6 +392,11 @@ export default function ScheduleScreen() {
                     })}
                   </ScrollView>
                 </>
+              ) : (
+                <Text style={[fStyles.label, { marginTop: 8, color: colors.dataAtencion }]}>
+                  Aún no tienes clientes asignados. Pide al gimnasio que te asigne
+                  miembros para poder agendar sesiones.
+                </Text>
               )}
 
               <View style={{ height: 16 }} />
@@ -582,6 +619,10 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   clientChip:  { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
   clientChipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
   clientChipText: { color: colors.textSecondary, fontSize: 13 * fs, fontWeight: '600' },
+  horaChip:    { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 18,
+                 backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
+  horaChipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
+  horaText:    { color: colors.textSecondary, fontSize: 13 * fs, fontWeight: '600' },
   dateBtn:        { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.card, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, borderWidth: 1, borderColor: colors.border },
   dateBtnText:    { flex: 1, color: colors.text, fontSize: 14 * fs, fontWeight: '600' },
 });

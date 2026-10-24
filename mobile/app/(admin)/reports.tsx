@@ -7,7 +7,8 @@
  */
 import React, { useState, useMemo } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, RefreshControl, Dimensions, Share, TouchableOpacity, Alert,
+  View, Text, StyleSheet, ScrollView, RefreshControl, Dimensions, Share,
+  TouchableOpacity, Alert, Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LineChart } from 'react-native-chart-kit';
@@ -21,7 +22,12 @@ import { downloadAndShare } from '../../services/download';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
+import { MESES_CORTOS } from '../../components/ui/SelectorPeriodo';
 import type { OwnerDashboard, IngresoMes, ActividadItem } from '../../types';
+
+/** Sección que el dueño puede incluir o quitar del reporte. */
+interface SeccionReporte { id: string; label: string; descripcion: string }
+interface OpcionesReporte { anios?: number[]; secciones?: SeccionReporte[] }
 
 const SCREEN_W = Dimensions.get('window').width;
 const money = (n: number) => `$${(n ?? 0).toLocaleString('es-MX', { maximumFractionDigits: 0 })}`;
@@ -46,22 +52,49 @@ export default function ReportsScreen() {
   const serie = toArray<IngresoMes>(ingresos);
   const feed  = toArray<ActividadItem>(actividad);
 
-  const ingresoMes  = kpis?.ingresos?.mes_actual ?? 0;
-  const variacion   = kpis?.ingresos?.variacion_pct ?? 0;
-  const ventas      = kpis?.ventas_pos?.total_mes ?? 0;
-  const totalMes    = ingresoMes + ventas;
+  // 'mes_actual' ya es el TOTAL (membresías + punto de venta). Antes se le
+  // volvía a sumar 'ventas_pos', así que el total del mes salía con el importe
+  // del POS contado dos veces.
+  const totalMes    = kpis?.ingresos?.mes_actual ?? 0;
+  const porMembresias = kpis?.ingresos?.membresias ?? 0;
+  const ventas      = kpis?.ingresos?.punto_de_venta ?? kpis?.ventas_pos?.total_mes ?? 0;
+  const sinComparativa = kpis?.ingresos?.sin_comparativa ?? false;
+  const variacion   = sinComparativa ? 0 : (kpis?.ingresos?.variacion_pct ?? 0);
 
   const [downloading, setDownloading] = useState(false);
+  const [showConfig, setShowConfig]   = useState(false);
 
-  const downloadPdf = async () => {
+  // ── Configuración del reporte ─────────────────────────────────────────────
+  const { data: opciones } = useFetch<OpcionesReporte>(ENDPOINTS.REPORTES_OPCIONES);
+  const hoy = new Date();
+  const [anio, setAnio] = useState(hoy.getFullYear());
+  const [mes,  setMes]  = useState(hoy.getMonth() + 1);
+  const [comparar, setComparar] = useState(true);
+  const [secciones, setSecciones] = useState<string[]>(
+    ['resumen', 'ingresos', 'membresias', 'pos', 'asistencias', 'miembros'],
+  );
+
+  const alternarSeccion = (id: string) =>
+    setSecciones((prev) =>
+      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]);
+
+  const generarPdf = async () => {
+    if (secciones.length === 0) {
+      Alert.alert('Elige al menos una sección', 'El reporte no puede ir vacío.');
+      return;
+    }
     setDownloading(true);
     try {
-      const r = await downloadAndShare(ENDPOINTS.REPORT_INGRESOS_PDF, 'GymPro_Ingresos.pdf');
+      const consulta =
+        `${ENDPOINTS.REPORTES_PDF}?anio=${anio}&mes=${mes}` +
+        `&secciones=${secciones.join(',')}` +
+        (comparar ? '&comparar=1' : '');
+      const nombre = `Reporte_${anio}-${String(mes).padStart(2, '0')}.pdf`;
+      const r = await downloadAndShare(consulta, nombre);
       if (!r.ok) Alert.alert('No se pudo descargar', r.reason ?? 'Intenta de nuevo.');
+      else setShowConfig(false);
     } catch (e: any) {
-      Alert.alert('Error', e?.response?.status === 404
-        ? 'No hay datos de ingresos para exportar todavía.'
-        : (e?.message ?? 'No se pudo generar el PDF.'));
+      Alert.alert('Error', e?.message ?? 'No se pudo generar el reporte.');
     } finally {
       setDownloading(false);
     }
@@ -70,9 +103,9 @@ export default function ReportsScreen() {
   const shareSummary = async () => {
     const lines = [
       'GymPro — Resumen del mes',
-      `Ingresos por membresías: ${money(ingresoMes)} (${variacion >= 0 ? '+' : ''}${variacion}% vs mes anterior)`,
-      `Ventas POS: ${money(ventas)} (${kpis?.ventas_pos?.transacciones ?? 0} transacciones)`,
-      `Total: ${money(totalMes)}`,
+      `Ingresos totales: ${money(totalMes)}${sinComparativa ? '' : ` (${variacion >= 0 ? '+' : ''}${variacion}% vs mes anterior)`}`,
+      `  Membresías: ${money(porMembresias)}`,
+      `  Punto de venta: ${money(ventas)} (${kpis?.ventas_pos?.transacciones ?? 0} transacciones)`,
       `Miembros activos: ${kpis?.miembros?.activos ?? 0} · Nuevos: ${kpis?.miembros?.nuevos_mes ?? 0} · Por vencer: ${kpis?.miembros?.por_vencer ?? 0}`,
     ];
     try { await Share.share({ message: lines.join('\n') }); } catch { /* cancelado */ }
@@ -94,8 +127,8 @@ export default function ReportsScreen() {
             accessibilityRole="button" accessibilityLabel="Compartir resumen">
             <Ionicons name="share-outline" size={18} color={colors.accent} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.pdfBtn} onPress={downloadPdf} disabled={downloading}
-            accessibilityRole="button" accessibilityLabel="Descargar PDF de ingresos">
+          <TouchableOpacity style={styles.pdfBtn} onPress={() => setShowConfig(true)} disabled={downloading}
+            accessibilityRole="button" accessibilityLabel="Generar reporte en PDF">
             <Ionicons name={downloading ? 'hourglass-outline' : 'document-text-outline'} size={16} color={colors.onAccent} />
             <Text style={styles.pdfText}>{downloading ? 'Generando…' : 'PDF'}</Text>
           </TouchableOpacity>
@@ -119,7 +152,7 @@ export default function ReportsScreen() {
         <View style={styles.splitRow}>
           <View style={styles.splitCol}>
             <Text style={styles.splitLabel}>Membresías</Text>
-            <Text style={styles.splitValue}>{money(ingresoMes)}</Text>
+            <Text style={styles.splitValue}>{money(porMembresias)}</Text>
           </View>
           <View style={styles.splitDivider} />
           <View style={styles.splitCol}>
@@ -208,6 +241,132 @@ export default function ReportsScreen() {
           ))
         )}
       </Card>
+
+      {/* ── Generador de reportes ─────────────────────────────────────────── */}
+      <Modal visible={showConfig} transparent animationType="slide"
+             onRequestClose={() => setShowConfig(false)}>
+        <View style={styles.overlay}>
+          <View style={[styles.hoja, { paddingBottom: insets.bottom + 16 }]}>
+            <View style={styles.hojaHeader}>
+              <Text style={styles.hojaTitulo}>Armar reporte</Text>
+              <TouchableOpacity onPress={() => setShowConfig(false)} accessibilityLabel="Cerrar">
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {/* Periodo */}
+              <Text style={styles.campoLabel}>Año</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}
+                          contentContainerStyle={styles.chipFila}>
+                {toArray<number>(opciones?.anios).map((a) => (
+                  <TouchableOpacity
+                    key={a}
+                    style={[styles.chip, anio === a && styles.chipActivo]}
+                    onPress={() => setAnio(a)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: anio === a }}
+                    accessibilityLabel={`Año ${a}`}
+                  >
+                    <Text style={[styles.chipText, anio === a && styles.chipTextActivo]}>{a}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              <Text style={styles.campoLabel}>Mes</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}
+                          contentContainerStyle={styles.chipFila}>
+                <TouchableOpacity
+                  style={[styles.chip, mes === 0 && styles.chipActivo]}
+                  onPress={() => setMes(0)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: mes === 0 }}
+                  accessibilityLabel="Año completo"
+                >
+                  <Text style={[styles.chipText, mes === 0 && styles.chipTextActivo]}>Año</Text>
+                </TouchableOpacity>
+                {MESES_CORTOS.map((etiqueta, i) => (
+                  <TouchableOpacity
+                    key={etiqueta}
+                    style={[styles.chip, mes === i + 1 && styles.chipActivo]}
+                    onPress={() => setMes(i + 1)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: mes === i + 1 }}
+                    accessibilityLabel={`Mes de ${etiqueta}`}
+                  >
+                    <Text style={[styles.chipText, mes === i + 1 && styles.chipTextActivo]}>
+                      {etiqueta}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              {/* Secciones */}
+              <Text style={styles.campoLabel}>Qué incluir</Text>
+              <View style={{ gap: 8 }}>
+                {toArray<SeccionReporte>(opciones?.secciones).map((s) => {
+                  const activa = secciones.includes(s.id);
+                  return (
+                    <TouchableOpacity
+                      key={s.id}
+                      style={[styles.seccionFila, activa && styles.seccionActiva]}
+                      onPress={() => alternarSeccion(s.id)}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: activa }}
+                      accessibilityLabel={s.label}
+                    >
+                      <Ionicons
+                        name={activa ? 'checkbox' : 'square-outline'}
+                        size={20}
+                        color={activa ? colors.accent : colors.textMuted}
+                      />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.seccionTitulo}>{s.label}</Text>
+                        <Text style={styles.seccionDesc}>{s.descripcion}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Comparativa */}
+              <TouchableOpacity
+                style={styles.compararFila}
+                onPress={() => setComparar((v) => !v)}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: comparar }}
+                accessibilityLabel="Comparar con el periodo anterior"
+              >
+                <Ionicons
+                  name={comparar ? 'checkbox' : 'square-outline'}
+                  size={20}
+                  color={comparar ? colors.accent : colors.textMuted}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.seccionTitulo}>Comparar con el periodo anterior</Text>
+                  <Text style={styles.seccionDesc}>
+                    Añade la variación de ingresos, asistencias y altas.
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.generarBtn, downloading && { opacity: 0.6 }]}
+                onPress={generarPdf}
+                disabled={downloading}
+                accessibilityRole="button"
+                accessibilityLabel="Generar el reporte"
+              >
+                <Ionicons name={downloading ? 'hourglass-outline' : 'document-text-outline'}
+                          size={19} color={colors.onAccent} />
+                <Text style={styles.generarText}>
+                  {downloading ? 'Generando…' : 'Generar reporte'}
+                </Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -223,6 +382,49 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
     pdfBtn:   { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.accent,
                 borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9 },
     pdfText:  { color: colors.onAccent, fontSize: 13 * fs, fontWeight: '700' },
+
+    // ── Generador de reportes ───────────────────────────────────────────────
+    overlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'flex-end' },
+    hoja: {
+      backgroundColor: colors.background,
+      borderTopLeftRadius: 24, borderTopRightRadius: 24,
+      paddingHorizontal: 20, paddingTop: 18, maxHeight: '90%',
+    },
+    hojaHeader: { flexDirection: 'row', alignItems: 'center',
+                  justifyContent: 'space-between', marginBottom: 6 },
+    hojaTitulo: { color: colors.text, fontSize: 18 * fs, fontWeight: '800' },
+
+    campoLabel: { color: colors.textSecondary, fontSize: 12 * fs, fontWeight: '700',
+                  marginTop: 16, marginBottom: 8 },
+    chipFila:   { gap: 6, paddingRight: 8 },
+    chip: {
+      paddingHorizontal: 13, paddingVertical: 7, borderRadius: 18,
+      backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
+      minWidth: 46, alignItems: 'center',
+    },
+    chipActivo:     { backgroundColor: colors.accent, borderColor: colors.accent },
+    chipText:       { color: colors.textSecondary, fontSize: 12.5 * fs, fontWeight: '600' },
+    chipTextActivo: { color: colors.onAccent, fontWeight: '700' },
+
+    seccionFila: {
+      flexDirection: 'row', alignItems: 'center', gap: 11,
+      backgroundColor: colors.card, borderRadius: 12, padding: 13,
+      borderWidth: 1, borderColor: colors.border,
+    },
+    seccionActiva:  { borderColor: colors.accent },
+    seccionTitulo:  { color: colors.text, fontSize: 13.5 * fs, fontWeight: '700' },
+    seccionDesc:    { color: colors.textSecondary, fontSize: 11.5 * fs, marginTop: 1 },
+
+    compararFila: {
+      flexDirection: 'row', alignItems: 'center', gap: 11, marginTop: 18,
+      backgroundColor: colors.surface, borderRadius: 12, padding: 13,
+    },
+    generarBtn: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9,
+      backgroundColor: colors.accent, borderRadius: 13, paddingVertical: 15,
+      marginTop: 22, marginBottom: 8,
+    },
+    generarText: { color: colors.onAccent, fontSize: 15 * fs, fontWeight: '700' },
 
     cardLabel:{ color: colors.textSecondary, fontSize: 13 * fs },
     bigValue: { color: colors.text, fontSize: 34 * fs, fontWeight: '800', marginTop: 4 },

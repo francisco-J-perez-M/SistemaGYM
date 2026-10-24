@@ -10,19 +10,45 @@
  */
 
 /**
- * Convierte cualquier valor tipo fecha a un string "YYYY-MM-DD".
- * Devuelve '' si el valor es falsy o no convertible.
+ * Fecha local del dispositivo como "YYYY-MM-DD".
+ *
+ * NO se usa toISOString(): ese método convierte a UTC, así que un movimiento
+ * de las 19:00 en México (UTC-6) se mostraría con la fecha del día siguiente.
+ * Se leen los componentes locales, que ya respetan la zona del teléfono.
+ */
+function ymdLocal(d: Date): string {
+  if (Number.isNaN(d.getTime())) return '';
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
+/**
+ * Convierte cualquier valor tipo fecha a un string "YYYY-MM-DD" en la zona
+ * horaria del dispositivo. Devuelve '' si el valor es falsy o no convertible.
  */
 export function toDateStr(val: any, chars = 10): string {
   if (!val) return '';
-  if (typeof val === 'string') return val.slice(0, chars);
-  if (val instanceof Date) return val.toISOString().slice(0, chars);
+
+  // Cadena ya en formato fecha (YYYY-MM-DD...): se recorta tal cual. Viene así
+  // del backend, que la calcula en la zona del gimnasio; reinterpretarla como
+  // Date la desplazaría otra vez.
+  if (typeof val === 'string') {
+    if (/^\d{4}-\d{2}-\d{2}/.test(val)) return val.slice(0, chars);
+    const d = new Date(val);
+    return Number.isNaN(d.getTime()) ? val.slice(0, chars) : ymdLocal(d).slice(0, chars);
+  }
+
+  if (val instanceof Date) return ymdLocal(val).slice(0, chars);
+
   // Fecha MongoDB en formato extendido: { $date: "2025-01-01T..." }
   if (typeof val === 'object' && val.$date) return toDateStr(val.$date, chars);
+
   // Timestamp de segundos (Firestore / MongoDB interno)
   if (typeof val === 'object' && typeof val.seconds === 'number') {
-    return new Date(val.seconds * 1000).toISOString().slice(0, chars);
+    return ymdLocal(new Date(val.seconds * 1000)).slice(0, chars);
   }
+
   return String(val).slice(0, chars);
 }
 

@@ -434,9 +434,14 @@ export interface OwnerDashboard {
     por_vencer: number;
   };
   ingresos: {
-    mes_actual:    number;
-    mes_anterior:  number;
-    variacion_pct: number;
+    /** Total del mes: membresías + punto de venta. No sumarle ventas_pos otra vez. */
+    mes_actual:      number;
+    membresias?:     number;
+    punto_de_venta?: number;
+    mes_anterior:    number;
+    variacion_pct:   number;
+    /** True si el mes anterior no tuvo ingresos: no hay porcentaje que mostrar. */
+    sin_comparativa?: boolean;
   };
   ventas_pos: {
     total_mes:      number;
@@ -515,4 +520,10 @@ export interface MovimientosResponse {
   total:       number;
   pages:       number;
   page:        number;
+  per_page?:   number;
+  /** Importe de todo el filtro, no solo de la página devuelta. */
+  monto_total?: number;
+  /** Años con movimientos; alimenta el selector de periodo. */
+  anios?:      number[];
+  filtro?:     { tipo: string; anio: number | null; mes: number | null };
 }
