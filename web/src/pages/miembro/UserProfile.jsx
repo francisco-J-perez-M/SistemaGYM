@@ -114,10 +114,11 @@ export default function UserProfile() {
       if (!res.ok) throw new Error((await res.json()).error || "Error al guardar");
       setProfile(edited);
       setIsEditing(false);
-      // sync localStorage
+      // Sync name/email to localStorage so Sidebar initials update immediately
       const u = JSON.parse(localStorage.getItem("user") || "{}");
       u.nombre = edited.nombre; u.email = edited.email;
       localStorage.setItem("user", JSON.stringify(u));
+      window.dispatchEvent(new CustomEvent("userDataUpdated"));
       showToast("ok", "Perfil actualizado correctamente");
     } catch (e) {
       showToast("err", e.message);
@@ -139,6 +140,13 @@ export default function UserProfile() {
     if (res.ok) {
       const d = await res.json();
       setProfile(p => ({ ...p, fotoPerfil: d.fotoPerfil }));
+      // Sync photo to localStorage so Sidebar avatar updates immediately
+      try {
+        const u = JSON.parse(localStorage.getItem("user") || "{}");
+        u.foto = d.fotoPerfil;
+        localStorage.setItem("user", JSON.stringify(u));
+        window.dispatchEvent(new CustomEvent("userDataUpdated"));
+      } catch {}
       showToast("ok", "Foto actualizada");
     }
   };
@@ -260,7 +268,7 @@ export default function UserProfile() {
               <div style={{ position:"relative", flexShrink:0 }}>
                 {profile.fotoPerfil ? (
                   <img
-                    src={`/api/static/uploads/${profile.fotoPerfil}`}
+                    src={`/api/uploads/${profile.fotoPerfil}`}
                     alt="foto"
                     style={{ width:96, height:96, borderRadius:"50%", objectFit:"cover",
                       border:"3px solid rgba(255,255,255,.4)" }}
@@ -460,19 +468,4 @@ export default function UserProfile() {
                       <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                         <span style={{ fontSize:14, fontWeight:600, color: levelColor[nivel] || "var(--text-primary)" }}>
                           {profile.nivelExperiencia || "Sin especificar"}
-                        </span>
-                        {profile.nivelExperiencia && (
-                          <span style={{ width:8, height:8, borderRadius:"50%", background: levelColor[nivel], flexShrink:0 }}/>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        </main>
-      </div>
-    </div>
-  );
-}
+                   

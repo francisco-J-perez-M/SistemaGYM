@@ -68,7 +68,14 @@ export default function UserDashboard() {
         setWeekProg(d.weeklyProgress);
         setAchievements(d.achievements);
         setMembership(d.membership);
-        if (d.user) { setUser(d.user); localStorage.setItem("user", JSON.stringify(d.user)); }
+        if (d.user) {
+          setUser(d.user);
+          // Merge with existing localStorage to preserve keys like 'foto' set by other modules
+          const existing = (() => { try { return JSON.parse(localStorage.getItem("user") || "{}"); } catch { return {}; } })();
+          const merged = { ...existing, ...d.user, foto: d.user.foto_perfil || d.user.foto || existing.foto };
+          localStorage.setItem("user", JSON.stringify(merged));
+          window.dispatchEvent(new CustomEvent("userDataUpdated"));
+        }
       }
       if (profRes.ok) {
         const p = await profRes.json();
@@ -129,7 +136,7 @@ export default function UserDashboard() {
               onClick={() => navigate("/user/profile")}
             >
               {user?.foto_perfil
-                ? <img src={`/static/uploads/${user.foto_perfil}`} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                ? <img src={`/api/uploads/${user.foto_perfil}`} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
                 : <FiUser size={18} color="var(--text-secondary)" />}
             </div>
           </div>
@@ -453,19 +460,4 @@ export default function UserDashboard() {
                       : a.icon === "FaDumbbell" ? <FiActivity size={16}/>
                       : a.icon === "FaTrophy"   ? <FiAward size={16}/>
                       : <FiZap size={16}/>}
-                    </div>
-                    <div>
-                      <div style={{ fontWeight:700, color:"var(--text-primary)" }}>{a.title}</div>
-                      <div style={{ fontSize:11, color:"var(--text-secondary)" }}>{a.description}</div>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            </motion.div>
-          )}
-
-        </main>
-      </div>
-    </div>
-  );
-}
+               

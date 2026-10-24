@@ -26,6 +26,14 @@ import TicketModal         from "./POSTicketModal";
 const fmt = (n) => `$${Number(n).toLocaleString("es-MX", { minimumFractionDigits: 2 })}`;
 const LOW_STOCK = 5; // umbral de "stock bajo"
 
+/* Helper: detectar si el usuario logueado es miembro */
+function getIsMiembro() {
+  try {
+    const u = JSON.parse(localStorage.getItem("user") || "{}");
+    return u.role === "Miembro" || u.role === "user";
+  } catch { return false; }
+}
+
 const CAT_COLORS = {
   Suplementos: "var(--accent)", Accesorios: "var(--success)", Snacks: "var(--warning)",
   Bebidas: "#38bdf8",     Ropa: "#f472b6",        General: "var(--text-secondary)",
@@ -269,14 +277,7 @@ function TabVenta() {
   const [ventaData,   setVentaData]   = useState(null);
   const [detailProd,  setDetailProd]  = useState(null);
 
-  // Los miembros no necesitan cargar la lista de otros miembros:
-  // su venta se auto-asigna en el modal de checkout.
-  const isMiembroRole = (() => {
-    try {
-      const u = JSON.parse(localStorage.getItem("user") || "{}");
-      return u.role === "Miembro" || u.role === "user";
-    } catch { return false; }
-  })();
+  const isMiembroRole = getIsMiembro();
 
   const load = useCallback(async () => {
     setLoadingInit(true);
@@ -327,7 +328,7 @@ function TabVenta() {
         {/* Columna izquierda: catalogo */}
         <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10, overflow: "hidden" }}>
           {/* Alertas de stock */}
-          {!loadingInit && <StockAlertBar productos={productos} />}
+          {!loadingInit && !isMiembroRole && <StockAlertBar productos={productos} />}
 
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", flexShrink: 0, alignItems: "center" }}>
             <input style={{ ...inputSt, width: 170 }} placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)} />
@@ -397,8 +398,8 @@ function TabVenta() {
                       <span style={{ fontSize: 10, color: catColor(p.categoria), fontWeight: 700, textTransform: "uppercase" }}>{p.categoria}</span>
                       <p style={{ margin: "4px 0 4px", fontSize: 13, fontWeight: 600, color: "var(--text-primary)", lineHeight: 1.3 }}>{p.nombre}</p>
 
-                      {/* Badge stock bajo */}
-                      {lowStock && (
+                      {/* Badge stock bajo — solo admin/recep */}
+                      {lowStock && !isMiembroRole && (
                         <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 10, fontWeight: 700,
                           color: "var(--warning)", background: "rgba(234,179,8,.15)", borderRadius: 99,
                           padding: "1px 7px", marginBottom: 4 }}>
@@ -678,6 +679,7 @@ function TabHistorial() {
 ══════════════════════════════════════════ */
 export default function PointOfSale() {
   const [tab, setTab] = useState("venta");
+  const isMiembro = getIsMiembro();
 
   const tabBtn = (active) => ({
     padding: "7px 18px", borderRadius: 8, border: "none", cursor: "pointer",
@@ -702,9 +704,11 @@ export default function PointOfSale() {
           <button style={tabBtn(tab === "venta")}    onClick={() => setTab("venta")}>
             <FiShoppingCart size={13} style={{ marginRight: 6 }} />Nueva Venta
           </button>
-          <button style={tabBtn(tab === "productos")} onClick={() => setTab("productos")}>
-            <FiTag size={13} style={{ marginRight: 6 }} />Productos
-          </button>
+          {!isMiembro && (
+            <button style={tabBtn(tab === "productos")} onClick={() => setTab("productos")}>
+              <FiTag size={13} style={{ marginRight: 6 }} />Productos
+            </button>
+          )}
           <button style={tabBtn(tab === "historial")} onClick={() => setTab("historial")}>
             <FiClock size={13} style={{ marginRight: 6 }} />Historial
           </button>
@@ -713,8 +717,4 @@ export default function PointOfSale() {
       <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
         {tab === "venta"     && <TabVenta />}
         {tab === "productos" && <TabProductos />}
-        {tab === "historial" && <TabHistorial />}
-      </div>
-    </div>
-  );
-}
+        {tab === "historial" && <TabHistorial

@@ -185,9 +185,19 @@ export default function Sidebar({
     return () => document.removeEventListener("mousedown", fn);
   }, []);
 
-  const user = (() => {
+  const [user, setUser] = useState(() => {
     try { return JSON.parse(localStorage.getItem("user") || "{}"); } catch { return {}; }
-  })();
+  });
+
+  // Re-sync user when photo or profile fields are updated from any module
+  useEffect(() => {
+    const onUserUpdate = () => {
+      try { setUser(JSON.parse(localStorage.getItem("user") || "{}")); } catch {}
+    };
+    window.addEventListener("userDataUpdated", onUserUpdate);
+    return () => window.removeEventListener("userDataUpdated", onUserUpdate);
+  }, []);
+
   const initials  = (user.nombre || "US").split(" ").map(n => n[0]).join("").slice(0,2).toUpperCase();
   const isRestricted = accessLevel === "basico";
   const BLOCKED = ["training", "health", "nutrition"];
@@ -554,16 +564,4 @@ export default function Sidebar({
         </button>
       </div>
 
-      {/* User info */}
-      <div style={S.userSection}>
-        <div style={S.avatar}>{initials}</div>
-        {!collapsed && (
-          <div style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
-            <span style={S.brandText}>GYM PRO</span>
-            <span style={S.badge}>{ROLE_LABELS[role] || "USER"}</span>
-          </div>
-        )}
-      </div>
-    </aside>
-  );
-}
+      {/* User inf
