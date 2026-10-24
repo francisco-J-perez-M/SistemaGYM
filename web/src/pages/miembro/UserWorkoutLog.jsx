@@ -14,6 +14,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
   FiPlus, FiTrash2, FiSave, FiActivity, FiCalendar, FiClock,
   FiTrendingUp, FiCheckCircle, FiRefreshCw, FiBarChart2, FiList,
+  FiChevronLeft, FiChevronRight,
 } from "react-icons/fi";
 import { GiMuscleUp } from "react-icons/gi";
 import {
@@ -102,18 +103,39 @@ export default function UserWorkoutLog() {
   const [workouts, setWorkouts] = useState([]);
   const [resumen, setResumen]   = useState(null);
   const [loadingHist, setLoadingHist] = useState(true);
+  const [pagina, setPagina]     = useState(1);
+  const [paginacion, setPaginacion] = useState(null);
+  // Último peso conocido, para precargar el campo en lugar de dejarlo vacío.
+  const [ultimoPeso, setUltimoPeso] = useState(null);
 
   const selectedRoutine = routines.find(r => r.id === routineId) || null;
   const days = selectedRoutine?.dias || [];
   const selectedDay = days.find(d => d.id === dayId) || null;
 
-  const loadHist = useCallback(() => {
+  const PAGE_SIZE = 10;
+
+  // La bitácora se pagina en el servidor: el resumen (total, volumen, kcal) se
+  // calcula sobre el histórico completo y no sobre la página que se muestra.
+  const loadHist = useCallback((page = 1) => {
     setLoadingHist(true);
-    getWorkouts({ limit: 20 })
-      .then(r => { setWorkouts(r.data?.workouts || []); setResumen(r.data?.resumen || null); })
+    getWorkouts({ page, per_page: PAGE_SIZE })
+      .then(r => {
+        setWorkouts(r.data?.workouts || []);
+        setResumen(r.data?.resumen || null);
+        setPaginacion(r.data?.paginacion || null);
+        setUltimoPeso(r.data?.ultimo_peso || null);
+        // El backend acota la página pedida al total disponible.
+        if (r.data?.paginacion?.page) setPagina(r.data.paginacion.page);
+      })
       .catch(() => {})
       .finally(() => setLoadingHist(false));
   }, []);
+
+  const irAPagina = (p) => {
+    const max = paginacion?.paginas || 1;
+    const destino = Math.min(Math.max(1, p), max);
+    if (destino !== pagina) { setPagina(destino); loadHist(destino); }
+  };
 
   // Se piden las dos listas en paralelo y con allSettled: si el entrenador no
   // ha asignado nada, o falla una de las dos, la otra debe seguir mostrándose.
@@ -133,7 +155,18 @@ export default function UserWorkoutLog() {
       .finally(() => setLoadingRoutines(false));
   }, []);
 
-  useEffect(() => { loadRoutines(); loadHist(); }, [loadRoutines, loadHist]);
+  useEffect(() => { loadRoutines(); loadHist(1); }, [loadRoutines, loadHist]);
+
+  // Precarga del peso: se rellena una sola vez con el último conocido para que
+  // el miembro solo confirme. Sin esto el campo se quedaba vacío entrenamiento
+  // tras entrenamiento y la predicción nunca llegaba a sus tres mediciones.
+  const [pesoPrecargado, setPesoPrecargado] = useState(false);
+  useEffect(() => {
+    if (!pesoPrecargado && ultimoPeso?.valor && pesoCorporal === "") {
+      setPeso(String(ultimoPeso.valor));
+      setPesoPrecargado(true);
+    }
+  }, [ultimoPeso, pesoPrecargado, pesoCorporal]);
 
   // Aplica una rutina: fija duración y preselecciona el día que cae HOY
   // (o el primero si ninguno coincide), cargando sus ejercicios.
@@ -211,8 +244,10 @@ export default function UserWorkoutLog() {
       });
       // Recargar el día para volver a empezar con los valores de la rutina.
       if (selectedDay) setExercises(exercisesFromDay(selectedDay));
-      setPeso(""); setNotas("");
-      loadHist();
+      setNotas("");
+      // El peso NO se limpia: se conserva como precarga del siguiente
+      // registro, que es el mismo dato del mismo día.
+      loadHist(1);
     } catch (e) {
       setMsg({ type: "error", text: e?.response?.data?.error || "No se pudo guardar el entrenamiento." });
     } finally {
@@ -361,8 +396,23 @@ export default function UserWorkoutLog() {
                   <input style={S.input} type="number" value={duracion} onChange={e => setDuracion(e.target.value)} placeholder="45" />
                 </div>
                 <div>
-                  <label style={S.label}><FiTrendingUp /> Peso corporal (opcional)</label>
-                  <input style={S.input} type="number" value={pesoCorporal} onChange={e => setPeso(e.target.value)} placeholder="Ej. 78.5" />
+                  <label style={S.label}>
+                    <FiTrendingUp /> Peso corporal (kg)
+                    {ultimoPeso && <span style={S.todayTag}>Precargado</span>}
+                  </label>
+                  <input
+                    style={{ ...S.input, ...(pesoCorporal ? S.inputDestacado : null) }}
+                    type="number" step="0.1" value={pesoCorporal}
+                    onChange={e => setPeso(e.target.value)}
+                    placeholder="Ej. 78.5"
+                  />
+                  {ultimoPeso && (
+                    <p style={S.pesoHint}>
+                      {ultimoPeso.origen === "perfil"
+                        ? "Tomado de tu perfil. Confírmalo o corrígelo."
+                        : `Tu última anotación fue ${ultimoPeso.valor} kg${ultimoPeso.fecha ? ` el ${ultimoPeso.fecha}` : ""}. Corrígelo si hoy pesas distinto.`}
+                    </p>
+                  )}
                 </div>
               </div>
               {/* El peso es el único dato del formulario que alimenta la
@@ -401,7 +451,7 @@ export default function UserWorkoutLog() {
         <div style={S.card}>
           <div style={S.cardHead}>
             <h3 style={S.cardTitle}><FiCalendar /> Tu bitácora</h3>
-            <button style={S.ghostBtn} onClick={loadHist}><FiRefreshCw /> Actualizar</button>
+            <button style={S.ghostBtn} onClick={() => loadHist(pagina)}><FiRefreshCw /> Actualizar</button>
           </div>
 
           {resumen && (
@@ -438,6 +488,28 @@ export default function UserWorkoutLog() {
                   </div>
                 </div>
               ))}
+
+              {(paginacion?.paginas || 1) > 1 && (
+                <div style={S.pager}>
+                  <button
+                    style={{ ...S.pagerBtn, ...(pagina <= 1 ? S.pagerBtnOff : null) }}
+                    onClick={() => irAPagina(pagina - 1)}
+                    disabled={pagina <= 1}
+                  >
+                    <FiChevronLeft size={13} /> Anterior
+                  </button>
+                  <span style={S.pagerInfo}>
+                    Página {pagina} de {paginacion.paginas} · {paginacion.total} en total
+                  </span>
+                  <button
+                    style={{ ...S.pagerBtn, ...(pagina >= paginacion.paginas ? S.pagerBtnOff : null) }}
+                    onClick={() => irAPagina(pagina + 1)}
+                    disabled={pagina >= paginacion.paginas}
+                  >
+                    Siguiente <FiChevronRight size={13} />
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -459,6 +531,12 @@ const S = {
   label: { display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: "var(--text-secondary)", margin: "12px 0 5px", fontWeight: 600 },
   todayTag: { display: "inline-flex", alignItems: "center", gap: 4, marginLeft: 8, padding: "2px 8px", borderRadius: 20, background: "var(--accent-dim, rgba(108,99,255,.15))", color: "var(--accent)", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".4px" },
   origenNota: { display: "flex", alignItems: "center", gap: 6, margin: "6px 0 0", fontSize: 12, color: "var(--success, #059669)" },
+  inputDestacado: { borderColor: "var(--accent)" },
+  pesoHint: { fontSize: 11, color: "var(--text-secondary)", margin: "5px 2px 0", lineHeight: 1.45 },
+  pager: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 14, paddingTop: 12, borderTop: "1px solid var(--border)" },
+  pagerBtn: { display: "inline-flex", alignItems: "center", gap: 5, background: "transparent", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 11px", color: "var(--text-primary)", fontSize: 12, fontWeight: 600, cursor: "pointer" },
+  pagerBtnOff: { opacity: .4, cursor: "not-allowed" },
+  pagerInfo: { fontSize: 12, color: "var(--text-secondary)" },
   input: { width: "100%", boxSizing: "border-box", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 9, padding: "9px 12px", color: "var(--text-primary)", fontSize: 14 },
   exCard: { background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 12, padding: 14 },
   serieHead: { display: "flex", gap: 8, fontSize: 11, color: "var(--text-tertiary, var(--text-secondary))", fontWeight: 600, marginBottom: 4, padding: "0 2px" },
