@@ -128,6 +128,22 @@ export default function TrainingScreen() {
       .filter((s) => s.estado === 'aceptada')
       .map((s) => s.id_entrenador_pg),
   );
+  // Solicitud propia aún sin responder (SCRUM-204): mientras exista una, no
+  // tiene sentido mostrarle al miembro la lista para solicitar otro
+  // entrenador -- el backend la rechazaría con 409 de todos modos.
+  const pendingRequest =
+    toArray<PTSolicitud>(ptData?.solicitudes).find((s) => s.estado === 'pendiente') ?? null;
+  // Entrenadores que el miembro SÍ puede solicitar: los del catálogo del
+  // propio gimnasio (ya filtrado por tenant en el backend) que no tengan ya
+  // una solicitud pendiente o aceptada con él.
+  const requestedIds = new Set(
+    toArray<PTSolicitud>(ptData?.solicitudes)
+      .filter((s) => s.estado === 'pendiente' || s.estado === 'aceptada')
+      .map((s) => s.id_entrenador_pg),
+  );
+  const availableTrainers: Trainer[] = allTrainers.filter(
+    (t) => !requestedIds.has((t.id ?? t._id) as number),
+  );
   // Entrenadores asignados (con info completa del catálogo). Si el catálogo aún
   // no cargó pero sí hay solicitud aceptada, caemos a los datos de la solicitud.
   const trainers: Trainer[] = allTrainers.filter((t) => assignedIds.has((t.id ?? t._id) as number));
@@ -144,6 +160,45 @@ export default function TrainingScreen() {
     useFetch<ChatMsg[] | { mensajes: ChatMsg[] }>(chatUrl);
 
   const mensajes = toArray(Array.isArray(chatData) ? chatData : (chatData as any)?.mensajes ?? []);
+
+  const [requestingId, setRequestingId] = useState<number | null>(null);
+  const [cancelling, setCancelling]       = useState(false);
+
+  // SCRUM-204: hasta ahora no existía ningún punto de la app que llamara a
+  // POST /api/user/training/pt-request -- el endpoint estaba listo en el
+  // backend, pero la pantalla de "Entrenador" solo mostraba un mensaje fijo
+  // ("envía una solicitud...") sin ningún control para enviarla.
+  const handleRequestPT = async (trainer: Trainer) => {
+    const tId = Number(trainer.id ?? trainer._id ?? 0);
+    if (!tId) return;
+    setRequestingId(tId);
+    try {
+      await api.post(ENDPOINTS.USER_PT_REQUEST, { id_entrenador_pg: tId });
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      Alert.alert(
+        'Solicitud enviada',
+        `Le avisamos a ${trainerName(trainer)}. Te notificaremos cuando responda.`,
+      );
+      refetchPT();
+    } catch (e: any) {
+      Alert.alert('No se pudo enviar', e?.response?.data?.error ?? 'Intenta de nuevo más tarde.');
+    } finally {
+      setRequestingId(null);
+    }
+  };
+
+  const handleCancelPT = async () => {
+    if (!pendingRequest?.id) return;
+    setCancelling(true);
+    try {
+      await api.delete(`${ENDPOINTS.USER_PT_REQUEST}/${pendingRequest.id}`);
+      refetchPT();
+    } catch (e: any) {
+      Alert.alert('No se pudo cancelar', e?.response?.data?.error ?? 'Intenta de nuevo más tarde.');
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   const handleSend = async () => {
     const texto = msg.trim();
@@ -339,16 +394,69 @@ export default function TrainingScreen() {
 
           {/* Card entrenador */}
           {trainers.length === 0 ? (
-            <Card style={styles.trainerCard}>
-              <View style={styles.empty}>
-                <Ionicons name="person-outline" size={40} color={colors.textMuted} />
-                <Text style={styles.emptyText}>Aún no tienes un entrenador asignado.</Text>
-                <Text style={styles.emptyHint}>
-                  Envía una solicitud de entrenamiento personal desde tu entrenador.
-                  Cuando la acepte, podrás chatear aquí.
-                </Text>
+            pendingRequest ? (
+              <Card style={styles.trainerCard}>
+                <View style={styles.empty}>
+                  <Ionicons name="time-outline" size={40} color={colors.textMuted} />
+                  <Text style={styles.emptyText}>
+                    Esperando respuesta de {pendingRequest.nombre_entrenador ?? 'tu entrenador'}
+                  </Text>
+                  <Text style={styles.emptyHint}>Te avisaremos cuando la acepte o la rechace.</Text>
+                  <TouchableOpacity
+                    onPress={handleCancelPT}
+                    disabled={cancelling}
+                    accessibilityRole="button"
+                    accessibilityLabel="Cancelar solicitud"
+                  >
+                    <Text style={styles.cancelRequestText}>
+                      {cancelling ? 'Cancelando…' : 'Cancelar solicitud'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </Card>
+            ) : availableTrainers.length === 0 ? (
+              <Card style={styles.trainerCard}>
+                <View style={styles.empty}>
+                  <Ionicons name="person-outline" size={40} color={colors.textMuted} />
+                  <Text style={styles.emptyText}>Tu gimnasio aún no tiene entrenadores disponibles.</Text>
+                </View>
+              </Card>
+            ) : (
+              <View>
+                <Text style={styles.chatTitle}>Elige un entrenador para solicitar PT</Text>
+                {availableTrainers.map((t) => {
+                  const tId = Number(t.id ?? t._id ?? 0);
+                  return (
+                    <Card key={tId} style={styles.trainerCard}>
+                      <View style={styles.trainerRow}>
+                        {t.foto && t.foto.startsWith('data:image') ? (
+                          <Image source={{ uri: t.foto }} style={styles.trainerAvatarImg} resizeMode="cover" />
+                        ) : (
+                          <View style={styles.trainerAvatar}>
+                            <Text style={styles.trainerInitials}>{trainerName(t).charAt(0).toUpperCase()}</Text>
+                          </View>
+                        )}
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.trainerName}>{trainerName(t)}</Text>
+                          {t.especialidad ? <Text style={styles.trainerSpec}>{t.especialidad}</Text> : null}
+                        </View>
+                        <TouchableOpacity
+                          style={styles.requestBtn}
+                          onPress={() => handleRequestPT(t)}
+                          disabled={requestingId === tId}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Solicitar a ${trainerName(t)}`}
+                        >
+                          <Text style={styles.requestBtnText}>
+                            {requestingId === tId ? 'Enviando…' : 'Solicitar'}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    </Card>
+                  );
+                })}
               </View>
-            </Card>
+            )
           ) : active ? (
             // La tarjeta abre la ficha completa: datos, certificaciones y
             // calificación. Al sacarlas de aquí, el chat recupera la pantalla.
@@ -514,6 +622,9 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   trainerSpec:  { color: colors.accent, fontSize: 12 * fs },
   trainerEmail: { color: colors.textSecondary, fontSize: 12 * fs },
   trainerVerMas:{ color: colors.accent, fontSize: 11.5 * fs, fontWeight: '600', marginTop: 3 },
+  requestBtn:     { backgroundColor: colors.accent, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9 },
+  requestBtnText: { color: colors.onAccent, fontSize: 13 * fs, fontWeight: '700' },
+  cancelRequestText: { color: colors.error, fontSize: 13 * fs, fontWeight: '600', marginTop: 4 },
   // minHeight evita que el chat quede aplastado entre las tarjetas superiores
   // cuando la pantalla es corta: siempre conserva alto útil de conversación.
   chatContainer:{ flex: 1, minHeight: 280, marginHorizontal: 20 },
