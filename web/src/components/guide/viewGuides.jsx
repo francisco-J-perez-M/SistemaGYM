@@ -3,8 +3,8 @@
  *
  * Para cada ruta del sistema se define un recorrido paso a paso que explica, en
  * lenguaje sencillo, qué significa cada componente que el usuario ve en esa
- * pantalla. Cubre las vistas de los 4 roles comerciales (dueño, miembro,
- * entrenador, recepción). Solo iconos (react-icons), sin emojis.
+ * pantalla. Cubre las vistas de todos los roles: dueño, miembro, entrenador,
+ * recepción y superadministrador. Solo iconos (react-icons), sin emojis.
  */
 import {
   FiInfo, FiGrid, FiSearch, FiPlus, FiEdit, FiFilter, FiList,
@@ -132,8 +132,9 @@ const OWNER = {
   "/owner/analytics": {
     title: "IA y Analíticas",
     steps: [
-      s(FiBarChart2, "Pestañas de análisis", "Arriba cambias entre los análisis disponibles: finanzas y flujo, segmentación de miembros, tendencias y cancelaciones."),
+      s(FiBarChart2, "Pestañas de análisis", "Arriba cambias entre los análisis: finanzas y flujo, grupos de miembros, tendencias de peso, riesgo de abandono, horarios concurridos, clientes por valor, fuerza de miembros y el laboratorio de modelos."),
       s(FiCpu, "Inteligencia artificial", "Estos análisis usan IA para darte información que ayuda a tomar mejores decisiones de negocio."),
+      s(FiTrendingUp, "Horarios y valor", "Con 'Horarios Concurridos' sabes a qué horas viene más gente, y con 'Clientes por Valor' agrupas a tus miembros para premiar o reactivar."),
       s(FiInfo, "Cómo aprovecharlo", "Revísalos periódicamente para detectar oportunidades y problemas antes de que crezcan."),
     ],
   },
@@ -365,12 +366,69 @@ const RECEPTIONIST = {
   "/receptionist/regresion": REGRESION,
 };
 
+// ── Superadministrador (plataforma / multi-gimnasio) ─────────────────────────
+const SUPERADMIN = {
+  "/superadmin": {
+    title: "Plataforma",
+    steps: [
+      s(FiBarChart2, "Visión global", "Este panel resume toda la plataforma: cuántos gimnasios hay, ingresos totales y crecimiento. Es la salud del negocio completo de un vistazo."),
+      s(FiTrendingUp, "Tendencias", "Las gráficas muestran cómo evolucionan los ingresos y los miembros de todos los gimnasios juntos."),
+      s(FiInfo, "Cómo usarlo", "Úsalo para detectar qué gimnasios crecen, cuáles necesitan apoyo y hacia dónde va la plataforma."),
+    ],
+  },
+  "/superadmin/gimnasios": {
+    title: "Gimnasios",
+    steps: [
+      s(FiUsers, "Lista de gimnasios", "Cada tarjeta es un gimnasio registrado en la plataforma, con su estado y datos principales."),
+      s(FiPlus, "Alta de gimnasio", "Puedes registrar un gimnasio nuevo y darle acceso a la plataforma."),
+      s(FiSettings, "Gestionar", "Desde cada gimnasio consultas o ajustas su información y su estado (activo o suspendido)."),
+    ],
+  },
+  "/superadmin/suscripciones": {
+    title: "Suscripciones",
+    steps: [
+      s(FiCreditCard, "Suscripciones activas", "Aquí ves qué plan de la plataforma tiene contratado cada gimnasio y su estado de pago."),
+      s(FiInfo, "Control de cobros", "Te ayuda a saber quién está al día y quién requiere seguimiento para renovar."),
+    ],
+  },
+  "/superadmin/planes": {
+    title: "Planes de la plataforma",
+    steps: [
+      s(FiTag, "Catálogo de planes", "Son los planes que ofreces a los gimnasios (por ejemplo básico, pro, empresarial), con su precio y límites."),
+      s(FiPlus, "Crear o editar", "Puedes crear planes nuevos o ajustar los existentes según tu oferta comercial."),
+    ],
+  },
+  "/superadmin/usuarios": {
+    title: "Usuarios",
+    steps: [
+      s(FiUser, "Todos los usuarios", "Aquí ves a todos los usuarios del sistema, de todos los gimnasios y roles."),
+      s(FiSearch, "Buscar y filtrar", "Encuentra rápido a cualquier usuario para revisar o ajustar su cuenta."),
+    ],
+  },
+  "/superadmin/backups": {
+    title: "Respaldos de plataforma",
+    steps: [
+      s(FiDatabase, "Respaldos globales", "Genera y administra copias de seguridad a nivel de toda la plataforma."),
+      s(FiUpload, "Restaurar", "En caso de un problema, puedes recuperar la información desde un respaldo."),
+    ],
+  },
+  "/superadmin/analytics": {
+    title: "Analítica de plataforma",
+    steps: [
+      s(FiBarChart2, "Ingresos por gimnasio", "Compara el desempeño de los gimnasios: cuáles generan más y cuáles menos."),
+      s(FiCpu, "Predicciones y riesgo", "La inteligencia artificial proyecta ingresos y señala gimnasios con riesgo de darse de baja."),
+      s(FiTrendingUp, "Crecimiento", "Ves el crecimiento de miembros por gimnasio para enfocar tus esfuerzos."),
+    ],
+  },
+};
+
 // Mapa completo + alias de rutas que comparten componente.
 export const VIEW_GUIDES = {
   ...OWNER,
   ...USER,
   ...TRAINER,
   ...RECEPTIONIST,
+  ...SUPERADMIN,
   // Alias: rutas distintas que muestran la misma vista
   "/user/body-metrics": USER["/user/progress"],
   "/user/nutrition":    USER["/user/meal-plan"],
