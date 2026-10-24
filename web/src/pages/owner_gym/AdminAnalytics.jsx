@@ -170,7 +170,7 @@ function TabMapReduce() {
         <StatCard label="Pagos procesados" value={totalPagos} color={SUCCESS} />
         <StatCard label="Métodos de pago" value={resumenMetodos.length} color={INFO} />
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
-          <TrainBtn loading={trainLoading} onClick={handleTrain} label="Actualizar MapReduce" />
+          <TrainBtn loading={trainLoading} onClick={handleTrain} label="Actualizar datos" />
           {trainMsg && <span style={{ color: SUCCESS, fontSize: 13 }}>{trainMsg}</span>}
         </div>
       </div>
@@ -251,7 +251,7 @@ function TabKMeans() {
       });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || "Error");
-      setData(j); setTrainMsg(`K=${kValue} reentrenado (silhouette ${j.silhouette?.toFixed(3)})`);
+      setData(j); setTrainMsg("Grupos actualizados correctamente.");
     } catch (e) { setError(e.message); }
     finally { setTL(false); }
   };
@@ -281,8 +281,8 @@ function TabKMeans() {
   return (
     <div>
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 20 }}>
-        <StatCard label="Silhouette Score" value={data.silhouette?.toFixed(3)} color={silConfig.color} suffix={` (${silConfig.label})`} />
-        <StatCard label="Clusters" value={kValue} color={INFO} />
+        <StatCard label="Separación entre grupos" value={data.silhouette?.toFixed(3)} color={silConfig.color} suffix={` (${silConfig.label})`} />
+        <StatCard label="Grupos" value={kValue} color={INFO} />
         <StatCard label="Miembros analizados" value={(data.asignaciones || []).length} />
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
           <label style={{ color: "var(--text-secondary)", fontSize: 13 }}>K =</label>
@@ -294,12 +294,12 @@ function TabKMeans() {
               fontSize: 13, fontWeight: 600, cursor: "pointer",
             }}>{k}</button>
           ))}
-          <TrainBtn loading={trainLoading} onClick={handleTrain} />
+          <TrainBtn loading={trainLoading} onClick={handleTrain} label="Actualizar grupos" />
           {trainMsg && <span style={{ color: SUCCESS, fontSize: 13 }}>{trainMsg}</span>}
         </div>
       </div>
 
-      <SectionTitle>Distribución de miembros por cluster</SectionTitle>
+      <SectionTitle>Distribución de miembros por grupo</SectionTitle>
       <ResponsiveContainer width="100%" height={240}>
         <BarChart data={clusterBarData}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border-dark)" />
@@ -311,7 +311,7 @@ function TabKMeans() {
         </BarChart>
       </ResponsiveContainer>
 
-      <SectionTitle>Métricas promedio por cluster</SectionTitle>
+      <SectionTitle>Métricas promedio por grupo</SectionTitle>
       <ResponsiveContainer width="100%" height={220}>
         <BarChart data={clusterBarData}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border-dark)" />
@@ -325,12 +325,12 @@ function TabKMeans() {
         </BarChart>
       </ResponsiveContainer>
 
-      <SectionTitle>Detalle de clusters</SectionTitle>
+      <SectionTitle>Detalle de grupos</SectionTitle>
       <div style={{ overflowX: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
             <tr style={{ background: "var(--bg-input)" }}>
-              {["Cluster","Etiqueta","Miembros","IMC Prom.","Peso Prom.","Grasa Prom.","Músculo Prom."].map(h => (
+              {["#","Perfil","Miembros","IMC Prom.","Peso Prom.","Grasa Prom.","Músculo Prom."].map(h => (
                 <th key={h} style={{ padding: "8px 12px", textAlign: "left", color: "var(--text-secondary)", fontWeight: 500 }}>{h}</th>
               ))}
             </tr>
@@ -383,7 +383,7 @@ function TabRegresion() {
       const r = await fetch(`${API_BASE}/api/analytics/regresion/train`, { method: "POST", headers });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || "Error");
-      setData(j); setTrainMsg("Modelo reentrenado");
+      setData(j); setTrainMsg("Tendencias actualizadas correctamente.");
     } catch (e) { setError(e.message); }
     finally { setTL(false); }
   };
@@ -410,17 +410,17 @@ function TabRegresion() {
   return (
     <div>
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 20 }}>
-        <StatCard label="R² Score"  value={(metricas.r2   || 0).toFixed(4)} color={metricas.r2 > 0.7 ? SUCCESS : WARNING} />
-        <StatCard label="RMSE"      value={(metricas.rmse || 0).toFixed(2)} color={INFO} suffix=" kg" />
-        <StatCard label="MAE"       value={(metricas.mae  || 0).toFixed(2)} color={INFO} suffix=" kg" />
-        <StatCard label="Muestras"  value={metricas.num_muestras || "—"} />
+        <StatCard label="Confiabilidad"      value={(metricas.r2   || 0).toFixed(4)} color={metricas.r2 > 0.7 ? SUCCESS : WARNING} />
+        <StatCard label="Margen de error"   value={(metricas.rmse || 0).toFixed(2)} color={INFO} suffix=" kg" />
+        <StatCard label="Error promedio"    value={(metricas.mae  || 0).toFixed(2)} color={INFO} suffix=" kg" />
+        <StatCard label="Muestras"          value={metricas.num_muestras || "—"} />
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
-          <TrainBtn loading={trainLoading} onClick={handleTrain} />
+          <TrainBtn loading={trainLoading} onClick={handleTrain} label="Actualizar tendencias" />
           {trainMsg && <span style={{ color: SUCCESS, fontSize: 13 }}>{trainMsg}</span>}
         </div>
       </div>
 
-      <SectionTitle>Coeficientes del modelo Ridge (importancia de features)</SectionTitle>
+      <SectionTitle>¿Qué factores influyen más en el peso?</SectionTitle>
       {coeficientesArr.length > 0 ? (
         <ResponsiveContainer width="100%" height={180}>
           <BarChart data={coeficientesArr} layout="vertical">
@@ -444,17 +444,17 @@ function TabRegresion() {
         </p>
       )}
 
-      <SectionTitle>Modelo de predicción de peso corporal</SectionTitle>
+      <SectionTitle>Resumen de la predicción</SectionTitle>
       <div style={{ background: "var(--bg-input)", borderRadius: 10, padding: "16px 20px", fontSize: 13, lineHeight: 1.7 }}>
         <p style={{ color: "var(--text-secondary)", marginBottom: 8 }}>
-          Regresión Ridge entrenada con datos históricos de progreso físico del gimnasio.
-          Predice el peso futuro del miembro en función de días de entrenamiento, grasa corporal y BMI.
+          El análisis utiliza el historial de progreso físico de tus miembros para proyectar
+          cómo evolucionará su peso. Tiene en cuenta días de entrenamiento, porcentaje de grasa e IMC.
         </p>
         <p style={{ color: SUCCESS }}>
-          R² = {(metricas.r2 || 0).toFixed(4)} —
-          {metricas.r2 > 0.8 ? " Excelente ajuste"
-           : metricas.r2 > 0.6 ? " Buen ajuste"
-           : metricas.r2 > 0.4 ? " Ajuste moderado" : " Ajuste bajo"}
+          Confiabilidad: {(metricas.r2 || 0).toFixed(4)} —
+          {metricas.r2 > 0.8 ? " Muy confiable"
+           : metricas.r2 > 0.6 ? " Confiable"
+           : metricas.r2 > 0.4 ? " Moderadamente confiable" : " Datos insuficientes"}
         </p>
       </div>
     </div>

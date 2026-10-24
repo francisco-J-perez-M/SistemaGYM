@@ -103,7 +103,7 @@ export default function AnalyticsKMeans() {
       const json = await res.json();
       setData(json);
       setPage(1);
-      setTrainMsg(json.mensaje || "Modelo reentrenado correctamente.");
+      setTrainMsg(json.mensaje || "Grupos actualizados correctamente.");
     } catch (e) {
       setError(e.message);
     } finally {
@@ -125,8 +125,7 @@ export default function AnalyticsKMeans() {
       <div className="dashboard-spinner" />
       <h3 style={{ marginTop: 24, marginBottom: 8, color: "var(--text-primary)" }}>Cargando segmentación...</h3>
       <p style={{ color: "var(--text-secondary)", maxWidth: 450, fontSize: 14, lineHeight: 1.5 }}>
-        Obteniendo los resultados del modelo <b>K-Means</b> desde la base de datos.
-        Si es la primera vez, el algoritmo se ejecutará ahora.
+        Agrupando a tus miembros según sus métricas de progreso físico. Un momento por favor.
       </p>
     </div>
   );
@@ -180,7 +179,7 @@ export default function AnalyticsKMeans() {
       <div style={{ marginBottom: 24 }}>
         <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>Segmentación IA</h2>
         <p style={{ color: "var(--text-secondary)", fontSize: 14 }}>
-          K-Means Clustering · Agrupación inteligente de miembros
+          Agrupación automática de miembros según sus métricas de progreso físico
         </p>
       </div>
 
@@ -202,7 +201,7 @@ export default function AnalyticsKMeans() {
 
       {/* Control Bar */}
       <div className="stat-card" style={{ marginBottom: 20, flexDirection: "row", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-        <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>Número de clusters (k):</span>
+        <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>Número de grupos:</span>
 
         <div style={{ display: "flex", gap: 8 }}>
           {[2, 3, 4, 5].map((k) => (
@@ -243,7 +242,7 @@ export default function AnalyticsKMeans() {
           onClick={handleTrain}
           disabled={trainLoading}
           style={{ marginLeft: "auto" }}
-          title="Re-ejecuta el algoritmo con los datos actuales y actualiza la caché"
+          title="Vuelve a analizar los datos actuales de tus miembros y actualiza los grupos"
         >
           {trainLoading ? (
             <span className="spinner" />
@@ -255,7 +254,7 @@ export default function AnalyticsKMeans() {
               <path d="M8 16H3v5"/>
             </svg>
           )}
-          {trainLoading ? "Entrenando..." : "Reentrenar modelo"}
+          {trainLoading ? "Actualizando..." : "Actualizar grupos"}
         </button>
       </div>
 
@@ -268,9 +267,9 @@ export default function AnalyticsKMeans() {
         }}>
           <div className="dashboard-spinner" style={{ width: 28, height: 28 }} />
           <div>
-            <p style={{ fontWeight: 600, marginBottom: 4 }}>Reentrenando K-Means con k={kValue}...</p>
+            <p style={{ fontWeight: 600, marginBottom: 4 }}>Actualizando grupos con {kValue} perfiles...</p>
             <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-              PySpark está procesando las métricas corporales. Esto puede tardar unos segundos.
+              Analizando las métricas corporales de tus miembros. Esto puede tardar unos segundos.
             </p>
           </div>
         </div>
@@ -280,9 +279,9 @@ export default function AnalyticsKMeans() {
       <div className="stat-card" style={{ marginBottom: 20, flexDirection: "row", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
         <div>
           <p style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--text-secondary)", marginBottom: 4 }}>
-            Precisión del modelo
+            Qué tan bien definidos están los grupos
           </p>
-          <p style={{ fontSize: 11, color: "var(--text-secondary)" }}>Silhouette Score</p>
+          <p style={{ fontSize: 11, color: "var(--text-secondary)" }}>Separación entre perfiles</p>
         </div>
         <div style={{ flex: 1, minWidth: 200 }}>
           <div style={{ background: "var(--input-bg-dark)", borderRadius: 6, height: 12, overflow: "hidden" }}>
@@ -369,7 +368,7 @@ export default function AnalyticsKMeans() {
                 <th>IMC</th>
                 <th>% Grasa</th>
                 <th>% Músculo</th>
-                <th>Cluster</th>
+                <th>Perfil</th>
               </tr>
             </thead>
             <tbody>
