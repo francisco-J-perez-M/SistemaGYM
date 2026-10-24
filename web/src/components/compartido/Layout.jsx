@@ -6,6 +6,7 @@ import SystemGuide from "../guide/SystemGuide";
 import {
   useRoutineImportJob, dismissRoutineImportJob, cancelRoutineImportJob,
 } from "../../hooks/useRoutineImportJob";
+import { useToast } from "../../hooks/useToast";
 
 const ROLE_MAP = {
   owner_gym:    ["owner_gym", "admin", "administrador"],
@@ -189,6 +190,10 @@ export default function Layout({ role = "owner_gym" }) {
   const [importBannerHidden, setImportBannerHidden] = useState(false);
   useEffect(() => { setImportBannerHidden(false); }, [routineImportJob?.job_id]);
 
+  // Diálogo de confirmación propio (mismo look que el resto del sistema, ver
+  // hooks/useToast.jsx) para el botón "Cancelar", en vez de window.confirm().
+  const { confirm: confirmImportCancel, ToastPortal: ImportToastPortal } = useToast();
+
   const showImportBanner = role === "trainer" && !!routineImportJob && !importBannerHidden;
 
   const goToRoutineImport = () => {
@@ -211,10 +216,12 @@ export default function Layout({ role = "owner_gym" }) {
   // ejemplo, tras reiniciar los contenedores a mitad del proceso -- donde ya
   // no hay garantía de que el backend vaya a responder nunca. Ver el mismo
   // botón en TrainerRoutines.jsx y JOB_STALE_AFTER_SECONDS en ia_jobs.py.
-  const cancelImportJob = () => {
-    const ok = window.confirm(
-      "¿Cancelar la importación en curso? Se perderá el progreso de este intento."
-    );
+  const cancelImportJob = async () => {
+    const ok = await confirmImportCancel({
+      title: "¿Cancelar la importación en curso?",
+      message: "Se perderá el progreso de este intento. Puedes volver a subir el archivo después.",
+      type: "warning", confirmText: "Sí, cancelar", cancelText: "Seguir esperando",
+    });
     if (!ok) return;
     cancelRoutineImportJob();
   };
@@ -373,6 +380,10 @@ export default function Layout({ role = "owner_gym" }) {
         const estado = routineImportJob.estado;
         const isDone  = estado === "listo";
         const isError = estado === "error";
+        const isBusy  = !isDone && !isError;
+        const pct     = routineImportJob.progreso_total
+          ? Math.round((routineImportJob.progreso_actual / routineImportJob.progreso_total) * 100)
+          : null;
         const color   = isError ? "var(--danger)" : isDone ? "var(--success)" : "var(--accent)";
         const bg      = isError ? "rgba(239,68,68,.1)" : isDone ? "rgba(16,185,129,.1)" : "rgba(99,102,241,.1)";
         const border  = isError ? "rgba(239,68,68,.3)" : isDone ? "rgba(16,185,129,.3)" : "rgba(99,102,241,.3)";
@@ -396,7 +407,13 @@ export default function Layout({ role = "owner_gym" }) {
               alignItems: "flex-start",
             }}
           >
-            <style>{`@keyframes spin{to{transform:rotate(360deg);}}`}</style>
+            <style>{`
+              @keyframes spin{to{transform:rotate(360deg);}}
+              @keyframes ia-progress-indeterminate{
+                0%   { left: -35%; }
+                100% { left: 100%; }
+              }
+            `}</style>
             <div style={{
               width: 30, height: 30, borderRadius: "50%", background: bg,
               display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
@@ -415,7 +432,34 @@ export default function Layout({ role = "owner_gym" }) {
                 {isDone ? "Importación de rutinas lista"
                   : isError ? "La importación de rutinas falló"
                   : "Importando rutinas con IA…"}
+                {isBusy && pct !== null && <span style={{ color: "var(--accent)" }}> {pct}%</span>}
               </div>
+              {/* Barra de progreso: determinada (bloque X de N) en cuanto se sabe
+                  cuántos bloques hay que mandarle a Ollama; indeterminada
+                  (deslizante) mientras todavía se está leyendo/parseando el
+                  archivo -- así se ve que de verdad avanza, no solo un ícono
+                  girando sin más información. Ver ia_jobs.py (progreso_actual/total). */}
+              {isBusy && (
+                <div style={{
+                  height: 5, borderRadius: 4, background: "rgba(99,102,241,.15)",
+                  overflow: "hidden", margin: "4px 0 8px", position: "relative",
+                }}>
+                  <div style={{
+                    position: pct === null ? "absolute" : "static",
+                    height: "100%", borderRadius: 4, background: "var(--accent)",
+                    width: pct !== null ? `${pct}%` : "35%",
+                    transition: pct !== null ? "width .4s ease" : "none",
+                    animation: pct === null ? "ia-progress-indeterminate 1.3s ease-in-out infinite" : "none",
+                  }} />
+                </div>
+              )}
+              {isBusy && (
+                <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 2 }}>
+                  {pct !== null
+                    ? `Bloque ${routineImportJob.progreso_actual} de ${routineImportJob.progreso_total}`
+                    : "Leyendo el archivo…"}
+                </div>
+              )}
               <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5, marginBottom: 10 }}>
                 {isDone
                   ? "Ya puedes revisar y guardar el resultado en el módulo de Rutinas."
