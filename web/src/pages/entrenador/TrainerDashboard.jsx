@@ -10,6 +10,7 @@ import {
   FiBarChart2, FiUser,
 } from "react-icons/fi";
 import trainerService from "../../services/entrenador/trainerService";
+import { GuideButton } from "../../components/guide/SystemGuide";
 import "../../css/CSSUnificado.css";
 
 /* ── Helpers ── */
@@ -178,6 +179,7 @@ export default function TrainerDashboard() {
             {fechaHoy()} · Tu resumen del día
           </p>
         </div>
+        <GuideButton />
       </div>
 
       {/* ── KPIs ── */}

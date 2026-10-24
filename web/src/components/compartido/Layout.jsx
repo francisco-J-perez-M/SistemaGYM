@@ -1,6 +1,7 @@
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import Sidebar from "./Sidebar";
+import { GuideProvider } from "../guide/SystemGuide";
 
 const ROLE_MAP = {
   owner_gym:    ["owner_gym", "admin", "administrador"],
@@ -207,7 +208,13 @@ export default function Layout({ role = "owner_gym" }) {
           flexDirection: "column",
         }}
       >
-        <Outlet />
+        {role === "superadmin" ? (
+          <Outlet />
+        ) : (
+          <GuideProvider role={role}>
+            <Outlet />
+          </GuideProvider>
+        )}
       </div>
     </div>
   );

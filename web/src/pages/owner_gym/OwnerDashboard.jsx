@@ -11,6 +11,7 @@ import {
   Tooltip, Legend, ResponsiveContainer,
 } from "recharts";
 import { getOwnerDashboard, getOwnerIngresos, getOwnerActividad, getOwnerAlertas } from "../../api/owner_gym";
+import { GuideButton } from "../../components/guide/SystemGuide";
 
 // ─── helpers ───────────────────────────────────────────────────────────────
 const fmt = (n) =>
@@ -170,10 +171,13 @@ export default function OwnerDashboard() {
           <h1 style={S.title}>Dashboard</h1>
           <p style={S.sub}>Resumen general de tu gimnasio</p>
         </div>
-        <button style={S.refreshBtn} onClick={load}>
-          <FiRefreshCw size={14} style={loading ? { animation: "spin 1s linear infinite" } : {}} />
-          Actualizar
-        </button>
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <GuideButton />
+          <button style={S.refreshBtn} onClick={load}>
+            <FiRefreshCw size={14} style={loading ? { animation: "spin 1s linear infinite" } : {}} />
+            Actualizar
+          </button>
+        </div>
       </div>
 
       {/* KPIs principales */}
