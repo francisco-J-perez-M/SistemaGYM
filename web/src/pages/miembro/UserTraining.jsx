@@ -759,6 +759,16 @@ function TabEntrenador() {
     }
   };
 
+  const terminarActivo = async () => {
+    if (!window.confirm("¿Terminar el entrenamiento con este entrenador? Después podrás solicitar a otro; tu nuevo entrenador podrá ver lo que ya trabajaste.")) return;
+    try {
+      await API("DELETE", "/pt-activo");
+      cargar();
+    } catch (e) {
+      alert(e.message);
+    }
+  };
+
   const ESTADO_COLOR = {
     pendiente: "var(--warning)", aceptada: "var(--success)", rechazada: "var(--danger)",
   };
@@ -852,6 +862,15 @@ function TabEntrenador() {
                           style={{ ...btn("var(--success)", true), padding: "5px 10px", fontSize: 11 }}
                         >
                           <FiMessageSquare size={11} /> Chat
+                        </button>
+                      )}
+                      {s.estado === "aceptada" && (
+                        <button
+                          onClick={terminarActivo}
+                          title="Terminar entrenamiento personal"
+                          style={{ ...btn("var(--danger)", true), padding: "5px 10px", fontSize: 11 }}
+                        >
+                          <FiX size={11} /> Terminar
                         </button>
                       )}
                       {s.estado === "pendiente" && (

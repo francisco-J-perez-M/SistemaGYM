@@ -35,12 +35,21 @@ export default function TrainerClients() {
   const [goalInput, setGoalInput]         = useState("");
   const [savingGoal, setSavingGoal]       = useState(false);
 
+  // Historial del miembro con entrenadores previos (mismo gimnasio)
+  const [prevHistory, setPrevHistory] = useState(null);
+
   // Reiniciar el sub-estado del modal cada vez que se abre/cambia el cliente
   useEffect(() => {
     setClientHistory(null);
     setEditingGoal(false);
     setLoadingHistory(false);
     setGoalInput(selectedClient?.goal || "");
+    setPrevHistory(null);
+    if (selectedClient) {
+      trainerService.getClientPrevHistory(selectedClient.id)
+        .then(setPrevHistory)
+        .catch(() => setPrevHistory(null));
+    }
   }, [selectedClient]);
 
   const loadHistory = async () => {
@@ -527,6 +536,48 @@ export default function TrainerClients() {
                     </div>
                   ))}
                 </div>
+
+                {/* Historial con entrenadores previos (mismo gimnasio) */}
+                {prevHistory && ((prevHistory.resumen?.entrenadores_previos > 0) || (prevHistory.rutinas || []).length > 0) && (
+                  <div style={{ marginBottom: 18 }}>
+                    <h4 style={{ fontSize: 15, fontWeight: 700, marginBottom: 3 }}>Historial con entrenadores previos</h4>
+                    <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 10px" }}>
+                      Lo que este miembro ya trabajó en el gimnasio, para que continúes desde ahí.
+                    </p>
+                    {(prevHistory.entrenadores || []).length > 0 && (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
+                        {prevHistory.entrenadores.map((e, i) => (
+                          <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--bg-input)", borderRadius: 8, padding: "8px 12px" }}>
+                            <FiUsers size={13} style={{ color: "var(--accent)" }} />
+                            <span style={{ flex: 1, fontSize: 13, fontWeight: 600 }}>{e.nombre}</span>
+                            <span style={{ fontSize: 11, padding: "2px 9px", borderRadius: 20, fontWeight: 700,
+                              background: e.actual ? "rgba(16,185,129,.15)" : "var(--bg-card)",
+                              color: e.actual ? "var(--success)" : "var(--text-secondary)" }}>
+                              {e.actual ? "Actual (tú)" : (e.estado === "finalizada" ? "Anterior" : "Previo")}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {(prevHistory.rutinas || []).length > 0 && (
+                      <>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-secondary)", margin: "6px 0" }}>
+                          Rutinas trabajadas ({prevHistory.resumen?.total_rutinas ?? prevHistory.rutinas.length}) · {prevHistory.resumen?.total_entrenamientos ?? 0} entrenamientos registrados
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                          {prevHistory.rutinas.slice(0, 6).map((r, i) => (
+                            <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--bg-input)", borderRadius: 8, padding: "8px 12px", fontSize: 12 }}>
+                              <FiActivity size={12} style={{ color: "var(--text-secondary)" }} />
+                              <span style={{ flex: 1, fontWeight: 600 }}>{r.nombre}</span>
+                              {r.nombre_entrenador && <span style={{ color: "var(--text-secondary)" }}>por {r.nombre_entrenador}</span>}
+                              <span style={{ color: "var(--text-secondary)" }}>{r.dias} días</span>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
 
                 {/* Objetivo (editable) */}
                 <div style={{ marginBottom: 18 }}>

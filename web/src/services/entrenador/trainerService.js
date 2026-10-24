@@ -59,6 +59,10 @@ export const trainerService = {
     return await apiFetch(`${API_BASE_URL}/trainer/clients/${clientId}/history`);
   },
 
+  getClientPrevHistory: async (clientId) => {
+    return await apiFetch(`${API_BASE_URL}/trainer/clients/${clientId}/historial-previo`);
+  },
+
   updateClientGoal: async (clientId, goalData) => {
     return await apiFetch(`${API_BASE_URL}/trainer/clients/${clientId}/goal`, {
       method: 'PUT',
