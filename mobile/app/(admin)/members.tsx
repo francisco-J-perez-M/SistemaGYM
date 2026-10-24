@@ -51,7 +51,7 @@ export default function AdminMembersScreen() {
 
       <FlatList
         data={filtered}
-        keyExtractor={(m) => m._id}
+        keyExtractor={(m, i) => m._id ?? String(i)}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={refetch} tintColor={Colors.accent} />}

@@ -133,8 +133,8 @@ export default function AdminDashboardScreen() {
             <Text style={styles.emptyText}>No hay miembros registrados.</Text>
           </View>
         ) : (
-          recientes.map((m) => (
-            <View key={m._id} style={styles.memberRow}>
+          recientes.map((m, i) => (
+            <View key={m._id ?? String(i)} style={styles.memberRow}>
               <View style={styles.memberAvatar}>
                 <Text style={styles.memberInitial}>{toInitial(m.nombre)}</Text>
               </View>

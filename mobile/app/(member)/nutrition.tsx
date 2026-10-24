@@ -33,11 +33,13 @@ export default function NutritionScreen() {
   const [activeTab, setActiveTab] = useState<Tab>('dietas');
   const [catFilter, setCatFilter] = useState<string>('Todas');
 
-  const { data: dietas,  loading: loadingD, refetch: refetchD } = useFetch<Dieta[]>(ENDPOINTS.DIETAS);
-  const { data: recetas, loading: loadingR, refetch: refetchR } = useFetch<Receta[]>(ENDPOINTS.RECETAS);
+  const { data: dietasRes, loading: loadingD, refetch: refetchD } = useFetch<{ dietas: Dieta[] }>(ENDPOINTS.DIETAS);
+  const { data: recetasRes, loading: loadingR, refetch: refetchR } = useFetch<{ recetas: Receta[] }>(ENDPOINTS.RECETAS);
 
-  const categories = ['Todas', ...Array.from(new Set((recetas ?? []).map((r) => r.categoria).filter(Boolean)))];
-  const filteredRecetas = (recetas ?? []).filter(
+  const dietas  = dietasRes?.dietas  ?? [];
+  const recetas = recetasRes?.recetas ?? [];
+  const categories = ['Todas', ...Array.from(new Set(recetas.map((r) => r.categoria).filter(Boolean)))] as string[];
+  const filteredRecetas = recetas.filter(
     (r) => catFilter === 'Todas' || r.categoria === catFilter
   );
 
@@ -77,14 +79,14 @@ export default function NutritionScreen() {
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={loadingD} onRefresh={refetchD} tintColor={Colors.accent} />}
         >
-          {toArray(dietas).length === 0 ? (
+          {dietas.length === 0 ? (
             <View style={styles.empty}>
               <Ionicons name="nutrition-outline" size={44} color={Colors.textMuted} />
               <Text style={styles.emptyText}>No tienes planes alimenticios aún.</Text>
               <Text style={styles.emptyHint}>Contacta a tu entrenador para que te asigne uno.</Text>
             </View>
           ) : (
-            toArray(dietas).map((d) => (
+            dietas.map((d) => (
               <Card key={d._id} style={styles.dietCard}>
                 <View style={styles.dietTop}>
                   <View style={styles.dietIconBox}>
