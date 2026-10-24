@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '../../hooks/useColors';
 import CustomDrawer from '../../components/navigation/CustomDrawer';
 import PerfilCompletoBadge from '../../components/navigation/PerfilCompletoBadge';
+import SyncStatusBadge from '../../components/shared/SyncStatusBadge';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 interface Screen { name: string; title: string; icon: IconName; iconActive: IconName }
@@ -42,7 +43,16 @@ export default function MemberLayout() {
         // SCRUM-102: indicador circular de pendientes, visible desde
         // cualquier pantalla del rol Miembro (headerRight aplica a todas
         // las Drawer.Screen de este layout).
-        headerRight:             () => <PerfilCompletoBadge />,
+        // SCRUM-168 / HU-30: SyncStatusBadge se agrega aquí mismo, no en cada
+        // pantalla, para que el estado de conexión/sincronización aparezca en
+        // todas sin tocarlas una por una — mismo criterio que el badge de
+        // perfil.
+        headerRight:             () => (
+          <>
+            <SyncStatusBadge />
+            <PerfilCompletoBadge />
+          </>
+        ),
         drawerStyle:             { backgroundColor: colors.background, width: 280 },
         drawerActiveTintColor:   colors.accent,
         drawerInactiveTintColor: colors.textSecondary,
