@@ -1,22 +1,43 @@
 # docker-compose.yml — Orquestación de servicios GymPro
 #
+# ── Requisitos antes de levantar esto en una máquina nueva ──────────────────
+#   - Docker Engine 23+ (incluye BuildKit por defecto). Si `docker buildx version`
+#     falla, instala el plugin buildx de tu distro:
+#       Arch/CachyOS:  sudo pacman -S docker-buildx
+#       Debian/Ubuntu: sudo apt install docker-buildx-plugin
+#       macOS/Windows: Docker Desktop ya lo incluye.
+#   - Docker Compose v2 (viene como plugin `docker compose`, no el binario viejo
+#     `docker-compose`). Verifica con: docker compose version
+#
 # Uso:
 #   cp api/.env.example api/.env   # completar con tus credenciales reales
 #   docker compose up --build -d
 #   docker compose logs -f
 #
 # Servicios:
-#   mongo  → MongoDB 7 local (datos persistidos en volumen mongo_data)
-#   redis  → cache interno y rate limiting (Flask-Limiter)
-#   api    → Flask + Gunicorn (depende de mongo y redis)
-#   web    → React bundle servido por nginx, proxea /api/ → api:5000
+#   postgres → PostgreSQL 16 (plataforma, finanzas, multi-tenant)
+#   mongo    → MongoDB 7 (datos operativos: miembros, rutinas, pagos, etc.)
+#   redis    → cache interno y rate limiting (Flask-Limiter)
+#   api      → Flask + Gunicorn (depende de postgres, mongo, redis, ollama)
+#   web      → React bundle servido por nginx, proxea /api/ → api:5000
+#   ollama   → LLM local para AI ETL
+#
+# ── Nombre explícito del proyecto ────────────────────────────────────────────
+# Sin esto, Compose deriva el nombre del proyecto del nombre de la carpeta
+# (ej. "SistemaGYM", "sistemagym-saas", "saas" según cómo cada quien clonó el
+# repo). Eso namespacea contenedores/redes/volúmenes de forma distinta en cada
+# máquina y es la causa típica de colisiones de puertos con contenedores
+# sueltos de otros proyectos (redis, mongo) que alguien más pueda tener
+# corriendo. Fijar el nombre aquí garantiza el mismo namespace siempre:
+# contenedores como "sistemagym-api-1", red "sistemagym_gympro", etc.
+name: sistemagym
 
 services:
 
   # ── PostgreSQL (Sprint 2 — plataforma, finanzas, multi-tenant) ───────────────
   # Roles, Gimnasios y Usuarios viven aquí. La URI se lee de POSTGRES_URI en api/.env.
   # Para producción en EC2, asegurarse de que el security group solo abra 5432
-  # hacia la red interna (no al exterior).
+  # hacia la red interna (no al exterior), y NO exponer "ports" en absoluto.
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
@@ -34,11 +55,12 @@ services:
       start_period: 15s
     networks:
       - gympro
-    # Puerto expuesto al host para herramientas de gestión (DBeaver, psql local)
-    # Usa 5433 para evitar conflicto con PostgreSQL local instalado en el host
-    # Comentar en producción y controlar acceso vía security groups de AWS
+    # Puerto expuesto al host para herramientas de gestión (DBeaver, psql local).
+    # Configurable vía POSTGRES_HOST_PORT por si 5433 ya está ocupado en tu
+    # máquina (ej. otro proyecto, u otro Postgres local instalado).
+    # Comentar/quitar en producción y controlar acceso vía security groups.
     ports:
-      - "5433:5432"
+      - "${POSTGRES_HOST_PORT:-5433}:5432"
 
   # ── MongoDB local ────────────────────────────────────────────────────────────
   # Sin autenticación en dev. Para producción en EC2, agregar:
@@ -59,13 +81,18 @@ services:
       start_period: 20s
     networks:
       - gympro
-    # Puerto expuesto al host para MongoDB Compass / mongosh local
-    # Rangos excluidos por Hyper-V: 26935-27034 y 27046-27145
-    # → se usa 27035 que está libre entre ambos rangos excluidos
+    # Puerto expuesto al host para MongoDB Compass / mongosh local.
+    # Configurable vía MONGO_HOST_PORT — el default 27035 evita el puerto
+    # estándar 27017 (frecuentemente ocupado por un Mongo local o de otro
+    # proyecto) y los rangos que Windows/Hyper-V suele reservar
+    # (26935-27034 y 27046-27145 en algunas instalaciones).
     ports:
-      - "27035:27017"
+      - "${MONGO_HOST_PORT:-27035}:27017"
 
   # ── Redis ────────────────────────────────────────────────────────────────────
+  # Sin puerto expuesto al host: es cache/rate-limiting interno, no necesita
+  # acceso externo. Si en algún momento necesitas inspeccionarlo desde el host,
+  # usa `docker compose exec redis redis-cli` en vez de exponer el puerto.
   redis:
     image: redis:7-alpine
     restart: unless-stopped
@@ -90,8 +117,7 @@ services:
     # (.env.example SÍ está versionado, así que un clon recién hecho arranca sin
     # pasos manuales) y luego .env como override OPCIONAL para secretos reales.
     # Docker Compose aplica los archivos en orden: las claves de .env pisan las de
-    # .env.example. Antes esto era `env_file: ./api/.env`, que en una PC nueva
-    # fallaba con "env file ./api/.env not found" porque .env está en .gitignore.
+    # .env.example.
     env_file:
       - ./api/.env.example
       - path: ./api/.env
@@ -148,7 +174,7 @@ services:
       provenance: false
     restart: unless-stopped
     ports:
-      - "8080:80"
+      - "${WEB_HOST_PORT:-8080}:80"
     depends_on:
       api:
         condition: service_healthy
@@ -214,7 +240,7 @@ services:
     networks:
       - gympro
     ports:
-      - "11434:11434"
+      - "${OLLAMA_HOST_PORT:-11434}:11434"
 
 # ── Volúmenes persistentes ───────────────────────────────────────────────────
 volumes:
