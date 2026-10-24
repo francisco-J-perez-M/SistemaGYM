@@ -939,8 +939,12 @@ function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExe
         const idRutina = res.id_rutina || res.id;
         if (mode === "client" && clientId && idRutina) {
           // miembro_rutina: alimenta el contador "Clientes" de la tarjeta y,
-          // si hay nivel, los pesos sugeridos.
-          try { await onAssignRoutine?.(idRutina, clientId, nivel); } catch { /* no bloquea el guardado */ }
+          // si hay nivel, los pesos sugeridos. Si ESTA rutina ya trae el peso
+          // real por ejercicio, se ignora cualquier nivel que haya quedado
+          // seleccionado de una importación anterior en la misma sesión --
+          // nunca se sobreescribe un dato real con una tabla genérica.
+          const nivelParaAsignar = routineHasRealWeights(rutina) ? "" : nivel;
+          try { await onAssignRoutine?.(idRutina, clientId, nivelParaAsignar); } catch { /* no bloquea el guardado */ }
           // rutinas_asignadas: es lo que el miembro ve en su propia sección de
           // Entrenamiento. Sin esta llamada la rutina quedaba "asignada" solo
           // para el contador del entrenador, pero invisible para el cliente.
@@ -969,6 +973,25 @@ function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExe
   };
 
   const aiOk = aiStatus?.disponible && aiStatus?.modelo_activo;
+
+  // ── Seguridad al asignar pesos ────────────────────────────────────────
+  // El parser determinista para PDFs de 2 columnas (parse_routines_from_app_export,
+  // ver etl_ollama.py) trae el peso REAL que el cliente ya venía levantando en
+  // cada ejercicio. Si ese dato existe, se usa tal cual y no tiene sentido (ni
+  // es seguro) sobreescribirlo con una tabla genérica de "pesos sugeridos por
+  // nivel". Si el documento NO trae pesos (el parser de texto plano y, muchas
+  // veces, el fallback de Ollama devuelven "peso": "" ejercicio por ejercicio),
+  // entonces sí es indispensable que el entrenador indique el nivel del
+  // cliente antes de asignar la rutina -- de lo contrario el cliente llegaría
+  // presencialmente al gimnasio con una rutina sin ningún peso de referencia.
+  const routineExercises = (r) => (r.days || []).flatMap(d => d.exercises || []);
+  const routineHasRealWeights = (r) => {
+    const exs = routineExercises(r);
+    return exs.length > 0 && exs.every(ex => String(ex.peso ?? "").trim() !== "");
+  };
+  const selectedRoutinesList = (preview?.rutinas || []).filter((_, i) => selRoutines[i]);
+  const pesosCompletos  = selectedRoutinesList.length > 0 && selectedRoutinesList.every(routineHasRealWeights);
+  const nivelRequerido  = mode === "client" && !!clientId && selectedRoutinesList.length > 0 && !pesosCompletos;
 
   if (saved) return (
     <div style={{ textAlign: "center", padding: "60px 20px" }}>
@@ -1094,17 +1117,10 @@ function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExe
             <option value="">Selecciona un cliente</option>
             {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
-
-          {/* Nivel del cliente → pesos sugeridos automáticos por ejercicio */}
-          <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: ".06em", display: "block", margin: "12px 0 5px" }}>
-            Nivel del cliente <span style={{ textTransform: "none", fontWeight: 400 }}>(opcional — asigna pesos de arranque)</span>
-          </label>
-          <select className="input-compact" value={nivel} onChange={e => setNivel(e.target.value)}>
-            <option value="">Sin pesos sugeridos</option>
-            <option value="Principiante">Principiante</option>
-            <option value="Intermedio">Intermedio</option>
-            <option value="Avanzado">Avanzado</option>
-          </select>
+          <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 6 }}>
+            El nivel (para pesos de arranque) se pide después de extraer el documento,
+            solo si el PDF no trae ya los pesos reales de cada ejercicio.
+          </div>
         </div>
       )}
 
@@ -1243,6 +1259,36 @@ function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExe
             </div>
           )}
 
+          {/* ── Pesos: automático si el PDF ya los trae, manual si no ──────── */}
+          {mode === "client" && clientId && selectedRoutinesList.length > 0 && (
+            pesosCompletos ? (
+              <div style={{ background: "rgba(16,185,129,.08)", border: "1px solid rgba(16,185,129,.25)", borderRadius: 10, padding: "12px 16px", marginBottom: 18, display: "flex", gap: 10, alignItems: "flex-start" }}>
+                <FiCheck size={15} style={{ color: "var(--success)", flexShrink: 0, marginTop: 1 }} />
+                <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.6 }}>
+                  <strong style={{ color: "var(--text-primary)" }}>Este documento ya trae el peso real de cada ejercicio.</strong><br />
+                  Se asignarán tal cual al cliente — no es necesario indicar su nivel.
+                </div>
+              </div>
+            ) : (
+              <div style={{ background: "rgba(245,158,11,.08)", border: "1px solid rgba(245,158,11,.3)", borderRadius: 10, padding: "12px 16px", marginBottom: 18 }}>
+                <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.6, display: "flex", gap: 8, alignItems: "flex-start", marginBottom: 10 }}>
+                  <FiAlertCircle size={15} style={{ flexShrink: 0, marginTop: 1, color: "#f59e0b" }} />
+                  <span>
+                    <strong style={{ color: "var(--text-primary)" }}>Este documento no trae pesos por ejercicio.</strong><br />
+                    Para que el cliente entrene de forma segura en el gimnasio, indica su nivel: se le
+                    asignarán pesos de arranque adecuados antes de guardar la rutina.
+                  </span>
+                </div>
+                <select className="input-compact" value={nivel} onChange={e => setNivel(e.target.value)}>
+                  <option value="">Selecciona el nivel del cliente…</option>
+                  <option value="Principiante">Principiante</option>
+                  <option value="Intermedio">Intermedio</option>
+                  <option value="Avanzado">Avanzado</option>
+                </select>
+              </div>
+            )
+          )}
+
           {/* Ejercicios para biblioteca */}
           {(preview.ejercicios || []).length > 0 && (
             <div style={{ marginBottom: 20 }}>
@@ -1275,7 +1321,8 @@ function ImportarIARoutinesTab({ clients, onImportDone, onSaveRoutine, onSaveExe
           <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
             <button className="btn-outline-small" onClick={reset}><FiX size={12} /> Descartar</button>
             <button className="btn-compact-primary" onClick={handleSave} disabled={saving ||
-              (Object.values(selRoutines).every(v => !v) && Object.values(selExercises).every(v => !v))}>
+              (Object.values(selRoutines).every(v => !v) && Object.values(selExercises).every(v => !v)) ||
+              (nivelRequerido && !nivel)}>
               <FiSave size={13} />{saving ? "Guardando..." : "Confirmar e importar"}
             </button>
           </div>
