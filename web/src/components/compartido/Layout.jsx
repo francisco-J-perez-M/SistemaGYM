@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import Sidebar from "./Sidebar";
 
 const ROLE_MAP = {
-  admin:        ["admin", "administrador"],
+  owner_gym:    ["owner_gym", "admin", "administrador"],
   trainer:      ["trainer", "entrenador"],
   receptionist: ["receptionist", "recepcionista"],
   user:         ["user", "miembro"],
@@ -11,17 +11,20 @@ const ROLE_MAP = {
 };
 
 const ROUTE_MAP = {
-  admin: {
-    "/dashboard":           "overview",
-    "/dashboard/members":   "miembros",
-    "/dashboard/payments":  "pagos",
-    "/dashboard/pos":       "pos",
-    "/dashboard/backups":   "backups",
-    "/dashboard/restore":   "restore",
-    "/dashboard/mapreduce": "mapreduce",
-    "/dashboard/kmeans":    "kmeans",
-    "/dashboard/regresion": "regresion",
-    "/dashboard/analytics": "analytics",
+  owner_gym: {
+    "/owner":              "ow-dashboard",
+    "/owner/members":      "ow-miembros",
+    "/owner/payments":     "ow-pagos",
+    "/owner/pos":          "ow-pos",
+    "/owner/staff":        "ow-staff",
+    "/owner/memberships":  "ow-membresias",
+    "/owner/profile":      "ow-profile",
+    "/owner/backups":      "ow-backups",
+    "/owner/restore":      "ow-restore",
+    "/owner/mapreduce":    "ow-mapreduce",
+    "/owner/kmeans":       "ow-kmeans",
+    "/owner/regresion":    "ow-regresion",
+    "/owner/analytics":    "ow-analytics",
   },
   trainer: {
     "/trainer-dashboard":         "clients",
@@ -70,18 +73,21 @@ const ROUTE_MAP = {
 };
 
 const NAV_MAP = {
-  admin: {
-    overview:  "/dashboard",
-    miembros:  "/dashboard/members",
-    pagos:     "/dashboard/payments",
-    pos:       "/dashboard/pos",
-    backups:   "/dashboard/backups",
-    restore:   "/dashboard/restore",
-    mapreduce: "/dashboard/mapreduce",
-    kmeans:    "/dashboard/kmeans",
-    regresion: "/dashboard/regresion",
-    analytics: "/dashboard/analytics",
-    cancelaciones: "/dashboard/analytics",
+  owner_gym: {
+    "ow-dashboard":  "/owner",
+    "ow-miembros":   "/owner/members",
+    "ow-pagos":      "/owner/payments",
+    "ow-pos":        "/owner/pos",
+    "ow-staff":      "/owner/staff",
+    "ow-membresias": "/owner/memberships",
+    "ow-profile":    "/owner/profile",
+    "ow-backups":    "/owner/backups",
+    "ow-restore":    "/owner/restore",
+    "ow-mapreduce":  "/owner/mapreduce",
+    "ow-kmeans":     "/owner/kmeans",
+    "ow-regresion":  "/owner/regresion",
+    "ow-analytics":  "/owner/analytics",
+    "ow-cancelaciones": "/owner/analytics",
   },
   trainer: {
     clients:           "/trainer/clients",
@@ -128,7 +134,7 @@ const NAV_MAP = {
   },
 };
 
-export default function Layout({ role = "admin" }) {
+export default function Layout({ role = "owner_gym" }) {
   const navigate = useNavigate();
   const location = useLocation();
 

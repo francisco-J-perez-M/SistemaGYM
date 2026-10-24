@@ -29,25 +29,30 @@ const P = {
 };
 
 const MENUS = {
-  admin: [
-    { id: "overview",  label: "Resumen KPIs", icon: <FiBarChart2 /> },
-    { id: "miembros",  label: "Miembros",     icon: <FiUsers />    },
-    { id: "pagos",     label: "Pagos",         icon: <FiDollarSign /> },
+  owner_gym: [
+    { id: "ow-dashboard",  label: "Dashboard",       icon: <FiBarChart2 />    },
+    { id: "ow-miembros",   label: "Miembros",         icon: <FiUsers />        },
+    { id: "ow-pagos",      label: "Pagos",            icon: <FiDollarSign />   },
+    { id: "ow-pos",        label: "Punto de Venta",   icon: <FiShoppingCart /> },
+    { type: "divider" },
+    { id: "ow-staff",      label: "Staff",            icon: <FiUserCheck />    },
+    { id: "ow-membresias", label: "Membresías",        icon: <FiCreditCard />   },
     { type: "divider" },
     {
-      id: "analytics", label: "IA & Analíticas", icon: <FiCpu />,
+      id: "ow-ia", label: "IA & Analíticas", icon: <FiCpu />,
       children: [
-        { id: "mapreduce",     label: "Finanzas y Flujo",  icon: <FiPieChart />   },
-        { id: "kmeans",        label: "Segmentación",      icon: <FiUsers />      },
-        { id: "regresion",     label: "Tendencias",        icon: <FiTrendingUp /> },
-        { id: "cancelaciones", label: "Cancelaciones IA",  icon: <FiActivity />   },
+        { id: "ow-mapreduce",      label: "Finanzas y Flujo",  icon: <FiPieChart />   },
+        { id: "ow-kmeans",         label: "Segmentación",      icon: <FiUsers />      },
+        { id: "ow-regresion",      label: "Tendencias",        icon: <FiTrendingUp /> },
+        { id: "ow-cancelaciones",  label: "Cancelaciones IA",  icon: <FiActivity />   },
       ],
     },
     {
-      id: "settings", label: "Configuración", icon: <FiSettings />,
+      id: "ow-config", label: "Configuración", icon: <FiSettings />,
       children: [
-        { id: "backups", label: "Copias de seguridad", icon: <FiUpload />   },
-        { id: "restore", label: "Restaurar respaldo",  icon: <FiDownload /> },
+        { id: "ow-profile", label: "Perfil del Gym",       icon: <FiUser />     },
+        { id: "ow-backups", label: "Copias de seguridad",  icon: <FiUpload />   },
+        { id: "ow-restore", label: "Restaurar respaldo",   icon: <FiDownload /> },
       ],
     },
   ],

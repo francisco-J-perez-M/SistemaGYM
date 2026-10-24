@@ -6,17 +6,20 @@ import Layout from "./components/compartido/Layout";
 import AuthPage    from "./components/auth/AuthPage";
 import RegisterGym from "./pages/publico/RegisterGym";
 
-// --- PÁGINAS DE ADMIN ---
-import Dashboard          from "./pages/admin/Dashboard";
-import MiembrosDashboard  from "./pages/admin/MiembrosDashboard";
-import PagosDashboard     from "./pages/admin/PagosDashboard";
-import PointOfSale        from "./pages/admin/PointOfSale";
-import BackupsDashboard   from "./pages/admin/BackupsDashboard";
-import RestoreDashboard   from "./pages/admin/RestoreDashboard";
-import AdminAnalytics     from "./pages/admin/AdminAnalytics";
-import AnalyticsMapReduce from "./pages/admin/AnalyticsMapReduce";
-import AnalyticsKMeans    from "./pages/admin/AnalyticsKMeans";
-import AnalyticsRegresion from "./pages/admin/AnalyticsRegresion";
+// --- PÁGINAS DE OWNER GYM ---
+import OwnerDashboard     from "./pages/owner_gym/OwnerDashboard";
+import OwnerStaff         from "./pages/owner_gym/OwnerStaff";
+import OwnerMemberships   from "./pages/owner_gym/OwnerMemberships";
+import OwnerProfile       from "./pages/owner_gym/OwnerProfile";
+import MiembrosDashboard  from "./pages/owner_gym/MiembrosDashboard";
+import PagosDashboard     from "./pages/owner_gym/PagosDashboard";
+import PointOfSale        from "./pages/owner_gym/PointOfSale";
+import BackupsDashboard   from "./pages/owner_gym/BackupsDashboard";
+import RestoreDashboard   from "./pages/owner_gym/RestoreDashboard";
+import AdminAnalytics     from "./pages/owner_gym/AdminAnalytics";
+import AnalyticsMapReduce from "./pages/owner_gym/AnalyticsMapReduce";
+import AnalyticsKMeans    from "./pages/owner_gym/AnalyticsKMeans";
+import AnalyticsRegresion from "./pages/owner_gym/AnalyticsRegresion";
 
 // --- PÁGINAS DE MIEMBRO ---
 import UserDashboard         from "./pages/miembro/UserDashboard";
@@ -69,18 +72,21 @@ function App() {
           <Route path="/register" element={<AuthPage />} />
           <Route path="/register-gym" element={<RegisterGym />} />
 
-          {/* 2. RUTAS ADMIN */}
-          <Route element={<Layout role="admin" />}>
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/dashboard/members" element={<MiembrosDashboard />} />
-            <Route path="/dashboard/payments" element={<PagosDashboard />} />
-            <Route path="/dashboard/pos" element={<PointOfSale />} />
-            <Route path="/dashboard/backups" element={<BackupsDashboard />} />
-            <Route path="/dashboard/restore" element={<RestoreDashboard />} />
-            <Route path="/dashboard/mapreduce" element={<AnalyticsMapReduce />} />
-            <Route path="/dashboard/kmeans" element={<AnalyticsKMeans />} />
-            <Route path="/dashboard/regresion" element={<AnalyticsRegresion />} />
-            <Route path="/dashboard/analytics" element={<AdminAnalytics />} />
+          {/* 2. RUTAS OWNER GYM */}
+          <Route element={<Layout role="owner_gym" />}>
+            <Route path="/owner"               element={<OwnerDashboard />}   />
+            <Route path="/owner/members"       element={<MiembrosDashboard />} />
+            <Route path="/owner/payments"      element={<PagosDashboard />}   />
+            <Route path="/owner/pos"           element={<PointOfSale />}      />
+            <Route path="/owner/staff"         element={<OwnerStaff />}       />
+            <Route path="/owner/memberships"   element={<OwnerMemberships />} />
+            <Route path="/owner/profile"       element={<OwnerProfile />}     />
+            <Route path="/owner/backups"       element={<BackupsDashboard />} />
+            <Route path="/owner/restore"       element={<RestoreDashboard />} />
+            <Route path="/owner/mapreduce"     element={<AnalyticsMapReduce />} />
+            <Route path="/owner/kmeans"        element={<AnalyticsKMeans />}  />
+            <Route path="/owner/regresion"     element={<AnalyticsRegresion />} />
+            <Route path="/owner/analytics"     element={<AdminAnalytics />}   />
           </Route>
 
           {/* 3. RUTAS USUARIO (MIEMBRO) */}
