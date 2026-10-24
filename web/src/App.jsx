@@ -18,6 +18,8 @@ import BackupsDashboard   from "./pages/owner_gym/BackupsDashboard";
 import AdminAnalytics     from "./pages/owner_gym/AdminAnalytics";
 import AnalyticsMapReduce from "./pages/owner_gym/AnalyticsMapReduce";
 import AnalyticsKMeans    from "./pages/owner_gym/AnalyticsKMeans";
+import TrainerKMeans      from "./pages/entrenador/TrainerKMeans";
+import TrainerRegresion   from "./pages/entrenador/TrainerRegresion";
 import AnalyticsRegresion from "./pages/owner_gym/AnalyticsRegresion";
 
 // --- PÁGINAS DE MIEMBRO ---
@@ -112,8 +114,8 @@ function App() {
             <Route path="/trainer/schedule" element={<TrainerSchedule />} />
             <Route path="/trainer/sessions" element={<TrainerSessions />} />
             <Route path="/trainer/routines" element={<TrainerRoutines />} />
-            <Route path="/trainer/trainer-kmeans" element={<AnalyticsKMeans />} />
-            <Route path="/trainer/trainer-regresion" element={<AnalyticsRegresion />} />
+            <Route path="/trainer/trainer-kmeans" element={<TrainerKMeans />} />
+            <Route path="/trainer/trainer-regresion" element={<TrainerRegresion />} />
             <Route path="/trainer/reports" element={<TrainerReports />} />
             <Route path="/trainer/profile" element={<TrainerProfile />} />
             <Route path="/trainer/pos" element={<PointOfSale />} />
