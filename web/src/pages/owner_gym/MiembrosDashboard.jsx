@@ -5,6 +5,7 @@
  * Se almacena en MongoDB directamente — sin filesystem ni volúmenes.
  */
 import { useState, useEffect, useRef, useCallback } from "react";
+import { FiCamera, FiSearch, FiUsers, FiCheck } from "react-icons/fi";
 import {
   getMiembros, createMiembro, updateMiembro,
   deleteMiembro, reactivateMiembro,
@@ -255,7 +256,7 @@ function PhotoUploader({ preview, onChange, name }) {
             display: "flex", alignItems: "center", justifyContent: "center",
             fontSize: 14, boxShadow: "0 2px 8px rgba(0,0,0,.5)",
           }}
-        >{selected ? "✓" : "📷"}</button>
+        >{selected ? <FiCheck /> : <FiCamera />}</button>
         <input ref={ref} type="file" accept="image/jpeg,image/png,image/webp"
           onChange={handleFile}
           style={{ display: "none" }} />
@@ -644,7 +645,7 @@ export default function MiembrosDashboard() {
 
       {/* Búsqueda */}
       <div style={{ position: "relative", marginBottom: 20, maxWidth: 440 }}>
-        <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: C.t3, pointerEvents: "none" }}>🔍</span>
+        <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: C.t3, pointerEvents: "none", display: "inline-flex" }}><FiSearch /></span>
         <input
           value={search}
           onChange={e => { setSearch(e.target.value); setPage(1); }}
@@ -663,7 +664,7 @@ export default function MiembrosDashboard() {
         </div>
       ) : miembros.length === 0 ? (
         <div style={{ textAlign: "center", padding: "64px 24px", color: C.t2 }}>
-          <p style={{ fontSize: 40, marginBottom: 12 }}>👥</p>
+          <p style={{ fontSize: 40, marginBottom: 12, display: "flex", justifyContent: "center" }}><FiUsers /></p>
           <p style={{ fontSize: 16, fontWeight: 700, color: C.t1, marginBottom: 8 }}>
             {search ? "Sin resultados" : inactivos ? "Papelera vacía" : "Sin miembros activos"}
           </p>

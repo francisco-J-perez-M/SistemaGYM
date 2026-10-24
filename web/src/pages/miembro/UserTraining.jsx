@@ -380,8 +380,9 @@ function TabRutinas() {
                     marginTop: 12, padding: "10px 14px", borderRadius: 8,
                     background: "rgba(16,185,129,.07)", border: "1px solid rgba(16,185,129,.2)",
                     fontSize: 13, color: "var(--success)",
+                    display: "flex", alignItems: "center", gap: 6,
                   }}>
-                    💬 {rutina.notas_entrenador}
+                    <FiMessageSquare /> {rutina.notas_entrenador}
                   </div>
                 )}
                 {rutina.descripcion && (

@@ -115,7 +115,7 @@ export default function UserPaymentsHistory() {
 <body>
 <div class="page">
   <div class="header">
-    <h1>🏋️ ${gymName}</h1>
+    <h1>${gymName}</h1>
     <p>Comprobante de Pago</p>
     <div class="badge">Recibo Oficial</div>
   </div>

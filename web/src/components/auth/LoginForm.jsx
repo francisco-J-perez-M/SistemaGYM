@@ -46,15 +46,15 @@ export default function LoginForm() {
     setLoading(true);
 
     try {
-      console.log("🔐 [LOGIN] Intentando login...");
+      console.log("[LOGIN] Intentando login...");
       const result = await login(email, password);
-      
-      console.log("✅ [LOGIN] Respuesta del servidor:", result);
-      
-      // 1️⃣ Guardar token
+
+      console.log("[LOGIN] Respuesta del servidor:", result);
+
+      // 1. Guardar token
       localStorage.setItem("token", result.access_token);
 
-      // 2️⃣ Preparar datos del usuario (ESTRUCTURA CORREGIDA)
+      // 2. Preparar datos del usuario (ESTRUCTURA CORREGIDA)
       const userData = {
         id: result.user.id,
         nombre: result.user.nombre,
@@ -62,24 +62,24 @@ export default function LoginForm() {
         role: result.user.role,
         access_level: result.user.access_level || "basico",
         membership_plan: result.user.membership_plan || "Sin Plan",
-        // 🟢 NUEVO: Guardamos el peso_inicial y el flag de perfil
-        peso_inicial: result.user.peso_inicial, 
+        // NUEVO: Guardamos el peso_inicial y el flag de perfil
+        peso_inicial: result.user.peso_inicial,
         perfil_completo: result.user.perfil_completo
       };
 
-      // 3️⃣ Guardar usuario en LocalStorage
+      // 3. Guardar usuario en LocalStorage
       localStorage.setItem("user", JSON.stringify(userData));
-      console.log("✅ [LOGIN] Usuario guardado:", userData);
+      console.log("[LOGIN] Usuario guardado:", userData);
 
-      // 4️⃣ LÓGICA DE VERIFICACIÓN DE PERFIL (SOLO PESO)
+      // 4. LÓGICA DE VERIFICACIÓN DE PERFIL (SOLO PESO)
       // Si es Miembro/User y NO tiene peso inicial registrado
       if ((userData.role === "Miembro" || userData.role === "user") && !userData.peso_inicial) {
-          console.warn("⚠️ [LOGIN] Falta peso inicial. Redirigiendo a completar perfil...");
+          console.warn("[LOGIN] Falta peso inicial. Redirigiendo a completar perfil...");
           navigate("/complete-profile");
-          return; // 🛑 DETENEMOS AQUÍ
+          return; // DETENEMOS AQUÍ
       }
 
-      // 5️⃣ Redirección normal según Rol
+      // 5. Redirección normal según Rol
       const userRole = userData.role;
 
       if (userRole === "superadmin") {
@@ -96,7 +96,7 @@ export default function LoginForm() {
       }
 
     } catch (err) {
-      console.error("❌ [LOGIN] Error:", err);
+      console.error("[LOGIN] Error:", err);
       setError(err.message || "Error al conectar con el servidor");
     } finally {
       if (window.location.pathname === "/" || window.location.pathname === "/login") {

@@ -3,8 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   FiUser, FiHeart, FiTarget, FiActivity, FiCheckCircle,
-  FiArrowRight, FiArrowLeft, FiAlertTriangle,
+  FiArrowRight, FiArrowLeft, FiAlertTriangle, FiTrendingDown, FiZap, FiLock,
 } from "react-icons/fi";
+import { GiMuscleUp, GiRunningShoe } from "react-icons/gi";
 import "../../css/CSSUnificado.css";
 
 // ── Constantes ────────────────────────────────────────────────────────────────
@@ -16,12 +17,12 @@ const CONDICIONES = [
 ];
 
 const OBJETIVOS = [
-  { id: "perdida_peso",      label: "Pérdida de peso",   icon: "🔥" },
-  { id: "ganancia_muscular", label: "Ganar músculo",     icon: "💪" },
-  { id: "tonificacion",      label: "Tonificación",      icon: "⚡" },
-  { id: "resistencia",       label: "Resistencia",       icon: "🏃" },
-  { id: "bienestar",         label: "Bienestar general", icon: "🧘" },
-  { id: "rehabilitacion",    label: "Rehabilitación",    icon: "🩺" },
+  { id: "perdida_peso",      label: "Pérdida de peso",   icon: <FiTrendingDown /> },
+  { id: "ganancia_muscular", label: "Ganar músculo",     icon: <GiMuscleUp /> },
+  { id: "tonificacion",      label: "Tonificación",      icon: <FiZap /> },
+  { id: "resistencia",       label: "Resistencia",       icon: <GiRunningShoe /> },
+  { id: "bienestar",         label: "Bienestar general", icon: <FiHeart /> },
+  { id: "rehabilitacion",    label: "Rehabilitación",    icon: <FiActivity /> },
 ];
 
 const EXPERIENCIA = [
@@ -241,8 +242,8 @@ function Step2({ form, set, errors }) {
           rows={2} style={{ ...S.inp, resize: "vertical", minHeight: 60 }} />
       </Field>
 
-      <div style={{ padding: "10px 14px", background: "rgba(99,102,241,.08)", border: "1px solid rgba(99,102,241,.25)", borderRadius: 10, fontSize: 13, color: "var(--text-secondary)" }}>
-        🔒 Estos datos nunca se comparten fuera de tu gimnasio.
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: "rgba(99,102,241,.08)", border: "1px solid rgba(99,102,241,.25)", borderRadius: 10, fontSize: 13, color: "var(--text-secondary)" }}>
+        <FiLock /> Estos datos nunca se comparten fuera de tu gimnasio.
       </div>
     </div>
   );
@@ -450,7 +451,7 @@ export default function CompleteProfile() {
       <div style={{ ...S.page, justifyContent: "center", gap: 24 }}>
         <motion.div initial={{ scale: .6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
           style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 72, marginBottom: 16 }}>🎉</div>
+          <div style={{ fontSize: 72, marginBottom: 16, color: "var(--accent)", display: "flex", justifyContent: "center" }}><FiCheckCircle /></div>
           <h2 style={{ color: "var(--text-primary)", fontSize: 26, fontWeight: 700, marginBottom: 8 }}>
             ¡Perfil completado!
           </h2>

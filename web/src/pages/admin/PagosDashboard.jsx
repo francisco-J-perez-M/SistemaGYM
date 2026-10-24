@@ -270,9 +270,9 @@ export default function PagosDashboard() {
                     value={form.metodo_pago}
                     onChange={(e) => setForm({ ...form, metodo_pago: e.target.value })}
                   >
-                    <option value="Efectivo">💵 Efectivo</option>
-                    <option value="Tarjeta">💳 Tarjeta</option>
-                    <option value="Transferencia">🔄 Transferencia</option>
+                    <option value="Efectivo">Efectivo</option>
+                    <option value="Tarjeta">Tarjeta</option>
+                    <option value="Transferencia">Transferencia</option>
                   </select>
                 </div>
 
