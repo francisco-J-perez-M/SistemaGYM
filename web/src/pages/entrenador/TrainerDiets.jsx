@@ -520,6 +520,7 @@ function ImportarIATab({clients,onPlanExtracted}){
   const [via,setVia]         = useState(null);
   const [showRecetas,setShowRecetas] = useState(false);
   const [aiStatus,setAiStatus] = useState(null);
+  const [importMode,setImportMode] = useState("propio"); // "propio" | "historial"
   const fileRef = useRef();
 
   useEffect(()=>{
@@ -592,11 +593,35 @@ function ImportarIATab({clients,onPlanExtracted}){
           )}
         </div>
       )}
+      {/* Modo de importación (paridad con Rutinas) */}
+      {!plan&&(
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
+          {[
+            {id:"propio",   titulo:"Mis recetas y dietas", desc:"Migra tus planes desde otro sistema a tu biblioteca."},
+            {id:"historial",titulo:"Historial de cliente",  desc:"El cliente trae su plan de alimentación de otro lado."},
+          ].map(m=>{
+            const active=importMode===m.id;
+            return(
+              <button key={m.id} onClick={()=>setImportMode(m.id)}
+                style={{textAlign:"left",padding:"14px 16px",borderRadius:12,cursor:"pointer",
+                  border:`1.5px solid ${active?"var(--accent)":"var(--border)"}`,
+                  background:active?"rgba(99,102,241,.1)":"var(--bg-card)"}}>
+                <div style={{fontWeight:700,fontSize:13,color:active?"var(--accent)":"var(--text-primary)",marginBottom:3}}>{m.titulo}</div>
+                <div style={{fontSize:11.5,color:"var(--text-secondary)",lineHeight:1.5}}>{m.desc}</div>
+              </button>
+            );
+          })}
+        </div>
+      )}
       <div style={{background:"rgba(99,102,241,.08)",border:"1px solid rgba(99,102,241,.2)",borderRadius:10,padding:"12px 16px",marginBottom:20,display:"flex",gap:10,alignItems:"flex-start"}}>
         <MdOutlineSmartToy size={18} style={{color:"var(--accent)",flexShrink:0,marginTop:1}}/>
         <div style={{fontSize:12,color:"var(--text-secondary)",lineHeight:1.6}}>
-          <strong style={{color:"var(--text-primary)"}}>Importación inteligente desde PDF</strong><br/>
-          Sube el plan alimenticio. El sistema detecta recetas, calcula macros por ingrediente y crea automáticamente el plan y la biblioteca de recetas, sin enviar datos a servidores externos.
+          <strong style={{color:"var(--text-primary)"}}>
+            {importMode==="historial"?"Importar el plan de nutrición del cliente":"Importación inteligente desde PDF"}
+          </strong><br/>
+          {importMode==="historial"
+            ? "Sube el plan de alimentación que el cliente ya seguía. El sistema lo detecta y, si lo asignas a un cliente, queda registrado como su plan nutricional y suma a su progreso. Sin enviar datos a servidores externos."
+            : "Sube el plan alimenticio. El sistema detecta recetas, calcula macros por ingrediente y crea automáticamente el plan y la biblioteca de recetas, sin enviar datos a servidores externos."}
         </div>
       </div>
       {!plan&&(

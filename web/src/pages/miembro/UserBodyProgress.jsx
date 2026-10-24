@@ -5,7 +5,7 @@ import {
   FiHeart, FiAlertCircle, FiCheckCircle, FiActivity, FiTrendingUp, 
   FiEdit2, FiTarget, FiCircle, FiTrendingDown, FiInfo, FiClock, FiDroplet, FiSun,
 } from "react-icons/fi";
-import { GiBodyHeight, GiMuscleUp, GiWeightScale, GiChest, GiLeg, GiFootTrip } from "react-icons/gi";
+import { GiBodyHeight, GiMuscleUp, GiWeightScale, GiChest, GiLeg, GiFootTrip, GiMeal } from "react-icons/gi";
 import BodyViewer from "../../components/miembro/BodyViewer";
 import UserHealthUpdate from "./UserHealthUpdate";
 import "../../css/CSSUnificado.css";
@@ -456,6 +456,7 @@ export default function UserHealthProgress() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [hasDatos, setHasDatos] = useState(false);
+  const [nutricion, setNutricion] = useState({ tienePlan: false, planes: 0, planActual: null });
   const [activeTab, setActiveTab] = useState("progress");
 
   useEffect(() => {
@@ -495,6 +496,7 @@ export default function UserHealthProgress() {
       setProgressHistory(progressData.progressHistory);
       setSelectedGender(progressData.gender);
       setHasDatos(progressData.hasDatos);
+      setNutricion(progressData.nutricion || { tienePlan: false, planes: 0, planActual: null });
       setHealthData(healthDataResponse);
       setError(null);
     } catch (err) {
@@ -545,6 +547,7 @@ export default function UserHealthProgress() {
     { label: "Peso Actual", value: bodyMetrics.peso.actual > 0 ? `${bodyMetrics.peso.actual} kg` : '--', icon: <GiWeightScale />, color: "var(--success-color)", meta: bodyMetrics.peso.meta > 0 ? `Meta: ${bodyMetrics.peso.meta}kg` : null },
     { label: "Masa Muscular", value: bodyMetrics.musculo.actual > 0 ? `${bodyMetrics.musculo.actual}%` : '--', icon: <GiMuscleUp />, color: "var(--warning-color)", meta: bodyMetrics.musculo.meta > 0 ? `Meta: ${bodyMetrics.musculo.meta}%` : null },
     { label: "Grasa Corporal", value: bodyMetrics.grasaCorporal.actual > 0 ? `${bodyMetrics.grasaCorporal.actual}%` : '--', icon: <FiActivity />, color: "var(--error-color)", meta: bodyMetrics.grasaCorporal.meta > 0 ? `Meta: ${bodyMetrics.grasaCorporal.meta}%` : null },
+    { label: "Plan Nutricional", value: nutricion.tienePlan ? "Activo" : "Sin plan", icon: <GiMeal />, color: nutricion.tienePlan ? "var(--success-color)" : "var(--text-secondary)", meta: nutricion.tienePlan ? (nutricion.planActual || `${nutricion.planes} plan(es)`) : "Sin dieta asignada" },
   ];
 
   const objetivos = [
