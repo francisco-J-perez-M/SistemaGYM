@@ -89,9 +89,9 @@ async function processVideo(file) {
 
     probe.onloadedmetadata = () => {
       const dur = probe.duration;
-      if (!isFinite(dur) || dur > 15) {
+      if (!isFinite(dur) || dur > 30) { //15
         URL.revokeObjectURL(url);
-        reject(new Error(`Duración máxima: 15 s. Tu video dura ${Math.round(dur)} s.`));
+        reject(new Error(`Duración máxima: 30 s. Tu video dura ${Math.round(dur)} s.`));
         return;
       }
 
@@ -111,7 +111,7 @@ async function processVideo(file) {
 
       const recorder = new MediaRecorder(canvas.captureStream(20), {
         mimeType,
-        videoBitsPerSecond: 400_000, // ~750 KB para 15 s
+        videoBitsPerSecond: 800_000, //  400_000 ~750 KB para 15 s, 800_000 para 30 s
       });
 
       const chunks = [];
