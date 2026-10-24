@@ -3,6 +3,7 @@ import {
   BarChart, Bar, PieChart, Pie, Cell, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
+import { FiDollarSign, FiUsers, FiTrendingUp, FiAlertCircle, FiRefreshCw, FiLock, FiWifiOff } from "react-icons/fi";
 import "../../css/CSSUnificado.css";
 
 const API = "";
@@ -30,7 +31,23 @@ const CTip = ({ active, payload, label, prefix = "", suffix = "" }) => {
   );
 };
 
-/* ─── Sección con título y subtítulo amigable ──────────────────────────── */
+/* ─── Mensajes de error amigables por codigo HTTP ─────────────────── */
+function friendlyError(raw) {
+  const code = parseInt(raw, 10);
+  if (code === 401 || code === 403)
+    return { msg: "No tienes permiso para ver esta informacion. Vuelve a iniciar sesion si el problema persiste.", icon: <FiLock size={18}/> };
+  if (code === 404)
+    return { msg: "Aun no hay datos suficientes para generar este analisis. Prueba mas adelante cuando el gimnasio tenga mas registros.", icon: <FiAlertCircle size={18}/> };
+  if (code === 408 || code === 504)
+    return { msg: "El servidor tardo demasiado en responder. Revisa tu conexion a internet y vuelve a intentarlo.", icon: <FiWifiOff size={18}/> };
+  if (code === 500 || code === 503)
+    return { msg: "Hubo un problema interno en el servidor. El equipo ya fue notificado. Intenta de nuevo en unos minutos.", icon: <FiAlertCircle size={18}/> };
+  if (!raw || raw === "Failed to fetch" || raw === "Network Error")
+    return { msg: "No se pudo conectar con el servidor. Verifica que tengas internet y vuelve a intentarlo.", icon: <FiWifiOff size={18}/> };
+  return { msg: "No fue posible cargar esta seccion en este momento. Intenta de nuevo o contacta a soporte si el error continua.", icon: <FiAlertCircle size={18}/> };
+}
+
+/* ─── Sección con título y subtítulo amigable ────────────────────── */
 function Section({ icon, title, subtitle, children, loading, error, onRetry }) {
   return (
     <div style={{
@@ -40,7 +57,7 @@ function Section({ icon, title, subtitle, children, loading, error, onRetry }) {
     }}>
       <div style={{ marginBottom: 20 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-          <span style={{ fontSize: 22 }}>{icon}</span>
+          <span style={{ fontSize: 20, color: "var(--accent-soft)", display:"flex", alignItems:"center" }}>{icon}</span>
           <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "var(--text-primary)" }}>{title}</h2>
         </div>
         <p style={{ margin: 0, color: "var(--text-secondary)", fontSize: 14, lineHeight: 1.5 }}>{subtitle}</p>
@@ -52,11 +69,22 @@ function Section({ icon, title, subtitle, children, loading, error, onRetry }) {
           <span>Calculando datos, un momento…</span>
         </div>
       ) : error ? (
-        <div style={{ padding: "20px 0" }}>
-          <p style={{ color: "var(--danger-color)", marginBottom: 12 }}>No se pudo cargar esta sección.</p>
+        <div style={{ padding: "20px 0", display:"flex", flexDirection:"column", gap:12 }}>
+          <div style={{ display:"flex", gap:10, alignItems:"flex-start",
+            background:"rgba(239,68,68,0.07)", borderRadius:"var(--r-md)",
+            border:"1px solid rgba(239,68,68,0.2)", padding:"14px 16px" }}>
+            <span style={{ color:"#ef4444", flexShrink:0, marginTop:2 }}>{friendlyError(error).icon}</span>
+            <p style={{ margin:0, color:"var(--text-primary)", fontSize:13, lineHeight:1.6 }}>
+              {friendlyError(error).msg}
+            </p>
+          </div>
           {onRetry && (
-            <button className="btn-outline" onClick={onRetry} style={{ fontSize: 13 }}>
-              Intentar de nuevo
+            <button onClick={onRetry}
+              style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"8px 16px",
+                borderRadius:"var(--r-md)", fontSize:13, fontWeight:600,
+                background:"var(--bg-input)", border:"1px solid var(--border-dark)",
+                color:"var(--text-secondary)", cursor:"pointer", width:"fit-content" }}>
+              <FiRefreshCw size={13}/> Intentar de nuevo
             </button>
           )}
         </div>
@@ -222,7 +250,7 @@ export default function ReceptionistAnalytics() {
       {/* Encabezado */}
       <div style={{ marginBottom: 32 }}>
         <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: "var(--text-primary)" }}>
-          📊 Análisis del Gimnasio
+          Análisis del Gimnasio
         </h1>
         <p style={{ margin: "8px 0 0", color: "var(--text-secondary)", fontSize: 14, lineHeight: 1.6 }}>
           Aquí encontrarás un resumen claro de cómo va tu gimnasio: ingresos, tipos de clientes y
@@ -234,7 +262,7 @@ export default function ReceptionistAnalytics() {
           SECCIÓN 1 — INGRESOS Y ASISTENCIA
           ══════════════════════════════════════════════════════════════════════ */}
       <Section
-        icon="💰"
+        icon={<FiDollarSign size={20}/>}
         title="Ingresos y Visitas"
         subtitle="¿Cuánto dinero está entrando al gimnasio y cuándo vienen más tus clientes?"
         loading={mrLoad}
@@ -348,7 +376,7 @@ export default function ReceptionistAnalytics() {
           SECCIÓN 2 — TIPOS DE CLIENTES
           ══════════════════════════════════════════════════════════════════════ */}
       <Section
-        icon="👥"
+        icon={<FiUsers size={20}/>}
         title="Tipos de Clientes"
         subtitle="El sistema agrupa automáticamente a tus miembros según su nivel de actividad y condición física. Esto te ayuda a saber a quién darle más atención."
         loading={kmLoad}
@@ -436,7 +464,7 @@ export default function ReceptionistAnalytics() {
               borderRadius: 10, padding: "14px 18px", fontSize: 13, color: "var(--text-secondary)",
               lineHeight: 1.6,
             }}>
-              💡 <strong style={{ color: "var(--text-primary)" }}>¿Para qué sirve esto?</strong>{" "}
+              <strong style={{ color: "var(--text-primary)" }}>¿Para qué sirve esto?</strong>{" "}
               Conociendo qué tipo de clientes tienes, puedes enfocar promociones y atención.
               Por ejemplo, los clientes del grupo <em>"{clusters[0] && clusterLabel(clusters[0].perfil || clusters[0].label || "Grupo 1")}"</em>{" "}
               pueden necesitar más seguimiento por parte del equipo.
@@ -449,7 +477,7 @@ export default function ReceptionistAnalytics() {
           SECCIÓN 3 — PREDICCIÓN DE PROGRESO
           ══════════════════════════════════════════════════════════════════════ */}
       <Section
-        icon="📈"
+        icon={<FiTrendingUp size={20}/>}
         title="Predicción de Progreso de Miembros"
         subtitle="Con base en los registros de peso de tus clientes, el sistema puede estimar cómo evolucionará su peso en el tiempo. Esto te ayuda a detectar quién está progresando bien y quién necesita apoyo."
         loading={regLoad}
@@ -502,7 +530,7 @@ export default function ReceptionistAnalytics() {
             </p>
           ) : (
             <p style={{ margin: 0, color: "var(--text-secondary)", fontSize: 13, lineHeight: 1.7 }}>
-              ⚠️ El modelo funciona, pero aún necesita más datos para mejorar su precisión.
+              El modelo funciona, pero aún necesita más datos para mejorar su precisión.
               Cuantos más miembros registren su progreso de peso, más exactas serán las
               predicciones.{" "}
               {rmse && `Por ahora, el margen de error es de ±${rmse.toFixed(1)} kg.`}
@@ -515,7 +543,7 @@ export default function ReceptionistAnalytics() {
           border: "1px solid rgba(251,227,121,0.2)", borderRadius: 10,
           padding: "12px 16px", fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.6,
         }}>
-          💡 Para ver la predicción de un miembro específico, ve al módulo de <strong style={{ color: "var(--text-primary)" }}>Predicción de peso</strong> en el panel del usuario o pide al entrenador que la consulte desde su panel.
+          Para ver la predicción de un miembro específico, ve al módulo de <strong style={{ color: "var(--text-primary)" }}>Predicción de peso</strong> en el panel del usuario o pide al entrenador que la consulte desde su panel.
         </div>
       </Section>
 
