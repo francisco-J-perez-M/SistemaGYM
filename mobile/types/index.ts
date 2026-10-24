@@ -173,12 +173,19 @@ export interface PaymentItem {
   amount:  number;
   method:  string;
   status:  string;
+  /** Origen del cargo: el plan del gimnasio o una compra en el punto de venta. */
+  type?:   'membresia' | 'producto';
+  /** Número de artículos. Solo en las compras. */
+  items?:  number;
   rawDate: string;
 }
 
 export interface PaymentsResponse {
   stats: {
     totalPaid:   number;
+    /** Desglose del total: cuánto por el plan y cuánto en el punto de venta. */
+    totalMembresias?: number;
+    totalCompras?:    number;
     lastPayment: string;
     nextPayment: string;
     status:      string;
