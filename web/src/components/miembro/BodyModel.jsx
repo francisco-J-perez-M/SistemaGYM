@@ -2,139 +2,104 @@ import { useMemo } from "react";
 import { useGLTF } from "@react-three/drei";
 
 /**
- * Componente BodyModel mejorado
- * Escala el modelo 3D basándose en las medidas corporales reales del usuario
+ * BodyModel — escala un modelo GLTF estático según las métricas reales del usuario.
+ *
+ * Limitación conocida: el modelo es una malla rígida (sin morph targets ni huesos
+ * expuestos por zona), así que la deformación es por escala global (X=ancho,
+ * Y=alto, Z=profundidad). Aun así, separamos "complexión" (grasa/IMC) de
+ * "musculatura" para que un cuerpo con grasa se vea ancho y profundo (barriga),
+ * uno musculoso se vea más ancho de torso y tenso, y uno delgado más estilizado.
  */
 export default function BodyModel({ gender, metrics }) {
-  const path =
-    gender === "male"
-      ? "/models/male/scene.gltf"
-      : "/models/female/scene.gltf";
-
+  const isFemale = gender === "female";
+  const path = isFemale ? "/models/female/scene.gltf" : "/models/male/scene.gltf";
   const { scene } = useGLTF(path);
 
-  // Calcular escalas basadas en métricas corporales REALES
-  const scales = useMemo(() => {
-    if (!metrics) {
-      return { x: 1, y: 1, z: 1 };
-    }
+  const { fatness, muscularity, scales } = useMemo(() => {
+    // ===== Referencias "promedio" por sexo =====
+    const REF = isFemale
+      ? { estatura: 1.65, pecho: 88, cintura: 72, cadera: 96, grasa: 25, musculo: 35, imc: 22 }
+      : { estatura: 1.75, pecho: 98, cintura: 85, cadera: 96, grasa: 18, musculo: 42, imc: 23 };
 
-    // ===== MEDIDAS BASE DE REFERENCIA =====
-    // Estas son las medidas "promedio" que usaremos como referencia
-    const REFERENCE = gender === "male" ? {
-      peso: 75,           // kg
-      estatura: 1.75,     // metros
-      pecho: 95,          // cm
-      cintura: 85,        // cm
-      cadera: 95,         // cm
-      brazoDerecho: 30,   // cm
-      brazoIzquierdo: 30, // cm
-      musloDerecho: 50,   // cm
-      musloIzquierdo: 50, // cm
-      pantorrilla: 35,    // cm
-      grasaCorporal: 20,  // %
-      musculo: 40         // %
-    } : {
-      peso: 65,           // kg
-      estatura: 1.65,     // metros
-      pecho: 85,          // cm
-      cintura: 70,        // cm
-      cadera: 95,         // cm
-      brazoDerecho: 25,   // cm
-      brazoIzquierdo: 25, // cm
-      musloDerecho: 48,   // cm
-      musloIzquierdo: 48, // cm
-      pantorrilla: 32,    // cm
-      grasaCorporal: 25,  // %
-      musculo: 35         // %
-    };
+    const m = metrics || {};
+    const num = (v, d) => (Number.isFinite(+v) && +v > 0 ? +v : d);
 
-    // ===== EXTRAER MÉTRICAS =====
-    const peso = metrics.peso?.actual || REFERENCE.peso;
-    const estatura = metrics.estatura || REFERENCE.estatura;
-    const pecho = metrics.pecho || REFERENCE.pecho;
-    const cintura = metrics.cintura || REFERENCE.cintura;
-    const cadera = metrics.cadera || REFERENCE.cadera;
-    const brazoDerecho = metrics.brazoDerecho || REFERENCE.brazoDerecho;
-    const brazoIzquierdo = metrics.brazoIzquierdo || REFERENCE.brazoIzquierdo;
-    const musloDerecho = metrics.musloDerecho || REFERENCE.musloDerecho;
-    const musloIzquierdo = metrics.musloIzquierdo || REFERENCE.musloIzquierdo;
-    const pantorrilla = metrics.pantorrilla || REFERENCE.pantorrilla;
-    const grasaCorporal = metrics.grasaCorporal?.actual || REFERENCE.grasaCorporal;
-    const musculo = metrics.musculo?.actual || REFERENCE.musculo;
-    const imc = metrics.imc || 22;
+    const estatura = num(m.estatura, REF.estatura);
+    const pecho    = num(m.pecho,    REF.pecho);
+    const cintura  = num(m.cintura,  REF.cintura);
+    const cadera   = num(m.cadera,   REF.cadera);
+    const grasa    = num(m.grasaCorporal?.actual ?? m.grasaCorporal, REF.grasa);
+    const musculo  = num(m.musculo?.actual ?? m.musculo, REF.musculo);
+    const imc      = num(m.imc, REF.imc);
 
-    // ===== CALCULAR FACTORES DE ESCALA =====
-    
-    // 1. Factor de ALTURA (eje Y)
-    // Basado en la estatura real vs referencia
-    const alturaFactor = estatura / REFERENCE.estatura;
-    
-    // 2. Factor de ANCHURA TORSO (eje X - afectado por pecho, cintura y grasa)
-    // Promedio de pecho y cintura comparado con referencia
-    const torsoAnchura = (pecho + cintura) / 2;
-    const torsoRef = (REFERENCE.pecho + REFERENCE.cintura) / 2;
-    const anchoTorsoFactor = torsoAnchura / torsoRef;
-    
-    // 3. Factor de PROFUNDIDAD (eje Z - afectado por IMC y grasa corporal)
-    // IMC normal está entre 18.5 y 24.9
-    const imcFactor = imc < 18.5 ? 0.85 : 
-                      imc <= 24.9 ? 1.0 : 
-                      imc <= 29.9 ? 1 + ((imc - 24.9) * 0.04) : // Sobrepeso
-                      1.2 + ((imc - 30) * 0.03); // Obesidad
-    
-    // La grasa corporal afecta principalmente la profundidad
-    const grasaFactor = 1 + ((grasaCorporal - REFERENCE.grasaCorporal) * 0.008);
-    
-    // 4. Factor de MÚSCULO (afecta definición general)
-    // Más músculo = ligeramente más volumen
-    const musculoFactor = 1 + ((musculo - REFERENCE.musculo) * 0.004);
-    
-    // 5. Factor de CADERA (afecta parte inferior)
-    const caderaFactor = cadera / REFERENCE.cadera;
-    
-    // ===== APLICAR ESCALAS CON LÍMITES REALISTAS =====
-    
-    // Escala en X (anchura): influenciada por torso, músculo y cadera
-    const xScale = anchoTorsoFactor * musculoFactor * 0.85 + caderaFactor * 0.15;
-    
-    // Escala en Y (altura): principalmente por estatura, ligeramente por músculo
-    const yScale = alturaFactor * musculoFactor;
-    
-    // Escala en Z (profundidad): IMC, grasa y músculo
-    const zScale = imcFactor * grasaFactor * musculoFactor * 0.9;
+    // Pantorrillas: promedio de ambas si existen (compatibilidad con `pantorrilla` único)
+    const pantDer = num(m.pantorrillaDerecha,   m.pantorrilla);
+    const pantIzq = num(m.pantorrillaIzquierda, m.pantorrilla);
+    const pantorrilla = (pantDer || pantIzq)
+      ? ((pantDer || pantIzq) + (pantIzq || pantDer)) / 2
+      : 0;
 
-    // Limitar a rangos realistas (0.7x - 1.5x del modelo base)
+    // ===== Índices normalizados =====
+    // Grasa/complexión: combina exceso de IMC y de % grasa. 0 = delgado/normal.
+    const imcExceso  = Math.max(0, imc - 23);
+    const imcDeficit = Math.max(0, 20 - imc);
+    const grasaExceso = Math.max(0, grasa - REF.grasa);
+    const fatness  = Math.min(1.6, imcExceso * 0.07 + grasaExceso * 0.025);
+    const leanness = Math.min(0.5, imcDeficit * 0.05 + Math.max(0, REF.grasa - grasa) * 0.012);
+    // Musculatura: % músculo por encima de la referencia.
+    const muscularity = Math.min(1.1, Math.max(0, musculo - REF.musculo) * 0.025);
+
+    // Circunferencia de torso vs referencia (ancho real medido).
+    const torsoFactor  = ((pecho + cintura) / 2) / ((REF.pecho + REF.cintura) / 2);
+    const caderaFactor = cadera / REF.cadera;
+    const piernaFactor = pantorrilla ? pantorrilla / (isFemale ? 35 : 37) : 1;
+
+    // ===== Escalas =====
+    // Ancho (X): torso medido + ensanchamiento por músculo + algo de grasa + caderas
+    let x = 1
+      + (torsoFactor - 1) * 0.6
+      + muscularity * 0.20
+      + fatness * 0.18
+      - leanness * 0.14
+      + (caderaFactor - 1) * (isFemale ? 0.22 : 0.12);
+
+    // Profundidad (Z): dominada por la grasa (barriga); músculo aporta algo
+    let z = 1
+      + fatness * 0.50
+      + muscularity * 0.12
+      - leanness * 0.22
+      + (torsoFactor - 1) * 0.20;
+
+    // Alto (Y): estatura; el músculo casi no cambia la altura
+    let y = (estatura / REF.estatura) * (1 + muscularity * 0.02);
+    // Las piernas más gruesas suben un pelín el volumen inferior (aprox. vía Y/X menor)
+    x += (piernaFactor - 1) * 0.04;
+
     return {
-      x: Math.max(0.7, Math.min(1.5, xScale)),
-      y: Math.max(0.7, Math.min(1.5, yScale)),
-      z: Math.max(0.7, Math.min(1.5, zScale))
+      fatness,
+      muscularity,
+      scales: {
+        x: Math.max(0.7, Math.min(1.7, x)),
+        y: Math.max(0.8, Math.min(1.3, y)),
+        z: Math.max(0.7, Math.min(1.8, z)),
+      },
     };
-  }, [metrics, gender]);
+  }, [metrics, isFemale]);
 
-  // Configurar sombras y materiales
+  // Materiales: más grasa → piel más suave (roughness alto); más músculo → más tensa.
   useMemo(() => {
     scene.traverse((obj) => {
-      if (obj.isMesh) {
-        obj.castShadow = true;
-        obj.receiveShadow = true;
-        
-        // Ajustar material según composición corporal
-        if (obj.material && metrics) {
-          const grasaCorporal = metrics.grasaCorporal?.actual || 20;
-          
-          // Más grasa = piel más suave visualmente (mayor roughness)
-          // Más músculo = piel más tensa (menor roughness)
-          const musculo = metrics.musculo?.actual || 40;
-          const roughness = 0.5 + (grasaCorporal * 0.004) - (musculo * 0.002);
-          
-          obj.material.roughness = Math.max(0.3, Math.min(0.9, roughness));
-          obj.material.metalness = 0.0;
-          obj.material.needsUpdate = true;
-        }
+      if (!obj.isMesh) return;
+      obj.castShadow = true;
+      obj.receiveShadow = true;
+      if (obj.material) {
+        const roughness = 0.55 + fatness * 0.18 - muscularity * 0.18;
+        obj.material.roughness = Math.max(0.3, Math.min(0.95, roughness));
+        obj.material.metalness = 0.0;
+        obj.material.needsUpdate = true;
       }
     });
-  }, [scene, metrics]);
+  }, [scene, fatness, muscularity]);
 
   return (
     <primitive

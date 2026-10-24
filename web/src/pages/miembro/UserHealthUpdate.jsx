@@ -9,8 +9,10 @@ import { GiBodyHeight, GiWeightScale, GiChest, GiLeg, GiMuscleUp, GiFootTrip } f
 import Swal from "sweetalert2";
 import "../../css/CSSUnificado.css";
 
-export default function UserHealthUpdate() {
+export default function UserHealthUpdate({ asModal = false, onClose, onSaved } = {}) {
   const navigate = useNavigate();
+  // En modo modal cerramos con callback; como página, navegamos.
+  const goBack = () => { if (asModal) { onClose?.(); } else { navigate("/user/health"); } };
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -28,8 +30,9 @@ export default function UserHealthUpdate() {
     brazoIzquierdo: "",
     musloDerecho: "",
     musloIzquierdo: "",
-    pantorrilla: "",
-    
+    pantorrillaDerecha: "",
+    pantorrillaIzquierda: "",
+
     // Notas adicionales
     notas: ""
   });
@@ -82,7 +85,8 @@ export default function UserHealthUpdate() {
           brazoIzquierdo: getMedidaValor(healthData.condiciones, "Brazo Izquierdo") || progressData.bodyMetrics?.brazoIzquierdo?.toString() || "",
           musloDerecho: getMedidaValor(healthData.condiciones, "Muslo Derecho") || progressData.bodyMetrics?.musloDerecho?.toString() || "",
           musloIzquierdo: getMedidaValor(healthData.condiciones, "Muslo Izquierdo") || progressData.bodyMetrics?.musloIzquierdo?.toString() || "",
-          pantorrilla: getMedidaValor(healthData.condiciones, "Pantorrilla") || progressData.bodyMetrics?.pantorrilla?.toString() || "",
+          pantorrillaDerecha: getMedidaValor(healthData.condiciones, "Pantorrilla Derecha") || getMedidaValor(healthData.condiciones, "Pantorrilla") || "",
+          pantorrillaIzquierda: getMedidaValor(healthData.condiciones, "Pantorrilla Izquierda") || getMedidaValor(healthData.condiciones, "Pantorrilla") || "",
           notas: healthData.notas || ""
         });
       }
@@ -120,7 +124,8 @@ export default function UserHealthUpdate() {
     // Validar medidas (opcionales pero deben ser válidas si se ingresan)
     const medidasOpcionales = [
       'pecho', 'cintura', 'cadera', 'brazoDerecho', 
-      'brazoIzquierdo', 'musloDerecho', 'musloIzquierdo', 'pantorrilla'
+      'brazoIzquierdo', 'musloDerecho', 'musloIzquierdo',
+      'pantorrillaDerecha', 'pantorrillaIzquierda'
     ];
 
     medidasOpcionales.forEach(medida => {
@@ -196,7 +201,8 @@ export default function UserHealthUpdate() {
         confirmButtonColor: "var(--accent)"
       });
 
-      navigate("/user/health");
+      if (asModal) { onSaved?.(); onClose?.(); }
+      else navigate("/user/health");
     } catch (err) {
       console.error("Error al guardar:", err);
       Swal.fire({
@@ -232,12 +238,20 @@ export default function UserHealthUpdate() {
   }
 
   return (
-    <div className="dashboard-layout">
-      <div className="main-wrapper">
+    <div
+      className={asModal ? "" : "dashboard-layout"}
+      style={asModal ? { position: "fixed", inset: 0, background: "rgba(0,0,0,.8)", zIndex: 1000, display: "flex", alignItems: "flex-start", justifyContent: "center", overflowY: "auto", padding: "24px" } : undefined}
+      onClick={asModal ? goBack : undefined}
+    >
+      <div
+        className={asModal ? "" : "main-wrapper"}
+        style={asModal ? { background: "var(--bg-card)", borderRadius: 16, maxWidth: 920, width: "100%", maxHeight: "92vh", overflowY: "auto", border: "1px solid var(--border)" } : undefined}
+        onClick={asModal ? (e) => e.stopPropagation() : undefined}
+      >
         <header className="top-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
             <button
-              onClick={() => navigate("/user/health")}
+              onClick={goBack}
               style={{
                 background: 'transparent',
                 border: '1px solid var(--border-dark)',
@@ -590,16 +604,16 @@ export default function UserHealthUpdate() {
                       />
                     </div>
 
-                    {/* Pantorrilla */}
+                    {/* Pantorrilla Derecha */}
                     <div className="form-group compact">
                       <label className="form-label-compact">
                         <GiFootTrip style={{ marginRight: '6px' }} />
-                        Pantorrilla (cm)
+                        Pantorrilla Derecha (cm)
                       </label>
                       <input
                         type="number"
-                        name="pantorrilla"
-                        value={formData.pantorrilla}
+                        name="pantorrillaDerecha"
+                        value={formData.pantorrillaDerecha}
                         onChange={handleInputChange}
                         className="input-compact"
                         step="0.1"
@@ -607,7 +621,29 @@ export default function UserHealthUpdate() {
                         max="500"
                         placeholder="Ej: 38.0"
                         style={{
-                          borderColor: errors.pantorrilla ? 'var(--error-color)' : undefined
+                          borderColor: errors.pantorrillaDerecha ? 'var(--error-color)' : undefined
+                        }}
+                      />
+                    </div>
+
+                    {/* Pantorrilla Izquierda */}
+                    <div className="form-group compact">
+                      <label className="form-label-compact">
+                        <GiFootTrip style={{ marginRight: '6px' }} />
+                        Pantorrilla Izquierda (cm)
+                      </label>
+                      <input
+                        type="number"
+                        name="pantorrillaIzquierda"
+                        value={formData.pantorrillaIzquierda}
+                        onChange={handleInputChange}
+                        className="input-compact"
+                        step="0.1"
+                        min="0"
+                        max="500"
+                        placeholder="Ej: 37.0"
+                        style={{
+                          borderColor: errors.pantorrillaIzquierda ? 'var(--error-color)' : undefined
                         }}
                       />
                     </div>
@@ -682,7 +718,7 @@ export default function UserHealthUpdate() {
               }}>
                 <button
                   type="button"
-                  onClick={() => navigate("/user/health")}
+                  onClick={goBack}
                   disabled={saving}
                   style={{
                     padding: '12px 24px',
