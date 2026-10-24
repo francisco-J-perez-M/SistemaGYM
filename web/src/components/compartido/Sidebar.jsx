@@ -200,7 +200,10 @@ export default function Sidebar({
 
   const initials  = (user.nombre || "US").split(" ").map(n => n[0]).join("").slice(0,2).toUpperCase();
   const isRestricted = accessLevel === "basico";
-  const BLOCKED = ["training", "health", "nutrition"];
+  // TODO(membresías): bloqueo de secciones premium desactivado temporalmente
+  // para la demo. Restaurar con ["training", "health", "nutrition"] cuando
+  // se ajuste la lógica de niveles de membresía.
+  const BLOCKED = [];
   const menu = MENUS[role] || MENUS.user;
 
   const handleRestricted = (label) => {
