@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
+import { useColors } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
 import { toDateStr, toInitial, toStr, matchesSearch, toArray } from '../../utils/format';
@@ -13,6 +14,8 @@ import Badge from '../../components/ui/Badge';
 import type { MiembrosResponse } from '../../types';
 
 export default function AdminMembersScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => make_styles(colors), [colors]);
   const insets = useSafeAreaInsets();
   // API devuelve { miembros: [...], total: N, pages: N, current_page: N }
   const { data, loading, refetch } = useFetch<MiembrosResponse>(ENDPOINTS.MIEMBROS);
@@ -32,18 +35,18 @@ export default function AdminMembersScreen() {
         <Text style={styles.sub}>{data?.total ?? allMembers.length} miembros registrados</Text>
 
         <View style={styles.searchBox}>
-          <Ionicons name="search-outline" size={18} color={Colors.textSecondary} />
+          <Ionicons name="search-outline" size={18} color={colors.textSecondary} />
           <TextInput
             style={styles.searchInput}
             placeholder="Buscar miembro…"
-            placeholderTextColor={Colors.textMuted}
+            placeholderTextColor={colors.textMuted}
             value={search}
             onChangeText={setSearch}
             accessibilityLabel="Buscar miembro"
           />
           {search.length > 0 && (
             <TouchableOpacity onPress={() => setSearch('')} accessibilityLabel="Limpiar">
-              <Ionicons name="close-circle" size={18} color={Colors.textSecondary} />
+              <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
             </TouchableOpacity>
           )}
         </View>
@@ -54,10 +57,10 @@ export default function AdminMembersScreen() {
         keyExtractor={(m, i) => m._id ?? String(i)}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={refetch} tintColor={Colors.accent} />}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={refetch} tintColor={colors.accent} />}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Ionicons name="people-outline" size={40} color={Colors.textMuted} />
+            <Ionicons name="people-outline" size={40} color={colors.textMuted} />
             <Text style={styles.emptyText}>{search ? 'Sin resultados' : 'No hay miembros.'}</Text>
           </View>
         }
@@ -83,32 +86,34 @@ export default function AdminMembersScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen:  { flex: 1, backgroundColor: Colors.background },
+function make_styles(colors: ReturnType<typeof useColors>) {
+  return StyleSheet.create({
+  screen:  { flex: 1, backgroundColor: colors.background },
   header:  { paddingHorizontal: 20, gap: 6, paddingBottom: 12 },
-  title:   { color: Colors.text, fontSize: 26, fontWeight: '700' },
-  sub:     { color: Colors.textSecondary, fontSize: 13, marginBottom: 8 },
+  title:   { color: colors.text, fontSize: 26, fontWeight: '700' },
+  sub:     { color: colors.textSecondary, fontSize: 13, marginBottom: 8 },
   searchBox: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: Colors.card, borderRadius: 12, borderWidth: 1, borderColor: Colors.border,
+    backgroundColor: colors.card, borderRadius: 12, borderWidth: 1, borderColor: colors.border,
     paddingHorizontal: 14, paddingVertical: 10,
   },
-  searchInput: { flex: 1, color: Colors.text, fontSize: 14 },
+  searchInput: { flex: 1, color: colors.text, fontSize: 14 },
   list:    { padding: 20, gap: 10, paddingBottom: 32 },
   empty:   { alignItems: 'center', paddingVertical: 40, gap: 10 },
-  emptyText: { color: Colors.textMuted, fontSize: 14 },
+  emptyText: { color: colors.textMuted, fontSize: 14 },
   memberCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: Colors.card, borderRadius: 14, padding: 14,
-    borderWidth: 1, borderColor: Colors.border,
+    backgroundColor: colors.card, borderRadius: 14, padding: 14,
+    borderWidth: 1, borderColor: colors.border,
   },
   avatar: {
     width: 44, height: 44, borderRadius: 14,
     backgroundColor: 'rgba(108,99,255,0.12)', alignItems: 'center', justifyContent: 'center',
   },
-  initial:   { color: Colors.accent, fontSize: 18, fontWeight: '700' },
-  nombre:    { color: Colors.text, fontSize: 15, fontWeight: '600' },
-  email:     { color: Colors.textSecondary, fontSize: 12 },
-  membresia: { color: Colors.accent, fontSize: 11, marginTop: 1 },
-  fecha:     { color: Colors.textMuted, fontSize: 11 },
+  initial:   { color: colors.accent, fontSize: 18, fontWeight: '700' },
+  nombre:    { color: colors.text, fontSize: 15, fontWeight: '600' },
+  email:     { color: colors.textSecondary, fontSize: 12 },
+  membresia: { color: colors.accent, fontSize: 11, marginTop: 1 },
+  fecha:     { color: colors.textMuted, fontSize: 11 },
 });
+}

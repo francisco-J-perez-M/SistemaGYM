@@ -1,13 +1,14 @@
 /**
  * Pantalla Mis Rutinas — selector de día + lista de ejercicios.
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
+import { useColors } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
@@ -19,6 +20,8 @@ const DAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 const DAYS_ES = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 
 export default function RoutinesScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => make_styles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const todayIdx = (new Date().getDay() + 6) % 7;
   const [selectedDay, setSelectedDay] = useState(todayIdx);
@@ -50,7 +53,7 @@ export default function RoutinesScreen() {
       style={styles.screen}
       contentContainerStyle={[styles.content, { paddingTop: insets.top + 16 }]}
       showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={loading} onRefresh={refetch} tintColor={Colors.accent} />}
+      refreshControl={<RefreshControl refreshing={loading} onRefresh={refetch} tintColor={colors.accent} />}
     >
       {/* Header */}
       <View style={styles.header}>
@@ -105,7 +108,7 @@ export default function RoutinesScreen() {
         {/* Exercises */}
         {selectedDay !== todayIdx ? (
           <View style={styles.noDataBox}>
-            <Ionicons name="calendar-outline" size={32} color={Colors.textMuted} />
+            <Ionicons name="calendar-outline" size={32} color={colors.textMuted} />
             <Text style={styles.noDataText}>
               Solo se muestra la rutina del día actual.{'\n'}
               Usa el portal web para ver toda la semana.
@@ -113,7 +116,7 @@ export default function RoutinesScreen() {
           </View>
         ) : displayExers.length === 0 ? (
           <View style={styles.noDataBox}>
-            <Ionicons name="moon-outline" size={32} color={Colors.textMuted} />
+            <Ionicons name="moon-outline" size={32} color={colors.textMuted} />
             <Text style={styles.noDataText}>Día de descanso o sin rutina asignada.</Text>
           </View>
         ) : (
@@ -126,7 +129,7 @@ export default function RoutinesScreen() {
       {/* Tips */}
       <Card style={styles.tipsCard}>
         <View style={styles.tipsRow}>
-          <Ionicons name="information-circle-outline" size={18} color={Colors.info} />
+          <Ionicons name="information-circle-outline" size={18} color={colors.info} />
           <Text style={styles.tipsText}>
             Marca cada ejercicio al completarlo. Tu progreso se guarda localmente durante la sesión.
           </Text>
@@ -136,12 +139,13 @@ export default function RoutinesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen:   { flex: 1, backgroundColor: Colors.background },
+function make_styles(colors: ReturnType<typeof useColors>) {
+  return StyleSheet.create({
+  screen:   { flex: 1, backgroundColor: colors.background },
   content:  { padding: 20, gap: 16, paddingBottom: 32 },
   header:   { gap: 4 },
-  title:    { color: Colors.text, fontSize: 26, fontWeight: '700' },
-  subtitle: { color: Colors.textSecondary, fontSize: 13 },
+  title:    { color: colors.text, fontSize: 26, fontWeight: '700' },
+  subtitle: { color: colors.textSecondary, fontSize: 13 },
   dayScroll:   { marginHorizontal: -20, paddingHorizontal: 20 },
   dayChip: {
     alignItems:       'center',
@@ -149,15 +153,15 @@ const styles = StyleSheet.create({
     paddingVertical:   10,
     borderRadius:      14,
     marginRight:       8,
-    backgroundColor:   Colors.card,
+    backgroundColor:   colors.card,
     borderWidth:       1,
-    borderColor:       Colors.border,
+    borderColor:       colors.border,
     gap:               2,
     position:          'relative',
   },
-  dayChipActive:    { backgroundColor: Colors.accent, borderColor: Colors.accent },
-  dayChipText:      { color: Colors.textSecondary, fontSize: 13, fontWeight: '700' },
-  dayChipFull:      { color: Colors.textMuted, fontSize: 10 },
+  dayChipActive:    { backgroundColor: colors.accent, borderColor: colors.accent },
+  dayChipText:      { color: colors.textSecondary, fontSize: 13, fontWeight: '700' },
+  dayChipFull:      { color: colors.textMuted, fontSize: 10 },
   dayChipTextActive:{ color: '#fff' },
   todayDot: {
     position:        'absolute',
@@ -166,7 +170,7 @@ const styles = StyleSheet.create({
     width:           6,
     height:          6,
     borderRadius:    3,
-    backgroundColor: Colors.warning,
+    backgroundColor: colors.warning,
   },
   workoutHeader: {
     flexDirection:  'row',
@@ -174,26 +178,27 @@ const styles = StyleSheet.create({
     alignItems:     'flex-start',
     marginBottom:   12,
   },
-  workoutDay:  { color: Colors.textSecondary, fontSize: 13 },
-  workoutType: { color: Colors.text, fontSize: 18, fontWeight: '700', marginTop: 2 },
+  workoutDay:  { color: colors.textSecondary, fontSize: 13 },
+  workoutType: { color: colors.text, fontSize: 18, fontWeight: '700', marginTop: 2 },
   progressWrap: { alignItems: 'flex-end', gap: 4 },
-  progressText: { color: Colors.accent, fontSize: 18, fontWeight: '800' },
+  progressText: { color: colors.accent, fontSize: 18, fontWeight: '800' },
   progressBar: {
     width:           80,
     height:          4,
-    backgroundColor: Colors.border,
+    backgroundColor: colors.border,
     borderRadius:    2,
     overflow:        'hidden',
   },
-  progressFill: { height: '100%', backgroundColor: Colors.accent, borderRadius: 2 },
-  progressSub:  { color: Colors.textSecondary, fontSize: 11 },
+  progressFill: { height: '100%', backgroundColor: colors.accent, borderRadius: 2 },
+  progressSub:  { color: colors.textSecondary, fontSize: 11 },
   noDataBox: {
     alignItems:     'center',
     paddingVertical: 28,
     gap:            10,
   },
-  noDataText: { color: Colors.textMuted, fontSize: 13, textAlign: 'center', lineHeight: 20 },
-  tipsCard: { backgroundColor: Colors.infoBg, borderColor: Colors.info },
+  noDataText: { color: colors.textMuted, fontSize: 13, textAlign: 'center', lineHeight: 20 },
+  tipsCard: { backgroundColor: colors.infoBg, borderColor: colors.info },
   tipsRow:  { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  tipsText: { color: Colors.text, fontSize: 13, flex: 1, lineHeight: 18 },
+  tipsText: { color: colors.text, fontSize: 13, flex: 1, lineHeight: 18 },
 });
+}

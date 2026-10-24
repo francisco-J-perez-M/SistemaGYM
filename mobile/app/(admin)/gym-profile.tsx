@@ -2,13 +2,14 @@
  * Perfil del Gimnasio — Owner Gym
  * GET /api/owner_gym/gym-profile → datos del gimnasio
  */
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
+import { useColors } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
 import { toStr, toDateStr } from '../../utils/format';
@@ -39,7 +40,7 @@ interface InfoRowProps { icon: string; label: string; value: string }
 function InfoRow({ icon, label, value }: InfoRowProps) {
   return (
     <View style={styles.infoRow}>
-      <Ionicons name={icon as any} size={16} color={Colors.accent} />
+      <Ionicons name={icon as any} size={16} color={colors.accent} />
       <View style={{ flex: 1 }}>
         <Text style={styles.infoLabel}>{label}</Text>
         <Text style={styles.infoValue}>{value}</Text>
@@ -49,6 +50,8 @@ function InfoRow({ icon, label, value }: InfoRowProps) {
 }
 
 export default function GymProfileScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => make_styles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const { data, loading, refetch } = useFetch<GymProfile>(ENDPOINTS.OWNER_GYM_PROFILE);
 
@@ -63,7 +66,7 @@ export default function GymProfileScreen() {
       style={styles.screen}
       contentContainerStyle={{ paddingBottom: 40 }}
       showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={loading} onRefresh={refetch} tintColor={Colors.accent} />}
+      refreshControl={<RefreshControl refreshing={loading} onRefresh={refetch} tintColor={colors.accent} />}
     >
       {/* Hero */}
       <View style={[styles.hero, { paddingTop: insets.top + 20 }]}>
@@ -99,13 +102,13 @@ export default function GymProfileScreen() {
             <Text style={styles.sectionTitle}>Horario</Text>
             <View style={styles.scheduleRow}>
               <View style={styles.scheduleBox}>
-                <Ionicons name="sunny-outline" size={22} color={Colors.warning} />
+                <Ionicons name="sunny-outline" size={22} color={colors.warning} />
                 <Text style={styles.scheduleLabel}>Apertura</Text>
                 <Text style={styles.scheduleTime}>{toStr(gym.horario_apertura, '--:--')}</Text>
               </View>
               <View style={styles.scheduleDivider} />
               <View style={styles.scheduleBox}>
-                <Ionicons name="moon-outline" size={22} color={Colors.accent} />
+                <Ionicons name="moon-outline" size={22} color={colors.accent} />
                 <Text style={styles.scheduleLabel}>Cierre</Text>
                 <Text style={styles.scheduleTime}>{toStr(gym.horario_cierre, '--:--')}</Text>
               </View>
@@ -133,35 +136,37 @@ export default function GymProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: Colors.background },
+function make_styles(colors: ReturnType<typeof useColors>) {
+  return StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.background },
   hero: {
     alignItems: 'center', paddingBottom: 32, paddingHorizontal: 24, gap: 8,
     backgroundColor: '#1e1b4b',
   },
   avatar: {
     width: 80, height: 80, borderRadius: 24,
-    backgroundColor: Colors.accent, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center',
     marginBottom: 4,
   },
-  gymName:  { color: Colors.text, fontSize: 22, fontWeight: '700', textAlign: 'center' },
-  heroSub:  { color: Colors.textSecondary, fontSize: 12 },
+  gymName:  { color: colors.text, fontSize: 22, fontWeight: '700', textAlign: 'center' },
+  heroSub:  { color: colors.textSecondary, fontSize: 12 },
   body:     { padding: 20, gap: 16 },
-  sectionTitle: { color: Colors.text, fontSize: 15, fontWeight: '700', marginBottom: 12 },
+  sectionTitle: { color: colors.text, fontSize: 15, fontWeight: '700', marginBottom: 12 },
   infoRow: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 12,
-    paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.border,
+    paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border,
   },
-  infoLabel: { color: Colors.textSecondary, fontSize: 11 },
-  infoValue: { color: Colors.text, fontSize: 14, fontWeight: '600' },
+  infoLabel: { color: colors.textSecondary, fontSize: 11 },
+  infoValue: { color: colors.text, fontSize: 14, fontWeight: '600' },
   descBox:  { paddingTop: 10 },
-  descLabel:{ color: Colors.textSecondary, fontSize: 11, marginBottom: 4 },
-  descText: { color: Colors.text, fontSize: 14, lineHeight: 20 },
+  descLabel:{ color: colors.textSecondary, fontSize: 11, marginBottom: 4 },
+  descText: { color: colors.text, fontSize: 14, lineHeight: 20 },
   scheduleRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', paddingVertical: 8,
   },
   scheduleBox:  { alignItems: 'center', gap: 6, flex: 1 },
-  scheduleDivider: { width: 1, height: 60, backgroundColor: Colors.border },
-  scheduleLabel:{ color: Colors.textSecondary, fontSize: 12 },
-  scheduleTime: { color: Colors.text, fontSize: 22, fontWeight: '700' },
+  scheduleDivider: { width: 1, height: 60, backgroundColor: colors.border },
+  scheduleLabel:{ color: colors.textSecondary, fontSize: 12 },
+  scheduleTime: { color: colors.text, fontSize: 22, fontWeight: '700' },
 });
+}

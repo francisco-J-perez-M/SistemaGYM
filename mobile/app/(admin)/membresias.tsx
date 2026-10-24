@@ -2,13 +2,14 @@
  * Gestión de Membresías — Owner Gym
  * GET /api/owner_gym/membresias → tipos de membresía del gimnasio
  */
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
+import { useColors } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
 import { toStr, toArray } from '../../utils/format';
@@ -27,6 +28,8 @@ interface TipoMembresia {
 }
 
 export default function MembresiasScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => make_styles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const { data, loading, refetch } = useFetch<TipoMembresia[]>(ENDPOINTS.OWNER_MEMBRESIAS);
 
@@ -40,7 +43,7 @@ export default function MembresiasScreen() {
         data={membresias}
         keyExtractor={(m, i) => String(m.id ?? m.id_membresia ?? i)}
         contentContainerStyle={styles.list}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={refetch} tintColor={Colors.accent} />}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={refetch} tintColor={colors.accent} />}
         ListHeaderComponent={
           <View style={styles.headerRow}>
             <Text style={styles.count}>{membresias.length} tipos de membresía</Text>
@@ -48,7 +51,7 @@ export default function MembresiasScreen() {
         }
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Ionicons name="card-outline" size={44} color={Colors.textMuted} />
+            <Ionicons name="card-outline" size={44} color={colors.textMuted} />
             <Text style={styles.emptyText}>No hay membresías configuradas.</Text>
           </View>
         }
@@ -85,18 +88,19 @@ export default function MembresiasScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen:   { flex: 1, backgroundColor: Colors.background },
+function make_styles(colors: ReturnType<typeof useColors>) {
+  return StyleSheet.create({
+  screen:   { flex: 1, backgroundColor: colors.background },
   list:     { padding: 16, gap: 12, paddingBottom: 32 },
   headerRow:{ marginBottom: 4 },
-  count:    { color: Colors.textSecondary, fontSize: 13 },
+  count:    { color: colors.textSecondary, fontSize: 13 },
   card: {
-    backgroundColor: Colors.card, borderRadius: 16,
-    borderWidth: 1, borderColor: Colors.border,
+    backgroundColor: colors.card, borderRadius: 16,
+    borderWidth: 1, borderColor: colors.border,
     overflow: 'hidden',
   },
   priceBox: {
-    backgroundColor: Colors.accent,
+    backgroundColor: colors.accent,
     paddingHorizontal: 20, paddingVertical: 14,
     flexDirection: 'row', alignItems: 'baseline', gap: 8,
   },
@@ -106,11 +110,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between',
     alignItems: 'center', marginBottom: 4,
   },
-  nombre:      { color: Colors.text, fontSize: 16, fontWeight: '700', flex: 1, marginRight: 8 },
-  descripcion: { color: Colors.textSecondary, fontSize: 13, marginTop: 2, padding: 16, paddingTop: 0 },
-  beneficios:  { color: Colors.textMuted, fontSize: 12, padding: 16, paddingTop: 4 },
+  nombre:      { color: colors.text, fontSize: 16, fontWeight: '700', flex: 1, marginRight: 8 },
+  descripcion: { color: colors.textSecondary, fontSize: 13, marginTop: 2, padding: 16, paddingTop: 0 },
+  beneficios:  { color: colors.textMuted, fontSize: 12, padding: 16, paddingTop: 4 },
   empty:       { alignItems: 'center', paddingVertical: 60, gap: 12 },
-  emptyText:   { color: Colors.textMuted, fontSize: 14 },
+  emptyText:   { color: colors.textMuted, fontSize: 14 },
 });
+}
 
 // Patch: renderItem accede al padding en nameRow dentro del card body

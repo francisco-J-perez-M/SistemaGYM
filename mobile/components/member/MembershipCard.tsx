@@ -1,27 +1,30 @@
 // LinearGradient eliminado: requireNativeViewManager falla en RN 0.85 new arch (Fabric).
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
+import { useColors } from '../../hooks/useColors';
 import { toDateStr, toStr } from '../../utils/format';
 import type { Membership } from '../../types';
 
 interface Props { membership: Membership | null }
 
 export default function MembershipCard({ membership }: Props) {
+  const colors = useColors();
+  const styles = useMemo(() => make_styles(colors), [colors]);
   if (!membership) return null;
 
   const isUrgent = membership.dias_restantes <= 7;
-  const color    = isUrgent ? Colors.warning : Colors.success;
+  const color    = isUrgent ? colors.warning : colors.success;
 
   return (
     <View style={styles.card}>
       <View style={styles.topRow}>
         <View style={styles.iconWrap}>
-          <Ionicons name="card-outline" size={20} color={Colors.accent} />
+          <Ionicons name="card-outline" size={20} color={colors.accent} />
         </View>
         <View
-          style={[styles.statusPill, { backgroundColor: isUrgent ? Colors.warningBg : Colors.successBg }]}
+          style={[styles.statusPill, { backgroundColor: isUrgent ? colors.warningBg : colors.successBg }]}
           accessibilityRole="text"
           accessibilityLabel={`Estado: ${membership.estado}`}
         >
@@ -48,7 +51,8 @@ export default function MembershipCard({ membership }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+function make_styles(colors: ReturnType<typeof useColors>) {
+  return StyleSheet.create({
   card: {
     borderRadius:    20,
     padding:         20,
@@ -85,3 +89,4 @@ const styles = StyleSheet.create({
   daysNum:   { fontSize: 28, fontWeight: '800', lineHeight: 30 },
   daysLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 11 },
 });
+}

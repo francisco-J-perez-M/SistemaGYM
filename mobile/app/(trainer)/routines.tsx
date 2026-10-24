@@ -7,7 +7,7 @@
  *   clients, description, active, lastUsed,
  *   exerciseList: [{ name, sets, rest, day, peso, imagenes }]
  */
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput,
   RefreshControl, LayoutAnimation,
@@ -15,6 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
+import { useColors } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
 import { toStr, toArray } from '../../utils/format';
@@ -83,6 +84,8 @@ const CAT_ICONS: Record<string, string> = {
 type MainTab = 'rutinas' | 'ejercicios';
 
 export default function TrainerRoutinesScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => make_styles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const [mainTab,    setMainTab]    = useState<MainTab>('rutinas');
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -124,7 +127,7 @@ export default function TrainerRoutinesScreen() {
         {([['rutinas','Rutinas','barbell-outline'],['ejercicios','Ejercicios','list-outline']] as const).map(([t,label,icon])=>(
           <TouchableOpacity key={t} style={[styles.mainTab, mainTab===t && styles.mainTabActive]}
             onPress={()=>setMainTab(t)} accessibilityRole="tab" accessibilityState={{selected:mainTab===t}}>
-            <Ionicons name={icon} size={15} color={mainTab===t ? Colors.accent : Colors.textSecondary}/>
+            <Ionicons name={icon} size={15} color={mainTab===t ? colors.accent : colors.textSecondary}/>
             <Text style={[styles.mainTabText, mainTab===t && styles.mainTabTextActive]}>{label}</Text>
           </TouchableOpacity>
         ))}
@@ -134,11 +137,11 @@ export default function TrainerRoutinesScreen() {
       {mainTab === 'ejercicios' && (
         <View style={{ flex: 1 }}>
           <View style={styles.searchBox}>
-            <Ionicons name="search-outline" size={16} color={Colors.textMuted} style={{ marginLeft: 12 }} />
+            <Ionicons name="search-outline" size={16} color={colors.textMuted} style={{ marginLeft: 12 }} />
             <TextInput
               style={styles.searchInput}
               placeholder="Buscar por nombre o grupo…"
-              placeholderTextColor={Colors.textMuted}
+              placeholderTextColor={colors.textMuted}
               value={exSearch}
               onChangeText={setExSearch}
               accessibilityLabel="Buscar ejercicios"
@@ -149,17 +152,17 @@ export default function TrainerRoutinesScreen() {
             keyExtractor={(e) => String(e.id)}
             contentContainerStyle={styles.list}
             showsVerticalScrollIndicator={false}
-            refreshControl={<RefreshControl refreshing={loadingEx} onRefresh={refetchEx} tintColor={Colors.accent} />}
+            refreshControl={<RefreshControl refreshing={loadingEx} onRefresh={refetchEx} tintColor={colors.accent} />}
             ListEmptyComponent={
               <View style={styles.empty}>
-                <Ionicons name="barbell-outline" size={44} color={Colors.textMuted} />
+                <Ionicons name="barbell-outline" size={44} color={colors.textMuted} />
                 <Text style={styles.emptyText}>No se encontraron ejercicios.</Text>
               </View>
             }
             renderItem={({ item: e }) => (
               <View style={styles.exCard}>
                 <View style={styles.exCardIcon}>
-                  <Ionicons name="barbell-outline" size={18} color={Colors.accent} />
+                  <Ionicons name="barbell-outline" size={18} color={colors.accent} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.exCardName}>{e.nombre}</Text>
@@ -205,10 +208,10 @@ export default function TrainerRoutinesScreen() {
         keyExtractor={r => r.id}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={refetch} tintColor={Colors.accent} />}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={refetch} tintColor={colors.accent} />}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Ionicons name="barbell-outline" size={44} color={Colors.textMuted} />
+            <Ionicons name="barbell-outline" size={44} color={colors.textMuted} />
             <Text style={styles.emptyText}>No hay rutinas en esta categoría.</Text>
             <Text style={styles.emptyHint}>Crea rutinas desde el portal web.</Text>
           </View>
@@ -229,7 +232,7 @@ export default function TrainerRoutinesScreen() {
                 accessibilityState={{ expanded: isOpen }}
               >
                 <View style={styles.catIcon}>
-                  <Ionicons name={icon as any} size={20} color={Colors.accent} />
+                  <Ionicons name={icon as any} size={20} color={colors.accent} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.routineName}>{toStr(r.name)}</Text>
@@ -251,7 +254,7 @@ export default function TrainerRoutinesScreen() {
                   <Ionicons
                     name={isOpen ? 'chevron-up' : 'chevron-down'}
                     size={18}
-                    color={Colors.textSecondary}
+                    color={colors.textSecondary}
                   />
                 </View>
               </TouchableOpacity>
@@ -259,7 +262,7 @@ export default function TrainerRoutinesScreen() {
               {/* Stats row */}
               <View style={styles.statsRow}>
                 <StatPill icon="barbell-outline"   label={`${r.exercises} ejercicios`} />
-                <StatPill icon="flash-outline"      label={r.difficulty} color={diffColor === 'error' ? Colors.error : diffColor === 'warning' ? Colors.warning : Colors.success} />
+                <StatPill icon="flash-outline"      label={r.difficulty} color={diffColor === 'error' ? colors.error : diffColor === 'warning' ? colors.warning : colors.success} />
                 <StatPill icon="time-outline"       label={r.lastUsed ?? 'Nunca'} />
               </View>
 
@@ -309,30 +312,31 @@ export default function TrainerRoutinesScreen() {
 function StatPill({ icon, label, color }: { icon: string; label: string; color?: string }) {
   return (
     <View style={styles.statPill}>
-      <Ionicons name={icon as any} size={12} color={color ?? Colors.textSecondary} />
+      <Ionicons name={icon as any} size={12} color={color ?? colors.textSecondary} />
       <Text style={[styles.statLabel, color && { color }]}>{label}</Text>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  screen:  { flex: 1, backgroundColor: Colors.background },
+function make_styles(colors: ReturnType<typeof useColors>) {
+  return StyleSheet.create({
+  screen:  { flex: 1, backgroundColor: colors.background },
   header:  { paddingHorizontal: 20, gap: 2, paddingBottom: 8 },
-  title:   { color: Colors.text, fontSize: 26, fontWeight: '700' },
-  sub:     { color: Colors.textSecondary, fontSize: 13 },
+  title:   { color: colors.text, fontSize: 26, fontWeight: '700' },
+  sub:     { color: colors.textSecondary, fontSize: 13 },
   catScroll:  { maxHeight: 44, marginBottom: 4 },
   catContent: { paddingHorizontal: 20, gap: 8, alignItems: 'center' },
   catChip: {
     paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20,
-    backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border,
+    backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
   },
-  catChipActive: { backgroundColor: Colors.accent, borderColor: Colors.accent },
-  catText:       { color: Colors.textSecondary, fontSize: 13, fontWeight: '600' },
+  catChipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
+  catText:       { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
   catTextActive: { color: '#fff' },
   list:   { padding: 16, gap: 12, paddingBottom: 32 },
   empty:  { alignItems: 'center', paddingVertical: 60, gap: 8 },
-  emptyText: { color: Colors.textMuted, fontSize: 15, fontWeight: '600' },
-  emptyHint: { color: Colors.textMuted, fontSize: 13 },
+  emptyText: { color: colors.textMuted, fontSize: 15, fontWeight: '600' },
+  emptyHint: { color: colors.textMuted, fontSize: 13 },
   card:       { gap: 8 },
   cardTop:    { flexDirection: 'row', alignItems: 'center', gap: 12 },
   cardActions:{ alignItems: 'flex-end', gap: 4 },
@@ -341,32 +345,33 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(108,99,255,0.1)',
     alignItems: 'center', justifyContent: 'center',
   },
-  routineName: { color: Colors.text, fontSize: 15, fontWeight: '700' },
-  routineMeta: { color: Colors.textSecondary, fontSize: 12, marginTop: 2 },
+  routineName: { color: colors.text, fontSize: 15, fontWeight: '700' },
+  routineMeta: { color: colors.textSecondary, fontSize: 12, marginTop: 2 },
   statsRow:    { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  statPill:    { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: Colors.backgroundAlt ?? Colors.card, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
-  statLabel:   { color: Colors.textSecondary, fontSize: 11, fontWeight: '600' },
-  routineDesc: { color: Colors.textSecondary, fontSize: 13, lineHeight: 18 },
-  exList:      { borderTopWidth: 1, borderTopColor: Colors.border, paddingTop: 10, gap: 8 },
-  exListTitle: { color: Colors.textSecondary, fontSize: 12, fontWeight: '700', marginBottom: 4 },
+  statPill:    { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.backgroundAlt ?? colors.card, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
+  statLabel:   { color: colors.textSecondary, fontSize: 11, fontWeight: '600' },
+  routineDesc: { color: colors.textSecondary, fontSize: 13, lineHeight: 18 },
+  exList:      { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 10, gap: 8 },
+  exListTitle: { color: colors.textSecondary, fontSize: 12, fontWeight: '700', marginBottom: 4 },
   exRow:       { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   exNumBox:    { width: 24, height: 24, borderRadius: 8, backgroundColor: 'rgba(108,99,255,0.15)', alignItems: 'center', justifyContent: 'center' },
-  exNum:       { color: Colors.accent, fontSize: 12, fontWeight: '700' },
-  exName:      { color: Colors.text, fontSize: 14, fontWeight: '600' },
-  exMeta:      { color: Colors.accent, fontSize: 12 },
-  exDay:       { color: Colors.textMuted, fontSize: 11, marginTop: 2 },
-  mainTabRow:  { flexDirection: 'row', marginHorizontal: 20, marginBottom: 12, backgroundColor: Colors.card, borderRadius: 12, padding: 4, borderWidth: 1, borderColor: Colors.border },
+  exNum:       { color: colors.accent, fontSize: 12, fontWeight: '700' },
+  exName:      { color: colors.text, fontSize: 14, fontWeight: '600' },
+  exMeta:      { color: colors.accent, fontSize: 12 },
+  exDay:       { color: colors.textMuted, fontSize: 11, marginTop: 2 },
+  mainTabRow:  { flexDirection: 'row', marginHorizontal: 20, marginBottom: 12, backgroundColor: colors.card, borderRadius: 12, padding: 4, borderWidth: 1, borderColor: colors.border },
   mainTab:     { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8, borderRadius: 10 },
   mainTabActive: { backgroundColor: 'rgba(108,99,255,0.15)' },
-  mainTabText:   { color: Colors.textSecondary, fontSize: 13, fontWeight: '600' },
-  mainTabTextActive: { color: Colors.accent },
-  searchBox:   { flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, marginBottom: 10, backgroundColor: Colors.card, borderRadius: 12, borderWidth: 1, borderColor: Colors.border },
-  searchInput: { flex: 1, color: Colors.text, fontSize: 14, paddingHorizontal: 10, paddingVertical: 10 },
-  exCard:      { flexDirection: 'row', alignItems: 'flex-start', gap: 12, backgroundColor: Colors.card, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: Colors.border },
+  mainTabText:   { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
+  mainTabTextActive: { color: colors.accent },
+  searchBox:   { flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, marginBottom: 10, backgroundColor: colors.card, borderRadius: 12, borderWidth: 1, borderColor: colors.border },
+  searchInput: { flex: 1, color: colors.text, fontSize: 14, paddingHorizontal: 10, paddingVertical: 10 },
+  exCard:      { flexDirection: 'row', alignItems: 'flex-start', gap: 12, backgroundColor: colors.card, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: colors.border },
   exCardIcon:  { width: 38, height: 38, borderRadius: 10, backgroundColor: 'rgba(108,99,255,0.1)', alignItems: 'center', justifyContent: 'center' },
-  exCardName:  { color: Colors.text, fontSize: 14, fontWeight: '700' },
-  exCardMeta:  { color: Colors.accent, fontSize: 12, marginTop: 2 },
-  exCardDesc:  { color: Colors.textSecondary, fontSize: 12, marginTop: 4 },
-  verBtn:      { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: Colors.accent, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
+  exCardName:  { color: colors.text, fontSize: 14, fontWeight: '700' },
+  exCardMeta:  { color: colors.accent, fontSize: 12, marginTop: 2 },
+  exCardDesc:  { color: colors.textSecondary, fontSize: 12, marginTop: 4 },
+  verBtn:      { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.accent, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
   verBtnText:  { color: '#fff', fontSize: 12, fontWeight: '700' },
 });
+}

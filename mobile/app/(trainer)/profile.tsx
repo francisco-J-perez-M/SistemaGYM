@@ -4,7 +4,7 @@
  *                              specialization, experience, certifications, bio, stats, achievements } }
  * PUT /api/trainer/profile  → { name, email, phone, address, specialization, bio, certifications }
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   Alert, TextInput, RefreshControl,
@@ -12,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
+import { useColors } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
 import { toStr } from '../../utils/format';
@@ -42,6 +43,9 @@ interface TrainerProfile {
 }
 
 export default function TrainerProfileScreen() {
+  const colors = useColors();
+  const fieldStyles = useMemo(() => make_fieldStyles(colors), [colors]);
+  const styles = useMemo(() => make_styles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
   const { data, loading, refetch } = useFetch<{ success: boolean; profile: TrainerProfile }>(ENDPOINTS.TRAINER_PROFILE);
@@ -99,7 +103,7 @@ export default function TrainerProfileScreen() {
       style={styles.screen}
       contentContainerStyle={{ paddingBottom: 40 }}
       showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={loading} onRefresh={refetch} tintColor={Colors.accent} />}
+      refreshControl={<RefreshControl refreshing={loading} onRefresh={refetch} tintColor={colors.accent} />}
     >
       {/* Hero */}
       <View style={[styles.hero, { paddingTop: insets.top + 20 }]}>
@@ -132,7 +136,7 @@ export default function TrainerProfileScreen() {
               label="Editar perfil"
               variant="secondary"
               onPress={() => setEditing(true)}
-              icon={<Ionicons name="pencil-outline" size={16} color={Colors.accent} />}
+              icon={<Ionicons name="pencil-outline" size={16} color={colors.accent} />}
               style={{ flex: 1 }}
             />
           )}
@@ -157,7 +161,7 @@ export default function TrainerProfileScreen() {
             {profile.achievements.map((a, i) => (
               <View key={i} style={styles.achieveRow}>
                 <View style={styles.achieveIcon}>
-                  <Ionicons name="trophy-outline" size={16} color={Colors.warning} />
+                  <Ionicons name="trophy-outline" size={16} color={colors.warning} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.achieveTitle}>{a.title}</Text>
@@ -172,9 +176,9 @@ export default function TrainerProfileScreen() {
         {/* Cerrar sesión */}
         <Card>
           <TouchableOpacity style={styles.logoutRow} onPress={handleLogout} accessibilityRole="button" accessibilityLabel="Cerrar sesión">
-            <View style={styles.logoutIcon}><Ionicons name="log-out-outline" size={20} color={Colors.error} /></View>
+            <View style={styles.logoutIcon}><Ionicons name="log-out-outline" size={20} color={colors.error} /></View>
             <Text style={styles.logoutText}>Cerrar sesión</Text>
-            <Ionicons name="chevron-forward" size={18} color={Colors.error} />
+            <Ionicons name="chevron-forward" size={18} color={colors.error} />
           </TouchableOpacity>
         </Card>
         <Text style={styles.version}>GymPro Mobile v1.0.0</Text>
@@ -206,7 +210,7 @@ function Field({ label, value, onChangeText, editing, keyboardType, multiline }:
           value={value} onChangeText={onChangeText}
           keyboardType={keyboardType ?? 'default'}
           multiline={multiline} numberOfLines={multiline ? 3 : 1}
-          placeholderTextColor={Colors.textMuted}
+          placeholderTextColor={colors.textMuted}
           accessibilityLabel={label}
         />
       ) : (
@@ -218,36 +222,40 @@ function Field({ label, value, onChangeText, editing, keyboardType, multiline }:
   );
 }
 
-const fieldStyles = StyleSheet.create({
-  row:        { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.border },
-  label:      { color: Colors.textSecondary, fontSize: 11, marginBottom: 4 },
-  value:      { color: Colors.text, fontSize: 14, fontWeight: '600' },
-  input:      { color: Colors.text, fontSize: 14, backgroundColor: 'rgba(108,99,255,0.06)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: Colors.border },
+function make_fieldStyles(colors: ReturnType<typeof useColors>) {
+  return StyleSheet.create({
+  row:        { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
+  label:      { color: colors.textSecondary, fontSize: 11, marginBottom: 4 },
+  value:      { color: colors.text, fontSize: 14, fontWeight: '600' },
+  input:      { color: colors.text, fontSize: 14, backgroundColor: 'rgba(108,99,255,0.06)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: colors.border },
   inputMulti: { minHeight: 72, textAlignVertical: 'top' },
 });
+}
 
-const styles = StyleSheet.create({
-  screen:  { flex: 1, backgroundColor: Colors.background },
+function make_styles(colors: ReturnType<typeof useColors>) {
+  return StyleSheet.create({
+  screen:  { flex: 1, backgroundColor: colors.background },
   hero:    { alignItems: 'center', paddingBottom: 24, paddingHorizontal: 24, gap: 6, backgroundColor: '#1e1b4b' },
-  avatar:  { width: 80, height: 80, borderRadius: 24, backgroundColor: Colors.accent, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
+  avatar:  { width: 80, height: 80, borderRadius: 24, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
   initials:{ color: '#fff', fontSize: 30, fontWeight: '800' },
-  name:    { color: Colors.text, fontSize: 22, fontWeight: '700', textAlign: 'center' },
-  heroSub: { color: Colors.accent, fontSize: 13 },
-  heroMeta:{ color: Colors.textSecondary, fontSize: 12 },
-  statsRow:{ flexDirection: 'row', backgroundColor: Colors.card, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  name:    { color: colors.text, fontSize: 22, fontWeight: '700', textAlign: 'center' },
+  heroSub: { color: colors.accent, fontSize: 13 },
+  heroMeta:{ color: colors.textSecondary, fontSize: 12 },
+  statsRow:{ flexDirection: 'row', backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.border },
   statBox: { flex: 1, alignItems: 'center', paddingVertical: 14 },
-  statVal: { color: Colors.text, fontSize: 20, fontWeight: '800' },
-  statLabel:{ color: Colors.textSecondary, fontSize: 11 },
+  statVal: { color: colors.text, fontSize: 20, fontWeight: '800' },
+  statLabel:{ color: colors.textSecondary, fontSize: 11 },
   body:    { padding: 20, gap: 16 },
   editBar: { flexDirection: 'row', gap: 10 },
-  sectionTitle: { color: Colors.text, fontSize: 14, fontWeight: '700', marginBottom: 4 },
-  achieveRow:   { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.border },
-  achieveIcon:  { width: 34, height: 34, borderRadius: 10, backgroundColor: Colors.warningBg, alignItems: 'center', justifyContent: 'center' },
-  achieveTitle: { color: Colors.text, fontSize: 14, fontWeight: '600' },
-  achieveDate:  { color: Colors.textMuted, fontSize: 11 },
-  achieveDesc:  { color: Colors.textSecondary, fontSize: 12 },
+  sectionTitle: { color: colors.text, fontSize: 14, fontWeight: '700', marginBottom: 4 },
+  achieveRow:   { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
+  achieveIcon:  { width: 34, height: 34, borderRadius: 10, backgroundColor: colors.warningBg, alignItems: 'center', justifyContent: 'center' },
+  achieveTitle: { color: colors.text, fontSize: 14, fontWeight: '600' },
+  achieveDate:  { color: colors.textMuted, fontSize: 11 },
+  achieveDesc:  { color: colors.textSecondary, fontSize: 12 },
   logoutRow:    { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
-  logoutIcon:   { width: 36, height: 36, borderRadius: 10, backgroundColor: Colors.errorBg, alignItems: 'center', justifyContent: 'center' },
-  logoutText:   { flex: 1, color: Colors.error, fontSize: 15, fontWeight: '600' },
-  version:      { color: Colors.textMuted, fontSize: 12, textAlign: 'center' },
+  logoutIcon:   { width: 36, height: 36, borderRadius: 10, backgroundColor: colors.errorBg, alignItems: 'center', justifyContent: 'center' },
+  logoutText:   { flex: 1, color: colors.error, fontSize: 15, fontWeight: '600' },
+  version:      { color: colors.textMuted, fontSize: 12, textAlign: 'center' },
 });
+}

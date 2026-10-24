@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
   KeyboardAvoidingView, Platform, TouchableOpacity,
@@ -10,9 +10,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
 import { Colors } from '../../constants/Colors';
+import { useColors } from '../../hooks/useColors';
 import { useAuth } from '../../hooks/useAuth';
 
 export default function LoginScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => make_styles(colors), [colors]);
   const insets          = useSafeAreaInsets();
   const { login, loading, error, clearError } = useAuth();
 
@@ -31,7 +34,7 @@ export default function LoginScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <LinearGradient
-        colors={[Colors.background, '#0d0d2e']}
+        colors={[colors.background, '#0d0d2e']}
         style={{ flex: 1 }}
       >
         <ScrollView
@@ -45,7 +48,7 @@ export default function LoginScreen() {
           {/* Logo / Hero */}
           <View style={styles.hero} accessible accessibilityRole="header">
             <LinearGradient
-              colors={Colors.gradientAccent}
+              colors={colors.gradientAccent}
               style={styles.logoBox}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
@@ -67,7 +70,7 @@ export default function LoginScreen() {
                 accessibilityRole="alert"
                 accessibilityLiveRegion="assertive"
               >
-                <Ionicons name="alert-circle-outline" size={16} color={Colors.error} />
+                <Ionicons name="alert-circle-outline" size={16} color={colors.error} />
                 <Text style={styles.errorText}>{error}</Text>
               </View>
             )}
@@ -83,7 +86,7 @@ export default function LoginScreen() {
               returnKeyType="next"
               accessibilityLabel="Correo electrónico"
               leftIcon={
-                <Ionicons name="mail-outline" size={18} color={Colors.textSecondary} />
+                <Ionicons name="mail-outline" size={18} color={colors.textSecondary} />
               }
             />
 
@@ -97,7 +100,7 @@ export default function LoginScreen() {
               onSubmitEditing={handleLogin}
               accessibilityLabel="Contraseña"
               leftIcon={
-                <Ionicons name="lock-closed-outline" size={18} color={Colors.textSecondary} />
+                <Ionicons name="lock-closed-outline" size={18} color={colors.textSecondary} />
               }
             />
 
@@ -123,7 +126,7 @@ export default function LoginScreen() {
               {FEATURES.map((f) => (
                 <View key={f.label} style={styles.featureItem}>
                   <View style={styles.featureIcon}>
-                    <Ionicons name={f.icon as any} size={18} color={Colors.accent} />
+                    <Ionicons name={f.icon as any} size={18} color={colors.accent} />
                   </View>
                   <Text style={styles.featureLabel}>{f.label}</Text>
                 </View>
@@ -143,7 +146,8 @@ const FEATURES = [
   { icon: 'card-outline',        label: 'Membresía' },
 ];
 
-const styles = StyleSheet.create({
+function make_styles(colors: ReturnType<typeof useColors>) {
+  return StyleSheet.create({
   scroll: {
     flexGrow:       1,
     paddingHorizontal: 24,
@@ -160,39 +164,39 @@ const styles = StyleSheet.create({
     borderRadius:   28,
     alignItems:     'center',
     justifyContent: 'center',
-    shadowColor:    Colors.accent,
+    shadowColor:    colors.accent,
     shadowOffset:   { width: 0, height: 8 },
     shadowOpacity:  0.4,
     shadowRadius:   16,
     elevation:      12,
   },
   appName: {
-    color:      Colors.text,
+    color:      colors.text,
     fontSize:   34,
     fontWeight: '800',
     letterSpacing: -0.5,
   },
   tagline: {
-    color:    Colors.textSecondary,
+    color:    colors.textSecondary,
     fontSize: 14,
   },
   card: {
     width:           '100%',
-    backgroundColor: Colors.card,
+    backgroundColor: colors.card,
     borderRadius:    24,
     padding:         24,
     borderWidth:     1,
-    borderColor:     Colors.border,
+    borderColor:     colors.border,
     gap:             4,
   },
   cardTitle: {
-    color:      Colors.text,
+    color:      colors.text,
     fontSize:   22,
     fontWeight: '700',
     marginBottom: 2,
   },
   cardSub: {
-    color:        Colors.textSecondary,
+    color:        colors.textSecondary,
     fontSize:     13,
     marginBottom: 16,
   },
@@ -200,17 +204,17 @@ const styles = StyleSheet.create({
     flexDirection:   'row',
     alignItems:      'center',
     gap:             8,
-    backgroundColor: Colors.errorBg,
+    backgroundColor: colors.errorBg,
     borderRadius:    10,
     padding:         12,
     marginBottom:    12,
     borderWidth:     1,
-    borderColor:     Colors.error,
+    borderColor:     colors.error,
   },
-  errorText: { color: Colors.error, fontSize: 13, flex: 1 },
+  errorText: { color: colors.error, fontSize: 13, flex: 1 },
   loginBtn:  { marginTop: 8, width: '100%' },
   hint: {
-    color:     Colors.textMuted,
+    color:     colors.textMuted,
     fontSize:  12,
     textAlign: 'center',
     marginTop: 12,
@@ -234,7 +238,8 @@ const styles = StyleSheet.create({
     justifyContent:  'center',
   },
   featureLabel: {
-    color:    Colors.textSecondary,
+    color:    colors.textSecondary,
     fontSize: 11,
   },
 });
+}

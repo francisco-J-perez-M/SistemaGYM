@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useMemo, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Colors } from '../../constants/Colors';
+import { useColors } from '../../hooks/useColors';
 
 interface Props {
   title:         string;
@@ -13,6 +14,8 @@ interface Props {
 }
 
 export default function ScreenHeader({ title, subtitle, showBack = false, rightElement }: Props) {
+  const colors = useColors();
+  const styles = useMemo(() => make_styles(colors), [colors]);
   const insets = useSafeAreaInsets();
 
   return (
@@ -25,7 +28,7 @@ export default function ScreenHeader({ title, subtitle, showBack = false, rightE
             accessibilityLabel="Volver"
             accessibilityRole="button"
           >
-            <Ionicons name="chevron-back" size={24} color={Colors.text} />
+            <Ionicons name="chevron-back" size={24} color={colors.text} />
           </TouchableOpacity>
         )}
         <View>
@@ -44,16 +47,17 @@ export default function ScreenHeader({ title, subtitle, showBack = false, rightE
   );
 }
 
-const styles = StyleSheet.create({
+function make_styles(colors: ReturnType<typeof useColors>) {
+  return StyleSheet.create({
   header: {
     flexDirection:   'row',
     alignItems:      'center',
     justifyContent:  'space-between',
     paddingHorizontal: 20,
     paddingBottom:   16,
-    backgroundColor: Colors.background,
+    backgroundColor: colors.background,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: colors.border,
   },
   left: {
     flexDirection: 'row',
@@ -65,15 +69,16 @@ const styles = StyleSheet.create({
     padding:     4,
   },
   title: {
-    color:      Colors.text,
+    color:      colors.text,
     fontSize:   22,
     fontWeight: '700',
     letterSpacing: -0.3,
   },
   subtitle: {
-    color:    Colors.textSecondary,
+    color:    colors.textSecondary,
     fontSize: 13,
     marginTop: 2,
   },
   right: { marginLeft: 8 },
 });
+}

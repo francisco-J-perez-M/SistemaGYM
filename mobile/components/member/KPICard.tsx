@@ -1,9 +1,10 @@
 // LinearGradient eliminado: requireNativeViewManager falla en RN 0.85 new arch (Fabric)
 // antes de que el módulo nativo se registre → "undefined is not a function".
 // Se usa View + backgroundColor con el primer color del gradiente.
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Colors } from '../../constants/Colors';
+import { useColors } from '../../hooks/useColors';
 
 interface Props {
   label:     string;
@@ -14,6 +15,8 @@ interface Props {
 }
 
 export default function KPICard({ label, value, unit, icon, gradient }: Props) {
+  const colors = useColors();
+  const styles = useMemo(() => make_styles(colors), [colors]);
   return (
     <View style={styles.wrapper}>
       <View style={[styles.card, gradient ? { backgroundColor: gradient[0] } : styles.plain]}>
@@ -28,7 +31,8 @@ export default function KPICard({ label, value, unit, icon, gradient }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+function make_styles(colors: ReturnType<typeof useColors>) {
+  return StyleSheet.create({
   wrapper: { flex: 1, minWidth: 140 },
   card: {
     borderRadius: 16,
@@ -36,9 +40,9 @@ const styles = StyleSheet.create({
     gap:          6,
   },
   plain: {
-    backgroundColor: Colors.card,
+    backgroundColor: colors.card,
     borderWidth:     1,
-    borderColor:     Colors.border,
+    borderColor:     colors.border,
   },
   iconBox: {
     width:           40,
@@ -58,3 +62,4 @@ const styles = StyleSheet.create({
   unit:  { fontSize: 14, fontWeight: '500' },
   label: { color: 'rgba(255,255,255,0.75)', fontSize: 12 },
 });
+}

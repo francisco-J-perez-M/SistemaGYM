@@ -1,7 +1,7 @@
 /**
  * Pantalla Progreso Físico — historial de peso con gráfica + registro.
  */
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   Modal, TextInput, Alert, RefreshControl,
@@ -11,6 +11,7 @@ import { LineChart } from 'react-native-chart-kit';
 import { Dimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
+import { useColors } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
 import { toDateStr, toArray } from '../../utils/format';
@@ -23,6 +24,8 @@ import type { BodyProgress } from '../../types';
 const SCREEN_W = Dimensions.get('window').width;
 
 export default function ProgressScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => make_styles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const { data: records, loading, refetch } = useFetch<BodyProgress[]>(ENDPOINTS.BODY_PROGRESS);
   const [modalVisible, setModalVisible] = useState(false);
@@ -69,7 +72,7 @@ export default function ProgressScreen() {
       style={styles.screen}
       contentContainerStyle={[styles.content, { paddingTop: insets.top + 16 }]}
       showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={loading} onRefresh={refetch} tintColor={Colors.accent} />}
+      refreshControl={<RefreshControl refreshing={loading} onRefresh={refetch} tintColor={colors.accent} />}
     >
       {/* Header */}
       <View style={styles.topRow}>
@@ -104,8 +107,8 @@ export default function ProgressScreen() {
             <Card style={styles.summaryCard} padding={14}>
               <Text style={styles.sumLabel}>Cambio total</Text>
               <Text style={[styles.sumValue, {
-                color: parseFloat(change) < 0 ? Colors.success :
-                       parseFloat(change) > 0 ? Colors.error : Colors.text
+                color: parseFloat(change) < 0 ? colors.success :
+                       parseFloat(change) > 0 ? colors.error : colors.text
               }]}>
                 {parseFloat(change) > 0 ? '+' : ''}{change} kg
               </Text>
@@ -124,13 +127,13 @@ export default function ProgressScreen() {
             height={180}
             chartConfig={{
               backgroundColor:      'transparent',
-              backgroundGradientFrom: Colors.card,
-              backgroundGradientTo:   Colors.card,
+              backgroundGradientFrom: colors.card,
+              backgroundGradientTo:   colors.card,
               decimalPlaces:          1,
               color:        (opacity = 1) => `rgba(108,99,255,${opacity})`,
-              labelColor:   () => Colors.textSecondary,
+              labelColor:   () => colors.textSecondary,
               strokeWidth:  2,
-              propsForDots: { r: '4', strokeWidth: '2', stroke: Colors.accentLight },
+              propsForDots: { r: '4', strokeWidth: '2', stroke: colors.accentLight },
             }}
             bezier
             style={{ borderRadius: 12 }}
@@ -140,7 +143,7 @@ export default function ProgressScreen() {
       ) : (
         <Card>
           <View style={styles.emptyChart}>
-            <Ionicons name="trending-up-outline" size={40} color={Colors.textMuted} />
+            <Ionicons name="trending-up-outline" size={40} color={colors.textMuted} />
             <Text style={styles.emptyText}>
               Registra al menos 2 mediciones para ver la gráfica de evolución.
             </Text>
@@ -177,7 +180,7 @@ export default function ProgressScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Nueva medición</Text>
               <TouchableOpacity onPress={() => setModalVisible(false)} accessibilityLabel="Cerrar">
-                <Ionicons name="close" size={24} color={Colors.text} />
+                <Ionicons name="close" size={24} color={colors.text} />
               </TouchableOpacity>
             </View>
 
@@ -188,7 +191,7 @@ export default function ProgressScreen() {
               onChangeText={setPeso}
               keyboardType="decimal-pad"
               placeholder="e.g. 72.5"
-              placeholderTextColor={Colors.textMuted}
+              placeholderTextColor={colors.textMuted}
               accessibilityLabel="Peso en kilogramos"
             />
             <Text style={styles.inputLabel}>Cintura (cm)</Text>
@@ -198,7 +201,7 @@ export default function ProgressScreen() {
               onChangeText={setCintura}
               keyboardType="decimal-pad"
               placeholder="e.g. 80"
-              placeholderTextColor={Colors.textMuted}
+              placeholderTextColor={colors.textMuted}
               accessibilityLabel="Cintura en centímetros"
             />
             <Text style={styles.inputLabel}>Cadera (cm)</Text>
@@ -208,7 +211,7 @@ export default function ProgressScreen() {
               onChangeText={setCadera}
               keyboardType="decimal-pad"
               placeholder="e.g. 95"
-              placeholderTextColor={Colors.textMuted}
+              placeholderTextColor={colors.textMuted}
               accessibilityLabel="Cadera en centímetros"
             />
             <Button label="Guardar" onPress={saveProgress} loading={saving} disabled={!peso} style={{ marginTop: 8 }} />
@@ -219,51 +222,53 @@ export default function ProgressScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen:   { flex: 1, backgroundColor: Colors.background },
+function make_styles(colors: ReturnType<typeof useColors>) {
+  return StyleSheet.create({
+  screen:   { flex: 1, backgroundColor: colors.background },
   content:  { padding: 20, gap: 16, paddingBottom: 32 },
   topRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  title:    { color: Colors.text, fontSize: 26, fontWeight: '700' },
-  subtitle: { color: Colors.textSecondary, fontSize: 13 },
+  title:    { color: colors.text, fontSize: 26, fontWeight: '700' },
+  subtitle: { color: colors.textSecondary, fontSize: 13 },
   addBtn: {
     width:  44, height: 44, borderRadius: 14,
-    backgroundColor: Colors.accent,
+    backgroundColor: colors.accent,
     alignItems: 'center', justifyContent: 'center',
   },
   summaryRow: { flexDirection: 'row', gap: 10 },
   summaryCard: { flex: 1 },
-  sumLabel:    { color: Colors.textSecondary, fontSize: 11, marginBottom: 4 },
-  sumValue:    { color: Colors.text, fontSize: 20, fontWeight: '700' },
-  sumUnit:     { fontSize: 13, color: Colors.textSecondary },
-  chartTitle:  { color: Colors.text, fontSize: 15, fontWeight: '700', marginBottom: 10 },
+  sumLabel:    { color: colors.textSecondary, fontSize: 11, marginBottom: 4 },
+  sumValue:    { color: colors.text, fontSize: 20, fontWeight: '700' },
+  sumUnit:     { fontSize: 13, color: colors.textSecondary },
+  chartTitle:  { color: colors.text, fontSize: 15, fontWeight: '700', marginBottom: 10 },
   emptyChart:  { alignItems: 'center', paddingVertical: 24, gap: 10 },
-  emptyText:   { color: Colors.textMuted, fontSize: 13, textAlign: 'center', lineHeight: 20 },
+  emptyText:   { color: colors.textMuted, fontSize: 13, textAlign: 'center', lineHeight: 20 },
   histRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.border,
+    paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border,
   },
-  histDate:     { color: Colors.text, fontSize: 14, fontWeight: '600' },
+  histDate:     { color: colors.text, fontSize: 14, fontWeight: '600' },
   histMeasures: { flexDirection: 'row', gap: 8, marginTop: 2 },
-  histMini:     { color: Colors.textMuted, fontSize: 11 },
-  histPeso:     { color: Colors.accent, fontSize: 18, fontWeight: '700' },
-  histUnit:     { fontSize: 13, color: Colors.textSecondary },
+  histMini:     { color: colors.textMuted, fontSize: 11 },
+  histPeso:     { color: colors.accent, fontSize: 18, fontWeight: '700' },
+  histUnit:     { fontSize: 13, color: colors.textSecondary },
   // Modal
   modalOverlay: {
-    flex: 1, backgroundColor: Colors.overlay,
+    flex: 1, backgroundColor: colors.overlay,
     justifyContent: 'flex-end',
   },
   modalBox: {
-    backgroundColor: Colors.card,
+    backgroundColor: colors.card,
     borderTopLeftRadius: 24, borderTopRightRadius: 24,
     padding: 24, gap: 4,
-    borderWidth: 1, borderColor: Colors.border,
+    borderWidth: 1, borderColor: colors.border,
   },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  modalTitle:  { color: Colors.text, fontSize: 18, fontWeight: '700' },
-  inputLabel:  { color: Colors.textSecondary, fontSize: 13, marginBottom: 4, marginTop: 8 },
+  modalTitle:  { color: colors.text, fontSize: 18, fontWeight: '700' },
+  inputLabel:  { color: colors.textSecondary, fontSize: 13, marginBottom: 4, marginTop: 8 },
   modalInput: {
-    backgroundColor: Colors.inputBg, borderRadius: 12,
-    borderWidth: 1, borderColor: Colors.border,
-    color: Colors.text, padding: 14, fontSize: 15,
+    backgroundColor: colors.inputBg, borderRadius: 12,
+    borderWidth: 1, borderColor: colors.border,
+    color: colors.text, padding: 14, fontSize: 15,
   },
 });
+}

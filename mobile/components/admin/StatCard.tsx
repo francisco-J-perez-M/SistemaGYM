@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Colors } from '../../constants/Colors';
+import { useColors } from '../../hooks/useColors';
 
 interface Props {
   label:   string;
@@ -10,7 +11,9 @@ interface Props {
   trend?:  number;   // % positivo o negativo
 }
 
-export default function StatCard({ label, value, icon, color = Colors.accent, trend }: Props) {
+export default function StatCard({ label, value, icon, color = colors.accent, trend }: Props) {
+  const colors = useColors();
+  const styles = useMemo(() => make_styles(colors), [colors]);
   return (
     <View style={styles.card} accessible accessibilityLabel={`${label}: ${value}`}>
       <View style={[styles.iconBox, { backgroundColor: `${color}22` }]}>
@@ -21,7 +24,7 @@ export default function StatCard({ label, value, icon, color = Colors.accent, tr
       </Text>
       <Text style={styles.label} numberOfLines={2}>{label}</Text>
       {trend !== undefined && (
-        <Text style={[styles.trend, { color: trend >= 0 ? Colors.success : Colors.error }]}>
+        <Text style={[styles.trend, { color: trend >= 0 ? colors.success : colors.error }]}>
           {trend >= 0 ? '+' : ''}{trend}%
         </Text>
       )}
@@ -29,13 +32,14 @@ export default function StatCard({ label, value, icon, color = Colors.accent, tr
   );
 }
 
-const styles = StyleSheet.create({
+function make_styles(colors: ReturnType<typeof useColors>) {
+  return StyleSheet.create({
   card: {
     flex:            1,
-    backgroundColor: Colors.card,
+    backgroundColor: colors.card,
     borderRadius:    16,
     borderWidth:     1,
-    borderColor:     Colors.border,
+    borderColor:     colors.border,
     padding:         16,
     gap:             6,
     minWidth:        140,
@@ -49,12 +53,12 @@ const styles = StyleSheet.create({
     marginBottom:   4,
   },
   value: {
-    color:      Colors.text,
+    color:      colors.text,
     fontSize:   24,
     fontWeight: '700',
   },
   label: {
-    color:    Colors.textSecondary,
+    color:    colors.textSecondary,
     fontSize: 12,
   },
   trend: {
@@ -63,3 +67,4 @@ const styles = StyleSheet.create({
     marginTop:  2,
   },
 });
+}
