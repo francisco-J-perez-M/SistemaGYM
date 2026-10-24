@@ -137,40 +137,4 @@ services:
   #   - Mac / Windows Docker Desktop → host.docker.internal
   #   - Linux                        → default gateway de la red bridge
   #
-  # Sobreescritura manual (solo si la detección falla):
-  #   HOST_IP=192.168.1.x docker compose up mobile
-  mobile:
-    build:
-      context: ./mobile
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    ports:
-      - "8081:8081"
-      - "19000:19000"
-      - "19001:19001"
-      - "19002:19002"
-    environment:
-      # Si HOST_IP está definida se usa; si no, el entrypoint.sh la detecta solo
-      HOST_IP: ${HOST_IP:-}
-    # extra_hosts permite que el contenedor resuelva "host.docker.internal" en Linux
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    volumes:
-      - ./mobile:/app
-      - mobile_node_modules:/app/node_modules
-    networks:
-      - gympro
-
-# ── Volúmenes persistentes ───────────────────────────────────────────────────
-volumes:
-  mongo_data:
-    driver: local
-  pg_data:
-    driver: local
-  mobile_node_modules:
-    driver: local
-
-# ── Red interna ──────────────────────────────────────────────────────────────
-networks:
-  gympro:
-    driver: bridge
+  # Sobreescritura manual (solo si la de
