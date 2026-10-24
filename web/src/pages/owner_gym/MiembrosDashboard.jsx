@@ -70,11 +70,17 @@ function Avatar({ src, name, size = 48 }) {
     color: "#fff", letterSpacing: "-0.5px",
   };
 
-  if (src && !broken) {
+  const resolvedSrc = src
+    ? (src.startsWith("data:") || src.startsWith("http") || src.startsWith("/"))
+      ? src
+      : `/api/uploads/${src}`
+    : null;
+
+  if (resolvedSrc && !broken) {
     return (
       <div style={style}>
         <img
-          src={src} alt={name}
+          src={resolvedSrc} alt={name}
           onError={() => setBroken(true)}
           style={{ width: "100%", height: "100%", objectFit: "cover" }}
         />
@@ -274,6 +280,12 @@ function MiembroForm({ initial, onSave, onCancel }) {
     peso_inicial:initial?.peso_inicial?? "",
     estatura:    initial?.estatura    ?? "",
     foto_base64: initial?.foto_perfil?.startsWith("data:") ? initial.foto_perfil : "",
+    foto_preview: (() => {
+      const f = initial?.foto_perfil;
+      if (!f) return "";
+      if (f.startsWith("data:") || f.startsWith("http") || f.startsWith("/")) return f;
+      return `/api/uploads/${f}`;
+    })(),
   });
   const [saving, setSaving] = useState(false);
   const [err,    setErr]    = useState("");
@@ -325,8 +337,8 @@ function MiembroForm({ initial, onSave, onCancel }) {
   return (
     <form onSubmit={handleSubmit}>
       <PhotoUploader
-        preview={form.foto_base64 || null}
-        onChange={(b64) => setForm(f => ({ ...f, foto_base64: b64 }))}
+        preview={form.foto_base64 || form.foto_preview || null}
+        onChange={(b64) => setForm(f => ({ ...f, foto_base64: b64, foto_preview: b64 }))}
         name={form.nombre}
       />
 
@@ -688,16 +700,4 @@ export default function MiembrosDashboard() {
           </button>
           <span style={{ fontSize: 13, color: C.t2 }}>Página {page} de {totalPages}</span>
           <button disabled={page === totalPages || loading} onClick={() => load(page + 1)}
-            style={{ padding: "7px 16px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", color: C.t2, cursor: page === totalPages ? "not-allowed" : "pointer", fontSize: 13, fontWeight: 600, opacity: page === totalPages ? 0.4 : 1 }}>
-            Siguiente →
-          </button>
-        </div>
-      )}
-
-      <style>{`
-        @keyframes pulse { 0%,100%{opacity:.4} 50%{opacity:.8} }
-        @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
-      `}</style>
-    </div>
-  );
-}
+            style={{ padding: "7px 16px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transp
