@@ -111,6 +111,12 @@ services:
       PYTHONUNBUFFERED:   "1"
       OLLAMA_BASE_URL:    http://ollama:11434
       OLLAMA_MODEL:       ${OLLAMA_MODEL:-phi3:mini}
+      # ── Zona horaria ────────────────────────────────────────────────────
+      # TZ hace que datetime.now() devuelva la hora local del gimnasio en vez
+      # de UTC. Sin esto, un movimiento hecho por la noche se guardaba con la
+      # fecha del día siguiente. APP_TIMEZONE la usa app/utils/timezone.py.
+      TZ:                 ${APP_TIMEZONE:-America/Mexico_City}
+      APP_TIMEZONE:       ${APP_TIMEZONE:-America/Mexico_City}
     volumes:
       - ./backups:/app/storage/backups
       - ./uploads:/app/storage/uploads
