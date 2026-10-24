@@ -70,6 +70,13 @@ export async function completeOnboarding(payload) {
   return data;
 }
 
+export async function getPlanesPublicos() {
+  const response = await fetch("/api/onboarding/planes");
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.msg || "Error al obtener los planes");
+  return data.planes || [];
+}
+
 export async function registerGym(gymData, adminData, idPlan = null) {
   const body = { gym: gymData, admin: adminData };
   if (idPlan) body.id_plan = idPlan;
