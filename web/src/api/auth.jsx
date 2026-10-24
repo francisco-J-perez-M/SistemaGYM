@@ -32,6 +32,21 @@ export async function register(userData) {
   return data;
 }
 
+export async function completeOnboarding(payload) {
+  const token = localStorage.getItem("token");
+  const response = await fetch("/api/onboarding/complete-setup", {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.msg || "Error al completar configuración");
+  return data;
+}
+
 export async function registerGym(gymData, adminData, idPlan = null) {
   const body = { gym: gymData, admin: adminData };
   if (idPlan) body.id_plan = idPlan;

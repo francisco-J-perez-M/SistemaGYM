@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { login, register } from "../../api/auth";
+import { login } from "../../api/auth";
 import { useNavigate } from "react-router-dom";
 import useTheme from "../../hooks/useTheme";
 import { motion, AnimatePresence } from "framer-motion";
@@ -19,9 +19,6 @@ export default function AuthPage() {
   // --- ESTADOS DE DATOS ---
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [registerData, setRegisterData] = useState({
-    nombre: "", email: "", password: "", telefono: "", sexo: "M"
-  });
 
   const { theme, changeTheme } = useTheme();
   const [showThemeMenu, setShowThemeMenu] = useState(false);
@@ -64,11 +61,18 @@ export default function AuthPage() {
         role: result.user.role,
         access_level: result.user.access_level || "basico",
         membership_plan: result.user.membership_plan || "Sin Plan",
-        peso_inicial: result.user.peso_inicial, 
-        perfil_completo: result.user.perfil_completo
+        peso_inicial: result.user.peso_inicial,
+        perfil_completo: result.user.perfil_completo,
+        primer_login: result.user.primer_login || false,
       };
 
       localStorage.setItem("user", JSON.stringify(userData));
+
+      // Primer login de dueño de gimnasio → onboarding obligatorio
+      if (userData.role === "owner_gym" && userData.primer_login) {
+        navigate("/owner/bienvenida");
+        return;
+      }
 
       if ((userData.role === "Miembro" || userData.role === "user") && !userData.peso_inicial) {
           navigate("/complete-profile");
@@ -87,30 +91,6 @@ export default function AuthPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleRegisterSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-
-    try {
-      await register(registerData);
-      // Tras registro exitoso, limpiamos, mostramos mensaje y cambiamos a la vista de login
-      setError("¡Cuenta creada con éxito! Por favor, inicia sesión.");
-      setTimeout(() => {
-        setError("");
-        setIsLoginView(true);
-      }, 3000);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRegisterChange = (e) => {
-    setRegisterData({ ...registerData, [e.target.id]: e.target.value });
   };
 
   // --- VARIANTES DE ANIMACIÓN ---
@@ -204,7 +184,7 @@ export default function AuthPage() {
             <button className={`auth-tab ${isLoginView ? 'active' : ''}`} onClick={() => { setIsLoginView(true); setError(""); }}>
               Iniciar Sesión
             </button>
-            <button className={`auth-tab ${!isLoginView ? 'active' : ''}`} onClick={() => { setIsLoginView(false); setError(""); }}>
+            <button className="auth-tab" onClick={() => navigate("/register-gym")}>
               Crear Cuenta
             </button>
           </div>
@@ -250,74 +230,6 @@ export default function AuthPage() {
                 </form>
               </motion.div>
 
-            ) : (
-              
-              /* =========================================
-                  VISTA DE REGISTRO
-              ========================================= */
-              <motion.div key="register" custom={isLoginView} variants={formVariants} initial="hidden" animate="visible" exit="exit">
-                <div className="login-header">
-                  <h2>Únete al equipo</h2>
-                  <p className="login-subtitle">Crea tu cuenta en GYM PRO hoy mismo.</p>
-                </div>
-
-                <form onSubmit={handleRegisterSubmit} className="login-form">
-                  <div className="register-grid">
-                    <div className="form-group grid-full-width">
-                      <label htmlFor="nombre">Nombre Completo</label>
-                      <div className="input-dark-container">
-                        <input id="nombre" type="text" placeholder="Ej. Juan Pérez" value={registerData.nombre} onChange={handleRegisterChange} required />
-                      </div>
-                    </div>
-
-                    <div className="form-group grid-full-width">
-                      <label htmlFor="email">Correo electrónico</label>
-                      <div className="input-dark-container">
-                        <input id="email" type="email" placeholder="correo@ejemplo.com" value={registerData.email} onChange={handleRegisterChange} required />
-                      </div>
-                    </div>
-
-                    <div className="form-group">
-                      <label htmlFor="password">Contraseña</label>
-                      <div className="input-dark-container password-input-wrapper">
-                        <input id="password" type={showPassword ? "text" : "password"} placeholder="******" value={registerData.password} onChange={handleRegisterChange} required />
-                        <button type="button" className="password-toggle-btn" onClick={() => setShowPassword(!showPassword)}>
-                          {showPassword ? <FiEye /> : <FiEyeOff />}
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="form-group">
-                      <label htmlFor="telefono">Teléfono</label>
-                      <div className="input-dark-container">
-                        <input id="telefono" type="text" placeholder="1234-5678" value={registerData.telefono} onChange={handleRegisterChange} />
-                      </div>
-                    </div>
-
-                    <div className="form-group grid-full-width">
-                      <label htmlFor="sexo">Sexo</label>
-                      <div className="input-dark-container">
-                        <select id="sexo" value={registerData.sexo} onChange={handleRegisterChange}>
-                          <option value="M">Masculino</option>
-                          <option value="F">Femenino</option>
-                          <option value="Otro">Otro</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-
-                  {error && (
-                    <div className={`error-message ${error.includes('éxito') ? 'success-message' : ''}`} style={error.includes('éxito') ? { background: 'var(--success-bg)', borderColor: 'var(--success)', color: 'var(--success)'} : {}}>
-                      <FiAlertTriangle style={error.includes('éxito') ? {color: 'var(--success)'} : {}} /> 
-                      <span style={error.includes('éxito') ? {color: 'var(--success)'} : {}}>{error}</span>
-                    </div>
-                  )}
-
-                  <motion.button type="submit" className="login-button" disabled={loading} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                    {loading ? <span className="spinner" /> : "Completar Registro"}
-                  </motion.button>
-                </form>
-              </motion.div>
             )}
           </AnimatePresence>
         </div>
