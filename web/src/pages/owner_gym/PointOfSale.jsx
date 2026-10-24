@@ -9,6 +9,7 @@
  *   POSProductoModal, POSCheckoutModal, POSTicketModal
  */
 import { useState, useEffect, useCallback } from "react";
+import useIsMobile from "../../hooks/useIsMobile";
 import {
   FiShoppingCart, FiPlus, FiMinus, FiTrash2,
   FiPackage, FiEdit2, FiDollarSign, FiTag, FiInfo,
@@ -310,6 +311,7 @@ function TabVenta() {
   const [detailProd,  setDetailProd]  = useState(null);
 
   const isMiembroRole = getIsMiembro();
+  const isMobile = useIsMobile(768);
 
   const load = useCallback(async () => {
     setLoadingInit(true);
@@ -370,10 +372,16 @@ function TabVenta() {
 
   return (
     <>
-      <div style={{ display: "flex", flex: 1, gap: 18, padding: "16px 28px 20px", overflow: "hidden", height: "calc(100% - 10px)" }}>
+      <div style={{
+        display: "flex", flex: 1, gap: 18,
+        padding: isMobile ? "14px 16px 20px" : "16px 28px 20px",
+        overflow: isMobile ? "visible" : "hidden",
+        height: isMobile ? "auto" : "calc(100% - 10px)",
+        flexDirection: isMobile ? "column" : "row",
+      }}>
 
         {/* Columna izquierda: catalogo */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10, overflow: "hidden" }}>
+        <div style={{ flex: isMobile ? "none" : 1, display: "flex", flexDirection: "column", gap: 10, overflow: isMobile ? "visible" : "hidden" }}>
           {/* Alertas de stock */}
           {!loadingInit && !isMiembroRole && <StockAlertBar productos={productos} />}
 
@@ -382,7 +390,7 @@ function TabVenta() {
             {cats.map(c => <button key={c} style={filterBtnSt(catFilter === c)} onClick={() => setCatFilter(c)}>{c}</button>)}
           </div>
 
-          <div data-guide="pos-catalog" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(175px, 1fr))", gap: 12, overflowY: "auto", flex: 1, alignContent: "start" }}>
+          <div data-guide="pos-catalog" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 12, overflowY: isMobile ? "visible" : "auto", flex: isMobile ? "none" : 1, alignContent: "start" }}>
             {loadingInit
               ? [0,1,2,3,4,5].map(i => <div key={i} className="skeleton" style={{ height: 150, borderRadius: 12 }} />)
               : visible.map(p => {
@@ -467,7 +475,7 @@ function TabVenta() {
         </div>
 
         {/* Carrito */}
-        <div data-guide="pos-cart" style={{ ...cardSt({ padding: "16px", width: 270, flexShrink: 0, display: "flex", flexDirection: "column" }) }}>
+        <div data-guide="pos-cart" style={{ ...cardSt({ padding: "16px", width: isMobile ? "100%" : 270, flexShrink: 0, display: "flex", flexDirection: "column" }) }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexShrink: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <FiShoppingCart size={15} color="var(--accent)" />
@@ -818,6 +826,7 @@ function TabHistorial() {
 export default function PointOfSale() {
   const [tab, setTab] = useState("venta");
   const isMiembro = getIsMiembro();
+  const isMobile = useIsMobile(768);
 
   // SCRUM-224: "pos" es una bandera por gimnasio (PlanSuscripcion.limites),
   // no por rol -- se bloquea la pantalla completa para cualquiera que la
@@ -844,7 +853,12 @@ export default function PointOfSale() {
       puedeMejorarPlan={puedeMejorarPlan}
     >
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden", background: "var(--bg-input)" }}>
-      <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 28px", borderBottom: "1px solid var(--border)", flexShrink: 0 }}>
+      <header style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: isMobile ? "14px 16px 14px 64px" : "14px 28px",
+        borderBottom: "1px solid var(--border)", flexShrink: 0,
+        flexWrap: isMobile ? "wrap" : "nowrap", gap: isMobile ? 10 : 0,
+      }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <FiShoppingCart size={20} color="var(--accent)" />
           <div>
@@ -854,21 +868,21 @@ export default function PointOfSale() {
             </p>
           </div>
         </div>
-        <div style={{ display: "flex", gap: 4, background: "var(--bg-card)", borderRadius: 10, padding: 4 }}>
-          <button style={tabBtn(tab === "venta")}    onClick={() => setTab("venta")}>
+        <div style={{ display: "flex", gap: 4, background: "var(--bg-card)", borderRadius: 10, padding: 4, width: isMobile ? "100%" : "auto", overflowX: isMobile ? "auto" : "visible" }}>
+          <button style={{ ...tabBtn(tab === "venta"), whiteSpace: "nowrap" }}    onClick={() => setTab("venta")}>
             <FiShoppingCart size={13} style={{ marginRight: 6 }} />Nueva Venta
           </button>
           {!isMiembro && (
-            <button style={tabBtn(tab === "productos")} onClick={() => setTab("productos")}>
+            <button style={{ ...tabBtn(tab === "productos"), whiteSpace: "nowrap" }} onClick={() => setTab("productos")}>
               <FiTag size={13} style={{ marginRight: 6 }} />Productos
             </button>
           )}
-          <button style={tabBtn(tab === "historial")} onClick={() => setTab("historial")}>
+          <button style={{ ...tabBtn(tab === "historial"), whiteSpace: "nowrap" }} onClick={() => setTab("historial")}>
             <FiClock size={13} style={{ marginRight: 6 }} />Historial
           </button>
         </div>
       </header>
-      <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+      <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", display: "flex", flexDirection: "column" }}>
         {tab === "venta"     && <TabVenta />}
         {tab === "productos" && <TabProductos />}
         {tab === "historial" && <TabHistorial />}
