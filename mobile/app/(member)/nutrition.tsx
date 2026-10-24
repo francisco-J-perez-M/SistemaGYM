@@ -19,19 +19,19 @@ import type { Receta, Dieta } from '../../types';
 
 type Tab = 'dietas' | 'recetas';
 
-const CAT_COLORS: Record<string, string> = {
-  'Alta proteína': colors.error,
-  'Bajo carbohidrato': colors.warning,
-  'Vegetariana': colors.success,
-  'Vegana': colors.success,
-  'Equilibrada': colors.info,
-  'Pre-entreno': colors.accent,
-  'Post-entreno': colors.purple,
-};
-
 export default function NutritionScreen() {
   const colors = useColors();
   const styles = useMemo(() => make_styles(colors), [colors]);
+
+  const CAT_COLORS: Record<string, string> = {
+    'Alta proteína': colors.error,
+    'Bajo carbohidrato': colors.warning,
+    'Vegetariana': colors.success,
+    'Vegana': colors.success,
+    'Equilibrada': colors.info,
+    'Pre-entreno': colors.accent,
+    'Post-entreno': colors.purple,
+  };
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<Tab>('dietas');
   const [catFilter, setCatFilter] = useState<string>('Todas');
@@ -176,9 +176,9 @@ export default function NutritionScreen() {
 
                 {/* Macros */}
                 <View style={styles.macroRow}>
-                  {r.proteinas    !== undefined && <MacroPill label="P" value={r.proteinas}    color={colors.error}   />}
-                  {r.carbohidratos !== undefined && <MacroPill label="C" value={r.carbohidratos} color={colors.warning} />}
-                  {r.grasas       !== undefined && <MacroPill label="G" value={r.grasas}       color={colors.info}    />}
+                  {r.proteinas    !== undefined && <MacroPill label="P" value={r.proteinas}    color={colors.error}   styles={styles} />}
+                  {r.carbohidratos !== undefined && <MacroPill label="C" value={r.carbohidratos} color={colors.warning} styles={styles} />}
+                  {r.grasas       !== undefined && <MacroPill label="G" value={r.grasas}       color={colors.info}    styles={styles} />}
                 </View>
               </Card>
             )}
@@ -189,7 +189,7 @@ export default function NutritionScreen() {
   );
 }
 
-function MacroPill({ label, value, color }: { label: string; value: number; color: string }) {
+function MacroPill({ label, value, color, styles }: { label: string; value: number; color: string; styles: ReturnType<typeof make_styles> }) {
   return (
     <View style={[styles.macroPill, { backgroundColor: `${color}22` }]}>
       <Text style={[styles.macroLabel, { color }]}>{label}</Text>

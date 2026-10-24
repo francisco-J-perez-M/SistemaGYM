@@ -101,7 +101,8 @@ export default function POSScreen() {
           columnWrapperStyle={{ gap: 12 }}
           contentContainerStyle={styles.grid}
           refreshControl={<RefreshControl refreshing={loadingP} onRefresh={refetchP} tintColor={colors.accent} />}
-          ListEmptyComponent={<EmptyState icon="cube-outline" msg="No hay productos registrados." />}
+          ListEmptyComponent={<EmptyState icon="cube-outline" msg="No hay productos registrados."
+              styles={styles} colors={colors} />}
           renderItem={({ item: p }) => (
             <View style={styles.productCard} accessible accessibilityLabel={`${p.nombre}, $${p.precio}`}>
               <View style={styles.productIconBox}>
@@ -136,7 +137,8 @@ export default function POSScreen() {
               <Text style={styles.totalValue}>{ventasData?.total ?? ventas.length} transacciones</Text>
             </Card>
           }
-          ListEmptyComponent={<EmptyState icon="receipt-outline" msg="No hay ventas registradas." />}
+          ListEmptyComponent={<EmptyState icon="receipt-outline" msg="No hay ventas registradas."
+              styles={styles} colors={colors} />}
           renderItem={({ item: v }) => (
             <View style={styles.ventaCard} accessible>
               <View style={styles.ventaIconBox}>
@@ -158,7 +160,7 @@ export default function POSScreen() {
   );
 }
 
-function EmptyState({ icon, msg }: { icon: string; msg: string }) {
+function EmptyState({ icon, msg, styles, colors }: { icon: string; msg: string; styles: ReturnType<typeof make_styles>; colors: ReturnType<typeof useColors> }) {
   return (
     <View style={styles.empty}>
       <Ionicons name={icon as any} size={44} color={colors.textMuted} />

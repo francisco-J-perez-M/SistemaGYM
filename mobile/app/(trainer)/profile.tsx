@@ -117,9 +117,12 @@ export default function TrainerProfileScreen() {
       {/* Stats */}
       {profile?.stats && (
         <View style={styles.statsRow}>
-          <StatBox label="Clientes"  value={String(profile.stats.totalClients)} />
-          <StatBox label="Sesiones"  value={String(profile.stats.totalSessions)} />
-          <StatBox label="Rating"    value={`${profile.stats.avgRating}★`} />
+          <StatBox label="Clientes"  value={String(profile.stats.totalClients)}
+              styles={styles} />
+          <StatBox label="Sesiones"  value={String(profile.stats.totalSessions)}
+              styles={styles} />
+          <StatBox label="Rating"    value={`${profile.stats.avgRating}★`}
+              styles={styles} />
         </View>
       )}
 
@@ -145,13 +148,20 @@ export default function TrainerProfileScreen() {
         {/* Datos personales */}
         <Card>
           <Text style={styles.sectionTitle}>Información personal</Text>
-          <Field label="Nombre"   value={name}           onChangeText={setName}           editing={editing} />
-          <Field label="Email"    value={email}          onChangeText={setEmail}          editing={editing} keyboardType="email-address" />
-          <Field label="Teléfono" value={phone}          onChangeText={setPhone}          editing={editing} keyboardType="phone-pad" />
-          <Field label="Dirección" value={address}       onChangeText={setAddress}        editing={editing} />
-          <Field label="Especialización" value={specialization} onChangeText={setSpecialization} editing={editing} />
-          <Field label="Certificaciones" value={certifications} onChangeText={setCertifications} editing={editing} multiline />
-          <Field label="Biografía" value={bio}           onChangeText={setBio}            editing={editing} multiline />
+          <Field label="Nombre"   value={name}           onChangeText={setName}           editing={editing}
+              fieldStyles={fieldStyles} colors={colors} />
+          <Field label="Email"    value={email}          onChangeText={setEmail}          editing={editing} keyboardType="email-address"
+              fieldStyles={fieldStyles} colors={colors} />
+          <Field label="Teléfono" value={phone}          onChangeText={setPhone}          editing={editing} keyboardType="phone-pad"
+              fieldStyles={fieldStyles} colors={colors} />
+          <Field label="Dirección" value={address}       onChangeText={setAddress}        editing={editing}
+              fieldStyles={fieldStyles} colors={colors} />
+          <Field label="Especialización" value={specialization} onChangeText={setSpecialization} editing={editing}
+              fieldStyles={fieldStyles} colors={colors} />
+          <Field label="Certificaciones" value={certifications} onChangeText={setCertifications} editing={editing} multiline
+              fieldStyles={fieldStyles} colors={colors} />
+          <Field label="Biografía" value={bio}           onChangeText={setBio}            editing={editing} multiline
+              fieldStyles={fieldStyles} colors={colors} />
         </Card>
 
         {/* Logros */}
@@ -188,7 +198,7 @@ export default function TrainerProfileScreen() {
 }
 
 // ── Subcomponentes ─────────────────────────────────────────────────────────────
-function StatBox({ label, value }: { label: string; value: string }) {
+function StatBox({ label, value, styles }: { label: string; value: string; styles: ReturnType<typeof make_styles> }) {
   return (
     <View style={styles.statBox}>
       <Text style={styles.statVal}>{value}</Text>
@@ -197,9 +207,11 @@ function StatBox({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Field({ label, value, onChangeText, editing, keyboardType, multiline }: {
+function Field({ label, value, onChangeText, editing, keyboardType, multiline, fieldStyles, colors }: {
   label: string; value: string; onChangeText: (v: string) => void;
   editing: boolean; keyboardType?: any; multiline?: boolean;
+  fieldStyles: ReturnType<typeof make_fieldStyles>;
+  colors: ReturnType<typeof useColors>;
 }) {
   return (
     <View style={fieldStyles.row}>

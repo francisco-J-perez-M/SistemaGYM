@@ -31,9 +31,11 @@ interface OwnerGym {
   fecha_creacion?:  string;
 }
 
-function Field({ label, value, onChangeText, editing, keyboardType, multiline }: {
+function Field({ label, value, onChangeText, editing, keyboardType, multiline, fieldS, colors }: {
   label: string; value: string; onChangeText: (v: string) => void;
   editing: boolean; keyboardType?: any; multiline?: boolean;
+  fieldS: ReturnType<typeof make_fieldS>;
+  colors: ReturnType<typeof useColors>;
 }) {
   return (
     <View style={fieldS.row}>
@@ -146,10 +148,14 @@ export default function AdminProfileScreen() {
         {/* Datos del gym */}
         <Card>
           <Text style={styles.sectionTitle}>Datos del gimnasio</Text>
-          <Field label="Nombre"           value={nombre}       onChangeText={setNombre}       editing={editing} />
-          <Field label="Email de contacto" value={emailContact} onChangeText={setEmailContact} editing={editing} keyboardType="email-address" />
-          <Field label="Teléfono"         value={telefono}     onChangeText={setTelefono}     editing={editing} keyboardType="phone-pad" />
-          <Field label="Tipo de gimnasio" value={tipoGym}      onChangeText={setTipoGym}      editing={editing} />
+          <Field label="Nombre"           value={nombre}       onChangeText={setNombre}       editing={editing}
+              fieldS={fieldS} colors={colors} />
+          <Field label="Email de contacto" value={emailContact} onChangeText={setEmailContact} editing={editing} keyboardType="email-address"
+              fieldS={fieldS} colors={colors} />
+          <Field label="Teléfono"         value={telefono}     onChangeText={setTelefono}     editing={editing} keyboardType="phone-pad"
+              fieldS={fieldS} colors={colors} />
+          <Field label="Tipo de gimnasio" value={tipoGym}      onChangeText={setTipoGym}      editing={editing}
+              fieldS={fieldS} colors={colors} />
         </Card>
 
         {/* Datos del usuario propietario (solo lectura) */}

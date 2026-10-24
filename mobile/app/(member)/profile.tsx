@@ -91,9 +91,12 @@ export default function ProfileScreen() {
         <Text style={styles.heroEmail}>{data?.email ?? user?.email ?? ''}</Text>
 
         <View style={styles.statsRow}>
-          <StatPill label="Objetivo" value={data?.objetivo ?? '—'} icon="flag-outline" />
-          <StatPill label="Nivel" value={data?.nivel_experiencia ?? '—'} icon="bar-chart-outline" />
-          <StatPill label="Altura" value={data?.estatura ? `${data.estatura}m` : '—'} icon="resize-outline" />
+          <StatPill label="Objetivo" value={data?.objetivo ?? '—'} icon="flag-outline"
+              styles={styles} colors={colors} />
+          <StatPill label="Nivel" value={data?.nivel_experiencia ?? '—'} icon="bar-chart-outline"
+              styles={styles} colors={colors} />
+          <StatPill label="Altura" value={data?.estatura ? `${data.estatura}m` : '—'} icon="resize-outline"
+              styles={styles} colors={colors} />
         </View>
       </View>
 
@@ -141,9 +144,12 @@ export default function ProfileScreen() {
             </>
           ) : (
             <>
-              <InfoRow icon="mail-outline"   label="Correo"   value={data?.email ?? user?.email ?? '—'} />
-              <InfoRow icon="call-outline"   label="Teléfono" value={data?.telefono ?? '—'} />
-              <InfoRow icon="person-outline" label="Género"   value={data?.genero ?? '—'} />
+              <InfoRow icon="mail-outline"   label="Correo"   value={data?.email ?? user?.email ?? '—'}
+              styles={styles} colors={colors} />
+              <InfoRow icon="call-outline"   label="Teléfono" value={data?.telefono ?? '—'}
+              styles={styles} colors={colors} />
+              <InfoRow icon="person-outline" label="Género"   value={data?.genero ?? '—'}
+              styles={styles} colors={colors} />
             </>
           )}
         </Card>
@@ -151,10 +157,14 @@ export default function ProfileScreen() {
         {/* Physical data */}
         <Card>
           <Text style={styles.sectionTitle}>Datos físicos</Text>
-          <InfoRow icon="scale-outline"       label="Peso actual"  value={data?.peso_actual ? `${data.peso_actual} kg` : '—'} />
-          <InfoRow icon="resize-outline"      label="Estatura"     value={data?.estatura ? `${data.estatura} m` : '—'} />
-          <InfoRow icon="fitness-outline"     label="Objetivo"     value={data?.objetivo ?? '—'} />
-          <InfoRow icon="bar-chart-outline"   label="Experiencia"  value={data?.nivel_experiencia ?? '—'} />
+          <InfoRow icon="scale-outline"       label="Peso actual"  value={data?.peso_actual ? `${data.peso_actual} kg` : '—'}
+              styles={styles} colors={colors} />
+          <InfoRow icon="resize-outline"      label="Estatura"     value={data?.estatura ? `${data.estatura} m` : '—'}
+              styles={styles} colors={colors} />
+          <InfoRow icon="fitness-outline"     label="Objetivo"     value={data?.objetivo ?? '—'}
+              styles={styles} colors={colors} />
+          <InfoRow icon="bar-chart-outline"   label="Experiencia"  value={data?.nivel_experiencia ?? '—'}
+              styles={styles} colors={colors} />
         </Card>
 
         {/* Actions */}
@@ -180,7 +190,7 @@ export default function ProfileScreen() {
   );
 }
 
-function InfoRow({ icon, label, value }: { icon: string; label: string; value: string }) {
+function InfoRow({ icon, label, value, styles, colors }: { icon: string; label: string; value: string; styles: ReturnType<typeof make_styles>; colors: ReturnType<typeof useColors> }) {
   return (
     <View style={styles.infoRow} accessible accessibilityLabel={`${label}: ${value}`}>
       <View style={styles.infoIconBox}>
@@ -194,7 +204,7 @@ function InfoRow({ icon, label, value }: { icon: string; label: string; value: s
   );
 }
 
-function StatPill({ icon, label, value }: { icon: string; label: string; value: string }) {
+function StatPill({ icon, label, value, styles, colors }: { icon: string; label: string; value: string; styles: ReturnType<typeof make_styles>; colors: ReturnType<typeof useColors> }) {
   return (
     <View style={styles.statPill}>
       <Ionicons name={icon as any} size={14} color={colors.accent} />
