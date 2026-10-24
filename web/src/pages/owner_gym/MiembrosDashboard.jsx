@@ -429,6 +429,7 @@ export default function MiembrosDashboard() {
         open={showModal}
         title={editingId ? "Editar Miembro" : "Registrar Nuevo Miembro"}
         onClose={() => { resetForm(); setShowModal(false); }}
+        editingId={editingId}
       >
         <MiembroForm
           form={form} setForm={setForm} loading={loading}
