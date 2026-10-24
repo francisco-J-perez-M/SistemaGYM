@@ -8,7 +8,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
-import { useColors } from '../../hooks/useColors';
+import { useColors, useFontScale } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
 import { toDateStr, toStr } from '../../utils/format';
@@ -27,7 +27,8 @@ interface MembershipData {
 
 export default function MembershipScreen() {
   const colors = useColors();
-  const styles = useMemo(() => make_styles(colors), [colors]);
+  const fs = useFontScale();
+  const styles = useMemo(() => make_styles(colors, fs), [colors, fs]);
   const insets = useSafeAreaInsets();
   const { data,  loading,  refetch  } = useFetch<MembershipData>(ENDPOINTS.USER_MEMBERSHIP);
   const { data: plans, loading: loadingPlans } = useFetch<MembershipPlan[]>(ENDPOINTS.MEMBERSHIP_PLANS);
@@ -177,15 +178,15 @@ export default function MembershipScreen() {
   );
 }
 
-function make_styles(colors: ReturnType<typeof useColors>) {
+function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   return StyleSheet.create({
   screen:  { flex: 1, backgroundColor: colors.background },
   content: { padding: 20, gap: 16, paddingBottom: 32 },
-  title:   { color: colors.text, fontSize: 26, fontWeight: '700' },
+  title:   { color: colors.text, fontSize: 26 * fs, fontWeight: '700' },
   noMem:   { alignItems: 'center', paddingVertical: 24, gap: 8 },
-  noMemText: { color: colors.text, fontSize: 16, fontWeight: '600' },
-  noMemSub:  { color: colors.textSecondary, fontSize: 13, textAlign: 'center' },
-  sectionTitle: { color: colors.text, fontSize: 16, fontWeight: '700', marginBottom: 12 },
+  noMemText: { color: colors.text, fontSize: 16 * fs, fontWeight: '600' },
+  noMemSub:  { color: colors.textSecondary, fontSize: 13 * fs, textAlign: 'center' },
+  sectionTitle: { color: colors.text, fontSize: 16 * fs, fontWeight: '700', marginBottom: 12 },
   planRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border,
@@ -198,17 +199,17 @@ function make_styles(colors: ReturnType<typeof useColors>) {
   },
   planRadioActive: { borderColor: colors.accent },
   planRadioDot:    { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.accent },
-  planName:     { color: colors.text, fontSize: 15, fontWeight: '600' },
-  planDuration: { color: colors.textSecondary, fontSize: 12 },
-  planDesc:     { color: colors.textMuted, fontSize: 12, marginTop: 2 },
-  planPrice:    { color: colors.accent, fontSize: 18, fontWeight: '700' },
+  planName:     { color: colors.text, fontSize: 15 * fs, fontWeight: '600' },
+  planDuration: { color: colors.textSecondary, fontSize: 12 * fs },
+  planDesc:     { color: colors.textMuted, fontSize: 12 * fs, marginTop: 2 },
+  planPrice:    { color: colors.accent, fontSize: 18 * fs, fontWeight: '700' },
   histRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border,
   },
-  histPlan:  { color: colors.text, fontSize: 14, fontWeight: '600' },
-  histDates: { color: colors.textSecondary, fontSize: 12 },
+  histPlan:  { color: colors.text, fontSize: 14 * fs, fontWeight: '600' },
+  histDates: { color: colors.textSecondary, fontSize: 12 * fs },
   infoRow:   { flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'center' },
-  infoText:  { color: colors.textMuted, fontSize: 12 },
+  infoText:  { color: colors.textMuted, fontSize: 12 * fs },
 });
 }

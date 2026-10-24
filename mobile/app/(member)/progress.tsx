@@ -11,7 +11,7 @@ import { LineChart } from 'react-native-chart-kit';
 import { Dimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
-import { useColors } from '../../hooks/useColors';
+import { useColors, useFontScale } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
 import { toDateStr, toArray } from '../../utils/format';
@@ -25,7 +25,8 @@ const SCREEN_W = Dimensions.get('window').width;
 
 export default function ProgressScreen() {
   const colors = useColors();
-  const styles = useMemo(() => make_styles(colors), [colors]);
+  const fs = useFontScale();
+  const styles = useMemo(() => make_styles(colors, fs), [colors, fs]);
   const insets = useSafeAreaInsets();
   const { data: records, loading, refetch } = useFetch<BodyProgress[]>(ENDPOINTS.BODY_PROGRESS);
   const [modalVisible, setModalVisible] = useState(false);
@@ -222,13 +223,13 @@ export default function ProgressScreen() {
   );
 }
 
-function make_styles(colors: ReturnType<typeof useColors>) {
+function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   return StyleSheet.create({
   screen:   { flex: 1, backgroundColor: colors.background },
   content:  { padding: 20, gap: 16, paddingBottom: 32 },
   topRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  title:    { color: colors.text, fontSize: 26, fontWeight: '700' },
-  subtitle: { color: colors.textSecondary, fontSize: 13 },
+  title:    { color: colors.text, fontSize: 26 * fs, fontWeight: '700' },
+  subtitle: { color: colors.textSecondary, fontSize: 13 * fs },
   addBtn: {
     width:  44, height: 44, borderRadius: 14,
     backgroundColor: colors.accent,
@@ -236,21 +237,21 @@ function make_styles(colors: ReturnType<typeof useColors>) {
   },
   summaryRow: { flexDirection: 'row', gap: 10 },
   summaryCard: { flex: 1 },
-  sumLabel:    { color: colors.textSecondary, fontSize: 11, marginBottom: 4 },
-  sumValue:    { color: colors.text, fontSize: 20, fontWeight: '700' },
-  sumUnit:     { fontSize: 13, color: colors.textSecondary },
-  chartTitle:  { color: colors.text, fontSize: 15, fontWeight: '700', marginBottom: 10 },
+  sumLabel:    { color: colors.textSecondary, fontSize: 11 * fs, marginBottom: 4 },
+  sumValue:    { color: colors.text, fontSize: 20 * fs, fontWeight: '700' },
+  sumUnit:     { fontSize: 13 * fs, color: colors.textSecondary },
+  chartTitle:  { color: colors.text, fontSize: 15 * fs, fontWeight: '700', marginBottom: 10 },
   emptyChart:  { alignItems: 'center', paddingVertical: 24, gap: 10 },
-  emptyText:   { color: colors.textMuted, fontSize: 13, textAlign: 'center', lineHeight: 20 },
+  emptyText:   { color: colors.textMuted, fontSize: 13 * fs, textAlign: 'center', lineHeight: 20 },
   histRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border,
   },
-  histDate:     { color: colors.text, fontSize: 14, fontWeight: '600' },
+  histDate:     { color: colors.text, fontSize: 14 * fs, fontWeight: '600' },
   histMeasures: { flexDirection: 'row', gap: 8, marginTop: 2 },
-  histMini:     { color: colors.textMuted, fontSize: 11 },
-  histPeso:     { color: colors.accent, fontSize: 18, fontWeight: '700' },
-  histUnit:     { fontSize: 13, color: colors.textSecondary },
+  histMini:     { color: colors.textMuted, fontSize: 11 * fs },
+  histPeso:     { color: colors.accent, fontSize: 18 * fs, fontWeight: '700' },
+  histUnit:     { fontSize: 13 * fs, color: colors.textSecondary },
   // Modal
   modalOverlay: {
     flex: 1, backgroundColor: colors.overlay,
@@ -263,12 +264,12 @@ function make_styles(colors: ReturnType<typeof useColors>) {
     borderWidth: 1, borderColor: colors.border,
   },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  modalTitle:  { color: colors.text, fontSize: 18, fontWeight: '700' },
-  inputLabel:  { color: colors.textSecondary, fontSize: 13, marginBottom: 4, marginTop: 8 },
+  modalTitle:  { color: colors.text, fontSize: 18 * fs, fontWeight: '700' },
+  inputLabel:  { color: colors.textSecondary, fontSize: 13 * fs, marginBottom: 4, marginTop: 8 },
   modalInput: {
     backgroundColor: colors.inputBg, borderRadius: 12,
     borderWidth: 1, borderColor: colors.border,
-    color: colors.text, padding: 14, fontSize: 15,
+    color: colors.text, padding: 14, fontSize: 15 * fs,
   },
 });
 }

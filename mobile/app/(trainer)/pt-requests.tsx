@@ -10,7 +10,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
-import { useColors } from '../../hooks/useColors';
+import { useColors, useFontScale } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
 import { toStr, toDateStr, toArray } from '../../utils/format';
@@ -18,6 +18,7 @@ import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
 import api from '../../services/api';
+import * as Haptics from 'expo-haptics';
 
 type Estado = 'pendiente' | 'aceptada' | 'rechazada';
 type Filter  = 'todas' | Estado;
@@ -46,13 +47,14 @@ const BADGE_COLOR: Record<Estado, 'warning' | 'success' | 'error'> = {
 
 export default function PTRequestsScreen() {
   const colors = useColors();
-  const styles = useMemo(() => make_styles(colors), [colors]);
+  const fs = useFontScale();
+  const styles = useMemo(() => make_styles(colors, fs), [colors, fs]);
   const insets = useSafeAreaInsets();
   const [filter, setFilter] = useState<Filter>('todas');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const { data, loading, refetch } = useFetch<PTRequest[]>(ENDPOINTS.TRAINER_PT_REQUESTS);
+  const { data, loading, refetch } = useFetch<{ solicitudes: PTRequest[] }>(ENDPOINTS.TRAINER_PT_REQUESTS);
 
-  const requests = toArray(data).filter(
+  const requests = toArray(data?.solicitudes).filter(
     (r) => filter === 'todas' || r.estado === filter,
   );
 
@@ -69,7 +71,9 @@ export default function PTRequestsScreen() {
           onPress: async () => {
             setActionLoading(id);
             try {
-              await api.post(`${ENDPOINTS.TRAINER_PT_REQUESTS}/${id}/${action}`);
+              await api.patch(`${ENDPOINTS.TRAINER_PT_REQUESTS}/${id}`, {
+                accion: action === 'accept' ? 'aceptar' : 'rechazar',
+              });
               refetch();
             } catch (e: any) {
               Alert.alert('Error', e?.response?.data?.error ?? 'No se pudo procesar');
@@ -89,7 +93,7 @@ export default function PTRequestsScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title} accessibilityRole="header">Solicitudes PT</Text>
-        <Text style={styles.sub}>{toArray(data).filter((r) => r.estado === 'pendiente').length} pendientes</Text>
+        <Text style={styles.sub}>{toArray(data?.solicitudes).filter((r) => r.estado === 'pendiente').length} pendientes</Text>
       </View>
 
       {/* Filtros */}
@@ -111,7 +115,7 @@ export default function PTRequestsScreen() {
 
       <FlatList
         data={requests}
-        keyExtractor={(r) => r._id}
+        keyExtractor={(r, i) => r._id ?? String(i)}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={refetch} tintColor={colors.accent} />}
@@ -165,6 +169,7 @@ export default function PTRequestsScreen() {
                     onPress={() => handleAction(r._id, 'reject')}
                     disabled={actionLoading === r._id}
                     accessibilityLabel="Rechazar solicitud"
+                    accessibilityHint="Rechaza permanentemente esta solicitud de entrenamiento"
                   >
                     <Ionicons name="close-outline" size={16} color={colors.error} />
                     <Text style={[styles.actionBtnText, { color: colors.error }]}>Rechazar</Text>
@@ -179,12 +184,12 @@ export default function PTRequestsScreen() {
   );
 }
 
-function make_styles(colors: ReturnType<typeof useColors>) {
+function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   return StyleSheet.create({
   screen:  { flex: 1, backgroundColor: colors.background },
   header:  { paddingHorizontal: 20, gap: 2, paddingBottom: 12 },
-  title:   { color: colors.text, fontSize: 26, fontWeight: '700' },
-  sub:     { color: colors.textSecondary, fontSize: 13 },
+  title:   { color: colors.text, fontSize: 26 * fs, fontWeight: '700' },
+  sub:     { color: colors.textSecondary, fontSize: 13 * fs },
   filterRow: {
     flexDirection: 'row', flexWrap: 'wrap', gap: 8,
     paddingHorizontal: 20, paddingBottom: 12,
@@ -194,27 +199,27 @@ function make_styles(colors: ReturnType<typeof useColors>) {
     backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
   },
   filterChipActive:  { backgroundColor: colors.accent, borderColor: colors.accent },
-  filterText:        { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
+  filterText:        { color: colors.textSecondary, fontSize: 13 * fs, fontWeight: '600' },
   filterTextActive:  { color: '#fff' },
   list:   { paddingHorizontal: 20, gap: 12, paddingBottom: 32 },
   empty:  { alignItems: 'center', paddingVertical: 60, gap: 10 },
-  emptyText: { color: colors.textMuted, fontSize: 14, fontWeight: '600' },
+  emptyText: { color: colors.textMuted, fontSize: 14 * fs, fontWeight: '600' },
   card:    { gap: 10 },
   cardTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   avatarBox: {
     width: 44, height: 44, borderRadius: 14,
     backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center',
   },
-  avatarInitials: { color: '#fff', fontSize: 18, fontWeight: '800' },
-  memberName:  { color: colors.text, fontSize: 15, fontWeight: '700' },
-  memberEmail: { color: colors.textSecondary, fontSize: 12 },
-  dateText:    { color: colors.textMuted, fontSize: 11, marginTop: 2 },
+  avatarInitials: { color: '#fff', fontSize: 18 * fs, fontWeight: '800' },
+  memberName:  { color: colors.text, fontSize: 15 * fs, fontWeight: '700' },
+  memberEmail: { color: colors.textSecondary, fontSize: 12 * fs },
+  dateText:    { color: colors.textMuted, fontSize: 11 * fs, marginTop: 2 },
   msgBox: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 8,
     backgroundColor: colors.backgroundAlt ?? colors.card,
     borderRadius: 10, padding: 10,
   },
-  msgText: { color: colors.textSecondary, fontSize: 13, flex: 1, lineHeight: 18 },
+  msgText: { color: colors.textSecondary, fontSize: 13 * fs, flex: 1, lineHeight: 18 },
   actions: { flexDirection: 'row', gap: 10 },
   actionBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
@@ -222,6 +227,6 @@ function make_styles(colors: ReturnType<typeof useColors>) {
   },
   acceptBtn: { backgroundColor: colors.accent },
   rejectBtn: { backgroundColor: colors.errorBg, borderWidth: 1, borderColor: colors.error },
-  actionBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  actionBtnText: { color: '#fff', fontSize: 14 * fs, fontWeight: '700' },
 });
 }

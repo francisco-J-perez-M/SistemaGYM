@@ -8,7 +8,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
-import { useColors } from '../../hooks/useColors';
+import { useColors, useFontScale } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
@@ -21,7 +21,8 @@ const DAYS_ES = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'
 
 export default function RoutinesScreen() {
   const colors = useColors();
-  const styles = useMemo(() => make_styles(colors), [colors]);
+  const fs = useFontScale();
+  const styles = useMemo(() => make_styles(colors, fs), [colors, fs]);
   const insets = useSafeAreaInsets();
   const todayIdx = (new Date().getDay() + 6) % 7;
   const [selectedDay, setSelectedDay] = useState(todayIdx);
@@ -139,13 +140,13 @@ export default function RoutinesScreen() {
   );
 }
 
-function make_styles(colors: ReturnType<typeof useColors>) {
+function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   return StyleSheet.create({
   screen:   { flex: 1, backgroundColor: colors.background },
   content:  { padding: 20, gap: 16, paddingBottom: 32 },
   header:   { gap: 4 },
-  title:    { color: colors.text, fontSize: 26, fontWeight: '700' },
-  subtitle: { color: colors.textSecondary, fontSize: 13 },
+  title:    { color: colors.text, fontSize: 26 * fs, fontWeight: '700' },
+  subtitle: { color: colors.textSecondary, fontSize: 13 * fs },
   dayScroll:   { marginHorizontal: -20, paddingHorizontal: 20 },
   dayChip: {
     alignItems:       'center',
@@ -160,8 +161,8 @@ function make_styles(colors: ReturnType<typeof useColors>) {
     position:          'relative',
   },
   dayChipActive:    { backgroundColor: colors.accent, borderColor: colors.accent },
-  dayChipText:      { color: colors.textSecondary, fontSize: 13, fontWeight: '700' },
-  dayChipFull:      { color: colors.textMuted, fontSize: 10 },
+  dayChipText:      { color: colors.textSecondary, fontSize: 13 * fs, fontWeight: '700' },
+  dayChipFull:      { color: colors.textMuted, fontSize: 10 * fs },
   dayChipTextActive:{ color: '#fff' },
   todayDot: {
     position:        'absolute',
@@ -178,10 +179,10 @@ function make_styles(colors: ReturnType<typeof useColors>) {
     alignItems:     'flex-start',
     marginBottom:   12,
   },
-  workoutDay:  { color: colors.textSecondary, fontSize: 13 },
-  workoutType: { color: colors.text, fontSize: 18, fontWeight: '700', marginTop: 2 },
+  workoutDay:  { color: colors.textSecondary, fontSize: 13 * fs },
+  workoutType: { color: colors.text, fontSize: 18 * fs, fontWeight: '700', marginTop: 2 },
   progressWrap: { alignItems: 'flex-end', gap: 4 },
-  progressText: { color: colors.accent, fontSize: 18, fontWeight: '800' },
+  progressText: { color: colors.accent, fontSize: 18 * fs, fontWeight: '800' },
   progressBar: {
     width:           80,
     height:          4,
@@ -190,15 +191,15 @@ function make_styles(colors: ReturnType<typeof useColors>) {
     overflow:        'hidden',
   },
   progressFill: { height: '100%', backgroundColor: colors.accent, borderRadius: 2 },
-  progressSub:  { color: colors.textSecondary, fontSize: 11 },
+  progressSub:  { color: colors.textSecondary, fontSize: 11 * fs },
   noDataBox: {
     alignItems:     'center',
     paddingVertical: 28,
     gap:            10,
   },
-  noDataText: { color: colors.textMuted, fontSize: 13, textAlign: 'center', lineHeight: 20 },
+  noDataText: { color: colors.textMuted, fontSize: 13 * fs, textAlign: 'center', lineHeight: 20 },
   tipsCard: { backgroundColor: colors.infoBg, borderColor: colors.info },
   tipsRow:  { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  tipsText: { color: colors.text, fontSize: 13, flex: 1, lineHeight: 18 },
+  tipsText: { color: colors.text, fontSize: 13 * fs, flex: 1, lineHeight: 18 },
 });
 }

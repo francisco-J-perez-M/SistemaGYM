@@ -5,7 +5,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
-import { useColors } from '../../hooks/useColors';
+import { useColors, useFontScale } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
 import { toDateStr, toInitial, toStr, matchesSearch, toArray } from '../../utils/format';
@@ -15,7 +15,8 @@ import type { MiembrosResponse } from '../../types';
 
 export default function AdminMembersScreen() {
   const colors = useColors();
-  const styles = useMemo(() => make_styles(colors), [colors]);
+  const fs = useFontScale();
+  const styles = useMemo(() => make_styles(colors, fs), [colors, fs]);
   const insets = useSafeAreaInsets();
   // API devuelve { miembros: [...], total: N, pages: N, current_page: N }
   const { data, loading, refetch } = useFetch<MiembrosResponse>(ENDPOINTS.MIEMBROS);
@@ -86,21 +87,21 @@ export default function AdminMembersScreen() {
   );
 }
 
-function make_styles(colors: ReturnType<typeof useColors>) {
+function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   return StyleSheet.create({
   screen:  { flex: 1, backgroundColor: colors.background },
   header:  { paddingHorizontal: 20, gap: 6, paddingBottom: 12 },
-  title:   { color: colors.text, fontSize: 26, fontWeight: '700' },
-  sub:     { color: colors.textSecondary, fontSize: 13, marginBottom: 8 },
+  title:   { color: colors.text, fontSize: 26 * fs, fontWeight: '700' },
+  sub:     { color: colors.textSecondary, fontSize: 13 * fs, marginBottom: 8 },
   searchBox: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     backgroundColor: colors.card, borderRadius: 12, borderWidth: 1, borderColor: colors.border,
     paddingHorizontal: 14, paddingVertical: 10,
   },
-  searchInput: { flex: 1, color: colors.text, fontSize: 14 },
+  searchInput: { flex: 1, color: colors.text, fontSize: 14 * fs },
   list:    { padding: 20, gap: 10, paddingBottom: 32 },
   empty:   { alignItems: 'center', paddingVertical: 40, gap: 10 },
-  emptyText: { color: colors.textMuted, fontSize: 14 },
+  emptyText: { color: colors.textMuted, fontSize: 14 * fs },
   memberCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: colors.card, borderRadius: 14, padding: 14,
@@ -110,10 +111,10 @@ function make_styles(colors: ReturnType<typeof useColors>) {
     width: 44, height: 44, borderRadius: 14,
     backgroundColor: 'rgba(108,99,255,0.12)', alignItems: 'center', justifyContent: 'center',
   },
-  initial:   { color: colors.accent, fontSize: 18, fontWeight: '700' },
-  nombre:    { color: colors.text, fontSize: 15, fontWeight: '600' },
-  email:     { color: colors.textSecondary, fontSize: 12 },
-  membresia: { color: colors.accent, fontSize: 11, marginTop: 1 },
-  fecha:     { color: colors.textMuted, fontSize: 11 },
+  initial:   { color: colors.accent, fontSize: 18 * fs, fontWeight: '700' },
+  nombre:    { color: colors.text, fontSize: 15 * fs, fontWeight: '600' },
+  email:     { color: colors.textSecondary, fontSize: 12 * fs },
+  membresia: { color: colors.accent, fontSize: 11 * fs, marginTop: 1 },
+  fecha:     { color: colors.textMuted, fontSize: 11 * fs },
 });
 }

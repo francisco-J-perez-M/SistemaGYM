@@ -10,7 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 // LinearGradient eliminado — puede fallar en Fabric (new arch) antes de registrarse
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
-import { useColors } from '../../hooks/useColors';
+import { useColors, useFontScale } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
 import { useAuth } from '../../hooks/useAuth';
@@ -18,6 +18,8 @@ import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import api from '../../services/api';
+import AccessibilityPanel from '../../components/settings/AccessibilityPanel';
+import * as Haptics from 'expo-haptics';
 
 interface ProfileData {
   nombre:      string;
@@ -32,12 +34,14 @@ interface ProfileData {
 
 export default function ProfileScreen() {
   const colors = useColors();
-  const styles = useMemo(() => make_styles(colors), [colors]);
+  const fs = useFontScale();
+  const styles = useMemo(() => make_styles(colors, fs), [colors, fs]);
   const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
   const { data, loading, refetch } = useFetch<ProfileData>(ENDPOINTS.USER_PROFILE);
 
   const [editing, setEditing]     = useState(false);
+  const [showA11y, setShowA11y]   = useState(false);
   const [saving,  setSaving]      = useState(false);
   const [nombre,  setNombre]      = useState('');
   const [telefono,setTelefono]    = useState('');
@@ -62,6 +66,7 @@ export default function ProfileScreen() {
   };
 
   const handleLogout = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     Alert.alert('Cerrar sesión', '¿Estás seguro de que deseas salir?', [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Salir', style: 'destructive', onPress: logout },
@@ -167,7 +172,19 @@ export default function ProfileScreen() {
               styles={styles} colors={colors} />
         </Card>
 
-        {/* Actions */}
+        {/* Accesibilidad */}
+        <Card>
+          <TouchableOpacity style={styles.actionRow} onPress={() => setShowA11y(true)}
+            accessibilityRole="button" accessibilityLabel="Ajustes de accesibilidad">
+            <View style={[styles.actionIcon, { backgroundColor: colors.accent + '18' }]}>
+              <Ionicons name="accessibility-outline" size={20} color={colors.accent} />
+            </View>
+            <Text style={styles.actionLabel}>Accesibilidad</Text>
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          </TouchableOpacity>
+        </Card>
+
+        {/* Cuenta */}
         <Card>
           <Text style={styles.sectionTitle}>Cuenta</Text>
           <TouchableOpacity
@@ -175,6 +192,7 @@ export default function ProfileScreen() {
             onPress={handleLogout}
             accessibilityLabel="Cerrar sesión"
             accessibilityRole="button"
+            accessibilityHint="Cierra tu sesión actual y vuelve a la pantalla de inicio"
           >
             <View style={[styles.actionIcon, { backgroundColor: colors.errorBg }]}>
               <Ionicons name="log-out-outline" size={20} color={colors.error} />
@@ -186,6 +204,7 @@ export default function ProfileScreen() {
 
         <Text style={styles.version}>GymPro Mobile v1.0.0</Text>
       </View>
+      <AccessibilityPanel visible={showA11y} onClose={() => setShowA11y(false)} />
     </ScrollView>
   );
 }
@@ -214,7 +233,7 @@ function StatPill({ icon, label, value, styles, colors }: { icon: string; label:
   );
 }
 
-function make_styles(colors: ReturnType<typeof useColors>) {
+function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   hero: {
@@ -233,9 +252,9 @@ function make_styles(colors: ReturnType<typeof useColors>) {
     alignItems:      'center',
     justifyContent:  'center',
   },
-  initials:  { color: '#fff', fontSize: 32, fontWeight: '800' },
-  heroName:  { color: colors.text, fontSize: 22, fontWeight: '700' },
-  heroEmail: { color: colors.textSecondary, fontSize: 13 },
+  initials:  { color: '#fff', fontSize: 32 * fs, fontWeight: '800' },
+  heroName:  { color: colors.text, fontSize: 22 * fs, fontWeight: '700' },
+  heroEmail: { color: colors.textSecondary, fontSize: 13 * fs },
   statsRow:  { flexDirection: 'row', gap: 10, marginTop: 8 },
   statPill: {
     alignItems:      'center',
@@ -245,17 +264,17 @@ function make_styles(colors: ReturnType<typeof useColors>) {
     borderRadius:    14,
     gap:             2,
   },
-  statVal:   { color: colors.text, fontSize: 12, fontWeight: '700' },
-  statLabel: { color: colors.textMuted, fontSize: 10 },
+  statVal:   { color: colors.text, fontSize: 12 * fs, fontWeight: '700' },
+  statLabel: { color: colors.textMuted, fontSize: 10 * fs },
   body: { padding: 20, gap: 16 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  sectionTitle: { color: colors.text, fontSize: 16, fontWeight: '700' },
+  sectionTitle: { color: colors.text, fontSize: 16 * fs, fontWeight: '700' },
   editBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  editBtnText: { color: colors.accent, fontSize: 13, fontWeight: '600' },
-  inputLabel: { color: colors.textSecondary, fontSize: 12, marginBottom: 4, marginTop: 8 },
+  editBtnText: { color: colors.accent, fontSize: 13 * fs, fontWeight: '600' },
+  inputLabel: { color: colors.textSecondary, fontSize: 12 * fs, marginBottom: 4, marginTop: 8 },
   input: {
     backgroundColor: colors.inputBg, borderRadius: 10, borderWidth: 1,
-    borderColor: colors.border, color: colors.text, padding: 12, fontSize: 15,
+    borderColor: colors.border, color: colors.text, padding: 12, fontSize: 15 * fs,
   },
   editActions: { flexDirection: 'row', gap: 10, marginTop: 14 },
   infoRow: {
@@ -267,13 +286,13 @@ function make_styles(colors: ReturnType<typeof useColors>) {
     backgroundColor: 'rgba(108,99,255,0.1)',
     alignItems: 'center', justifyContent: 'center',
   },
-  infoLabel: { color: colors.textSecondary, fontSize: 11 },
-  infoValue: { color: colors.text, fontSize: 14, fontWeight: '600' },
+  infoLabel: { color: colors.textSecondary, fontSize: 11 * fs },
+  infoValue: { color: colors.text, fontSize: 14 * fs, fontWeight: '600' },
   actionRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10,
   },
   actionIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  actionLabel: { flex: 1, fontSize: 15, fontWeight: '600' },
-  version: { color: colors.textMuted, fontSize: 12, textAlign: 'center', marginTop: 8 },
+  actionLabel: { flex: 1, fontSize: 15 * fs, fontWeight: '600' },
+  version: { color: colors.textMuted, fontSize: 12 * fs, textAlign: 'center', marginTop: 8 },
 });
 }

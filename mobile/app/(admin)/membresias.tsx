@@ -9,7 +9,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
-import { useColors } from '../../hooks/useColors';
+import { useColors, useFontScale } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
 import { toStr, toArray } from '../../utils/format';
@@ -29,7 +29,8 @@ interface TipoMembresia {
 
 export default function MembresiasScreen() {
   const colors = useColors();
-  const styles = useMemo(() => make_styles(colors), [colors]);
+  const fs = useFontScale();
+  const styles = useMemo(() => make_styles(colors, fs), [colors, fs]);
   const insets = useSafeAreaInsets();
   const { data, loading, refetch } = useFetch<TipoMembresia[]>(ENDPOINTS.OWNER_MEMBRESIAS);
 
@@ -88,12 +89,12 @@ export default function MembresiasScreen() {
   );
 }
 
-function make_styles(colors: ReturnType<typeof useColors>) {
+function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   return StyleSheet.create({
   screen:   { flex: 1, backgroundColor: colors.background },
   list:     { padding: 16, gap: 12, paddingBottom: 32 },
   headerRow:{ marginBottom: 4 },
-  count:    { color: colors.textSecondary, fontSize: 13 },
+  count:    { color: colors.textSecondary, fontSize: 13 * fs },
   card: {
     backgroundColor: colors.card, borderRadius: 16,
     borderWidth: 1, borderColor: colors.border,
@@ -104,17 +105,17 @@ function make_styles(colors: ReturnType<typeof useColors>) {
     paddingHorizontal: 20, paddingVertical: 14,
     flexDirection: 'row', alignItems: 'baseline', gap: 8,
   },
-  priceAmount:   { color: '#fff', fontSize: 28, fontWeight: '800' },
-  priceDuration: { color: 'rgba(255,255,255,0.75)', fontSize: 14 },
+  priceAmount:   { color: '#fff', fontSize: 28 * fs, fontWeight: '800' },
+  priceDuration: { color: 'rgba(255,255,255,0.75)', fontSize: 14 * fs },
   nameRow: {
     flexDirection: 'row', justifyContent: 'space-between',
     alignItems: 'center', marginBottom: 4,
   },
-  nombre:      { color: colors.text, fontSize: 16, fontWeight: '700', flex: 1, marginRight: 8 },
-  descripcion: { color: colors.textSecondary, fontSize: 13, marginTop: 2, padding: 16, paddingTop: 0 },
-  beneficios:  { color: colors.textMuted, fontSize: 12, padding: 16, paddingTop: 4 },
+  nombre:      { color: colors.text, fontSize: 16 * fs, fontWeight: '700', flex: 1, marginRight: 8 },
+  descripcion: { color: colors.textSecondary, fontSize: 13 * fs, marginTop: 2, padding: 16, paddingTop: 0 },
+  beneficios:  { color: colors.textMuted, fontSize: 12 * fs, padding: 16, paddingTop: 4 },
   empty:       { alignItems: 'center', paddingVertical: 60, gap: 12 },
-  emptyText:   { color: colors.textMuted, fontSize: 14 },
+  emptyText:   { color: colors.textMuted, fontSize: 14 * fs },
 });
 }
 

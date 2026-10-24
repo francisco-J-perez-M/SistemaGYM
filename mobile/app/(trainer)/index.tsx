@@ -13,7 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
-import { useColors } from '../../hooks/useColors';
+import { useColors, useFontScale } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
 import { useAuth } from '../../hooks/useAuth';
@@ -26,7 +26,8 @@ import type { TrainerDashboard, TrainerClientsResponse, TrainerClientAPI } from 
 
 export default function TrainerDashboardScreen() {
   const colors = useColors();
-  const styles = useMemo(() => make_styles(colors), [colors]);
+  const fs = useFontScale();
+  const styles = useMemo(() => make_styles(colors, fs), [colors, fs]);
   const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
   const { data,          loading,   refetch } = useFetch<TrainerDashboard>(ENDPOINTS.TRAINER_DASHBOARD);
@@ -134,33 +135,33 @@ export default function TrainerDashboardScreen() {
   );
 }
 
-function make_styles(colors: ReturnType<typeof useColors>) {
+function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   return StyleSheet.create({
   screen:   { flex: 1, backgroundColor: colors.background },
   content:  { padding: 20, gap: 16, paddingBottom: 32 },
   topBar:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  greeting: { color: colors.text, fontSize: 22, fontWeight: '700' },
-  sub:      { color: colors.textSecondary, fontSize: 13 },
+  greeting: { color: colors.text, fontSize: 22 * fs, fontWeight: '700' },
+  sub:      { color: colors.textSecondary, fontSize: 13 * fs },
   logoutBtn:{ padding: 8 },
   heroBanner: { flexDirection: 'row', alignItems: 'center', borderRadius: 18, padding: 16, gap: 12, backgroundColor: colors.heroTop },
   heroIcon: {
     width: 50, height: 50, borderRadius: 16,
     backgroundColor: 'rgba(108,99,255,0.2)', alignItems: 'center', justifyContent: 'center',
   },
-  heroTitle: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  heroSub:   { color: 'rgba(255,255,255,0.6)', fontSize: 12 },
+  heroTitle: { color: '#fff', fontSize: 16 * fs, fontWeight: '700' },
+  heroSub:   { color: 'rgba(255,255,255,0.6)', fontSize: 12 * fs },
   kpiGrid:   { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  sectionTitle: { color: colors.text, fontSize: 16, fontWeight: '700', marginBottom: 12 },
+  sectionTitle: { color: colors.text, fontSize: 16 * fs, fontWeight: '700', marginBottom: 12 },
   clientRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
   clientAvatar: {
     width: 38, height: 38, borderRadius: 12,
     backgroundColor: 'rgba(108,99,255,0.15)', alignItems: 'center', justifyContent: 'center',
   },
-  clientInitial: { color: colors.accent, fontSize: 16, fontWeight: '700' },
-  clientName:    { color: colors.text, fontSize: 14, fontWeight: '600' },
-  clientMeta:    { color: colors.textSecondary, fontSize: 12 },
-  lastSession:   { color: colors.textMuted, fontSize: 11 },
+  clientInitial: { color: colors.accent, fontSize: 16 * fs, fontWeight: '700' },
+  clientName:    { color: colors.text, fontSize: 14 * fs, fontWeight: '600' },
+  clientMeta:    { color: colors.textSecondary, fontSize: 12 * fs },
+  lastSession:   { color: colors.textMuted, fontSize: 11 * fs },
   empty: { alignItems: 'center', paddingVertical: 20, gap: 8 },
-  emptyText: { color: colors.textMuted, fontSize: 13 },
+  emptyText: { color: colors.textMuted, fontSize: 13 * fs },
 });
 }

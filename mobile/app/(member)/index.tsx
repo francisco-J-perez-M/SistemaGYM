@@ -9,7 +9,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
-import { useColors } from '../../hooks/useColors';
+import { useColors, useFontScale } from '../../hooks/useColors';
 import { useFetch } from '../../hooks/useFetch';
 import { useAuth } from '../../hooks/useAuth';
 import { toFirstName } from '../../utils/format';
@@ -24,7 +24,8 @@ import api from '../../services/api';
 
 export default function MemberDashboard() {
   const colors = useColors();
-  const styles = useMemo(() => make_styles(colors), [colors]);
+  const fs = useFontScale();
+  const styles = useMemo(() => make_styles(colors, fs), [colors, fs]);
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { data, loading, error, refetch } = useFetch<DashboardData>(ENDPOINTS.USER_DASHBOARD);
@@ -227,7 +228,7 @@ export default function MemberDashboard() {
   );
 }
 
-function make_styles(colors: ReturnType<typeof useColors>) {
+function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   return StyleSheet.create({
   screen:  { flex: 1, backgroundColor: colors.background },
   content: { padding: 20, gap: 16, paddingBottom: 32 },
@@ -236,8 +237,8 @@ function make_styles(colors: ReturnType<typeof useColors>) {
     justifyContent: 'space-between',
     alignItems:     'center',
   },
-  greeting:    { color: colors.text, fontSize: 26, fontWeight: '700' },
-  subGreeting: { color: colors.textSecondary, fontSize: 13, marginTop: 2 },
+  greeting:    { color: colors.text, fontSize: 26 * fs, fontWeight: '700' },
+  subGreeting: { color: colors.textSecondary, fontSize: 13 * fs, marginTop: 2 },
   checkinBtn: {
     width:           44,
     height:          44,
@@ -257,7 +258,7 @@ function make_styles(colors: ReturnType<typeof useColors>) {
     borderRadius:    14,
     backgroundColor: colors.purple,
   },
-  streakText: { color: '#fff', fontSize: 14 },
+  streakText: { color: '#fff', fontSize: 14 * fs },
   kpiGrid: {
     flexDirection: 'row',
     flexWrap:      'wrap',
@@ -272,7 +273,7 @@ function make_styles(colors: ReturnType<typeof useColors>) {
   },
   sectionTitle: {
     color:        colors.text,
-    fontSize:     16,
+    fontSize: 16 * fs,
     fontWeight:   '700',
     marginBottom: 12,
   },
@@ -292,13 +293,13 @@ function make_styles(colors: ReturnType<typeof useColors>) {
   },
   dayCirDone:  { backgroundColor: colors.success, borderColor: colors.success },
   dayCirToday: { borderColor: colors.accent },
-  dayLabel: { color: colors.textSecondary, fontSize: 11 },
+  dayLabel: { color: colors.textSecondary, fontSize: 11 * fs },
   emptyWorkout: {
     alignItems:   'center',
     paddingVertical: 24,
     gap:          8,
   },
-  emptyText: { color: colors.textMuted, fontSize: 13 },
+  emptyText: { color: colors.textMuted, fontSize: 13 * fs },
   achievementList: { gap: 12 },
   achievement: {
     flexDirection: 'row',
@@ -312,7 +313,7 @@ function make_styles(colors: ReturnType<typeof useColors>) {
     alignItems:     'center',
     justifyContent: 'center',
   },
-  achTitle: { color: colors.text, fontSize: 14, fontWeight: '600' },
-  achDesc:  { color: colors.textSecondary, fontSize: 12 },
+  achTitle: { color: colors.text, fontSize: 14 * fs, fontWeight: '600' },
+  achDesc:  { color: colors.textSecondary, fontSize: 12 * fs },
 });
 }

@@ -116,7 +116,9 @@ export const ENDPOINTS = {
   // Trainer — Solicitudes PT (no existe endpoint dedicado en el backend; pantalla usa graceful fallback)
   TRAINER_SESSIONS:     '/trainer/sessions',    // GET/POST /api/trainer/sessions
   TRAINER_EXERCISES:     '/trainer/exercises',   // GET /api/trainer/exercises
-  TRAINER_PT_REQUESTS:  '/trainer/pt-requests',  // placeholder — endpoint pendiente en backend
+  TRAINER_PT_REQUESTS:  '/trainer/pt-requests',  // GET/PATCH
+  TRAINER_CHAT_BASE:    '/trainer/chat',           // GET|POST /trainer/chat/<miembro_pg_id>
+  TRAINER_CHAT_UNREAD:  '/trainer/chat/unread-summary', // GET
 
   // Owner Gym — Perfil del Gym (GET /api/owner_gym/perfil devuelve datos del gimnasio)
   OWNER_GYM_PROFILE:    '/owner_gym/perfil',      // GET /api/owner_gym/perfil

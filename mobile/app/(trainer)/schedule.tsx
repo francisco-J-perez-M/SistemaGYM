@@ -17,7 +17,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
-import { useColors } from '../../hooks/useColors';
+import { useColors, useFontScale } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
 import { toStr, toArray } from '../../utils/format';
@@ -109,9 +109,10 @@ function FormField({ label, value, onChange, placeholder, keyboardType, multilin
 // ── Componente principal ──────────────────────────────────────────────────────
 export default function ScheduleScreen() {
   const colors = useColors();
-  const styles = useMemo(() => make_styles(colors), [colors]);
-  const fStyles = useMemo(() => make_fStyles(colors), [colors]);
-  const calStyles = useMemo(() => make_calStyles(colors), [colors]);
+  const fs = useFontScale();
+  const styles = useMemo(() => make_styles(colors, fs), [colors, fs]);
+  const fStyles = useMemo(() => make_fStyles(colors, fs), [colors, fs]);
+  const calStyles = useMemo(() => make_calStyles(colors, fs), [colors, fs]);
   const insets = useSafeAreaInsets();
   const [view,      setView]      = useState<ViewMode>('hoy');
   const [showModal, setShowModal] = useState(false);
@@ -508,81 +509,81 @@ function InlineCalendar({ selectedDate, onSelect, onClose, colors, calStyles }: 
   );
 }
 
-function make_calStyles(colors: ReturnType<typeof useColors>) {
+function make_calStyles(colors: ReturnType<typeof useColors>, fs = 1) {
   return StyleSheet.create({
   overlay:   { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100, justifyContent: 'flex-end' },
   backdrop:  { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)' },
   sheet:     { backgroundColor: colors.background, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 32 },
   header:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
   navBtn:    { width: 36, height: 36, borderRadius: 10, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' },
-  monthLabel:{ color: colors.text, fontSize: 18, fontWeight: '700' },
+  monthLabel:{ color: colors.text, fontSize: 18 * fs, fontWeight: '700' },
   weekRow:   { flexDirection: 'row', marginBottom: 8 },
-  weekDay:   { flex: 1, textAlign: 'center', color: colors.textSecondary, fontSize: 12, fontWeight: '700' },
+  weekDay:   { flex: 1, textAlign: 'center', color: colors.textSecondary, fontSize: 12 * fs, fontWeight: '700' },
   grid:      { flexDirection: 'row', flexWrap: 'wrap' },
   cell:      { width: '14.28%', aspectRatio: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 999 },
   cellSelected: { backgroundColor: colors.accent },
   cellToday:    { borderWidth: 2, borderColor: colors.accent },
   cellPast:     { opacity: 0.25 },
-  cellText:     { color: colors.text, fontSize: 14, fontWeight: '500' },
+  cellText:     { color: colors.text, fontSize: 14 * fs, fontWeight: '500' },
   cellTextSelected: { color: '#fff', fontWeight: '700' },
   cellTextToday:    { color: colors.accent, fontWeight: '700' },
   cellTextPast:     { color: colors.textMuted },
   cancelBtn: { marginTop: 16, alignItems: 'center', paddingVertical: 10 },
-  cancelText:{ color: colors.textSecondary, fontSize: 15 },
+  cancelText:{ color: colors.textSecondary, fontSize: 15 * fs },
 });
 }
 
-function make_fStyles(colors: ReturnType<typeof useColors>) {
+function make_fStyles(colors: ReturnType<typeof useColors>, fs = 1) {
   return StyleSheet.create({
   field:     { gap: 4, marginBottom: 8 },
-  label:     { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
-  input:     { backgroundColor: colors.card, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, color: colors.text, fontSize: 14, borderWidth: 1, borderColor: colors.border },
+  label:     { color: colors.textSecondary, fontSize: 12 * fs, fontWeight: '600' },
+  input:     { backgroundColor: colors.card, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, color: colors.text, fontSize: 14 * fs, borderWidth: 1, borderColor: colors.border },
   inputMulti:{ minHeight: 72, textAlignVertical: 'top' },
 });
 }
 
-function make_styles(colors: ReturnType<typeof useColors>) {
+function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   return StyleSheet.create({
   screen:   { flex: 1, backgroundColor: colors.background },
   header:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingHorizontal: 20, paddingBottom: 12 },
-  title:    { color: colors.text, fontSize: 26, fontWeight: '700' },
-  sub:      { color: colors.textSecondary, fontSize: 13 },
+  title:    { color: colors.text, fontSize: 26 * fs, fontWeight: '700' },
+  sub:      { color: colors.textSecondary, fontSize: 13 * fs },
   addBtn:   { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   viewToggle: { flexDirection: 'row', marginHorizontal: 20, marginBottom: 12, backgroundColor: colors.card, borderRadius: 12, padding: 4, borderWidth: 1, borderColor: colors.border },
   viewBtn:    { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8, borderRadius: 10 },
   viewBtnActive: { backgroundColor: 'rgba(108,99,255,0.15)' },
-  viewLabel:     { color: colors.textSecondary, fontSize: 14, fontWeight: '600' },
+  viewLabel:     { color: colors.textSecondary, fontSize: 14 * fs, fontWeight: '600' },
   viewLabelActive:{ color: colors.accent },
   list:     { paddingHorizontal: 20, gap: 6, paddingBottom: 32 },
   empty:    { alignItems: 'center', paddingVertical: 60, gap: 10 },
-  emptyText:{ color: colors.textMuted, fontSize: 14, fontWeight: '600', textAlign: 'center' },
+  emptyText:{ color: colors.textMuted, fontSize: 14 * fs, fontWeight: '600', textAlign: 'center' },
   emptyBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: 'rgba(108,99,255,0.12)', marginTop: 4 },
-  emptyBtnText: { color: colors.accent, fontSize: 14, fontWeight: '600' },
+  emptyBtnText: { color: colors.accent, fontSize: 14 * fs, fontWeight: '600' },
   dayRow:   { marginBottom: 4 },
-  dayName:  { color: colors.textSecondary, fontSize: 13, fontWeight: '700', marginBottom: 6, marginTop: 8 },
+  dayName:  { color: colors.textSecondary, fontSize: 13 * fs, fontWeight: '700', marginBottom: 6, marginTop: 8 },
   dayNameToday: { color: colors.accent },
-  noSessions: { color: colors.textMuted, fontSize: 12, marginBottom: 8 },
+  noSessions: { color: colors.textMuted, fontSize: 12 * fs, marginBottom: 8 },
   sessionCard:{ marginBottom: 8, gap: 6 },
   sessionTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   timeBox:    { alignItems: 'center', width: 52 },
-  timeText:   { color: colors.accent, fontSize: 14, fontWeight: '700' },
-  durationText:{ color: colors.textMuted, fontSize: 11 },
-  clientName: { color: colors.text, fontSize: 15, fontWeight: '700' },
-  sessionName:{ color: colors.textSecondary, fontSize: 12, marginTop: 1 },
-  sessionType:{ color: colors.textMuted, fontSize: 12 },
-  sessionNotes:{ color: colors.textSecondary, fontSize: 12, fontStyle: 'italic', borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 6, marginTop: 2 },
+  timeText:   { color: colors.accent, fontSize: 14 * fs, fontWeight: '700' },
+  durationText:{ color: colors.textMuted, fontSize: 11 * fs },
+  clientName: { color: colors.text, fontSize: 15 * fs, fontWeight: '700' },
+  sessionName:{ color: colors.textSecondary, fontSize: 12 * fs, marginTop: 1 },
+  sessionType:{ color: colors.textMuted, fontSize: 12 * fs },
+  sessionNotes:{ color: colors.textSecondary, fontSize: 12 * fs, fontStyle: 'italic', borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 6, marginTop: 2 },
   modalOverlay:{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' },
   modalSheet:  { backgroundColor: colors.background, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, maxHeight: '90%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  modalTitle:  { color: colors.text, fontSize: 20, fontWeight: '700' },
+  modalTitle:  { color: colors.text, fontSize: 20 * fs, fontWeight: '700' },
   tiposRow:    { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
   tipoChip:    { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
   tipoChipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
-  tipoText:    { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
+  tipoText:    { color: colors.textSecondary, fontSize: 13 * fs, fontWeight: '600' },
   clientChip:  { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
   clientChipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
-  clientChipText: { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
+  clientChipText: { color: colors.textSecondary, fontSize: 13 * fs, fontWeight: '600' },
   dateBtn:        { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.card, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, borderWidth: 1, borderColor: colors.border },
-  dateBtnText:    { flex: 1, color: colors.text, fontSize: 14, fontWeight: '600' },
+  dateBtnText:    { flex: 1, color: colors.text, fontSize: 14 * fs, fontWeight: '600' },
 });
 }

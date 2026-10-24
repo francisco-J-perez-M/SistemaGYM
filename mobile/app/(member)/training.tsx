@@ -16,7 +16,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
-import { useColors } from '../../hooks/useColors';
+import { useColors, useFontScale } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
 import { toStr, toArray, toDateStr } from '../../utils/format';
@@ -24,17 +24,22 @@ import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
 import RoutineDetailModal, { type RoutineForModal } from '../../components/routines/RoutineDetailModal';
+import ExerciseDetailSheet, { type ExerciseDetail, cacheVideo, cacheImages } from '../../components/routines/ExerciseDetailSheet';
 import api from '../../services/api';
+import * as Haptics from 'expo-haptics';
 
 type Tab = 'rutina' | 'entrenador';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Ejercicio {
-  nombre: string;
-  series?: string | number;
-  reps?:   string | number;
-  peso?:   string | number;
-  notas?:  string;
+  nombre:          string;
+  series?:         string | number;
+  reps?:           string | number;
+  peso?:           string | number;
+  notas?:          string;
+  instrucciones?:  string;
+  imagenes?:       string[];
+  video?:          string;
 }
 interface DiaRutina {
   id:         string;
@@ -78,13 +83,15 @@ function trainerName(t: Trainer): string {
 // ── Componente ────────────────────────────────────────────────────────────────
 export default function TrainingScreen() {
   const colors = useColors();
-  const mbS = useMemo(() => make_mbS(colors), [colors]);
-  const styles = useMemo(() => make_styles(colors), [colors]);
+  const fs = useFontScale();
+  const mbS = useMemo(() => make_mbS(colors, fs), [colors, fs]);
+  const styles = useMemo(() => make_styles(colors, fs), [colors, fs]);
   const insets   = useSafeAreaInsets();
   const [tab, setTab]                         = useState<Tab>('rutina');
   const [selectedTrainer, setSelectedTrainer] = useState<Trainer | null>(null);
   const [expandedRutina, setExpandedRutina]   = useState<string | null>(null);
   const [selectedRutina, setSelectedRutina]   = useState<RoutineForModal | null>(null);
+  const [selectedEj, setSelectedEj] = useState<ExerciseDetail | null>(null);
   const [msg, setMsg]     = useState('');
   const [sending, setSending] = useState(false);
   const flatRef = useRef<FlatList>(null);
@@ -112,6 +119,7 @@ export default function TrainingScreen() {
     setSending(true);
     try {
       await api.post(`${ENDPOINTS.USER_CHAT_BASE}/${trainerId}`, { texto });
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       setMsg('');
       refetchC();
       setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 300);
@@ -238,6 +246,28 @@ export default function TrainingScreen() {
                           </Text>
                           {ej.notas ? <Text style={styles.ejNotas}>{ej.notas}</Text> : null}
                         </View>
+                        <TouchableOpacity
+                          style={mbS.verBtn}
+                          onPress={() => {
+                            const vk  = ej.video    ? `ej_${r.id}_${dia.id}_${i}` : undefined;
+                            const ik  = ej.imagenes ? `im_${r.id}_${dia.id}_${i}` : undefined;
+                            if (vk && ej.video)    cacheVideo(vk, ej.video);
+                            if (ik && ej.imagenes) cacheImages(ik, ej.imagenes);
+                            setSelectedEj({
+                              nombre: toStr(ej.nombre),
+                              setsStr: [ej.series && `${ej.series} series`, ej.reps && `${ej.reps} reps`].filter(Boolean).join(' × '),
+                              peso: ej.peso ? String(ej.peso) : undefined,
+                              notas: ej.notas,
+                              instrucciones: ej.instrucciones,
+                              imageKey: ik,
+                              videoKey: vk,
+                            });
+                          }}
+                          accessibilityLabel={`Ver detalle de ${ej.nombre}`}
+                          accessibilityRole="button">
+                          <Ionicons name="eye-outline" size={13} color="#fff" />
+                          <Text style={mbS.verBtnText}>Ver</Text>
+                        </TouchableOpacity>
                       </View>
                     ))}
                   </View>
@@ -358,6 +388,11 @@ export default function TrainingScreen() {
           </View>
         </View>
       )}
+      <ExerciseDetailSheet
+        visible={!!selectedEj}
+        exercise={selectedEj}
+        onClose={() => setSelectedEj(null)}
+      />
       <RoutineDetailModal
         visible={!!selectedRutina}
         routine={selectedRutina}
@@ -368,67 +403,67 @@ export default function TrainingScreen() {
   );
 }
 
-function make_mbS(colors: ReturnType<typeof useColors>) {
+function make_mbS(colors: ReturnType<typeof useColors>, fs = 1) {
   return StyleSheet.create({
   verBtn:     { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.accent, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 8 },
-  verBtnText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  verBtnText: { color: '#fff', fontSize: 11 * fs, fontWeight: '700' },
 });
 }
 
-function make_styles(colors: ReturnType<typeof useColors>) {
+function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   return StyleSheet.create({
   screen:  { flex: 1, backgroundColor: colors.background },
   tabRow:  { flexDirection: 'row', marginHorizontal: 20, marginBottom: 16, backgroundColor: colors.card, borderRadius: 12, padding: 4, borderWidth: 1, borderColor: colors.border },
   tabBtn:  { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 9, borderRadius: 10 },
   tabBtnActive:  { backgroundColor: 'rgba(108,99,255,0.15)' },
-  tabLabel:      { color: colors.textSecondary, fontSize: 14, fontWeight: '600' },
+  tabLabel:      { color: colors.textSecondary, fontSize: 14 * fs, fontWeight: '600' },
   tabLabelActive:{ color: colors.accent },
   list:    { paddingHorizontal: 20, gap: 14, paddingBottom: 32 },
   empty:   { alignItems: 'center', paddingVertical: 40, gap: 8 },
-  emptyText: { color: colors.textMuted, fontSize: 15, fontWeight: '600', textAlign: 'center' },
-  emptyHint: { color: colors.textMuted, fontSize: 13, textAlign: 'center' },
+  emptyText: { color: colors.textMuted, fontSize: 15 * fs, fontWeight: '600', textAlign: 'center' },
+  emptyHint: { color: colors.textMuted, fontSize: 13 * fs, textAlign: 'center' },
   rutinaCard:   { gap: 10 },
   rutinaHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   rutinaIconBox:{ width: 44, height: 44, borderRadius: 12, backgroundColor: 'rgba(108,99,255,0.1)', alignItems: 'center', justifyContent: 'center' },
-  rutinaNombre: { color: colors.text, fontSize: 16, fontWeight: '700' },
-  rutinaMeta:   { color: colors.textSecondary, fontSize: 12, marginTop: 2 },
-  rutinaTrainer:{ color: colors.accent, fontSize: 11, marginTop: 1 },
-  rutinaDesc:   { color: colors.textSecondary, fontSize: 13, lineHeight: 18 },
+  rutinaNombre: { color: colors.text, fontSize: 16 * fs, fontWeight: '700' },
+  rutinaMeta:   { color: colors.textSecondary, fontSize: 12 * fs, marginTop: 2 },
+  rutinaTrainer:{ color: colors.accent, fontSize: 11 * fs, marginTop: 1 },
+  rutinaDesc:   { color: colors.textSecondary, fontSize: 13 * fs, lineHeight: 18 },
   notasBox:     { flexDirection: 'row', alignItems: 'flex-start', gap: 6, backgroundColor: 'rgba(108,99,255,0.08)', borderRadius: 8, padding: 8 },
-  notasText:    { color: colors.textSecondary, fontSize: 12, flex: 1 },
+  notasText:    { color: colors.textSecondary, fontSize: 12 * fs, flex: 1 },
   diaSection:   { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 10, gap: 8 },
   diaHeader:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  diaNombre:    { color: colors.accent, fontSize: 13, fontWeight: '700' },
-  diaGrupo:     { color: colors.textSecondary, fontSize: 12 },
+  diaNombre:    { color: colors.accent, fontSize: 13 * fs, fontWeight: '700' },
+  diaGrupo:     { color: colors.textSecondary, fontSize: 12 * fs },
   ejRow:        { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   ejNum:        { width: 22, height: 22, borderRadius: 8, backgroundColor: 'rgba(108,99,255,0.12)', alignItems: 'center', justifyContent: 'center' },
-  ejNumText:    { color: colors.accent, fontSize: 11, fontWeight: '700' },
-  ejNombre:     { color: colors.text, fontSize: 14, fontWeight: '600' },
-  ejDetalle:    { color: colors.accent, fontSize: 12 },
-  ejNotas:      { color: colors.textSecondary, fontSize: 12, fontStyle: 'italic' },
+  ejNumText:    { color: colors.accent, fontSize: 11 * fs, fontWeight: '700' },
+  ejNombre:     { color: colors.text, fontSize: 14 * fs, fontWeight: '600' },
+  ejDetalle:    { color: colors.accent, fontSize: 12 * fs },
+  ejNotas:      { color: colors.textSecondary, fontSize: 12 * fs, fontStyle: 'italic' },
   trainerChip:  { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
   trainerChipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
-  trainerChipText:   { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
+  trainerChipText:   { color: colors.textSecondary, fontSize: 13 * fs, fontWeight: '600' },
   trainerCard:  { marginHorizontal: 20, marginBottom: 12 },
   trainerRow:   { flexDirection: 'row', alignItems: 'center', gap: 12 },
   trainerAvatar:{ width: 52, height: 52, borderRadius: 16, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
-  trainerInitials: { color: '#fff', fontSize: 22, fontWeight: '800' },
-  trainerName:  { color: colors.text, fontSize: 16, fontWeight: '700' },
-  trainerSpec:  { color: colors.accent, fontSize: 12 },
-  trainerEmail: { color: colors.textSecondary, fontSize: 12 },
+  trainerInitials: { color: '#fff', fontSize: 22 * fs, fontWeight: '800' },
+  trainerName:  { color: colors.text, fontSize: 16 * fs, fontWeight: '700' },
+  trainerSpec:  { color: colors.accent, fontSize: 12 * fs },
+  trainerEmail: { color: colors.textSecondary, fontSize: 12 * fs },
   chatContainer:{ flex: 1, marginHorizontal: 20 },
-  chatTitle:    { color: colors.textSecondary, fontSize: 12, fontWeight: '700', marginBottom: 8 },
+  chatTitle:    { color: colors.textSecondary, fontSize: 12 * fs, fontWeight: '700', marginBottom: 8 },
   chatList:     { paddingVertical: 8, gap: 8, flexGrow: 1, justifyContent: 'flex-end' },
   chatEmpty:    { alignItems: 'center', gap: 8, paddingVertical: 24 },
-  chatEmptyText:{ color: colors.textMuted, fontSize: 13, textAlign: 'center' },
+  chatEmptyText:{ color: colors.textMuted, fontSize: 13 * fs, textAlign: 'center' },
   bubble:       { maxWidth: '80%', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 18, gap: 2 },
   bubbleMe:     { alignSelf: 'flex-end', backgroundColor: colors.accent, borderBottomRightRadius: 4 },
   bubbleThem:   { alignSelf: 'flex-start', backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderBottomLeftRadius: 4 },
-  bubbleText:   { color: colors.text, fontSize: 14, lineHeight: 20 },
+  bubbleText:   { color: colors.text, fontSize: 14 * fs, lineHeight: 20 },
   bubbleTextMe: { color: '#fff' },
-  bubbleTime:   { color: colors.textMuted, fontSize: 10, alignSelf: 'flex-end' },
+  bubbleTime:   { color: colors.textMuted, fontSize: 10 * fs, alignSelf: 'flex-end' },
   inputBar:     { flexDirection: 'row', alignItems: 'flex-end', gap: 10, paddingTop: 8, borderTopWidth: 1, borderTopColor: colors.border },
-  textInput:    { flex: 1, maxHeight: 100, backgroundColor: colors.card, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, color: colors.text, fontSize: 14, borderWidth: 1, borderColor: colors.border },
+  textInput:    { flex: 1, maxHeight: 100, backgroundColor: colors.card, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, color: colors.text, fontSize: 14 * fs, borderWidth: 1, borderColor: colors.border },
   sendBtn:      { width: 44, height: 44, borderRadius: 12, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   sendBtnDisabled: { opacity: 0.4 },
 });

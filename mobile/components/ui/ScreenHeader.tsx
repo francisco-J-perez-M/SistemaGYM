@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Colors } from '../../constants/Colors';
-import { useColors } from '../../hooks/useColors';
+import { useColors, useFontScale } from '../../hooks/useColors';
 
 interface Props {
   title:         string;
@@ -15,7 +15,8 @@ interface Props {
 
 export default function ScreenHeader({ title, subtitle, showBack = false, rightElement }: Props) {
   const colors = useColors();
-  const styles = useMemo(() => make_styles(colors), [colors]);
+  const fs = useFontScale();
+  const styles = useMemo(() => make_styles(colors, fs), [colors, fs]);
   const insets = useSafeAreaInsets();
 
   return (
@@ -47,7 +48,7 @@ export default function ScreenHeader({ title, subtitle, showBack = false, rightE
   );
 }
 
-function make_styles(colors: ReturnType<typeof useColors>) {
+function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   return StyleSheet.create({
   header: {
     flexDirection:   'row',
@@ -70,13 +71,13 @@ function make_styles(colors: ReturnType<typeof useColors>) {
   },
   title: {
     color:      colors.text,
-    fontSize:   22,
+    fontSize: 22 * fs,
     fontWeight: '700',
     letterSpacing: -0.3,
   },
   subtitle: {
     color:    colors.textSecondary,
-    fontSize: 13,
+    fontSize: 13 * fs,
     marginTop: 2,
   },
   right: { marginLeft: 8 },

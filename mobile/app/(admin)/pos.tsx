@@ -11,7 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
-import { useColors } from '../../hooks/useColors';
+import { useColors, useFontScale } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
 import { toStr, toArray, toDateStr } from '../../utils/format';
@@ -50,7 +50,8 @@ interface ProductosResponse {
 
 export default function POSScreen() {
   const colors = useColors();
-  const styles = useMemo(() => make_styles(colors), [colors]);
+  const fs = useFontScale();
+  const styles = useMemo(() => make_styles(colors, fs), [colors, fs]);
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<Tab>('productos');
 
@@ -169,7 +170,7 @@ function EmptyState({ icon, msg, styles, colors }: { icon: string; msg: string; 
   );
 }
 
-function make_styles(colors: ReturnType<typeof useColors>) {
+function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   return StyleSheet.create({
   screen:     { flex: 1, backgroundColor: colors.background },
   tabBar:     { flexDirection: 'row', paddingHorizontal: 16, paddingTop: 12, gap: 8 },
@@ -179,7 +180,7 @@ function make_styles(colors: ReturnType<typeof useColors>) {
     backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
   },
   tabBtnActive:  { backgroundColor: 'rgba(108,99,255,0.15)', borderColor: colors.accent },
-  tabLabel:      { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
+  tabLabel:      { color: colors.textSecondary, fontSize: 13 * fs, fontWeight: '600' },
   tabLabelActive:{ color: colors.accent },
   grid:   { padding: 16, gap: 12 },
   list:   { padding: 16, gap: 10, paddingBottom: 32 },
@@ -192,10 +193,10 @@ function make_styles(colors: ReturnType<typeof useColors>) {
     backgroundColor: 'rgba(108,99,255,0.1)',
     alignItems: 'center', justifyContent: 'center', marginBottom: 4,
   },
-  productName:    { color: colors.text, fontSize: 14, fontWeight: '600' },
-  productPrice:   { color: colors.accent, fontSize: 18, fontWeight: '800' },
+  productName:    { color: colors.text, fontSize: 14 * fs, fontWeight: '600' },
+  productPrice:   { color: colors.accent, fontSize: 18 * fs, fontWeight: '800' },
   productFooter:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 },
-  productStock:   { color: colors.textMuted, fontSize: 11 },
+  productStock:   { color: colors.textMuted, fontSize: 11 * fs },
   ventaCard: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 12,
     backgroundColor: colors.card, borderRadius: 14, padding: 14,
@@ -206,13 +207,13 @@ function make_styles(colors: ReturnType<typeof useColors>) {
     backgroundColor: colors.warningBg,
     alignItems: 'center', justifyContent: 'center',
   },
-  ventaCliente: { color: colors.text, fontSize: 14, fontWeight: '600' },
-  ventaFecha:   { color: colors.textMuted, fontSize: 11, marginBottom: 2 },
-  ventaItem:    { color: colors.textSecondary, fontSize: 12 },
-  ventaTotal:   { color: colors.warning, fontSize: 18, fontWeight: '800', marginLeft: 'auto' },
-  totalLabel:   { color: colors.textSecondary, fontSize: 12 },
-  totalValue:   { color: colors.text, fontSize: 20, fontWeight: '700' },
+  ventaCliente: { color: colors.text, fontSize: 14 * fs, fontWeight: '600' },
+  ventaFecha:   { color: colors.textMuted, fontSize: 11 * fs, marginBottom: 2 },
+  ventaItem:    { color: colors.textSecondary, fontSize: 12 * fs },
+  ventaTotal:   { color: colors.warning, fontSize: 18 * fs, fontWeight: '800', marginLeft: 'auto' },
+  totalLabel:   { color: colors.textSecondary, fontSize: 12 * fs },
+  totalValue:   { color: colors.text, fontSize: 20 * fs, fontWeight: '700' },
   empty:        { alignItems: 'center', paddingVertical: 60, gap: 12 },
-  emptyText:    { color: colors.textMuted, fontSize: 14 },
+  emptyText:    { color: colors.textMuted, fontSize: 14 * fs },
 });
 }

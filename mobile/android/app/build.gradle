@@ -96,6 +96,11 @@ android {
         versionName "1.0.0"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
+
+        // APK universal: funciona en emulador (x86_64) y celulares físicos (ARM)
+        ndk {
+            abiFilters "armeabi-v7a", "arm64-v8a", "x86_64"
+        }
     }
     signingConfigs {
         debug {

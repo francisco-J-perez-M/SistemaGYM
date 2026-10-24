@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
-import { useColors } from '../../hooks/useColors';
+import { useColors, useFontScale } from '../../hooks/useColors';
 
 interface Props extends TextInputProps {
   label?:        string;
@@ -20,7 +20,8 @@ export default function Input({
   containerStyle, style, ...rest
 }: Props) {
   const colors = useColors();
-  const styles = useMemo(() => make_styles(colors), [colors]);
+  const fs = useFontScale();
+  const styles = useMemo(() => make_styles(colors, fs), [colors, fs]);
   const [showPass, setShowPass] = useState(false);
 
   return (
@@ -64,12 +65,12 @@ export default function Input({
   );
 }
 
-function make_styles(colors: ReturnType<typeof useColors>) {
+function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   return StyleSheet.create({
   container: { marginBottom: 16 },
   label: {
     color:        colors.textSecondary,
-    fontSize:     13,
+    fontSize: 13 * fs,
     fontWeight:   '500',
     marginBottom: 6,
     letterSpacing: 0.3,
@@ -90,13 +91,13 @@ function make_styles(colors: ReturnType<typeof useColors>) {
   input: {
     flex:       1,
     color:      colors.text,
-    fontSize:   15,
+    fontSize: 15 * fs,
     paddingVertical: 14,
   },
   eyeBtn: { padding: 4 },
   errorText: {
     color:     colors.error,
-    fontSize:  12,
+    fontSize: 12 * fs,
     marginTop: 4,
   },
 });

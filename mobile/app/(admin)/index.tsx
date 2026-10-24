@@ -14,7 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
-import { useColors } from '../../hooks/useColors';
+import { useColors, useFontScale } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
 import { useAuth } from '../../hooks/useAuth';
@@ -27,7 +27,8 @@ import type { OwnerDashboard, MiembrosResponse } from '../../types';
 
 export default function AdminDashboardScreen() {
   const colors = useColors();
-  const styles = useMemo(() => make_styles(colors), [colors]);
+  const fs = useFontScale();
+  const styles = useMemo(() => make_styles(colors, fs), [colors, fs]);
   const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
 
@@ -157,13 +158,13 @@ export default function AdminDashboardScreen() {
   );
 }
 
-function make_styles(colors: ReturnType<typeof useColors>) {
+function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   return StyleSheet.create({
   screen:   { flex: 1, backgroundColor: colors.background },
   content:  { padding: 20, gap: 16, paddingBottom: 32 },
   topBar:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  title:    { color: colors.text, fontSize: 22, fontWeight: '700' },
-  sub:      { color: colors.textSecondary, fontSize: 13 },
+  title:    { color: colors.text, fontSize: 22 * fs, fontWeight: '700' },
+  sub:      { color: colors.textSecondary, fontSize: 13 * fs },
   logoutBtn:{ padding: 8 },
   heroBanner: {
     flexDirection: 'row', alignItems: 'center', borderRadius: 18,
@@ -173,10 +174,10 @@ function make_styles(colors: ReturnType<typeof useColors>) {
     width: 50, height: 50, borderRadius: 16,
     backgroundColor: 'rgba(108,99,255,0.2)', alignItems: 'center', justifyContent: 'center',
   },
-  heroTitle:    { color: '#fff', fontSize: 16, fontWeight: '700' },
-  heroSub:      { color: 'rgba(255,255,255,0.6)', fontSize: 12 },
+  heroTitle:    { color: '#fff', fontSize: 16 * fs, fontWeight: '700' },
+  heroSub:      { color: 'rgba(255,255,255,0.6)', fontSize: 12 * fs },
   kpiGrid:      { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  sectionTitle: { color: colors.text, fontSize: 16, fontWeight: '700', marginBottom: 12 },
+  sectionTitle: { color: colors.text, fontSize: 16 * fs, fontWeight: '700', marginBottom: 12 },
   memberRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border,
@@ -185,10 +186,10 @@ function make_styles(colors: ReturnType<typeof useColors>) {
     width: 36, height: 36, borderRadius: 10,
     backgroundColor: 'rgba(108,99,255,0.12)', alignItems: 'center', justifyContent: 'center',
   },
-  memberInitial: { color: colors.accent, fontSize: 15, fontWeight: '700' },
-  memberName:    { color: colors.text, fontSize: 14, fontWeight: '600' },
-  memberEmail:   { color: colors.textSecondary, fontSize: 12 },
+  memberInitial: { color: colors.accent, fontSize: 15 * fs, fontWeight: '700' },
+  memberName:    { color: colors.text, fontSize: 14 * fs, fontWeight: '600' },
+  memberEmail:   { color: colors.textSecondary, fontSize: 12 * fs },
   empty:         { alignItems: 'center', paddingVertical: 20, gap: 8 },
-  emptyText:     { color: colors.textMuted, fontSize: 13 },
+  emptyText:     { color: colors.textMuted, fontSize: 13 * fs },
 });
 }
