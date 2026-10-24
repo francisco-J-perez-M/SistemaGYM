@@ -82,6 +82,7 @@ const FILE_LABELS = {
   json:    { label: "JSON",  color: "var(--warning)" },
   excel:   { label: "XLS",   color: "var(--success)" },
   pdf:     { label: "PDF",   color: "var(--danger)" },
+  media:   { label: "MEDIA", color: "#a855f7" },
 };
 
 const TYPE_BADGE = {
@@ -94,9 +95,10 @@ const RESTORE_LABELS = {
   db_dump: { label: "MongoDB", color: "var(--success)" },
   pg_dump: { label: "PostgreSQL", color: "var(--accent-soft)" },
   json:    { label: "Mongo JSON", color: "var(--warning)" },
+  media:   { label: "Imágenes/Media", color: "#a855f7" },
 };
 
-const RESTORE_EXTS = ".archive,.json,.dump";
+const RESTORE_EXTS = ".archive,.json,.dump,.tar.gz,.tgz";
 
 export default function SuperadminBackups() {
   const [status,   setStatus]   = useState(null);
@@ -183,6 +185,17 @@ export default function SuperadminBackups() {
 
   const fmtDate = (d) => d ? new Date(d).toLocaleString("es-MX") : "—";
 
+  // Resumen legible del resultado de una restauración
+  const resumenRestore = (r, fallback) => {
+    if (!r) return fallback;
+    const p = [];
+    if (r.insertados != null)  p.push(`${r.insertados} insertados/actualizados`);
+    if (r.fusionados)          p.push(`${r.fusionados} fusionados por clave`);
+    if (r.restaurados != null) p.push(`${r.restaurados} archivos restaurados`);
+    if (r.warnings)            p.push(`${r.warnings} advertencia(s)`);
+    return p.length ? p.join(" · ") : (fallback || "Restauración completada.");
+  };
+
   // ── Restauración ──────────────────────────────────────────────────────────
   // Solo backups completados con artefactos restaurables
   const restorables = history.filter(
@@ -216,11 +229,10 @@ export default function SuperadminBackups() {
     setRestoring(true);
     try {
       const { data } = await restoreBackup(filename);
-      const w = data?.resultado?.warnings;
       Swal.fire({
         icon: "success",
         title: "Restauración completada",
-        text: w ? `Completado con ${w} advertencia(s) de merge.` : "La base de datos se restauró correctamente.",
+        text: resumenRestore(data?.resultado, "La base de datos se restauró correctamente."),
         background: "var(--bg-card)", color: "var(--text-primary)",
       });
       loadAll();
@@ -233,9 +245,9 @@ export default function SuperadminBackups() {
 
   const handleRestoreUpload = async (file) => {
     if (!file) return;
-    const okExt = /\.(archive|json|dump)$/i.test(file.name);
+    const okExt = /\.(archive|json|dump|tgz|tar\.gz)$/i.test(file.name);
     if (!okExt) {
-      Swal.fire({ icon: "error", title: "Formato inválido", text: "Solo se permiten archivos .archive, .json o .dump", background: "var(--bg-card)", color: "var(--text-primary)" });
+      Swal.fire({ icon: "error", title: "Formato inválido", text: "Solo se permiten archivos .archive, .json, .dump o .tar.gz", background: "var(--bg-card)", color: "var(--text-primary)" });
       return;
     }
     const ok = await confirmarRestore(
@@ -247,11 +259,10 @@ export default function SuperadminBackups() {
     setUploadPct(0);
     try {
       const { data } = await restoreUpload(file, setUploadPct);
-      const w = data?.resultado?.warnings;
       Swal.fire({
         icon: "success",
         title: "Restauración completada",
-        text: w ? `Completado con ${w} advertencia(s) de merge.` : `Restaurado desde ${file.name}.`,
+        text: resumenRestore(data?.resultado, `Restaurado desde ${file.name}.`),
         background: "var(--bg-card)", color: "var(--text-primary)",
       });
       loadAll();
@@ -533,7 +544,7 @@ export default function SuperadminBackups() {
               <div style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 16 }}>
                 <p style={{ fontSize: 12, fontWeight: 700, color: "var(--text-primary)", marginBottom: 12 }}>Desde archivo externo</p>
                 <p style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 12 }}>
-                  Sube un <code>.archive</code> (MongoDB), <code>.dump</code> (PostgreSQL) o <code>.json</code> (Mongo). Ideal para mover datos entre equipos.
+                  Sube un <code>.archive</code> (MongoDB), <code>.dump</code> (PostgreSQL), <code>.json</code> (Mongo) o <code>.tar.gz</code> (imágenes/videos). Ideal para mover datos entre equipos.
                 </p>
 
                 <input
