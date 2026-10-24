@@ -20,6 +20,10 @@ export interface AuthUser {
   perfil_completo?: boolean;
   peso_inicial?:    number | null;
   foto_perfil?:     string | null;   // base64 data URI
+  // SCRUM-224: true si la contraseña actual la puso otra persona
+  // (cuenta nueva o reseteo por un administrador) -- hay que cambiarla
+  // antes de entrar al panel normal, ver store/authStore.ts.
+  debe_cambiar_password?: boolean;
 }
 
 export interface AuthState {

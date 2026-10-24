@@ -44,15 +44,30 @@ interface GymProfile {
   plan_gymPro?:     string;
   created_at?:      string;
   fecha_creacion?:  string;
-  capacidad?:       number;
-  horario_apertura?: string;
-  horario_cierre?:   string;
-  redes_sociales?: {
+  capacidad_maxima?: number;
+  horarios?: {
+    [dia: string]: { cerrado: boolean; apertura: string; cierre: string };
+  };
+  redes?: {
     instagram?: string;
     facebook?:  string;
-    web?:       string;
+    website?:   string;
   };
 }
+
+const DIAS_SEMANA: { key: string; label: string }[] = [
+  { key: 'lunes',     label: 'Lunes'     },
+  { key: 'martes',    label: 'Martes'    },
+  { key: 'miercoles', label: 'Miércoles' },
+  { key: 'jueves',    label: 'Jueves'    },
+  { key: 'viernes',   label: 'Viernes'   },
+  { key: 'sabado',    label: 'Sábado'    },
+  { key: 'domingo',   label: 'Domingo'   },
+];
+// Coincide con datetime.weekday() en Python (0 = lunes) -- ver
+// api/app/utils/horarios_gym.py::horario_de_hoy(), usado para resaltar el
+// dia de hoy en la lista.
+const HOY_INDICE = (new Date().getDay() + 6) % 7;
 
 interface InfoRowProps { icon: string; label: string; value: string }
 function InfoRow({ icon, label, value, styles, colors }: InfoRowProps & { styles: ReturnType<typeof make_styles>; colors: ReturnType<typeof useColors> }) {
@@ -280,8 +295,8 @@ export default function GymProfileScreen() {
                 <InfoRow icon="location-outline" label="Dirección" value={toStr(gym.direccion)}
                     styles={styles} colors={colors} />
               ) : null}
-              {gym.capacidad ? (
-                <InfoRow icon="people-outline" label="Capacidad" value={`${gym.capacidad} personas`}
+              {gym.capacidad_maxima ? (
+                <InfoRow icon="people-outline" label="Capacidad" value={`${gym.capacidad_maxima} personas`}
                     styles={styles} colors={colors} />
               ) : null}
               {planEtiqueta ? (
@@ -302,40 +317,40 @@ export default function GymProfileScreen() {
           )}
         </Card>
 
-        {/* Horario */}
-        {(gym.horario_apertura || gym.horario_cierre) && (
+        {/* Horario -- SCRUM-224 (item B): un horario por dia, ya no un
+            solo par global; cada dia puede marcarse cerrado. */}
+        {gym.horarios && (
           <Card>
             <Text style={styles.sectionTitle}>Horario</Text>
-            <View style={styles.scheduleRow}>
-              <View style={styles.scheduleBox}>
-                <Ionicons name="sunny-outline" size={22} color={colors.warning} />
-                <Text style={styles.scheduleLabel}>Apertura</Text>
-                <Text style={styles.scheduleTime}>{toStr(gym.horario_apertura, '--:--')}</Text>
-              </View>
-              <View style={styles.scheduleDivider} />
-              <View style={styles.scheduleBox}>
-                <Ionicons name="moon-outline" size={22} color={colors.accent} />
-                <Text style={styles.scheduleLabel}>Cierre</Text>
-                <Text style={styles.scheduleTime}>{toStr(gym.horario_cierre, '--:--')}</Text>
-              </View>
-            </View>
+            {DIAS_SEMANA.map(({ key, label }, i) => {
+              const h = gym.horarios?.[key];
+              const esHoy = i === HOY_INDICE;
+              return (
+                <View key={key} style={[styles.weekRow, esHoy && styles.weekRowToday]}>
+                  <Text style={[styles.weekDay, esHoy && styles.weekDayToday]}>{label}</Text>
+                  <Text style={h?.cerrado ? styles.weekHoursClosed : styles.weekHours}>
+                    {h?.cerrado ? 'Cerrado' : `${toStr(h?.apertura, '--:--')} – ${toStr(h?.cierre, '--:--')}`}
+                  </Text>
+                </View>
+              );
+            })}
           </Card>
         )}
 
         {/* Redes sociales */}
-        {gym.redes_sociales && (
+        {gym.redes && (
           <Card>
             <Text style={styles.sectionTitle}>Redes sociales</Text>
-            {gym.redes_sociales.instagram && (
-              <InfoRow icon="logo-instagram" label="Instagram" value={toStr(gym.redes_sociales.instagram)}
+            {gym.redes.instagram && (
+              <InfoRow icon="logo-instagram" label="Instagram" value={toStr(gym.redes.instagram)}
               styles={styles} colors={colors} />
             )}
-            {gym.redes_sociales.facebook && (
-              <InfoRow icon="logo-facebook" label="Facebook" value={toStr(gym.redes_sociales.facebook)}
+            {gym.redes.facebook && (
+              <InfoRow icon="logo-facebook" label="Facebook" value={toStr(gym.redes.facebook)}
               styles={styles} colors={colors} />
             )}
-            {gym.redes_sociales.web && (
-              <InfoRow icon="globe-outline" label="Sitio web" value={toStr(gym.redes_sociales.web)}
+            {gym.redes.website && (
+              <InfoRow icon="globe-outline" label="Sitio web" value={toStr(gym.redes.website)}
               styles={styles} colors={colors} />
             )}
           </Card>
@@ -404,5 +419,14 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   scheduleDivider: { width: 1, height: 60, backgroundColor: colors.border },
   scheduleLabel:{ color: colors.textSecondary, fontSize: 12 * fs },
   scheduleTime: { color: colors.text, fontSize: 22 * fs, fontWeight: '700' },
+  weekRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border,
+  },
+  weekRowToday: { borderBottomColor: colors.accent },
+  weekDay:      { color: colors.textSecondary, fontSize: 13 * fs, fontWeight: '600' },
+  weekDayToday: { color: colors.accent, fontWeight: '700' },
+  weekHours:       { color: colors.text, fontSize: 13 * fs, fontWeight: '600' },
+  weekHoursClosed: { color: colors.textSecondary, fontSize: 13 * fs, fontStyle: 'italic' },
 });
 }

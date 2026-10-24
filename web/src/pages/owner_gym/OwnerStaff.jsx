@@ -229,11 +229,19 @@ function StaffModal({ open, onClose, onSave, initial, saving }) {
               </Field>
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
-              <Field label={isEdit ? "Contraseña — vacío para mantener" : "Contraseña"} required={!isEdit}>
-                <IcoWrap icon={<IcoLock />}>
-                  <input style={inputSt} type="password" value={form.password} onChange={set("password")} placeholder={isEdit ? "••••••••" : "Mínimo 6 caracteres"} required={!isEdit} />
-                </IcoWrap>
-              </Field>
+              {isEdit ? (
+                <Field label="Contraseña — vacío para mantener">
+                  <IcoWrap icon={<IcoLock />}>
+                    <input style={inputSt} type="password" value={form.password} onChange={set("password")} placeholder="••••••••" />
+                  </IcoWrap>
+                </Field>
+              ) : (
+                <Field label="Contraseña">
+                  <p style={{ fontSize: 11.5, color: "var(--text-secondary)", margin: "6px 0 0" }}>
+                    Se generará una contraseña y se enviará por correo a este email.
+                  </p>
+                </Field>
+              )}
               <Field label="Rol" required>
                 <IcoWrap icon={<IcoShield />}>
                   <select style={inputSt} value={form.rol} onChange={set("rol")} required>
@@ -399,7 +407,7 @@ export default function OwnerStaff() {
   };
 
   const handleSave = async (form) => {
-    if (!form.nombre || !form.email || !form.rol || (!editing && !form.password)) {
+    if (!form.nombre || !form.email || !form.rol) {
       toast.error("Completa todos los campos requeridos");
       return;
     }

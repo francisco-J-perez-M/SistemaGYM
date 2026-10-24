@@ -8,15 +8,14 @@ import {
   FiSun, FiMoon, FiStar, FiEye, FiEyeOff, FiAlertTriangle 
 } from "react-icons/fi";
 import { GiPineTree } from "react-icons/gi";
-import { normalizarRol, ROL_PROPIETARIO, ROL_MIEMBRO, ROL_ENTRENADOR, ROL_RECEPCIONISTA } from "../../constants/roles";
+import { normalizarRol, ROL_PROPIETARIO, ROL_ADMINISTRADOR, ROL_MIEMBRO, ROL_ENTRENADOR, ROL_RECEPCIONISTA } from "../../constants/roles";
 
 export default function AuthPage() {
   // --- ESTADOS GENERALES ---
-  const [isLoginView, setIsLoginView] = useState(true); // Controla qué vista mostrar
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  
+
   // --- ESTADOS DE DATOS ---
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -65,6 +64,7 @@ export default function AuthPage() {
         peso_inicial: result.user.peso_inicial,
         perfil_completo: result.user.perfil_completo,
         primer_login: result.user.primer_login || false,
+        debe_cambiar_password: result.user.debe_cambiar_password || false,  // SCRUM-224
       };
 
       localStorage.setItem("user", JSON.stringify(userData));
@@ -73,6 +73,16 @@ export default function AuthPage() {
       // (tokens emitidos antes del rename), "Propietario" y los alias
       // informales al mismo identificador canónico.
       const userRole = normalizarRol(userData.role);
+
+      // SCRUM-224: cuenta creada por un Propietario/Administrador (miembro,
+      // staff, otro administrador) con una contraseña que no eligió esta
+      // persona -- generada al crearla o reseteada manualmente -- va PRIMERO,
+      // antes de cualquier otra redirección: no debe llegar a ningún panel
+      // (ni siquiera al wizard de onboarding del Propietario) hasta cambiarla.
+      if (userData.debe_cambiar_password) {
+        navigate("/cambiar-password-inicial");
+        return;
+      }
 
       // Primer login de dueño de gimnasio → onboarding obligatorio
       if (userRole === ROL_PROPIETARIO && userData.primer_login) {
@@ -86,7 +96,14 @@ export default function AuthPage() {
       }
 
       if (userRole === "superadmin") navigate("/superadmin");
-      else if (userRole === ROL_PROPIETARIO) navigate("/owner");
+      // HU-45 (migración 020): el Administrador de sucursal reutiliza el
+      // mismo panel que el Propietario (owner_gym) -- ver roles.js. Antes
+      // no tenía rama propia aquí y caía al "else" final (/user/dashboard,
+      // el panel de Miembro); Layout.jsx lo rechazaba de inmediato porque
+      // "administrador" no está en los roles permitidos de ese panel, y el
+      // usuario terminaba de regreso en el login tras un parpadeo del
+      // panel equivocado -- el bug reportado por el usuario.
+      else if (userRole === ROL_PROPIETARIO || userRole === ROL_ADMINISTRADOR) navigate("/owner");
       else if (userRole === ROL_ENTRENADOR) navigate("/trainer-dashboard");
       else if (userRole === ROL_RECEPCIONISTA) navigate("/receptionist-dashboard");
       else navigate("/user/dashboard");
@@ -98,158 +115,109 @@ export default function AuthPage() {
     }
   };
 
-  // --- VARIANTES DE ANIMACIÓN ---
-  // Animación para que el formulario entre desde los lados (slide effect)
-  const formVariants = {
-    hidden: (isLogin) => ({
-      opacity: 0,
-      x: isLogin ? -50 : 50,
-    }),
-    visible: {
-      opacity: 1,
-      x: 0,
-      transition: { duration: 0.4, ease: [0.22, 1, 0.36, 1] }
-    },
-    exit: (isLogin) => ({
-      opacity: 0,
-      x: isLogin ? 50 : -50,
-      transition: { duration: 0.3, ease: [0.22, 1, 0.36, 1] }
-    })
-  };
-
-  const imageSideVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { duration: 1 } }
-  };
-
   return (
-    <div className="split-login-container">
-      
-      {/* --- LADO IZQUIERDO (IMAGEN Y TEXTO DINÁMICO) --- */}
-      <AnimatePresence mode="wait">
-        <motion.div 
-          key={isLoginView ? 'login-bg' : 'register-bg'}
-          className="login-left-side"
-          variants={imageSideVariants}
-          initial="hidden"
-          animate="visible"
-          exit="hidden"
-          style={{
-            backgroundImage: isLoginView 
-              ? `linear-gradient(160deg, rgba(10,12,22,0.5) 0%, rgba(10,12,22,0.82) 100%), url('https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1470&auto=format&fit=crop')`
-              : `linear-gradient(to bottom, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.8) 100%), url('https://img.freepik.com/foto-gratis/entrenamiento-hombre-fuerte-gimnasio_1303-23478.jpg?semt=ais_user_personalization&w=740&q=80')`,
-            backgroundPosition: 'center',
-            backgroundSize: 'cover'
-          }}
-        >
-          <div className="brand-logo-container">
-            <h1 className="brand-text-logo">GYM PRO</h1>
-          </div>
-          
-          <div className="brand-hero-text">
-            <h2>{isLoginView ? "Supera tus límites," : "Transforma"}</h2>
-            <h2>{isLoginView ? "define tu futuro." : "tu cuerpo."}</h2>
-          </div>
+    <motion.div
+      className="split-login-container"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+    >
 
-          <div className="hero-indicators">
-            <motion.span className={isLoginView ? "active" : ""} />
-            <motion.span className={!isLoginView ? "active" : ""} />
-          </div>
-        </motion.div>
-      </AnimatePresence>
+      {/* BOTÓN DE TEMAS */}
+      <div className="login-theme-wrapper" ref={menuRef}>
+        <motion.button className={`theme-toggle-btn login-variant ${showThemeMenu ? 'active' : ''}`} onClick={() => setShowThemeMenu(!showThemeMenu)} type="button">
+          <span className="theme-toggle-icon">{currentTheme?.icon}</span>
+          <span className="theme-btn-text" style={{marginLeft: '8px', fontSize: '13px'}}>Tema</span>
+        </motion.button>
 
-      {/* --- LADO DERECHO (FORMULARIOS INTERCAMBIABLES) --- */}
-      <motion.div className="login-right-side" initial={{ opacity: 0, x: 100 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.8 }}>
-        
-        {/* BOTÓN DE TEMAS */}
-        <div className="login-theme-wrapper" ref={menuRef}>
-          <motion.button className={`theme-toggle-btn login-variant ${showThemeMenu ? 'active' : ''}`} onClick={() => setShowThemeMenu(!showThemeMenu)} type="button">
-            <span className="theme-toggle-icon">{currentTheme?.icon}</span>
-            <span className="theme-btn-text" style={{marginLeft: '8px', fontSize: '13px'}}>Tema</span>
-          </motion.button>
+        <AnimatePresence>
+          {showThemeMenu && (
+            <motion.div className="theme-dropdown login-dropdown-pos" initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+              {themeOptions.map((t) => (
+                <button key={t.id} className={`theme-option ${theme === t.id ? "active" : ""}`} onClick={() => { changeTheme(t.id); setShowThemeMenu(false); }} type="button">
+                  <span className="theme-icon">{t.icon}</span>
+                  <span>{t.label}</span>
+                </button>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
-          <AnimatePresence>
-            {showThemeMenu && (
-              <motion.div className="theme-dropdown login-dropdown-pos" initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-                {themeOptions.map((t) => (
-                  <button key={t.id} className={`theme-option ${theme === t.id ? "active" : ""}`} onClick={() => { changeTheme(t.id); setShowThemeMenu(false); }} type="button">
-                    <span className="theme-icon">{t.icon}</span>
-                    <span>{t.label}</span>
-                  </button>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
+      {/* --- PANEL IZQUIERDO: FORMULARIO --- */}
+      <div className="auth-form-panel">
         <div className="login-card custom-auth-card">
-          
-          {/* TABS PARA INTERCAMBIAR VISTAS */}
+
+          {/* TABS: "Iniciar Sesión" activa aquí; "Crear Cuenta" lleva al
+              wizard de alta de gimnasio (layout espejado, ver RegisterGym.jsx) */}
           <div className="auth-tabs">
-            <button className={`auth-tab ${isLoginView ? 'active' : ''}`} onClick={() => { setIsLoginView(true); setError(""); }}>
+            <button className="auth-tab active" type="button">
               Iniciar Sesión
             </button>
-            <button className="auth-tab" onClick={() => navigate("/register-gym")}>
+            <button className="auth-tab" onClick={() => navigate("/register-gym")} type="button">
               Crear Cuenta
             </button>
           </div>
 
-          <AnimatePresence mode="wait">
-            {/* =========================================
-                VISTA DE LOGIN
-            ========================================= */}
-            {isLoginView && (
-              <motion.div key="login" variants={formVariants} initial="hidden" animate="visible" exit="exit">
-                <div className="login-header">
-                  <h2>Bienvenido de nuevo</h2>
-                  <p className="login-subtitle">Ingresa tus credenciales para continuar.</p>
-                </div>
+          <div className="login-header">
+            <h2>Bienvenido de nuevo</h2>
+            <p className="login-subtitle">Ingresa tus credenciales para continuar.</p>
+          </div>
 
-                <form onSubmit={handleLoginSubmit} className="login-form">
-                  <div className="form-group">
-                    <label htmlFor="email">Correo electrónico</label>
-                    <div className="input-dark-container">
-                      <input id="email" type="email" placeholder="ejemplo@correo.com" value={email} onChange={(e) => setEmail(e.target.value)} required disabled={loading} />
-                    </div>
-                  </div>
+          <form onSubmit={handleLoginSubmit} className="login-form">
+            <div className="form-group">
+              <label htmlFor="email">Correo electrónico</label>
+              <div className="input-dark-container">
+                <input id="email" type="email" placeholder="ejemplo@correo.com" value={email} onChange={(e) => setEmail(e.target.value)} required disabled={loading} />
+              </div>
+            </div>
 
-                  <div className="form-group">
-                    <label htmlFor="password">Contraseña</label>
-                    <div className="input-dark-container password-input-wrapper">
-                      <input id="password" type={showPassword ? "text" : "password"} placeholder="******" value={password} onChange={(e) => setPassword(e.target.value)} required disabled={loading} />
-                      <button type="button" className="password-toggle-btn" onClick={() => setShowPassword(!showPassword)}>
-                        {showPassword ? <FiEye /> : <FiEyeOff />}
-                      </button>
-                    </div>
-                  </div>
+            <div className="form-group">
+              <label htmlFor="password">Contraseña</label>
+              <div className="input-dark-container password-input-wrapper">
+                <input id="password" type={showPassword ? "text" : "password"} placeholder="******" value={password} onChange={(e) => setPassword(e.target.value)} required disabled={loading} />
+                <button type="button" className="password-toggle-btn" onClick={() => setShowPassword(!showPassword)}>
+                  {showPassword ? <FiEye /> : <FiEyeOff />}
+                </button>
+              </div>
+            </div>
 
-                  <div style={{ textAlign: "right", marginTop: -8, marginBottom: 4 }}>
-                    <Link to="/forgot-password" style={{ fontSize: 13, color: "var(--accent, #6c63ff)", textDecoration: "none" }}>
-                      ¿Olvidaste tu contraseña?
-                    </Link>
-                  </div>
+            <div style={{ textAlign: "right", marginTop: -8, marginBottom: 4 }}>
+              <Link to="/forgot-password" style={{ fontSize: 13, color: "var(--accent, #6c63ff)", textDecoration: "none" }}>
+                ¿Olvidaste tu contraseña?
+              </Link>
+            </div>
 
-                  {error && (
-                    <div className="error-message">
-                      <FiAlertTriangle /> <span>{error}</span>
-                    </div>
-                  )}
-
-                  <motion.button type="submit" className="login-button" disabled={loading} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                    {loading ? <span className="spinner" /> : "Ingresar al sistema"}
-                  </motion.button>
-
-                  <p style={{ textAlign: "center", marginTop: 14, fontSize: 13 }}>
-                    <a href="/privacidad" target="_blank" rel="noopener noreferrer" style={{ color: "var(--text-secondary, #94a3b8)", textDecoration: "none" }}>
-                      Política de Privacidad
-                    </a>
-                  </p>
-                </form>
-              </motion.div>
+            {error && (
+              <div className="error-message">
+                <FiAlertTriangle /> <span>{error}</span>
+              </div>
             )}
-          </AnimatePresence>
+
+            <motion.button type="submit" className="login-button" disabled={loading} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+              {loading ? <span className="spinner" /> : "Ingresar al sistema"}
+            </motion.button>
+
+            <p style={{ textAlign: "center", marginTop: 14, fontSize: 13 }}>
+              <a href="/privacidad" target="_blank" rel="noopener noreferrer" style={{ color: "var(--text-secondary, #94a3b8)", textDecoration: "none" }}>
+                Política de Privacidad
+              </a>
+            </p>
+          </form>
         </div>
-      </motion.div>
-    </div>
+      </div>
+
+      {/* --- PANEL DERECHO: IMAGEN DE MARCA --- */}
+      <div
+        className="auth-image-panel"
+        style={{
+          backgroundImage: "url('/auth-login-hero.jpg')",
+          // El logo/leyenda de esta imagen quedan hacia la izquierda;
+          // se ancla el recorte ahí para no perderlos en pantallas angostas.
+          backgroundPosition: 'left center',
+        }}
+      />
+    </motion.div>
   );
 }

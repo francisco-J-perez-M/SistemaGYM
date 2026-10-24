@@ -170,6 +170,22 @@ function TimePicker({ value, onChange }) {
 
 const STEPS = ["Mi Gimnasio", "¡Listo!"];
 
+// SCRUM-224 (item B): un dia por fila, mismas claves que
+// utils/horarios_gym.py en el backend.
+const DIAS_SEMANA = [
+  { key: "lunes",     label: "Lunes"     },
+  { key: "martes",    label: "Martes"    },
+  { key: "miercoles", label: "Miércoles" },
+  { key: "jueves",    label: "Jueves"    },
+  { key: "viernes",   label: "Viernes"   },
+  { key: "sabado",    label: "Sábado"    },
+  { key: "domingo",   label: "Domingo"   },
+];
+
+const horarioDiaDefault = () => ({ cerrado: false, apertura: "06:00", cierre: "22:00" });
+const horariosDefault = () =>
+  DIAS_SEMANA.reduce((acc, { key }) => ({ ...acc, [key]: horarioDiaDefault() }), {});
+
 const slide = {
   hidden:  { opacity: 0, x: 40 },
   visible: { opacity: 1, x: 0, transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] } },
@@ -197,14 +213,34 @@ export default function OwnerOnboarding() {
   const [gymForm, setGymForm] = useState({
     descripcion:      "",
     direccion:        "",
-    horario_apertura: "06:00",
-    horario_cierre:   "22:00",
+    horarios:         horariosDefault(),
     capacidad_maxima: "",
     instagram:        "",
     facebook:         "",
   });
 
   const gf = (field) => (val) => setGymForm(prev => ({ ...prev, [field]: val }));
+
+  // Actualiza un campo (cerrado/apertura/cierre) de UN dia dentro de horarios.
+  const setHorarioDia = (dia, campo, valor) => setGymForm(prev => ({
+    ...prev,
+    horarios: { ...prev.horarios, [dia]: { ...prev.horarios[dia], [campo]: valor } },
+  }));
+
+  // "Copiar a todos los días": toma el horario del primer dia abierto y lo
+  // aplica al resto SIN tocar su estado cerrado/abierto -- evita que un
+  // gimnasio con domingo cerrado lo reabra por error solo por usar el atajo.
+  const copiarATodosLosDias = () => {
+    const [, primero] = Object.entries(gymForm.horarios).find(([, h]) => !h.cerrado) || [];
+    if (!primero) return;
+    setGymForm(prev => ({
+      ...prev,
+      horarios: DIAS_SEMANA.reduce((acc, { key }) => ({
+        ...acc,
+        [key]: { ...prev.horarios[key], apertura: primero.apertura, cierre: primero.cierre },
+      }), {}),
+    }));
+  };
 
   const handleSubmit = async () => {
     setError(""); setLoading(true);
@@ -215,8 +251,7 @@ export default function OwnerOnboarding() {
         gym: {
           descripcion:      gymForm.descripcion,
           direccion:        gymForm.direccion,
-          horario_apertura: gymForm.horario_apertura,
-          horario_cierre:   gymForm.horario_cierre,
+          horarios:         gymForm.horarios,
           capacidad_maxima: gymForm.capacidad_maxima ? parseInt(gymForm.capacidad_maxima) : 0,
           redes: {
             instagram: gymForm.instagram,
@@ -242,8 +277,18 @@ export default function OwnerOnboarding() {
   const gymNombre = storedUser.nombre || "Administrador";
 
   return (
+    // SCRUM-224 (item A): minHeight:100vh + align-items:center sin overflow
+    // propio dejaba el contenido "clippeado" cuando el formulario (paso 0,
+    // con los horarios por dia) era mas alto que el viewport -- un flex
+    // centrado que desborda no deja desplazarse hasta la parte recortada,
+    // asi que el pie del formulario quedaba fuera del layout sin forma de
+    // llegar a el. overflowY:auto en el propio contenedor resuelve esto
+    // (mismo criterio que el scroll confinado de AuthPage/RegisterGym, ver
+    // Seccion 6 de CSSUnificado.css, aunque aqui no hay panel hermano que
+    // proteger -- solo se necesita que la pagina completa pueda desplazarse).
     <div style={{
       minHeight: "100vh",
+      overflowY: "auto",
       background: "var(--bg-input)",
       display: "flex",
       alignItems: "center",
@@ -259,6 +304,7 @@ export default function OwnerOnboarding() {
         padding: "36px 36px 32px",
         boxShadow: "0 24px 60px rgba(0,0,0,0.5)",
         transition: "max-width 0.4s ease",
+        margin: "auto 0",
       }}>
 
         {/* Logo */}
@@ -337,25 +383,72 @@ export default function OwnerOnboarding() {
                   </div>
                 ))}
 
-                {/* Horario — TimePicker custom */}
-                {[
-                  { field: "horario_apertura", label: "Apertura" },
-                  { field: "horario_cierre",   label: "Cierre"   },
-                ].map(({ field, label }) => (
-                  <div key={field}>
-                    <label style={{
-                      fontSize: 11, fontWeight: 600, color: "var(--text-secondary)",
-                      letterSpacing: "0.5px", textTransform: "uppercase",
-                      marginBottom: 5, display: "block",
-                    }}>
-                      {label}
-                    </label>
-                    <TimePicker
-                      value={gymForm[field]}
-                      onChange={v => gf(field)(v)}
-                    />
-                  </div>
-                ))}
+              </div>
+
+              {/* Horario por día — SCRUM-224 (item B) */}
+              <div style={{ marginTop: 18 }}>
+                <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 8 }}>
+                  <label style={{
+                    fontSize: 11, fontWeight: 600, color: "var(--text-secondary)",
+                    letterSpacing: "0.5px", textTransform: "uppercase",
+                  }}>
+                    Horario de apertura
+                  </label>
+                  <button
+                    type="button"
+                    onClick={copiarATodosLosDias}
+                    style={{
+                      background: "transparent", border: "none", cursor: "pointer",
+                      color: "var(--accent)", fontSize: 11.5, fontWeight: 600, padding: 0,
+                    }}
+                  >
+                    Copiar a todos los días
+                  </button>
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {DIAS_SEMANA.map(({ key, label }) => {
+                    const h = gymForm.horarios[key];
+                    return (
+                      <div
+                        key={key}
+                        style={{
+                          display: "flex", alignItems: "center", gap: 10,
+                          padding: "8px 12px",
+                          background: "var(--bg-input)",
+                          border: "1px solid var(--border-dark)",
+                          borderRadius: "var(--r-md, 8px)",
+                        }}
+                      >
+                        <span style={{ width: 72, flexShrink: 0, fontSize: 12.5, fontWeight: 600, color: "var(--text-primary)" }}>
+                          {label}
+                        </span>
+
+                        <label style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0, cursor: "pointer", userSelect: "none" }}>
+                          <input
+                            type="checkbox"
+                            checked={h.cerrado}
+                            onChange={e => setHorarioDia(key, "cerrado", e.target.checked)}
+                            style={{ cursor: "pointer" }}
+                          />
+                          <span style={{ fontSize: 11.5, color: "var(--text-secondary)" }}>Cerrado</span>
+                        </label>
+
+                        {h.cerrado ? (
+                          <span style={{ fontSize: 12, color: "var(--text-secondary)", fontStyle: "italic" }}>
+                            Sin servicio
+                          </span>
+                        ) : (
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
+                            <TimePicker value={h.apertura} onChange={v => setHorarioDia(key, "apertura", v)} />
+                            <span style={{ color: "var(--text-secondary)", fontSize: 12 }}>a</span>
+                            <TimePicker value={h.cierre} onChange={v => setHorarioDia(key, "cierre", v)} />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
 
               {error && (
