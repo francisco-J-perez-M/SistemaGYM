@@ -9,7 +9,7 @@ import {
   FiCrosshair, FiSun, FiMoon, FiCoffee, FiShoppingCart, FiCheck,
   FiClipboard, FiUser,
 } from "react-icons/fi";
-import { GiMeal, GiWeightLiftingUp, GiSalad, GiAvocado, GiMortar } from "react-icons/gi";
+import { GiMeal } from "react-icons/gi";
 import "../../css/CSSUnificado.css";
 
 /* ─── helpers ─────────────────────────────────────────────────── */
@@ -26,12 +26,12 @@ const COMIDAS = ["Desayuno", "Snack Mañana", "Almuerzo", "Merienda", "Cena"];
 /* ── categoría → icono ─── */
 const CAT_ICON = {
   "General":            FiGrid,
-  "Alto en Proteína":   GiWeightLiftingUp,
+  "Alto en Proteína":   FiActivity,
   "Bajo en Calorías":   FiTrendingDown,
   "Pre-Entrenamiento":  FiZap,
-  "Post-Entrenamiento": FiActivity,
-  "Vegetariana":        GiSalad,
-  "Keto":               GiAvocado,
+  "Post-Entrenamiento": FiAward,
+  "Vegetariana":        FiFeather,
+  "Keto":               FiCrosshair,
   "Desayuno":           FiSun,
   "Cena":               FiMoon,
   "Snack":              FiCoffee,
@@ -198,7 +198,7 @@ function RecetaCard({ rec, ownUserId, onEdit, onDelete, onConsume }) {
                     <h5 style={{ fontSize:11, fontWeight:700, textTransform:"uppercase",
                       letterSpacing:".05em", color:"var(--text-secondary)", margin:"0 0 8px",
                       display:"flex", alignItems:"center", gap:5 }}>
-                      <GiMortar size={12}/> Preparación
+                      <FiList size={12}/> Preparación
                     </h5>
                     {rec.pasos.map((paso, i) => (
                       <div key={i} style={{ fontSize:12, color:"var(--text-primary)", padding:"4px 0",
