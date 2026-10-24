@@ -257,12 +257,4 @@ export const trainerService = {
     });
   },
 
-  updateRoutine: async (routineId, routineData) => {
-    return await apiFetch(`${API_BASE_URL}/trainer/routines/${routineId}`, {
-      method: 'PUT',
-      body: JSON.stringify(routineData),
-    });
-  },
-
-  deleteRoutine: async (routineId) => {
-    return await apiFetch(`${API_BASE
+  updateRoutine: async (
