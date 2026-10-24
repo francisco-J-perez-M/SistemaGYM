@@ -565,7 +565,7 @@ function TabCancelaciones() {
   const fetchData = useCallback(async (p = 1) => {
     setLoading(true); setError(null);
     try {
-      const r = await fetch(`${API_BASE}/api/analytics/cancelaciones?page=${p}&per_page=15`, { headers });
+      const r = await fetch(`${API_BASE}/api/analytics/cancelaciones?page=${p}&per_page=6`, { headers });
       if (!r.ok) throw new Error(`Error ${r.status}`);
       const j = await r.json();
       setData(j);
@@ -831,7 +831,7 @@ function TabCancelaciones() {
                   display: "flex", alignItems: "center", gap: 14, padding: "12px 16px",
                   background: "var(--bg-input)", borderRadius: 10, borderLeft: `3px solid ${col}`,
                 }}>
-                  <div style={{ width: 24, textAlign: "center", fontWeight: 800, color: col, fontSize: 15 }}>{(page - 1) * (data.per_page || 15) + i + 1}</div>
+                  <div style={{ width: 24, textAlign: "center", fontWeight: 800, color: col, fontSize: 15 }}>{(page - 1) * (data.per_page || 6) + i + 1}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                       <span style={{ fontWeight: 700, color: "var(--text-primary)", fontSize: 14 }}>{p.nombre || p.id_miembro}</span>

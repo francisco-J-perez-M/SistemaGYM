@@ -31,7 +31,7 @@ function StatusBadge({ status }) {
   );
 }
 
-const PER_PAGE = 20;
+const PER_PAGE = 10;
 
 export default function ReceptionistMembers() {
   const navigate   = useNavigate();
