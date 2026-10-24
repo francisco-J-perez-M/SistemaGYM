@@ -146,17 +146,17 @@ export default function UserDashboard() {
               initial={{ opacity:0, height:0 }} animate={{ opacity:1, height:"auto" }}
               style={{
                 display:"flex", alignItems:"center", gap:12, padding:"12px 16px",
-                background:"rgba(245,158,11,.1)", border:"1px solid rgba(245,158,11,.3)",
+                background:"var(--warning-bg)", border:"1px solid var(--warning)",
                 borderRadius:10, marginBottom:20, fontSize:14,
               }}
             >
-              <FiAlertTriangle color="#fbbf24" style={{ flexShrink:0 }} />
+              <FiAlertTriangle color="var(--warning)" style={{ flexShrink:0 }} />
               <span style={{ color:"var(--text-primary)" }}>
                 Tu membresía <strong>{membership.plan}</strong> vence en{" "}
-                <strong style={{ color:"#fbbf24" }}>{membership.dias_restantes} días</strong>.{" "}
+                <strong style={{ color:"var(--warning)" }}>{membership.dias_restantes} días</strong>.{" "}
                 <span
                   onClick={() => navigate("/user/renew")}
-                  style={{ color:"#fbbf24", textDecoration:"underline", cursor:"pointer" }}
+                  style={{ color:"var(--warning)", textDecoration:"underline", cursor:"pointer" }}
                 >
                   Renovar ahora
                 </span>
@@ -387,7 +387,9 @@ export default function UserDashboard() {
                       <div style={{ fontSize:11, color:"var(--text-secondary)", marginBottom:2 }}>Vence</div>
                       <div style={{
                         fontSize:13, fontWeight:700,
-                        color: membership.dias_restantes <= 7 ? "#f59e0b" : "#22c55e",
+                        color: membership.dias_restantes <= 0 ? "var(--danger)"
+                             : membership.dias_restantes <= 7 ? "var(--warning)"
+                             : "var(--success)",
                       }}>
                         {membership.dias_restantes > 0 ? `${membership.dias_restantes} días` : "Vencida"}
                       </div>

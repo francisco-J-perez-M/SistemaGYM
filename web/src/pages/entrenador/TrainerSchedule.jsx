@@ -670,6 +670,86 @@ function HistorialTab({ onNotesFn, onDeleteFn }) {
   );
 }
 
+// ─── Citas (agendadas por recepción) ──────────────────────────────────────────
+// Antes de SCRUM-97, recepción agendaba la cita pero el entrenador no tenía
+// forma de verla: solo existía en la vista de recepción. Este tab consume el
+// nuevo endpoint de solo lectura /api/trainer/citas.
+const CITA_ESTADO_CFG = {
+  pendiente:   { label: "Pendiente",  color: "var(--warning)", bg: "rgba(245,158,11,.15)" },
+  confirmada:  { label: "Confirmada", color: "var(--success)", bg: "rgba(34,197,94,.15)"  },
+  cancelada:   { label: "Cancelada",  color: "var(--danger)",  bg: "rgba(239,68,68,.15)"  },
+  completada:  { label: "Completada", color: "var(--text-secondary)", bg: "var(--bg-input)" },
+};
+
+function CitasTab() {
+  const [citas,   setCitas]   = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error,   setError]   = useState("");
+
+  const cargar = useCallback(async () => {
+    setLoading(true); setError("");
+    try {
+      setCitas(await trainerService.getCitas());
+    } catch (e) {
+      setError(e.message || "No se pudieron cargar las citas");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { cargar(); }, [cargar]);
+
+  if (loading) return <div style={{ padding:40, textAlign:"center", color:"var(--text-secondary)" }}>Cargando…</div>;
+  if (error) return (
+    <div style={{ background:"rgba(239,68,68,.1)", border:"1px solid var(--danger)",
+      borderRadius:10, padding:"12px 16px", color:"var(--danger)", fontSize:13,
+      display:"flex", gap:10, alignItems:"center" }}>
+      <FiAlertCircle size={15} /> {error}
+      <button onClick={cargar} style={{ marginLeft:"auto", background:"none", border:"none",
+        cursor:"pointer", color:"var(--danger)", textDecoration:"underline", fontSize:12 }}>
+        Reintentar
+      </button>
+    </div>
+  );
+  if (citas.length === 0) return (
+    <div style={{ padding:40, textAlign:"center", color:"var(--text-secondary)" }}>
+      <FiCalendar size={28} style={{ marginBottom:10, opacity:.6 }} />
+      <p>No tienes citas agendadas por recepción todavía.</p>
+    </div>
+  );
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:10, maxWidth:640 }}>
+      {citas.map((c) => {
+        const cfg = CITA_ESTADO_CFG[c.status] || { label: c.status, color: "var(--text-secondary)", bg: "var(--bg-input)" };
+        return (
+          <div key={c._id} style={{ display:"flex", alignItems:"center", gap:14, padding:"14px 16px",
+            background:"var(--bg-card)", border:"1px solid var(--border)", borderRadius:12 }}>
+            <div style={{ width:44, height:44, borderRadius:10, background:"var(--bg-input)",
+              display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+              <FiCalendar size={16} color="var(--accent)" />
+            </div>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                <span style={{ fontWeight:700, color:"var(--text-primary)", fontSize:14 }}>{c.type}</span>
+                <span style={{ fontSize:11, fontWeight:700, padding:"2px 8px", borderRadius:99,
+                  background:cfg.bg, color:cfg.color }}>
+                  {cfg.label}
+                </span>
+              </div>
+              <p style={{ margin:"4px 0 0", fontSize:12.5, color:"var(--text-secondary)", display:"flex", gap:12, flexWrap:"wrap" }}>
+                <span><FiClock size={11} style={{ marginRight:4 }} />{c.date} · {c.time}</span>
+                <span><FiUser size={11} style={{ marginRight:4 }} />{c.client}</span>
+              </p>
+              {c.notes && <p style={{ margin:"4px 0 0", fontSize:12, color:"var(--text-secondary)" }}>{c.notes}</p>}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export default function TrainerSchedule() {
   const todayRef = useRef((() => {
@@ -809,6 +889,7 @@ export default function TrainerSchedule() {
           {[
             { id:"agenda",    label:"Agenda",    icon:<FiCalendar size={13}/> },
             { id:"historial", label:"Historial", icon:<FiList size={13}/>    },
+            { id:"citas",     label:"Citas",      icon:<FiUser size={13}/>    },
           ].map(t => (
             <button key={t.id} onClick={() => setActiveTab(t.id)}
               style={{ display:"flex", alignItems:"center", gap:6, padding:"6px 14px",
@@ -1039,6 +1120,13 @@ export default function TrainerSchedule() {
               onNotesFn={setEditNotesSession}
               onDeleteFn={setDeleteSession}
             />
+          </motion.div>
+        )}
+
+        {activeTab === "citas" && (
+          <motion.div key="citas"
+            initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:-8 }}>
+            <CitasTab />
           </motion.div>
         )}
       </AnimatePresence>

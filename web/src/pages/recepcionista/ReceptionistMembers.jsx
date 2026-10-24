@@ -31,25 +31,35 @@ function StatusBadge({ status }) {
   );
 }
 
+const PER_PAGE = 20;
+
 export default function ReceptionistMembers() {
   const navigate   = useNavigate();
-  const [members,  setMembers]  = useState([]);
   const [filtered, setFiltered] = useState([]);
   const [search,   setSearch]   = useState("");
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState(null);
+  const [page,     setPage]     = useState(1);
+  const [pages,    setPages]    = useState(1);
+  const [resumen,  setResumen]  = useState({ total: 0, activa: 0, por_vencer: 0, vencida: 0 });
 
-  const fetchMembers = useCallback(async () => {
+  // La búsqueda y el resumen por estado se resuelven en el servidor sobre todo
+  // el padrón; el navegador solo recibe la página que va a mostrar.
+  const fetchMembers = useCallback(async (p = 1, q = "") => {
     setLoading(true);
     setError(null);
     try {
       const token = localStorage.getItem("token");
       const res = await axios.get(`${API_URL}/members`, {
         headers: { Authorization: `Bearer ${token}` },
+        params: { page: p, per_page: PER_PAGE, ...(q ? { q } : {}) },
       });
-      const list = res.data.miembros || res.data || [];
-      setMembers(list);
-      setFiltered(list);
+      setFiltered(res.data.miembros || []);
+      setPage(res.data.page || p);
+      setPages(res.data.pages || 1);
+      setResumen(res.data.resumen
+        ? { total: res.data.total, ...res.data.resumen }
+        : { total: res.data.total ?? 0, activa: 0, por_vencer: 0, vencida: 0 });
     } catch (err) {
       setError("No se pudo cargar la lista de miembros.");
       console.error(err);
@@ -61,27 +71,23 @@ export default function ReceptionistMembers() {
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) { navigate("/", { replace: true }); return; }
-    fetchMembers();
-  }, [fetchMembers, navigate]);
+    fetchMembers(1, "");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
+  // Buscar reinicia a la página 1; se debouncea para no disparar una petición
+  // por cada tecla.
   useEffect(() => {
-    const q = search.toLowerCase();
-    setFiltered(
-      q
-        ? members.filter(m =>
-            (m.nombre || "").toLowerCase().includes(q) ||
-            (m.email  || "").toLowerCase().includes(q) ||
-            (m.telefono || "").includes(q)
-          )
-        : members
-    );
-  }, [search, members]);
+    const t = setTimeout(() => fetchMembers(1, search), search ? 400 : 0);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
 
   const stats = {
-    total:      members.length,
-    activos:    members.filter(m => m.mem_status === "activa").length,
-    por_vencer: members.filter(m => m.mem_status === "por_vencer").length,
-    vencidos:   members.filter(m => m.mem_status === "vencida").length,
+    total:      resumen.total,
+    activos:    resumen.activa,
+    por_vencer: resumen.por_vencer,
+    vencidos:   resumen.vencida,
   };
 
   return (
@@ -101,7 +107,7 @@ export default function ReceptionistMembers() {
           </p>
         </div>
         <motion.button
-          onClick={fetchMembers}
+          onClick={() => fetchMembers(page, search)}
           whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
           style={{
             display: "flex", alignItems: "center", gap: "6px",
@@ -234,6 +240,28 @@ export default function ReceptionistMembers() {
           </div>
         )}
       </div>
+
+      {pages > 1 && (
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginTop: 16 }}>
+          <button
+            disabled={page <= 1}
+            onClick={() => fetchMembers(page - 1, search)}
+            style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "7px 14px", fontSize: 13, fontWeight: 600,
+              cursor: page <= 1 ? "default" : "pointer", opacity: page <= 1 ? 0.5 : 1,
+              background: "var(--bg-input)", color: "var(--text-secondary)" }}>
+            ← Anterior
+          </button>
+          <span style={{ padding: "7px 14px", fontSize: 13, color: "var(--text-secondary)" }}>{page} / {pages}</span>
+          <button
+            disabled={page >= pages}
+            onClick={() => fetchMembers(page + 1, search)}
+            style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "7px 14px", fontSize: 13, fontWeight: 600,
+              cursor: page >= pages ? "default" : "pointer", opacity: page >= pages ? 0.5 : 1,
+              background: "var(--bg-input)", color: "var(--text-secondary)" }}>
+            Siguiente →
+          </button>
+        </div>
+      )}
     </div>
   );
 }

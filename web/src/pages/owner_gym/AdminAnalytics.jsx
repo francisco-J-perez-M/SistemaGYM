@@ -557,16 +557,19 @@ function TabCancelaciones() {
   const [trainLoading, setTL]   = useState(false);
   const [error, setError]       = useState(null);
   const [trainMsg, setTrainMsg] = useState(null);
+  const [page, setPage]         = useState(1);
 
   const token   = localStorage.getItem("token");
   const headers = { Authorization: `Bearer ${token}`, ...gymHeader() };
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (p = 1) => {
     setLoading(true); setError(null);
     try {
-      const r = await fetch(`${API_BASE}/api/analytics/cancelaciones`, { headers });
+      const r = await fetch(`${API_BASE}/api/analytics/cancelaciones?page=${p}&per_page=15`, { headers });
       if (!r.ok) throw new Error(`Error ${r.status}`);
-      setData(await r.json());
+      const j = await r.json();
+      setData(j);
+      setPage(j.pagina || p);
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
   // headers deriva de localStorage (estable durante la sesión); no debe reactivar el callback
@@ -579,7 +582,7 @@ function TabCancelaciones() {
       const r = await fetch(`${API_BASE}/api/analytics/cancelaciones/train`, { method: "POST", headers });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || "Error");
-      setData(j); setTrainMsg("Análisis actualizado correctamente");
+      setData(j); setPage(1); setTrainMsg("Análisis actualizado correctamente");
     } catch (e) { setError(e.message); }
     finally { setTL(false); }
   };
@@ -588,7 +591,7 @@ function TabCancelaciones() {
   const exportPDF = () => {
     if (!data) return;
     const now   = new Date().toLocaleString("es-MX");
-    const preds = (data.predicciones || []).slice(0, 50);
+    const preds = (data.predicciones_export || []).slice(0, 50);
     const total = (data.resumen?.riesgo_alto||0) + (data.resumen?.riesgo_medio||0) + (data.resumen?.activos||0);
 
     const distRows = [
@@ -701,7 +704,7 @@ function TabCancelaciones() {
     win.onload = () => win.print();
   };
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { fetchData(page); }, [fetchData, page]);
 
   const distribucion = [
     { name: "Atención urgente",   value: data?.resumen?.riesgo_alto  || 0, fill: DANGER  },
@@ -715,10 +718,9 @@ function TabCancelaciones() {
     valor:   parseFloat((f.importancia || 0).toFixed(3)),
   }));
 
-  // Top miembros en riesgo (alto + medio)
-  const enRiesgo = (data?.predicciones || [])
-    .filter(p => p.riesgo === "alto" || p.riesgo === "medio")
-    .slice(0, 15);
+  // Página actual de miembros en riesgo (alto + medio), ya paginada por el servidor
+  const enRiesgo = data?.predicciones_pagina || [];
+  const totalPaginas = data?.paginas || 1;
 
   if (loading) return <LoadingSpinner />;
   if (error || !data || data.error) return (
@@ -726,7 +728,7 @@ function TabCancelaciones() {
       icon={<FiBell />}
       title="Todavía no hay datos para mostrar"
       description={data?.error || "Para detectar qué miembros están en riesgo de dejar el gimnasio necesitamos su historial de visitas y pagos. En cuanto haya miembros con actividad, el análisis aparecerá aquí automáticamente."}
-      onRetry={fetchData}
+      onRetry={() => fetchData(1)}
     />
   );
 
@@ -829,7 +831,7 @@ function TabCancelaciones() {
                   display: "flex", alignItems: "center", gap: 14, padding: "12px 16px",
                   background: "var(--bg-input)", borderRadius: 10, borderLeft: `3px solid ${col}`,
                 }}>
-                  <div style={{ width: 24, textAlign: "center", fontWeight: 800, color: col, fontSize: 15 }}>{i + 1}</div>
+                  <div style={{ width: 24, textAlign: "center", fontWeight: 800, color: col, fontSize: 15 }}>{(page - 1) * (data.per_page || 15) + i + 1}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                       <span style={{ fontWeight: 700, color: "var(--text-primary)", fontSize: 14 }}>{p.nombre || p.id_miembro}</span>
@@ -861,6 +863,29 @@ function TabCancelaciones() {
               );
             })}
           </div>
+
+          {/* Paginación server-side — mismo patrón usado en las tablas del Superadministrador */}
+          {totalPaginas > 1 && (
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginTop: 16 }}>
+              <button
+                disabled={page <= 1}
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                style={{ border: "none", borderRadius: 8, padding: "7px 14px", fontSize: 13, fontWeight: 600,
+                  cursor: page <= 1 ? "default" : "pointer", opacity: page <= 1 ? 0.5 : 1,
+                  background: "rgba(255,255,255,.06)", color: "var(--text-secondary)" }}>
+                ← Anterior
+              </button>
+              <span style={{ padding: "7px 14px", fontSize: 13, color: "var(--text-secondary)" }}>{page} / {totalPaginas}</span>
+              <button
+                disabled={page >= totalPaginas}
+                onClick={() => setPage(p => Math.min(totalPaginas, p + 1))}
+                style={{ border: "none", borderRadius: 8, padding: "7px 14px", fontSize: 13, fontWeight: 600,
+                  cursor: page >= totalPaginas ? "default" : "pointer", opacity: page >= totalPaginas ? 0.5 : 1,
+                  background: "rgba(255,255,255,.06)", color: "var(--text-secondary)" }}>
+                Siguiente →
+              </button>
+            </div>
+          )}
         </>
       )}
     </div>

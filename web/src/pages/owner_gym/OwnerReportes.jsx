@@ -109,7 +109,7 @@ export default function OwnerReportes() {
     }
     setGenerando(true);
     try {
-      const { data } = await descargarReportePdf({
+      const data = await descargarReportePdf({
         anio,
         mes,
         secciones: secciones.join(","),
@@ -117,12 +117,20 @@ export default function OwnerReportes() {
         ...(graficas ? { graficas: 1 } : {}),
       });
 
+      // El backend ya arma el nombre del archivo (gimnasio + periodo, sin
+      // acentos ni espacios) en el header Content-Disposition. Se respeta ese
+      // nombre en vez de inventar uno genérico aquí, para que dos reportes del
+      // mismo tipo y distinto periodo nunca colisionen de nombre.
+      const disposicion = data.headers?.["content-disposition"] || data.headers?.["Content-Disposition"];
+      const match = /filename="?([^";]+)"?/i.exec(disposicion || "");
+      const nombreArchivo = match?.[1] || `Reporte_${anio}-${String(mes || 0).padStart(2, "0")}.pdf`;
+
       // Se crea un enlace temporal en memoria para disparar la descarga; el
       // blob se libera después para no dejar el objeto colgando.
-      const url = URL.createObjectURL(new Blob([data], { type: "application/pdf" }));
+      const url = URL.createObjectURL(new Blob([data.data], { type: "application/pdf" }));
       const a = document.createElement("a");
       a.href = url;
-      a.download = `Reporte_${anio}-${String(mes || 0).padStart(2, "0")}.pdf`;
+      a.download = nombreArchivo;
       document.body.appendChild(a);
       a.click();
       a.remove();
