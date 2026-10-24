@@ -1,48 +1,57 @@
 /**
  * UserWorkoutLog.jsx — Registrar entrenamiento (bitácora del miembro).
  *
- * El miembro registra los ejercicios que hizo (series, repeticiones y peso
- * levantado) y, al terminar, su peso corporal del día. Eso:
- *   - guarda el entrenamiento en su bitácora,
+ * El miembro SELECCIONA una de sus rutinas (propia o asignada por su entrenador)
+ * y un día; los ejercicios se cargan desde ahí (no se escriben a mano). Solo
+ * ajusta repeticiones y peso de cada serie. Al guardar:
+ *   - se registra el entrenamiento en su bitácora,
  *   - cuenta como asistencia,
- *   - actualiza automáticamente sus métricas, gráficas y predicción de peso.
+ *   - se calculan automáticamente las calorías quemadas,
+ *   - y si captura su peso del día, se actualizan sus métricas y predicción.
  * Solo iconos (react-icons), sin emojis.
  */
 import { useState, useEffect, useCallback } from "react";
 import {
   FiPlus, FiTrash2, FiSave, FiActivity, FiCalendar, FiClock,
-  FiTrendingUp, FiCheckCircle, FiRefreshCw, FiBarChart2,
+  FiTrendingUp, FiCheckCircle, FiRefreshCw, FiBarChart2, FiList,
 } from "react-icons/fi";
 import { GiMuscleUp } from "react-icons/gi";
-import { getUserDashboard, completeWorkout, getWorkouts } from "../../api/workouts";
+import { getUserRoutines, completeWorkout, getWorkouts } from "../../api/workouts";
+import { useNavigate } from "react-router-dom";
 import "../../css/CSSUnificado.css";
 
 const emptySerie = () => ({ repeticiones: "", peso: "" });
-const emptyExercise = () => ({ nombre: "", series: [emptySerie()] });
 
-// "3x12" -> 3 series de 12 reps
-function parseSets(setsStr) {
-  const m = String(setsStr || "").match(/(\d+)\s*x\s*(\d+)/i);
-  if (!m) return [emptySerie()];
-  const n = Math.min(8, parseInt(m[1], 10) || 1);
-  const reps = m[2] || "";
-  return Array.from({ length: n }, () => ({ repeticiones: reps, peso: "" }));
+// Construye las series editables a partir de un ejercicio de la rutina.
+function seriesFrom(ej) {
+  const n = Math.min(10, Math.max(1, parseInt(ej.series, 10) || 3));
+  const reps = ej.reps ? String(ej.reps) : "";
+  const peso = ej.peso ? String(ej.peso) : "";
+  return Array.from({ length: n }, () => ({ repeticiones: reps, peso }));
 }
 
 export default function UserWorkoutLog() {
-  const [nombre, setNombre]   = useState("Entrenamiento de hoy");
-  const [grupo, setGrupo]     = useState("");
+  const navigate = useNavigate();
+
+  const [routines, setRoutines] = useState([]);
+  const [loadingRoutines, setLoadingRoutines] = useState(true);
+  const [routineId, setRoutineId] = useState("");
+  const [dayId, setDayId] = useState("");
+
+  const [exercises, setExercises] = useState([]); // [{ nombre, series:[{repeticiones,peso}] }]
   const [duracion, setDuracion] = useState("");
   const [pesoCorporal, setPeso] = useState("");
   const [notas, setNotas]     = useState("");
-  const [exercises, setExercises] = useState([emptyExercise()]);
   const [saving, setSaving]   = useState(false);
   const [msg, setMsg]         = useState(null);
 
   const [workouts, setWorkouts] = useState([]);
   const [resumen, setResumen]   = useState(null);
   const [loadingHist, setLoadingHist] = useState(true);
-  const [loadingToday, setLoadingToday] = useState(false);
+
+  const selectedRoutine = routines.find(r => r.id === routineId) || null;
+  const days = selectedRoutine?.dias || [];
+  const selectedDay = days.find(d => d.id === dayId) || null;
 
   const loadHist = useCallback(() => {
     setLoadingHist(true);
@@ -52,30 +61,39 @@ export default function UserWorkoutLog() {
       .finally(() => setLoadingHist(false));
   }, []);
 
-  useEffect(() => { loadHist(); }, [loadHist]);
+  const loadRoutines = useCallback(() => {
+    setLoadingRoutines(true);
+    getUserRoutines()
+      .then(r => setRoutines(r.data?.rutinas || []))
+      .catch(() => setRoutines([]))
+      .finally(() => setLoadingRoutines(false));
+  }, []);
 
-  const loadToday = async () => {
-    setLoadingToday(true);
-    try {
-      const { data } = await getUserDashboard();
-      const tw = data?.todayWorkout;
-      const exs = (tw?.exercises || []).filter(e => e.name);
-      if (exs.length === 0) { setMsg({ type: "warn", text: "No hay rutina asignada para hoy. Agrega tus ejercicios manualmente." }); return; }
-      setNombre(tw?.type ? `Rutina: ${tw.type}` : "Entrenamiento de hoy");
-      setGrupo(tw?.type || "");
-      setExercises(exs.map(e => ({ nombre: e.name, series: parseSets(e.sets) })));
-      setMsg(null);
-    } catch {
-      setMsg({ type: "error", text: "No se pudo cargar la rutina de hoy." });
-    } finally {
-      setLoadingToday(false);
-    }
+  useEffect(() => { loadRoutines(); loadHist(); }, [loadRoutines, loadHist]);
+
+  // Carga los ejercicios de un día (con sus series por defecto).
+  const loadDay = (day) => {
+    const exs = (day?.ejercicios || []).filter(e => e.nombre);
+    setExercises(exs.map(e => ({ nombre: e.nombre, series: seriesFrom(e) })));
   };
 
-  // ── Manipulación de ejercicios / series ────────────────────────────────────
-  const setExName = (i, v) => setExercises(xs => xs.map((x, idx) => idx === i ? { ...x, nombre: v } : x));
-  const addExercise = () => setExercises(xs => [...xs, emptyExercise()]);
-  const removeExercise = (i) => setExercises(xs => xs.length > 1 ? xs.filter((_, idx) => idx !== i) : xs);
+  const onRoutineChange = (id) => {
+    setRoutineId(id);
+    const rut = routines.find(r => r.id === id);
+    setDuracion(rut?.duracion_minutos ? String(rut.duracion_minutos) : "");
+    const firstDay = rut?.dias?.[0];
+    if (firstDay) { setDayId(firstDay.id); loadDay(firstDay); }
+    else { setDayId(""); setExercises([]); }
+    setMsg(null);
+  };
+
+  const onDayChange = (id) => {
+    setDayId(id);
+    const d = days.find(x => x.id === id);
+    loadDay(d);
+  };
+
+  // Series editables (solo reps/peso; los nombres vienen de la rutina).
   const addSerie = (i) => setExercises(xs => xs.map((x, idx) => idx === i ? { ...x, series: [...x.series, emptySerie()] } : x));
   const removeSerie = (i, si) => setExercises(xs => xs.map((x, idx) => idx === i ? { ...x, series: x.series.length > 1 ? x.series.filter((_, k) => k !== si) : x.series } : x));
   const setSerie = (i, si, field, v) => setExercises(xs => xs.map((x, idx) =>
@@ -85,22 +103,24 @@ export default function UserWorkoutLog() {
     acc + ex.series.reduce((a, s) => a + (parseFloat(s.repeticiones) || 0) * (parseFloat(s.peso) || 0), 0), 0);
 
   const save = async () => {
+    if (!selectedRoutine || !selectedDay) { setMsg({ type: "warn", text: "Selecciona una rutina y un día." }); return; }
     const ejercicios = exercises
-      .filter(ex => ex.nombre.trim())
       .map(ex => ({
-        nombre: ex.nombre.trim(),
+        nombre: ex.nombre,
         series: ex.series
           .filter(s => s.repeticiones || s.peso)
           .map(s => ({ repeticiones: parseInt(s.repeticiones) || 0, peso: parseFloat(s.peso) || 0 })),
-      }));
-    if (ejercicios.length === 0) { setMsg({ type: "warn", text: "Agrega al menos un ejercicio con sus series." }); return; }
+      }))
+      .filter(ex => ex.series.length > 0);
+    if (ejercicios.length === 0) { setMsg({ type: "warn", text: "Registra al menos una serie (repeticiones o peso) en algún ejercicio." }); return; }
 
     setSaving(true);
     setMsg(null);
     try {
       const { data } = await completeWorkout({
-        nombre_rutina: nombre.trim() || "Entrenamiento libre",
-        grupo_muscular: grupo || undefined,
+        nombre_rutina: `${selectedRoutine.nombre}${selectedDay.grupo ? " - " + selectedDay.grupo : ""}`,
+        grupo_muscular: selectedDay.grupo || undefined,
+        id_rutina: selectedRoutine.id,
         duracion_min: duracion ? parseInt(duracion) : undefined,
         peso_corporal: pesoCorporal ? parseFloat(pesoCorporal) : undefined,
         notas: notas.trim() || undefined,
@@ -112,9 +132,9 @@ export default function UserWorkoutLog() {
           `Quemaste aproximadamente ${data.calorias_estimadas} kcal.` +
           (data.peso_registrado ? " Tu peso del día actualizó tus métricas." : ""),
       });
-      // Reset
-      setExercises([emptyExercise()]);
-      setDuracion(""); setPeso(""); setNotas(""); setNombre("Entrenamiento de hoy"); setGrupo("");
+      // Recargar el día para volver a empezar con los valores de la rutina.
+      if (selectedDay) loadDay(selectedDay);
+      setPeso(""); setNotas("");
       loadHist();
     } catch (e) {
       setMsg({ type: "error", text: e?.response?.data?.error || "No se pudo guardar el entrenamiento." });
@@ -128,7 +148,7 @@ export default function UserWorkoutLog() {
       <div style={S.header}>
         <div>
           <h1 style={S.title}>Registrar entrenamiento</h1>
-          <p style={S.sub}>Anota lo que hiciste hoy. Tus métricas y predicción se actualizan al registrar tu peso.</p>
+          <p style={S.sub}>Elige tu rutina y registra lo que hiciste. Tus calorías se calculan solas.</p>
         </div>
       </div>
 
@@ -137,78 +157,109 @@ export default function UserWorkoutLog() {
         <div style={S.card}>
           <div style={S.cardHead}>
             <h3 style={S.cardTitle}><FiActivity /> Tu entrenamiento</h3>
-            <button style={S.ghostBtn} onClick={loadToday} disabled={loadingToday}>
-              <FiRefreshCw /> {loadingToday ? "Cargando…" : "Cargar rutina de hoy"}
-            </button>
+            <button style={S.ghostBtn} onClick={loadRoutines}><FiRefreshCw /> Recargar rutinas</button>
           </div>
 
-          <label style={S.label}>Nombre del entrenamiento</label>
-          <input style={S.input} value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Ej: Día de pecho" />
-
-          {/* Ejercicios */}
-          <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 14 }}>
-            {exercises.map((ex, i) => (
-              <div key={i} style={S.exCard}>
-                <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10 }}>
-                  <GiMuscleUp style={{ color: "var(--accent)", flexShrink: 0 }} />
-                  <input style={{ ...S.input, margin: 0, flex: 1 }} value={ex.nombre}
-                    onChange={e => setExName(i, e.target.value)} placeholder={`Ejercicio ${i + 1} (ej. Press banca)`} />
-                  <button style={S.iconDanger} onClick={() => removeExercise(i)} title="Quitar ejercicio"><FiTrash2 /></button>
-                </div>
-
-                <div style={S.serieHead}>
-                  <span style={{ width: 28 }}>#</span>
-                  <span style={{ flex: 1 }}>Repeticiones</span>
-                  <span style={{ flex: 1 }}>Peso (kg)</span>
-                  <span style={{ width: 30 }} />
-                </div>
-                {ex.series.map((s, si) => (
-                  <div key={si} style={S.serieRow}>
-                    <span style={S.serieNum}>{si + 1}</span>
-                    <input style={{ ...S.input, margin: 0, flex: 1 }} type="number" inputMode="numeric" value={s.repeticiones}
-                      onChange={e => setSerie(i, si, "repeticiones", e.target.value)} placeholder="12" />
-                    <input style={{ ...S.input, margin: 0, flex: 1 }} type="number" inputMode="decimal" value={s.peso}
-                      onChange={e => setSerie(i, si, "peso", e.target.value)} placeholder="40" />
-                    <button style={S.iconGhost} onClick={() => removeSerie(i, si)} title="Quitar serie"><FiTrash2 size={13} /></button>
-                  </div>
+          {loadingRoutines ? (
+            <p style={{ color: "var(--text-secondary)", padding: 20 }}>Cargando tus rutinas…</p>
+          ) : routines.length === 0 ? (
+            <div style={{ textAlign: "center", padding: 30 }}>
+              <GiMuscleUp size={36} style={{ color: "var(--text-secondary)", opacity: .4 }} />
+              <p style={{ color: "var(--text-secondary)", margin: "12px 0 16px" }}>
+                Aún no tienes rutinas. Crea una o pídele a tu entrenador que te asigne una para registrar tus entrenamientos.
+              </p>
+              <button style={S.saveBtn} onClick={() => navigate("/user/routine")}>Ir a Mi Rutina</button>
+            </div>
+          ) : (
+            <>
+              {/* Selección de rutina y día */}
+              <label style={S.label}>Rutina</label>
+              <select style={S.input} value={routineId} onChange={e => onRoutineChange(e.target.value)}>
+                <option value="">Selecciona una rutina…</option>
+                {routines.map(r => (
+                  <option key={r.id} value={r.id}>{r.nombre}{r.activa === false ? " (inactiva)" : ""}</option>
                 ))}
-                <button style={S.addSerie} onClick={() => addSerie(i)}><FiPlus size={13} /> Agregar serie</button>
+              </select>
+
+              {days.length > 1 && (
+                <>
+                  <label style={S.label}>Día</label>
+                  <select style={S.input} value={dayId} onChange={e => onDayChange(e.target.value)}>
+                    {days.map(d => (
+                      <option key={d.id} value={d.id}>{d.dia || "Día"}{d.grupo ? ` · ${d.grupo}` : ""}</option>
+                    ))}
+                  </select>
+                </>
+              )}
+
+              {/* Ejercicios de la rutina (nombres fijos, series editables) */}
+              {selectedDay && (
+                exercises.length === 0 ? (
+                  <p style={{ color: "var(--text-secondary)", padding: "16px 0" }}>Este día no tiene ejercicios.</p>
+                ) : (
+                  <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 14 }}>
+                    {exercises.map((ex, i) => (
+                      <div key={i} style={S.exCard}>
+                        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10 }}>
+                          <GiMuscleUp style={{ color: "var(--accent)", flexShrink: 0 }} />
+                          <span style={{ flex: 1, fontWeight: 600, color: "var(--text-primary)" }}>{ex.nombre}</span>
+                        </div>
+                        <div style={S.serieHead}>
+                          <span style={{ width: 28 }}>#</span>
+                          <span style={{ flex: 1 }}>Repeticiones</span>
+                          <span style={{ flex: 1 }}>Peso (kg)</span>
+                          <span style={{ width: 30 }} />
+                        </div>
+                        {ex.series.map((s, si) => (
+                          <div key={si} style={S.serieRow}>
+                            <span style={S.serieNum}>{si + 1}</span>
+                            <input style={{ ...S.input, margin: 0, flex: 1 }} type="number" value={s.repeticiones}
+                              onChange={e => setSerie(i, si, "repeticiones", e.target.value)} placeholder="12" />
+                            <input style={{ ...S.input, margin: 0, flex: 1 }} type="number" value={s.peso}
+                              onChange={e => setSerie(i, si, "peso", e.target.value)} placeholder="40" />
+                            <button style={S.iconGhost} onClick={() => removeSerie(i, si)} title="Quitar serie"><FiTrash2 size={13} /></button>
+                          </div>
+                        ))}
+                        <button style={S.addSerie} onClick={() => addSerie(i)}><FiPlus size={13} /> Agregar serie</button>
+                      </div>
+                    ))}
+                  </div>
+                )
+              )}
+
+              {/* Cierre */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 18 }}>
+                <div>
+                  <label style={S.label}><FiClock /> Duración (min)</label>
+                  <input style={S.input} type="number" value={duracion} onChange={e => setDuracion(e.target.value)} placeholder="45" />
+                </div>
+                <div>
+                  <label style={S.label}><FiTrendingUp /> Peso corporal (opcional)</label>
+                  <input style={S.input} type="number" value={pesoCorporal} onChange={e => setPeso(e.target.value)} placeholder="Solo si te pesaste" />
+                </div>
               </div>
-            ))}
-            <button style={S.addEx} onClick={addExercise}><FiPlus /> Agregar ejercicio</button>
-          </div>
+              <p style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 6 }}>
+                Al guardar, tu entrenamiento queda registrado y se calculan tus calorías quemadas automáticamente. El peso es opcional.
+              </p>
+              <label style={S.label}>Notas</label>
+              <input style={S.input} value={notas} onChange={e => setNotas(e.target.value)} placeholder="Cómo te sentiste…" />
 
-          {/* Cierre */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 18 }}>
-            <div>
-              <label style={S.label}><FiClock /> Duración (min)</label>
-              <input style={S.input} type="number" value={duracion} onChange={e => setDuracion(e.target.value)} placeholder="45" />
-            </div>
-            <div>
-              <label style={S.label}><FiTrendingUp /> Peso corporal (opcional)</label>
-              <input style={S.input} type="number" value={pesoCorporal} onChange={e => setPeso(e.target.value)} placeholder="Solo si te pesaste hoy" />
-            </div>
-          </div>
-          <p style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 6 }}>
-            Al guardar, tu entrenamiento queda registrado y se calculan tus calorías quemadas automáticamente. El peso es opcional: regístralo solo si te pesaste.
-          </p>
-          <label style={S.label}>Notas</label>
-          <input style={S.input} value={notas} onChange={e => setNotas(e.target.value)} placeholder="Cómo te sentiste…" />
+              <div style={S.volBar}>
+                <span>Volumen de esta sesión</span>
+                <strong>{totalVolumen.toFixed(0)} kg</strong>
+              </div>
 
-          <div style={S.volBar}>
-            <span>Volumen de esta sesión</span>
-            <strong>{totalVolumen.toFixed(0)} kg</strong>
-          </div>
+              {msg && (
+                <div style={{ ...S.msg, ...(msg.type === "ok" ? S.msgOk : msg.type === "error" ? S.msgErr : S.msgWarn) }}>
+                  {msg.type === "ok" ? <FiCheckCircle /> : <FiActivity />} {msg.text}
+                </div>
+              )}
 
-          {msg && (
-            <div style={{ ...S.msg, ...(msg.type === "ok" ? S.msgOk : msg.type === "error" ? S.msgErr : S.msgWarn) }}>
-              {msg.type === "ok" ? <FiCheckCircle /> : <FiActivity />} {msg.text}
-            </div>
+              <button style={S.saveBtn} onClick={save} disabled={saving || !selectedDay}>
+                <FiSave /> {saving ? "Guardando…" : "Guardar entrenamiento"}
+              </button>
+            </>
           )}
-
-          <button style={S.saveBtn} onClick={save} disabled={saving}>
-            <FiSave /> {saving ? "Guardando…" : "Guardar entrenamiento"}
-          </button>
         </div>
 
         {/* ── Bitácora ── */}
@@ -277,8 +328,6 @@ const S = {
   serieRow: { display: "flex", gap: 8, alignItems: "center", marginBottom: 6 },
   serieNum: { width: 28, textAlign: "center", fontSize: 13, fontWeight: 700, color: "var(--accent)" },
   addSerie: { display: "inline-flex", alignItems: "center", gap: 5, background: "none", border: "none", color: "var(--accent)", fontSize: 12, fontWeight: 600, cursor: "pointer", padding: "4px 0", marginTop: 2 },
-  addEx: { display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, background: "var(--accent-dim, rgba(108,99,255,.12))", border: "1px dashed var(--accent)", color: "var(--accent)", borderRadius: 10, padding: "10px 0", fontSize: 13, fontWeight: 700, cursor: "pointer" },
-  iconDanger: { background: "rgba(239,68,68,.1)", border: "none", color: "var(--danger)", borderRadius: 7, padding: "7px 9px", cursor: "pointer", display: "inline-flex" },
   iconGhost: { width: 30, background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", display: "inline-flex", justifyContent: "center" },
   volBar: { display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 16, padding: "12px 14px", background: "var(--accent-dim, rgba(108,99,255,.1))", borderRadius: 10, color: "var(--text-primary)", fontSize: 14 },
   msg: { display: "flex", alignItems: "center", gap: 8, marginTop: 14, padding: "10px 14px", borderRadius: 10, fontSize: 13 },

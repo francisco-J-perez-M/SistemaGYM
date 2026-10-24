@@ -8,5 +8,6 @@ API.interceptors.request.use((config) => {
 });
 
 export const getUserDashboard = () => API.get("/user/dashboard");
+export const getUserRoutines   = () => API.get("/user/routines");
 export const completeWorkout   = (data) => API.post("/user/workout/complete", data);
 export const getWorkouts       = (params = {}) => API.get("/user/workouts", { params });

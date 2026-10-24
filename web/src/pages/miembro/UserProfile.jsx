@@ -380,8 +380,8 @@ export default function UserProfile() {
           >
             <StatPill icon={<FiAward size={16}/>}     value={profile.mesesActivo}         label="Meses activo"      color="#6366f1" />
             <StatPill icon={<FiActivity size={16}/>}  value={profile.totalEntrenamientos} label="Entrenamientos"    color="#22c55e" />
-            <StatPill icon={<FiTrendingUp size={16}/>} value={profile.peso ? `${profile.peso} kg` : null} label="Peso actual" color="#f59e0b" />
-            <StatPill icon={<FiTarget size={16}/>}    value={profile.altura ? `${profile.altura} cm` : null} label="Altura" color="#06b6d4" />
+            <StatPill icon={<FiTrendingUp size={16}/>} value={(profile.peso && profile.peso !== "No registrado") ? profile.peso : null} label="Peso actual" color="#f59e0b" />
+            <StatPill icon={<FiTarget size={16}/>}    value={(profile.altura && profile.altura !== "No registrado") ? profile.altura : null} label="Altura" color="#06b6d4" />
           </motion.div>
 
           {/* ── Info grid ─────────────────────────────────────── */}
@@ -448,8 +448,8 @@ export default function UserProfile() {
                 <h3 style={{ margin:0, fontSize:15, fontWeight:700 }}>Datos físicos</h3>
               </div>
               <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-                <InfoField icon={<FiActivity size={15}/>} label="Peso (kg)"  field="peso"   value={profile.peso}   editing={isEditing} editedData={edited} onChange={change} />
-                <InfoField icon={<FiActivity size={15}/>} label="Altura (cm)" field="altura" value={profile.altura} editing={isEditing} editedData={edited} onChange={change} />
+                <InfoField icon={<FiActivity size={15}/>} label="Peso"   field="peso"   value={profile.peso}   editing={isEditing} editedData={edited} onChange={change} />
+                <InfoField icon={<FiActivity size={15}/>} label="Altura" field="altura" value={profile.altura} editing={isEditing} editedData={edited} onChange={change} />
 
                 {/* Objetivo — select */}
                 <div style={{ display:"flex", alignItems:"flex-start", gap:12, padding:"14px 16px",
