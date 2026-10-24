@@ -50,7 +50,13 @@ export function fechaFicha(valor) {
   return d.toLocaleDateString("es-MX", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
-export default function DetalleUsuarioModal({ usuario, onClose, titulo = "Detalle" }) {
+/**
+ * @param {object|null} usuario  Ficha normalizada; null cierra el modal.
+ * @param {React.ReactNode} extra Bloque opcional que se pinta debajo de la ficha
+ *        (p. ej. el historial de asistencias en la vista de miembros). El modal
+ *        no sabe qué contiene: así la ficha de staff no arrastra dependencias.
+ */
+export default function DetalleUsuarioModal({ usuario, onClose, titulo = "Detalle", extra = null }) {
   // Cerrar con Escape: en un modal de solo lectura es lo que espera el usuario.
   useEffect(() => {
     if (!usuario) return;
@@ -209,6 +215,8 @@ export default function DetalleUsuarioModal({ usuario, onClose, titulo = "Detall
             </div>
           )}
         </div>
+
+        {extra}
       </div>
     </div>
   );

@@ -23,3 +23,7 @@ export const createMiembro = (data) => API.post("/miembros", data);
 export const updateMiembro = (id, data) => API.put(`/miembros/${id}`, data);
 export const deleteMiembro = (id) => API.delete(`/miembros/${id}`);
 export const reactivateMiembro = (id) => API.put(`/miembros/${id}/reactivar`);
+
+/** Historial paginado de días asistidos al gimnasio por un miembro. */
+export const getAsistenciasMiembro = (id, page = 1, perPage = 10) =>
+  API.get(`/miembros/${id}/asistencias?page=${page}&per_page=${perPage}`);

@@ -306,6 +306,112 @@ export const ejeY = (titulo) => ({
 });
 
 /**
+ * Importe con separador de miles, sin decimales.
+ *
+ *   dinero(7298.4) → "$7,298"
+ */
+export const dinero = (v) => {
+  const n = Math.round(Number(v) || 0);
+  // El signo va delante del símbolo: "-$200", no "$-200".
+  return `${n < 0 ? "-" : ""}$${Math.abs(n).toLocaleString("es-MX")}`;
+};
+
+/**
+ * Índices del valor más alto y del más bajo de una serie.
+ *
+ * Los ceros se descartan por defecto: en una serie de ingresos, un mes sin
+ * cobros es ausencia de dato, no el mínimo del periodo, y etiquetarlo con "$0"
+ * ocuparía sitio sin informar de nada.
+ */
+export function extremosDeSerie(valores, omitirCeros = true) {
+  const puntos = (valores || [])
+    .map((v, i) => ({ v: typeof v === "number" ? v : Number(v), i }))
+    .filter(({ v }) => Number.isFinite(v) && (!omitirCeros || v !== 0));
+
+  if (puntos.length === 0) return new Map();
+
+  let alto = puntos[0];
+  let bajo = puntos[0];
+  for (const p of puntos) {
+    if (p.v > alto.v) alto = p;
+    if (p.v < bajo.v) bajo = p;
+  }
+
+  const marcas = new Map([[alto.i, "max"]]);
+  // Con un solo punto, o con toda la serie plana, el mínimo es el máximo:
+  // rotularlo dos veces superpondría las dos etiquetas.
+  if (bajo.i !== alto.i && bajo.v !== alto.v) marcas.set(bajo.i, "min");
+  return marcas;
+}
+
+/**
+ * Etiqueta el pico y el valle de una serie con su importe exacto.
+ *
+ * El eje vertical va en miles ("$8k") porque rotular cada marca con el importe
+ * completo lo haría ilegible; el coste es que la cifra concreta del pico —que
+ * es justo la que se busca— queda por deducir. Esto la escribe donde está.
+ *
+ * Solo los dos extremos: rotular los seis o doce puntos de la serie amontona
+ * las etiquetas y estorba más de lo que aclara.
+ *
+ * Se pasa como contenido de LabelList, que lo clona una vez por punto:
+ *
+ *   <Line dataKey="pagos" ...>
+ *     <LabelList content={<ImporteExtremos valores={datos.map(d => d.pagos)} />} />
+ *   </Line>
+ */
+export function ImporteExtremos({
+  valores,
+  formato = dinero,
+  omitirCeros = true,
+  index,
+  viewBox,
+  ...resto
+}) {
+  const marcas = extremosDeSerie(valores, omitirCeros);
+  const tipo = marcas.get(index);
+  if (!tipo) return null;
+
+  // recharts entrega la posición como props sueltas y también dentro de
+  // `viewBox`. Se leen ambas por si cambia en una versión posterior.
+  const x = Number.isFinite(resto.x) ? resto.x : viewBox?.x;
+  const y = Number.isFinite(resto.y) ? resto.y : viewBox?.y;
+  const width = Number.isFinite(resto.width) ? resto.width : viewBox?.width;
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+
+  // En una barra, `width` es su ancho y `y` el borde superior, así que ambas
+  // etiquetas van encima. En una línea, `width` es cero y (x, y) es el propio
+  // vértice: el máximo se rotula arriba y el mínimo abajo, para no chocar con
+  // la curva.
+  const esBarra = Number.isFinite(width) && width > 0;
+  const cx = esBarra ? x + width / 2 : x;
+  const cy = esBarra
+    ? y - 6
+    : tipo === "max"
+      ? y - 11
+      : y + 19;
+
+  return (
+    <text
+      x={cx}
+      y={cy}
+      textAnchor="middle"
+      fontSize={11}
+      fontWeight={700}
+      fill="var(--text-primary)"
+      /* Contorno del color del fondo: la etiqueta cae sobre la rejilla y sobre
+         la propia línea, y sin él se lee a medias. */
+      stroke="var(--bg-card)"
+      strokeWidth={3.5}
+      strokeLinejoin="round"
+      style={{ paintOrder: "stroke" }}
+    >
+      {formato(valores?.[index])}
+    </text>
+  );
+}
+
+/**
  * Rango que abarcan los datos, en texto.
  *
  * Un título como "Ingresos últimos 6 meses" no dice CUÁLES seis meses, y el

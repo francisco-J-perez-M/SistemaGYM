@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   BarChart, Bar, PieChart, Pie, Cell, LineChart, Line,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList,
 } from "recharts";
 import { FiDollarSign, FiUsers, FiTrendingUp, FiAlertCircle, FiRefreshCw, FiLock, FiWifiOff, FiCheckCircle } from "react-icons/fi";
 import {
-  COLORES_GRAFICO, SERIES_GRAFICO, COLOR_REJILLA, ejeX, ejeY,
+  COLORES_GRAFICO, SERIES_GRAFICO, COLOR_REJILLA, ejeX, ejeY, ImporteExtremos,
 } from "../../components/compartido/InfoGrafico";
 import "../../css/CSSUnificado.css";
 
@@ -314,7 +314,7 @@ export default function ReceptionistAnalytics() {
               Ingresos por mes
             </p>
             <ResponsiveContainer width="100%" height={235}>
-              <LineChart data={lineData} margin={{ top: 5, right: 8, left: 6, bottom: 22 }}>
+              <LineChart data={lineData} margin={{ top: 26, right: 8, left: 6, bottom: 22 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={COLOR_REJILLA} />
                 <XAxis dataKey="mes" tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
                   label={ejeX("Mes")} />
@@ -322,7 +322,9 @@ export default function ReceptionistAnalytics() {
                   label={ejeY("Ingresos (MXN)")} />
                 <Tooltip content={<CTip prefix="$" />} />
                 <Line type="monotone" dataKey="total" name="Ingreso" stroke={COLORES_GRAFICO.ingresos} strokeWidth={2.5}
-                  dot={{ r: 3, fill: COLORES_GRAFICO.ingresos, strokeWidth: 0 }} />
+                  dot={{ r: 3, fill: COLORES_GRAFICO.ingresos, strokeWidth: 0 }}>
+                  <LabelList content={<ImporteExtremos valores={lineData.map((d) => d.total)} />} />
+                </Line>
               </LineChart>
             </ResponsiveContainer>
           </div>
