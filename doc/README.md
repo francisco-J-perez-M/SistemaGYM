@@ -24,6 +24,7 @@ hosting (estudio de hosting, optimización de recursos, decisiones de VPS).
 
 | Módulo | README | Descripción |
 |---|---|---|
+| Novedades | [../CHANGELOG.md](../CHANGELOG.md) | Historial de lo agregado, estado de su documentación y pendientes conocidos |
 | Proyecto | [../README.md](../README.md) | Instalación paso a paso, arquitectura, contenedores y stack |
 | API (Flask) | [../api/README.md](../api/README.md) | Variables de entorno, comandos, estructura y endpoints |
 | Web (React) | [../web/README.md](../web/README.md) | Desarrollo, build, estructura por rol, proxy nginx |
