@@ -42,9 +42,18 @@ export interface ResultadoPagoApp {
   mensaje?: string;
 }
 
-/** Métodos de pago que el gimnasio tiene activos. */
-export async function getMetodosPago(): Promise<MetodoPago[]> {
-  const { data } = await api.get('/pagos/metodos');
+/**
+ * Métodos de pago disponibles según quién cobra.
+ *
+ * Membresías y productos los cobra EL GIMNASIO con sus propias credenciales.
+ * La suscripción SaaS la cobra LA PLATAFORMA, cuyas credenciales viven en
+ * variables de entorno del servidor. Son dos endpoints distintos y confundirlos
+ * hace que el owner vea los métodos de su gimnasio al pagar su propia
+ * suscripción, o que no vea ninguno si su gimnasio no tiene pasarelas.
+ */
+export async function getMetodosPago(contexto?: ContextoPago): Promise<MetodoPago[]> {
+  const ruta = contexto === 'suscripcion' ? '/pagos/metodos-plataforma' : '/pagos/metodos';
+  const { data } = await api.get(ruta);
   return data?.metodos ?? [];
 }
 
@@ -65,6 +74,13 @@ export async function pagarEnApp(params: {
   descripcion?: string;
   referenciaLocal?: string | number | null;
   emailPagador?: string | null;
+  /**
+   * Datos que el backend necesita para aplicar el efecto del pago cuando la
+   * pasarela lo confirme. En una venta de POS son los artículos y el miembro:
+   * sin ellos el pago se cobra pero no se registra la venta ni baja el stock.
+   * Ver _aplicar_venta en api/app/routes/pagos_online.py.
+   */
+  metadatos?: Record<string, any> | null;
 }): Promise<ResultadoPagoApp> {
   const { data } = await api.post('/pagos/checkout', {
     proveedor: params.proveedor,
@@ -73,6 +89,7 @@ export async function pagarEnApp(params: {
     descripcion: params.descripcion ?? 'Pago GymPro',
     referencia_local: params.referenciaLocal ?? null,
     email_pagador: params.emailPagador ?? null,
+    metadatos: params.metadatos ?? null,
     origen: 'mobile',
   });
 

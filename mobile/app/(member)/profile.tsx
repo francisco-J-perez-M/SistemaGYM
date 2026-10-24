@@ -16,6 +16,7 @@ import { useAuth } from '../../hooks/useAuth';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
+import SelectorFecha from '../../components/ui/SelectorFecha';
 import api from '../../services/api';
 import AccessibilityPanel from '../../components/settings/AccessibilityPanel';
 import * as Haptics from 'expo-haptics';
@@ -290,9 +291,17 @@ export default function ProfileScreen() {
               <TextInput style={styles.input} value={telefono} onChangeText={setTelefono}
                 keyboardType="phone-pad" placeholder="+52 ..." placeholderTextColor={colors.textMuted} accessibilityLabel="Teléfono" />
 
-              <Text style={styles.inputLabel}>Fecha de nacimiento</Text>
-              <TextInput style={styles.input} value={fechaNac} onChangeText={setFechaNac}
-                placeholder="dd/mm/aaaa" placeholderTextColor={colors.textMuted} accessibilityLabel="Fecha de nacimiento" />
+              {/* Calendario en lugar de escribir la fecha a mano: evita
+                  formatos inválidos y fechas imposibles. */}
+              <View style={{ marginTop: 14 }}>
+                <SelectorFecha
+                  label="Fecha de nacimiento"
+                  value={fechaNac}
+                  onChange={setFechaNac}
+                  anioMaximo={new Date().getFullYear() - 10}
+                  accessibilityLabel="Fecha de nacimiento"
+                />
+              </View>
 
               <Text style={styles.inputLabel}>Estatura (m)</Text>
               <TextInput style={styles.input} value={estatura} onChangeText={setEstatura}

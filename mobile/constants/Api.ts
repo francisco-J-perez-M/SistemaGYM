@@ -118,6 +118,13 @@ export const ENDPOINTS = {
   OWNER_INGRESOS:     '/owner_gym/dashboard/ingresos',   // GET ?meses=6  → tendencia mensual
   OWNER_ACTIVIDAD:    '/owner_gym/dashboard/actividad',  // GET ?limit=20 → feed reciente
 
+  // ── Suscripción del gimnasio con la plataforma ────────────────────────────
+  // billing_bp: url_prefix="/api/billing"
+  BILLING_SUSCRIPCION: '/billing/suscripcion',   // GET estado actual | PUT /<id> auto_renovar
+  BILLING_PLANES:      '/billing/planes',        // GET catálogo de planes SaaS
+  BILLING_FACTURAS:    '/billing/facturas',      // GET ?limit=10 historial
+  BILLING_RENOVAR:     '/billing/suscripcion/renovar', // POST { id_plan? } renovar o mejorar
+
   // ── IA / Analítica (Spark) — /api/analytics/* ─────────────────────────────
   ANALYTICS_KMEANS:        '/analytics/kmeans',        // GET ?k=3 → segmentación de miembros
   ANALYTICS_CANCELACIONES: '/analytics/cancelaciones', // GET → riesgo de cancelación

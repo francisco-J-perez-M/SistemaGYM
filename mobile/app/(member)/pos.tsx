@@ -2,17 +2,24 @@
  * Punto de Venta — Miembro
  * Tabs: Productos (ver + comprar) | Mi historial de compras
  *
+ * Dos formas de pagar, las mismas que en la web:
+ *
+ *   Efectivo   POST /api/ventas registra la venta al momento; el cobro se hace
+ *              físicamente en recepción.
+ *   En línea   BotonesPago abre PayPal o Mercado Pago. La venta NO se registra
+ *              aquí: el backend la crea y descuenta el inventario cuando la
+ *              pasarela confirma el cobro (_aplicar_venta), usando los
+ *              metadatos que se envían con el checkout.
+ *
  * Backend espera en POST /api/ventas:
  *   items: [{ id, nombre, precio, qty, categoria }]   ← id es el _id string de Mongo
  *   total: float
- *   metodo_pago: "Efectivo" | "Tarjeta" | "Transferencia"
- *   numero_tarjeta?: string  (últimos 4 dígitos, solo Tarjeta)
- *   referencia?: string      (solo Transferencia)
+ *   metodo_pago: "Efectivo"
  */
 import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl,
-  Alert, Modal, ScrollView, Image, TextInput,
+  Alert, Modal, ScrollView, Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -24,11 +31,11 @@ import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
 import api from '../../services/api';
+import BotonesPago from '../../components/BotonesPago';
 import { useAuth } from '../../hooks/useAuth';
 import * as Haptics from 'expo-haptics';
 
-type Tab     = 'productos' | 'historial';
-type Metodo  = 'Efectivo' | 'Tarjeta' | 'Transferencia';
+type Tab = 'productos' | 'historial';
 
 interface Producto {
   _id:         string;
@@ -89,9 +96,6 @@ export default function MemberPOSScreen() {
 
   // Checkout
   const [showCheckout, setShowCheckout] = useState(false);
-  const [metodo,       setMetodo]       = useState<Metodo>('Efectivo');
-  const [tarjeta,      setTarjeta]      = useState('');
-  const [referencia,   setReferencia]   = useState('');
 
   const { data: prodData, loading: loadingP, refetch: refetchP } =
     useFetch<{ productos?: Producto[] }>(ENDPOINTS.USER_PRODUCTOS);
@@ -124,16 +128,9 @@ export default function MemberPOSScreen() {
       return { ...prev, [id]: { ...ex, cantidad: ex.cantidad - 1 } };
     });
 
+  /** Compra en efectivo: se registra al momento y se cobra en recepción. */
   const handleCheckout = async () => {
     if (cartItems.length === 0) return;
-    if (metodo === 'Tarjeta' && tarjeta.replace(/\s/g,'').length < 4) {
-      Alert.alert('Datos incompletos', 'Ingresa los últimos 4 dígitos de tu tarjeta.');
-      return;
-    }
-    if (metodo === 'Transferencia' && !referencia.trim()) {
-      Alert.alert('Datos incompletos', 'Ingresa el número de referencia de la transferencia.');
-      return;
-    }
     setBuying(true);
     try {
       const payload: Record<string, any> = {
@@ -145,23 +142,19 @@ export default function MemberPOSScreen() {
           categoria: producto.categoria ?? 'General',
         })),
         total:       cartTotal,
-        metodo_pago: metodo,
+        metodo_pago: 'Efectivo',
       };
-      if (metodo === 'Tarjeta')         payload.numero_tarjeta = tarjeta.slice(-4);
-      if (metodo === 'Transferencia')   payload.referencia      = referencia.trim();
-      if (user?.id)    payload.id_miembro     = Number(user.id);
+      if (user?.id)     payload.id_miembro     = Number(user.id);
       if (user?.nombre) payload.nombre_miembro = user.nombre;
 
       await api.post(ENDPOINTS.USER_COMPRAR, payload);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setCart({});
       setShowCheckout(false);
-      setTarjeta('');
-      setReferencia('');
-      setMetodo('Efectivo');
       setTab('historial');
       refetchH();
-      Alert.alert('¡Compra exitosa!', 'Tu compra fue registrada correctamente.');
+      refetchP();
+      Alert.alert('Compra registrada', 'Pasa a recepción para completar el pago.');
     } catch (e: any) {
       Alert.alert('Error', e?.response?.data?.error ?? 'No se pudo procesar la compra');
     } finally {
@@ -400,61 +393,53 @@ export default function MemberPOSScreen() {
                 </View>
               </View>
 
-              {/* Método de pago */}
-              <Text style={styles.payLabel}>Método de pago</Text>
-              <View style={styles.metodosRow}>
-                {(['Efectivo', 'Tarjeta', 'Transferencia'] as Metodo[]).map((m) => (
-                  <TouchableOpacity key={m}
-                    style={[styles.metodoChip, metodo === m && styles.metodoChipActive]}
-                    onPress={() => setMetodo(m)}
-                    accessibilityRole="radio" accessibilityState={{ checked: metodo === m }}>
-                    <Ionicons
-                      name={m === 'Efectivo' ? 'cash-outline' : m === 'Tarjeta' ? 'card-outline' : 'swap-horizontal-outline'}
-                      size={16} color={metodo === m ? colors.onAccent : colors.textSecondary} />
-                    <Text style={[styles.metodoText, metodo === m && { color: colors.onAccent }]}>{m}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              {/* Datos extra */}
-              {metodo === 'Tarjeta' && (
-                <View style={styles.payField}>
-                  <Text style={styles.payFieldLabel}>Últimos 4 dígitos de la tarjeta</Text>
-                  <TextInput
-                    style={styles.payInput}
-                    value={tarjeta}
-                    onChangeText={t => setTarjeta(t.replace(/\D/g,'').slice(0,4))}
-                    placeholder="1234"
-                    placeholderTextColor={colors.textMuted}
-                    keyboardType="numeric"
-                    maxLength={4}
-                    accessibilityLabel="Últimos 4 dígitos"
-                  />
-                </View>
-              )}
-              {metodo === 'Transferencia' && (
-                <View style={styles.payField}>
-                  <Text style={styles.payFieldLabel}>Número de referencia</Text>
-                  <TextInput
-                    style={styles.payInput}
-                    value={referencia}
-                    onChangeText={setReferencia}
-                    placeholder="Ej: REF-123456"
-                    placeholderTextColor={colors.textMuted}
-                    accessibilityLabel="Referencia de transferencia"
-                  />
-                </View>
-              )}
-
+              {/* ── Pago en efectivo ────────────────────────────────────── */}
+              <Text style={styles.payLabel}>Pagar en recepción</Text>
               <TouchableOpacity
                 style={[styles.confirmBtn, buying && { opacity: 0.6 }]}
                 onPress={handleCheckout}
                 disabled={buying}
-                accessibilityLabel="Confirmar y pagar"
+                accessibilityLabel="Registrar compra para pagar en efectivo"
                 accessibilityRole="button">
-                <Ionicons name={buying ? 'hourglass-outline' : 'checkmark-circle-outline'} size={20} color={colors.onAccent} />
-                <Text style={styles.confirmBtnText}>{buying ? 'Procesando…' : 'Confirmar pago'}</Text>
+                <Ionicons name={buying ? 'hourglass-outline' : 'cash-outline'} size={20} color={colors.onAccent} />
+                <Text style={styles.confirmBtnText}>
+                  {buying ? 'Procesando…' : 'Pagar en efectivo'}
+                </Text>
               </TouchableOpacity>
+
+              {/* ── Pago en línea ───────────────────────────────────────── */}
+              {/* Los metadatos viajan con el cobro: sin ellos la pasarela cobra
+                  pero el backend no puede registrar la venta ni bajar el stock. */}
+              <Text style={[styles.payLabel, { marginTop: 18 }]}>Pagar en línea</Text>
+              <BotonesPago
+                contexto="producto"
+                monto={Number(cartTotal.toFixed(2))}
+                descripcion={`Compra de ${cartCount} artículo${cartCount === 1 ? '' : 's'}`}
+                referenciaLocal={user?.id ?? null}
+                emailPagador={user?.email ?? null}
+                deshabilitado={buying || cartItems.length === 0}
+                metadatos={{
+                  items: cartItems.map(({ producto, cantidad }) => ({
+                    id:        producto.id ?? producto._id,
+                    nombre:    producto.nombre,
+                    precio:    producto.precio,
+                    qty:       cantidad,
+                    categoria: producto.categoria ?? 'General',
+                  })),
+                  id_miembro:     user?.id ?? null,
+                  nombre_miembro: user?.nombre ?? '',
+                }}
+                onPagado={(tx) => {
+                  // El backend registra la venta al confirmar el cobro; aquí solo
+                  // se limpia el carrito y se refresca el historial.
+                  if (tx?.estado === 'rechazado' || tx?.estado === 'cancelado') return;
+                  setCart({});
+                  setShowCheckout(false);
+                  setTab('historial');
+                  refetchH();
+                  refetchP();
+                }}
+              />
             </ScrollView>
           </View>
         </View>
@@ -538,17 +523,6 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   summaryTotalLabel: { color: colors.text, fontSize: 16 * fs, fontWeight: '700' },
   summaryTotalValue: { color: colors.accent, fontSize: 20 * fs, fontWeight: '800' },
   payLabel:      { color: colors.text, fontSize: 14 * fs, fontWeight: '700', marginBottom: 10 },
-  metodosRow:    { flexDirection: 'row', gap: 8, marginBottom: 16 },
-  metodoChip:    { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-                   gap: 6, paddingVertical: 10, borderRadius: 12,
-                   backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
-  metodoChipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
-  metodoText:    { color: colors.textSecondary, fontSize: 12 * fs, fontWeight: '600' },
-  payField:      { marginBottom: 16 },
-  payFieldLabel: { color: colors.textSecondary, fontSize: 12 * fs, fontWeight: '600', marginBottom: 6 },
-  payInput:      { backgroundColor: colors.card, borderRadius: 10, paddingHorizontal: 14,
-                   paddingVertical: 10, color: colors.text, fontSize: 14 * fs,
-                   borderWidth: 1, borderColor: colors.border },
   confirmBtn:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
                    backgroundColor: colors.accent, borderRadius: 14, paddingVertical: 16, marginTop: 8 },
   confirmBtnText:{ color: colors.onAccent, fontSize: 16 * fs, fontWeight: '700' },

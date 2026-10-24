@@ -4,7 +4,7 @@
  */
 import React, { useState, useMemo } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TextInput, RefreshControl,
+  View, Text, StyleSheet, FlatList, TextInput, RefreshControl, TouchableOpacity,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,6 +15,7 @@ import { toArray, toDateStr } from '../../utils/format';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
+import DetalleUsuario, { fechaFicha, UsuarioDetalle } from '../../components/usuarios/DetalleUsuario';
 import type { ReceptionistMember } from '../../types';
 
 const STATUS: Record<string, { label: string; color: 'success' | 'warning' | 'error' | 'info' }> = {
@@ -34,6 +35,7 @@ export default function ReceptionistMembersScreen() {
   const { data, loading, refetch } =
     useFetch<{ miembros: ReceptionistMember[] }>(`${ENDPOINTS.RECEP_MEMBERS}?q=${encodeURIComponent(search)}`);
   const members = toArray<ReceptionistMember>(data?.miembros);
+  const [detalle, setDetalle] = useState<UsuarioDetalle | null>(null);
 
   return (
     <View style={styles.screen}>
@@ -69,27 +71,55 @@ export default function ReceptionistMembersScreen() {
           renderItem={({ item: m }) => {
             const st = STATUS[m.mem_status] ?? STATUS.sin_membresia;
             return (
-              <Card style={{ marginBottom: 10 }}>
-                <View style={styles.row}>
-                  <View style={styles.avatar}>
-                    <Text style={styles.initial}>{m.nombre.charAt(0).toUpperCase()}</Text>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() => setDetalle({
+                  nombre:    m.nombre,
+                  email:     m.email,
+                  telefono:  (m as any).telefono,
+                  foto:      (m as any).foto_perfil,
+                  activo:    m.mem_status !== 'vencida',
+                  subtitulo: m.tipo_membresia ?? null,
+                  datos: [
+                    { icono: 'card-outline',     etiqueta: 'Membresía', valor: m.tipo_membresia },
+                    { icono: 'time-outline',     etiqueta: 'Vence',     valor: fechaFicha(m.fecha_fin) },
+                    { icono: 'pulse-outline',    etiqueta: 'Estado',    valor: st.label },
+                    { icono: 'mail-outline',     etiqueta: 'Correo',    valor: m.email },
+                    { icono: 'call-outline',     etiqueta: 'Teléfono',  valor: (m as any).telefono },
+                  ],
+                })}
+                accessibilityRole="button"
+                accessibilityLabel={`Ver detalle de ${m.nombre}`}
+              >
+                <Card style={{ marginBottom: 10 }}>
+                  <View style={styles.row}>
+                    <View style={styles.avatar}>
+                      <Text style={styles.initial}>{m.nombre.charAt(0).toUpperCase()}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.name}>{m.nombre}</Text>
+                      <Text style={styles.sub} numberOfLines={1}>{m.email}</Text>
+                      {m.tipo_membresia ? (
+                        <Text style={styles.plan}>
+                          {m.tipo_membresia}{m.fecha_fin ? ` · vence ${toDateStr(m.fecha_fin)}` : ''}
+                        </Text>
+                      ) : null}
+                    </View>
+                    <Badge label={st.label} color={st.color} />
+                    <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.name}>{m.nombre}</Text>
-                    <Text style={styles.sub} numberOfLines={1}>{m.email}</Text>
-                    {m.tipo_membresia ? (
-                      <Text style={styles.plan}>
-                        {m.tipo_membresia}{m.fecha_fin ? ` · vence ${toDateStr(m.fecha_fin)}` : ''}
-                      </Text>
-                    ) : null}
-                  </View>
-                  <Badge label={st.label} color={st.color} />
-                </View>
-              </Card>
+                </Card>
+              </TouchableOpacity>
             );
           }}
         />
       )}
+
+      <DetalleUsuario
+        usuario={detalle}
+        onClose={() => setDetalle(null)}
+        titulo="Detalle del miembro"
+      />
     </View>
   );
 }
