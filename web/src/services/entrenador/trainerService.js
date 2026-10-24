@@ -143,7 +143,15 @@ export const trainerService = {
     return await apiFetch(`${API_BASE_URL}/trainer/recipes/${id}`, { method: 'DELETE' });
   },
 
-  // ─── AI ETL — Importar plan alimenticio ────────────────────────────────────
+  // ─── AI ETL — Importar plan alimenticio (LLM local vía Ollama) ───────────
+
+  /**
+   * Verifica que el servicio Ollama esté activo y el modelo descargado.
+   * Devuelve { disponible, modelo_activo, modelo, modelos[] }
+   */
+  getAIStatus: async () => {
+    return await apiFetch(`${API_BASE_URL}/trainer/diets/ai-status`);
+  },
 
   importDietAI: async (file) => {
     const token = localStorage.getItem('token');
@@ -257,11 +265,4 @@ export const trainerService = {
   },
 
   deleteRoutine: async (routineId) => {
-    return await apiFetch(`${API_BASE_URL}/trainer/routines/${routineId}`, {
-      method: 'DELETE',
-    });
-  },
-
-  duplicateRoutine: async (routineId) => {
-
-    return await apiFetch(`${API_BASE_URL}/trainer/routines/${routineId}/duplicat
+    return await apiFetch(`${API_BASE
