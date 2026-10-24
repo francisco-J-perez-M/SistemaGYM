@@ -22,6 +22,7 @@
   --text-on-accent:   #ffffff;
 
   /* Superficies: Más profundas para mayor contraste */
+  --bg-sidebar:       #0D1018;
   --bg-main:          #080A10;
   --bg-card:          #121520;
   --bg-input:         #191D2B;
@@ -94,6 +95,7 @@
   --text-on-accent:   #ffffff;
 
   /* Superficies: Más limpias y luminosas */
+  --bg-sidebar:       #1B2135;
   --bg-main:          #F4F7FF;
   --bg-card:          #FFFFFF;
   --bg-input:         #EEF2FA;
@@ -140,6 +142,7 @@
   --text-on-accent:   #02120A; /* Negro profundo para legibilidad */
 
   /* Superficies: Verde selva casi negro */
+  --bg-sidebar:       #060D09;
   --bg-main:          #040B07;
   --bg-card:          #0B1610;
   --bg-input:         #102017;
@@ -186,6 +189,7 @@
   --text-on-accent:   #ffffff;
 
   /* Superficies: Vacío morado súper oscuro */
+  --bg-sidebar:       #060410;
   --bg-main:          #070514;
   --bg-card:          #0F0A24;
   --bg-input:         #171033;
@@ -239,6 +243,8 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  /* Transición suave al cambiar de tema */
+  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
 body {
@@ -247,7 +253,16 @@ body {
   color: var(--text-primary);
   overflow-x: hidden;
   line-height: 1.6;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+/* Transición suave al cambiar de tema — solo superficies, no transforms */
+.stat-card, .chart-card, .empty-state,
+.dashboard-content, .page-container,
+aside, nav, header, footer,
+.admin-table th, .admin-table td,
+input, select, textarea, button {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease !important;
 }
 
 a { text-decoration: none; color: inherit; }
@@ -1128,6 +1143,9 @@ ul, ol { list-style: none; }
   max-width: 1440px;
   margin: 0 auto;
   width: 100%;
+  background: var(--bg-main);
+  min-height: 100%;
+  color: var(--text-primary);
 }
 
 /* ============================================================

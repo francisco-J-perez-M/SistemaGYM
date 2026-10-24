@@ -178,7 +178,7 @@ export default function ReceptionistDashboard() {
                       <div className="exercise-checkbox">
                         <div style={{
                           width: 44, height: 44, borderRadius: "50%",
-                          background: "var(--accent)", color: "var(--bg-dark)",
+                          background: "var(--accent)", color: "var(--bg-input)",
                           display: "flex", alignItems: "center", justifyContent: "center",
                           fontWeight: 700, fontSize: 13,
                         }}>

@@ -53,13 +53,13 @@ const DIAS = ["lunes", "martes", "miercoles", "jueves", "viernes", "sabado", "do
 const DIAS_LABEL = { lunes: "L", martes: "M", miercoles: "X", jueves: "J", viernes: "V", sabado: "S", domingo: "D" };
 
 const card = (extra = {}) => ({
-  background: "var(--bg-card, #1a1d2e)",
-  border: "1px solid var(--border, rgba(255,255,255,.08))",
+  background: "var(--bg-card)",
+  border: "1px solid var(--border)",
   borderRadius: 12,
   ...extra,
 });
 
-const btn = (color = "#6366f1", outline = false) => ({
+const btn = (color = "var(--accent)", outline = false) => ({
   display: "inline-flex", alignItems: "center", gap: 6,
   padding: "8px 16px", borderRadius: 8, cursor: "pointer",
   fontSize: 13, fontWeight: 600,
@@ -121,10 +121,10 @@ function TabRutinas() {
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div style={{
               width: 38, height: 38, borderRadius: 10,
-              background: asignada ? "rgba(16,185,129,.15)" : "rgba(99,102,241,.15)",
+              background: asignada ? "rgba(16,185,129,.15)" : "var(--accent-dim)",
               display: "flex", alignItems: "center", justifyContent: "center",
             }}>
-              <GiMuscleUp size={18} color={asignada ? "#10b981" : "#6366f1"} />
+              <GiMuscleUp size={18} color={asignada ? "var(--success)" : "var(--accent)"} />
             </div>
             <div>
               <div style={{ fontWeight: 700, fontSize: 14, color: "var(--text-primary)" }}>
@@ -132,7 +132,7 @@ function TabRutinas() {
               </div>
               <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>
                 {asignada
-                  ? <>Asignada por <strong style={{ color: "#10b981" }}>{rutina.nombre_entrenador}</strong> · {fmtFecha(rutina.fecha_asignacion)}</>
+                  ? <>Asignada por <strong style={{ color: "var(--success)" }}>{rutina.nombre_entrenador}</strong> · {fmtFecha(rutina.fecha_asignacion)}</>
                   : <>{rutina.categoria || rutina.category} · {rutina.dificultad || rutina.difficulty}</>
                 }
               </div>
@@ -141,8 +141,8 @@ function TabRutinas() {
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <span style={{
               fontSize: 11, padding: "3px 8px", borderRadius: 99,
-              background: asignada ? "rgba(16,185,129,.15)" : "rgba(99,102,241,.12)",
-              color: asignada ? "#10b981" : "#818cf8",
+              background: asignada ? "rgba(16,185,129,.15)" : "var(--accent-dim)",
+              color: asignada ? "var(--success)" : "var(--accent-soft)",
               fontWeight: 700,
             }}>
               {asignada ? "Entrenador" : "Propia"}
@@ -165,7 +165,7 @@ function TabRutinas() {
                   <div style={{
                     marginTop: 12, padding: "10px 14px", borderRadius: 8,
                     background: "rgba(16,185,129,.07)", border: "1px solid rgba(16,185,129,.2)",
-                    fontSize: 13, color: "#10b981",
+                    fontSize: 13, color: "var(--success)",
                   }}>
                     💬 {rutina.notas_entrenador}
                   </div>
@@ -192,7 +192,7 @@ function TabRutinas() {
                   <div style={{ marginTop: 14 }}>
                     {(rutina.dias).map((dia, i) => (
                       <div key={i} style={{ marginBottom: 10 }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: "#818cf8", marginBottom: 6 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: "var(--accent-soft)", marginBottom: 6 }}>
                           {dia.dia} — {dia.grupo}
                         </div>
                         {dia.ejercicios.map((ej, j) => (
@@ -203,7 +203,7 @@ function TabRutinas() {
                           }}>
                             <span style={{ flex: 1 }}>{ej.nombre}</span>
                             <span style={{ color: "var(--text-secondary)" }}>{ej.series}×{ej.reps}</span>
-                            {ej.peso && <span style={{ color: "#eab308" }}>{ej.peso}</span>}
+                            {ej.peso && <span style={{ color: "var(--warning)" }}>{ej.peso}</span>}
                           </div>
                         ))}
                       </div>
@@ -235,7 +235,7 @@ function TabRutinas() {
             style={{
               padding: "7px 16px", borderRadius: 8,
               border: vista === key ? "none" : "1px solid var(--border, rgba(255,255,255,.1))",
-              background: vista === key ? "#6366f1" : "transparent",
+              background: vista === key ? "var(--accent)" : "transparent",
               color: vista === key ? "#fff" : "var(--text-secondary)",
               cursor: "pointer", fontSize: 13, fontWeight: 600,
               display: "flex", alignItems: "center", gap: 6,
@@ -338,12 +338,12 @@ function RatingWidget({ trainerId, trainerName }) {
 
   const estrellaColor = (i) => {
     const active = (hover || rating) >= i;
-    return active ? "#f59e0b" : "var(--border)";
+    return active ? "var(--warning)" : "var(--border)";
   };
 
   return (
     <div style={{
-      marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--border, rgba(255,255,255,.08))",
+      marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--border)",
     }}>
       {/* Header colapsable */}
       <button
@@ -355,12 +355,12 @@ function RatingWidget({ trainerId, trainerName }) {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600 }}>
-          <FiStar size={14} style={{ color: "#f59e0b" }} />
+          <FiStar size={14} style={{ color: "var(--warning)" }} />
           {guardado ? `Tu calificación: ${rating}/5` : `Calificar a ${trainerName}`}
           {guardado && (
             <span style={{ marginLeft: 4, display: "flex", gap: 2 }}>
               {[1,2,3,4,5].map(i => (
-                <FiStar key={i} size={12} style={{ color: i <= rating ? "#f59e0b" : "var(--border)", fill: i <= rating ? "#f59e0b" : "none" }} />
+                <FiStar key={i} size={12} style={{ color: i <= rating ? "var(--warning)" : "var(--border)", fill: i <= rating ? "var(--warning)" : "none" }} />
               ))}
             </span>
           )}
@@ -376,7 +376,7 @@ function RatingWidget({ trainerId, trainerName }) {
               padding: "8px 12px", borderRadius: 8, marginBottom: 10,
               background: msg.type === "ok" ? "rgba(16,185,129,.1)" : "rgba(239,68,68,.1)",
               border: `1px solid ${msg.type === "ok" ? "rgba(16,185,129,.3)" : "rgba(239,68,68,.3)"}`,
-              color: msg.type === "ok" ? "#10b981" : "#ef4444",
+              color: msg.type === "ok" ? "var(--success)" : "var(--danger)",
               fontSize: 12, display: "flex", gap: 6, alignItems: "center",
             }}>
               {msg.type === "ok" ? <FiCheckCircle size={13} /> : <FiAlertCircle size={13} />}
@@ -443,7 +443,7 @@ function RatingWidget({ trainerId, trainerName }) {
               onClick={guardar}
               disabled={saving || !rating}
               style={{
-                ...btn(saving || !rating ? "#374151" : "#f59e0b"),
+                ...btn(saving || !rating ? "#374151" : "var(--warning)"),
                 padding: "6px 16px", fontSize: 12,
                 opacity: saving || !rating ? 0.6 : 1,
                 cursor: saving || !rating ? "not-allowed" : "pointer",
@@ -518,7 +518,7 @@ function TabEntrenador() {
   };
 
   const ESTADO_COLOR = {
-    pendiente: "#eab308", aceptada: "#10b981", rechazada: "#ef4444",
+    pendiente: "var(--warning)", aceptada: "var(--success)", rechazada: "var(--danger)",
   };
   const ESTADO_LABEL = {
     pendiente: "Pendiente", aceptada: "Aceptada ✓", rechazada: "Rechazada",
@@ -542,7 +542,7 @@ function TabEntrenador() {
             style={{
               padding: "7px 16px", borderRadius: 8, cursor: "pointer",
               border: vista === key ? "none" : "1px solid var(--border, rgba(255,255,255,.1))",
-              background: vista === key ? "#6366f1" : "transparent",
+              background: vista === key ? "var(--accent)" : "transparent",
               color: vista === key ? "#fff" : "var(--text-secondary)",
               fontSize: 13, fontWeight: 600,
             }}
@@ -589,7 +589,7 @@ function TabEntrenador() {
                       <div style={{
                         marginTop: 8, padding: "7px 12px", borderRadius: 8,
                         background: "rgba(16,185,129,.08)", border: "1px solid rgba(16,185,129,.2)",
-                        fontSize: 12, color: "#10b981",
+                        fontSize: 12, color: "var(--success)",
                       }}>
                         Respuesta: {s.notas_entrenador}
                       </div>
@@ -607,7 +607,7 @@ function TabEntrenador() {
                       {s.estado === "aceptada" && (
                         <button
                           onClick={() => setChatOpen(s.id_entrenador_pg)}
-                          style={{ ...btn("#10b981", true), padding: "5px 10px", fontSize: 11 }}
+                          style={{ ...btn("var(--success)", true), padding: "5px 10px", fontSize: 11 }}
                         >
                           <FiMessageSquare size={11} /> Chat
                         </button>
@@ -615,7 +615,7 @@ function TabEntrenador() {
                       {s.estado === "pendiente" && (
                         <button
                           onClick={() => cancelar(s.id)}
-                          style={{ ...btn("#ef4444", true), padding: "5px 10px", fontSize: 11 }}
+                          style={{ ...btn("var(--danger)", true), padding: "5px 10px", fontSize: 11 }}
                         >
                           <FiX size={11} /> Cancelar
                         </button>
@@ -645,7 +645,7 @@ function TabEntrenador() {
               padding: "12px 16px", borderRadius: 10, marginBottom: 16,
               background: "rgba(234,179,8,.08)", border: "1px solid rgba(234,179,8,.3)",
               display: "flex", gap: 10, alignItems: "center",
-              fontSize: 13, color: "#eab308",
+              fontSize: 13, color: "var(--warning)",
             }}>
               <FiAlertCircle size={15} />
               Ya tienes una solicitud activa con {solicitudActiva.nombre_entrenador}. Cancélala antes de enviar una nueva.
@@ -657,7 +657,7 @@ function TabEntrenador() {
               padding: "10px 14px", borderRadius: 8, marginBottom: 14,
               background: msg.type === "ok" ? "rgba(16,185,129,.1)" : "rgba(239,68,68,.1)",
               border: `1px solid ${msg.type === "ok" ? "rgba(16,185,129,.3)" : "rgba(239,68,68,.3)"}`,
-              color: msg.type === "ok" ? "#10b981" : "#ef4444",
+              color: msg.type === "ok" ? "var(--success)" : "var(--danger)",
               display: "flex", gap: 8, alignItems: "center", fontSize: 13,
             }}>
               {msg.type === "ok" ? <FiCheckCircle size={14} /> : <FiAlertCircle size={14} />}
@@ -683,8 +683,8 @@ function TabEntrenador() {
                         ...card({
                           padding: "14px",
                           cursor: "pointer",
-                          outline: selTrainer?.id === t.id ? "2px solid #6366f1" : "none",
-                          background: selTrainer?.id === t.id ? "rgba(99,102,241,.1)" : "var(--bg-card)",
+                          outline: selTrainer?.id === t.id ? "2px solid var(--accent)" : "none",
+                          background: selTrainer?.id === t.id ? "var(--accent-dim)" : "var(--bg-card)",
                           transition: "all .15s",
                         }),
                       }}
@@ -692,10 +692,10 @@ function TabEntrenador() {
                       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                         <div style={{
                           width: 38, height: 38, borderRadius: "50%",
-                          background: "rgba(99,102,241,.15)", display: "flex",
+                          background: "var(--accent-dim)", display: "flex",
                           alignItems: "center", justifyContent: "center", flexShrink: 0,
                         }}>
-                          <FiUser size={16} color="#818cf8" />
+                          <FiUser size={16} color="var(--accent-soft)" />
                         </div>
                         <div>
                           <div style={{ fontWeight: 700, fontSize: 13, color: "var(--text-primary)" }}>{t.nombre}</div>
@@ -704,7 +704,7 @@ function TabEntrenador() {
                       </div>
                       {selTrainer?.id === t.id && (
                         <div style={{ marginTop: 8, textAlign: "right" }}>
-                          <FiCheckCircle size={14} color="#6366f1" />
+                          <FiCheckCircle size={14} color="var(--accent)" />
                         </div>
                       )}
                     </div>
@@ -726,7 +726,7 @@ function TabEntrenador() {
                   style={{
                     padding: "7px 14px", borderRadius: 8, cursor: "pointer",
                     border: tipoSesion === t ? "none" : "1px solid var(--border, rgba(255,255,255,.1))",
-                    background: tipoSesion === t ? "#6366f1" : "transparent",
+                    background: tipoSesion === t ? "var(--accent)" : "transparent",
                     color: tipoSesion === t ? "#fff" : "var(--text-secondary)",
                     fontSize: 12, fontWeight: 600, textTransform: "capitalize",
                   }}
@@ -750,8 +750,8 @@ function TabEntrenador() {
               style={{
                 width: "100%", boxSizing: "border-box",
                 padding: "10px 12px", borderRadius: 8,
-                background: "var(--bg-dark, #0f1117)",
-                border: "1px solid var(--border, rgba(255,255,255,.12))",
+                background: "var(--bg-input)",
+                border: "1px solid var(--border)",
                 color: "var(--text-primary)", fontSize: 13,
                 resize: "none", outline: "none",
               }}
@@ -762,7 +762,7 @@ function TabEntrenador() {
             onClick={enviarSolicitud}
             disabled={saving || !selTrainer || !!solicitudActiva}
             style={{
-              ...btn(saving || !selTrainer || !!solicitudActiva ? "#374151" : "#6366f1"),
+              ...btn(saving || !selTrainer || !!solicitudActiva ? "#374151" : "var(--accent)"),
               width: "100%", justifyContent: "center", padding: "11px 0",
               opacity: saving || !selTrainer || !!solicitudActiva ? 0.6 : 1,
               cursor: saving || !selTrainer || !!solicitudActiva ? "not-allowed" : "pointer",
@@ -831,7 +831,7 @@ function ChatView({ trainerId, onBack, trainers }) {
       {/* Header */}
       <div style={{
         display: "flex", alignItems: "center", gap: 12, padding: "14px 0",
-        borderBottom: "1px solid var(--border, rgba(255,255,255,.08))", marginBottom: 12,
+        borderBottom: "1px solid var(--border)", marginBottom: 12,
       }}>
         <button onClick={onBack} style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", padding: 4 }}>
           ← Volver
@@ -840,13 +840,13 @@ function ChatView({ trainerId, onBack, trainers }) {
           width: 36, height: 36, borderRadius: "50%",
           background: "rgba(16,185,129,.15)", display: "flex", alignItems: "center", justifyContent: "center",
         }}>
-          <FiUser size={16} color="#10b981" />
+          <FiUser size={16} color="var(--success)" />
         </div>
         <div>
           <div style={{ fontWeight: 700, fontSize: 14, color: "var(--text-primary)" }}>
             {trainer?.nombre || "Entrenador"}
           </div>
-          <div style={{ fontSize: 11, color: "#10b981" }}>Entrenador Personal</div>
+          <div style={{ fontSize: 11, color: "var(--success)" }}>Entrenador Personal</div>
         </div>
       </div>
 
@@ -871,8 +871,8 @@ function ChatView({ trainerId, onBack, trainers }) {
               }}>
                 <div style={{
                   maxWidth: "72%", padding: "9px 14px", borderRadius: esMio ? "12px 12px 3px 12px" : "12px 12px 12px 3px",
-                  background: esMio ? "#6366f1" : "var(--bg-card, #1a1d2e)",
-                  border: esMio ? "none" : "1px solid var(--border, rgba(255,255,255,.08))",
+                  background: esMio ? "var(--accent)" : "var(--bg-card)",
+                  border: esMio ? "none" : "1px solid var(--border)",
                   fontSize: 13, color: esMio ? "#fff" : "var(--text-primary)",
                   lineHeight: 1.5,
                 }}>
@@ -891,7 +891,7 @@ function ChatView({ trainerId, onBack, trainers }) {
       {/* Input */}
       <div style={{
         display: "flex", gap: 8, paddingTop: 10,
-        borderTop: "1px solid var(--border, rgba(255,255,255,.08))",
+        borderTop: "1px solid var(--border)",
       }}>
         <textarea
           value={texto}
@@ -901,8 +901,8 @@ function ChatView({ trainerId, onBack, trainers }) {
           rows={1}
           style={{
             flex: 1, padding: "10px 12px", borderRadius: 10,
-            background: "var(--bg-dark, #0f1117)",
-            border: "1px solid var(--border, rgba(255,255,255,.12))",
+            background: "var(--bg-input)",
+            border: "1px solid var(--border)",
             color: "var(--text-primary)", fontSize: 13,
             resize: "none", outline: "none",
           }}
@@ -911,7 +911,7 @@ function ChatView({ trainerId, onBack, trainers }) {
           onClick={enviar}
           disabled={!texto.trim() || sending}
           style={{
-            ...btn(texto.trim() && !sending ? "#6366f1" : "#374151"),
+            ...btn(texto.trim() && !sending ? "var(--accent)" : "#374151"),
             padding: "0 16px",
             opacity: texto.trim() && !sending ? 1 : 0.5,
           }}
@@ -1021,13 +1021,13 @@ function TabAlertas() {
           padding: "12px 16px", borderRadius: 10, marginBottom: 16,
           background: "rgba(234,179,8,.07)", border: "1px solid rgba(234,179,8,.25)",
           display: "flex", justifyContent: "space-between", alignItems: "center",
-          fontSize: 13, color: "#eab308",
+          fontSize: 13, color: "var(--warning)",
         }}>
           <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <FiBell size={14} />
             Activa las notificaciones del navegador para recibir recordatorios
           </span>
-          <button onClick={pedirPermiso} style={{ ...btn("#eab308"), fontSize: 11, padding: "5px 10px" }}>
+          <button onClick={pedirPermiso} style={{ ...btn("var(--warning)"), fontSize: 11, padding: "5px 10px" }}>
             Activar
           </button>
         </div>
@@ -1064,7 +1064,7 @@ function TabAlertas() {
             <div key={a.id} style={{
               ...card({ padding: "14px 18px" }),
               opacity: a.activa ? 1 : 0.55,
-              borderLeft: `3px solid ${a.activa ? "#6366f1" : "rgba(255,255,255,.1)"}`,
+              borderLeft: `3px solid ${a.activa ? "var(--accent)" : "rgba(255,255,255,.1)"}`,
             }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
@@ -1072,7 +1072,7 @@ function TabAlertas() {
                     {a.titulo}
                     <span style={{
                       marginLeft: 8, fontSize: 10, padding: "2px 7px", borderRadius: 99,
-                      background: "rgba(99,102,241,.15)", color: "#818cf8", fontWeight: 600,
+                      background: "var(--accent-dim)", color: "var(--accent-soft)", fontWeight: 600,
                     }}>
                       {a.tipo === "sesion_pt" ? "Sesión PT" : "Rutina"}
                     </span>
@@ -1087,7 +1087,7 @@ function TabAlertas() {
                           width: 22, height: 22, borderRadius: "50%", display: "flex",
                           alignItems: "center", justifyContent: "center",
                           fontSize: 10, fontWeight: 700,
-                          background: a.dias?.includes(d) ? "#6366f1" : "rgba(255,255,255,.05)",
+                          background: a.dias?.includes(d) ? "var(--accent)" : "rgba(255,255,255,.05)",
                           color: a.dias?.includes(d) ? "#fff" : "var(--text-secondary)",
                         }}>
                           {DIAS_LABEL[d]}
@@ -1097,13 +1097,13 @@ function TabAlertas() {
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                  <button onClick={() => toggleActiva(a)} style={{ background: "none", border: "none", cursor: "pointer", color: a.activa ? "#6366f1" : "var(--text-secondary)", padding: 4 }}>
+                  <button onClick={() => toggleActiva(a)} style={{ background: "none", border: "none", cursor: "pointer", color: a.activa ? "var(--accent)" : "var(--text-secondary)", padding: 4 }}>
                     {a.activa ? <FiToggleRight size={22} /> : <FiToggleLeft size={22} />}
                   </button>
                   <button onClick={() => abrirForm(a)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", padding: 4 }}>
                     <FiEdit2 size={14} />
                   </button>
-                  <button onClick={() => eliminar(a.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444", padding: 4 }}>
+                  <button onClick={() => eliminar(a.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--danger)", padding: 4 }}>
                     <FiTrash2 size={14} />
                   </button>
                 </div>
@@ -1129,7 +1129,7 @@ function TabAlertas() {
               style={{
                 position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)",
                 zIndex: 9991, width: "min(420px, 92vw)",
-                background: "var(--bg-card, #1a1d2e)",
+                background: "var(--bg-card)",
                 border: "1px solid var(--border, rgba(255,255,255,.1))",
                 borderRadius: 14, padding: "22px 24px",
                 boxShadow: "0 24px 60px rgba(0,0,0,.5)",
@@ -1154,8 +1154,8 @@ function TabAlertas() {
                   onChange={e => setTitulo(e.target.value)}
                   style={{
                     width: "100%", boxSizing: "border-box", padding: "9px 12px", borderRadius: 8,
-                    background: "var(--bg-dark, #0f1117)",
-                    border: "1px solid var(--border, rgba(255,255,255,.12))",
+                    background: "var(--bg-input)",
+                    border: "1px solid var(--border)",
                     color: "var(--text-primary)", fontSize: 13, outline: "none",
                   }}
                 />
@@ -1172,8 +1172,8 @@ function TabAlertas() {
                   onChange={e => setHora(e.target.value)}
                   style={{
                     width: "100%", boxSizing: "border-box", padding: "9px 12px", borderRadius: 8,
-                    background: "var(--bg-dark, #0f1117)",
-                    border: "1px solid var(--border, rgba(255,255,255,.12))",
+                    background: "var(--bg-input)",
+                    border: "1px solid var(--border)",
                     color: "var(--text-primary)", fontSize: 13, outline: "none",
                   }}
                 />
@@ -1192,7 +1192,7 @@ function TabAlertas() {
                       style={{
                         width: 34, height: 34, borderRadius: "50%", border: "none",
                         cursor: "pointer", fontSize: 11, fontWeight: 700,
-                        background: dias.includes(d) ? "#6366f1" : "rgba(255,255,255,.06)",
+                        background: dias.includes(d) ? "var(--accent)" : "rgba(255,255,255,.06)",
                         color: dias.includes(d) ? "#fff" : "var(--text-secondary)",
                         transition: "all .15s",
                       }}
@@ -1216,7 +1216,7 @@ function TabAlertas() {
                       style={{
                         flex: 1, padding: "7px 0", borderRadius: 8, cursor: "pointer",
                         border: tipo === k ? "none" : "1px solid var(--border, rgba(255,255,255,.1))",
-                        background: tipo === k ? "#6366f1" : "transparent",
+                        background: tipo === k ? "var(--accent)" : "transparent",
                         color: tipo === k ? "#fff" : "var(--text-secondary)",
                         fontSize: 12, fontWeight: 600,
                       }}
@@ -1228,7 +1228,7 @@ function TabAlertas() {
               </div>
 
               {err && (
-                <div style={{ padding: "8px 12px", borderRadius: 8, marginBottom: 12, background: "rgba(239,68,68,.1)", border: "1px solid rgba(239,68,68,.3)", color: "#ef4444", fontSize: 12 }}>
+                <div style={{ padding: "8px 12px", borderRadius: 8, marginBottom: 12, background: "rgba(239,68,68,.1)", border: "1px solid rgba(239,68,68,.3)", color: "var(--danger)", fontSize: 12 }}>
                   {err}
                 </div>
               )}
@@ -1236,7 +1236,7 @@ function TabAlertas() {
               <button
                 onClick={guardar}
                 disabled={saving}
-                style={{ ...btn(saving ? "#374151" : "#6366f1"), width: "100%", justifyContent: "center", padding: "11px 0" }}
+                style={{ ...btn(saving ? "#374151" : "var(--accent)"), width: "100%", justifyContent: "center", padding: "11px 0" }}
               >
                 <FiCheck size={14} /> {saving ? "Guardando..." : editAlerta ? "Actualizar" : "Crear alerta"}
               </button>
@@ -1261,15 +1261,15 @@ export default function UserTraining() {
   ];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "var(--bg-dark, #0f1117)", overflow: "hidden" }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "var(--bg-input)", overflow: "hidden" }}>
       {/* Header */}
       <header style={{
         display: "flex", justifyContent: "space-between", alignItems: "center",
-        padding: "14px 24px", borderBottom: "1px solid var(--border, rgba(255,255,255,.08))",
+        padding: "14px 24px", borderBottom: "1px solid var(--border)",
         flexShrink: 0,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <GiMuscleUp size={20} color="#6366f1" />
+          <GiMuscleUp size={20} color="var(--accent)" />
           <div>
             <h1 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "var(--text-primary)" }}>Entrenamiento</h1>
             <p style={{ margin: 0, fontSize: 11, color: "var(--text-secondary)" }}>
@@ -1281,7 +1281,7 @@ export default function UserTraining() {
         </div>
 
         {/* Tabs */}
-        <div style={{ display: "flex", gap: 4, background: "var(--bg-card, #1a1d2e)", borderRadius: 10, padding: 4 }}>
+        <div style={{ display: "flex", gap: 4, background: "var(--bg-card)", borderRadius: 10, padding: 4 }}>
           {TABS.map(({ key, label, icon }) => (
             <button
               key={key}
@@ -1290,7 +1290,7 @@ export default function UserTraining() {
                 display: "flex", alignItems: "center", gap: 6,
                 padding: "7px 14px", borderRadius: 8, border: "none",
                 cursor: "pointer", fontSize: 12, fontWeight: 600,
-                background: tab === key ? "#6366f1" : "transparent",
+                background: tab === key ? "var(--accent)" : "transparent",
                 color: tab === key ? "#fff" : "var(--text-secondary)",
                 transition: "all .15s",
               }}

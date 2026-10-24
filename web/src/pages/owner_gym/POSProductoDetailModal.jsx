@@ -7,10 +7,10 @@ import { createPortal } from "react-dom";
 import { FiX, FiChevronLeft, FiChevronRight, FiShoppingCart, FiPackage } from "react-icons/fi";
 
 const CAT_COLORS = {
-  Suplementos: "#6366f1", Accesorios: "#10b981", Snacks: "#eab308",
-  Bebidas: "#38bdf8",     Ropa: "#f472b6",        General: "#94a3b8",
+  Suplementos: "var(--accent)", Accesorios: "var(--success)", Snacks: "var(--warning)",
+  Bebidas: "#38bdf8",     Ropa: "#f472b6",        General: "var(--text-secondary)",
 };
-const catColor = (cat) => CAT_COLORS[cat] || "#94a3b8";
+const catColor = (cat) => CAT_COLORS[cat] || "var(--text-secondary)";
 const fmt = (n) => `$${Number(n).toLocaleString("es-MX", { minimumFractionDigits: 2 })}`;
 
 export default function ProductoDetailModal({ producto, onClose, onAddToCart }) {
@@ -51,7 +51,7 @@ export default function ProductoDetailModal({ producto, onClose, onAddToCart }) 
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: "#1a1d2e",
+          background: "var(--bg-card)",
           border: `1px solid ${color}44`,
           borderRadius: 18,
           width: "100%", maxWidth: 520,
@@ -145,16 +145,16 @@ export default function ProductoDetailModal({ producto, onClose, onAddToCart }) 
         {/* ── Info ── */}
         <div style={{ padding: "16px 20px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
-            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "#f1f5f9", lineHeight: 1.2, flex: 1 }}>
+            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "var(--text-primary)", lineHeight: 1.2, flex: 1 }}>
               {producto.nombre}
             </h2>
-            <span style={{ fontSize: 24, fontWeight: 900, color: "#10b981", whiteSpace: "nowrap" }}>
+            <span style={{ fontSize: 24, fontWeight: 900, color: "var(--success)", whiteSpace: "nowrap" }}>
               {fmt(producto.precio)}
             </span>
           </div>
 
           {producto.descripcion && (
-            <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary, #94a3b8)", lineHeight: 1.6 }}>
+            <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6 }}>
               {producto.descripcion}
             </p>
           )}
@@ -162,10 +162,10 @@ export default function ProductoDetailModal({ producto, onClose, onAddToCart }) 
           {/* Ficha rápida */}
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", paddingTop: 4 }}>
             {[
-              { label: "Precio",    value: fmt(producto.precio),    color: "#10b981" },
-              { label: "Stock",     value: producto.stock,          color: producto.stock > 0 ? "#10b981" : "#ef4444" },
+              { label: "Precio",    value: fmt(producto.precio),    color: "var(--success)" },
+              { label: "Stock",     value: producto.stock,          color: producto.stock > 0 ? "var(--success)" : "var(--danger)" },
               { label: "Categoría", value: producto.categoria,      color },
-              { label: "Estado",    value: producto.activo ? "Activo" : "Inactivo", color: producto.activo ? "#10b981" : "#ef4444" },
+              { label: "Estado",    value: producto.activo ? "Activo" : "Inactivo", color: producto.activo ? "var(--success)" : "var(--danger)" },
             ].map(({ label, value, color: c }) => (
               <div key={label} style={{
                 flex: 1, minWidth: 100, background: "rgba(255,255,255,.04)",
@@ -184,7 +184,7 @@ export default function ProductoDetailModal({ producto, onClose, onAddToCart }) 
               onClick={() => { onAddToCart(producto); onClose(); }}
               style={{
                 marginTop: 4, width: "100%", padding: "12px 0", borderRadius: 10, border: "none",
-                background: producto.stock > 0 ? "#6366f1" : "var(--bg-input)",
+                background: producto.stock > 0 ? "var(--accent)" : "var(--bg-input)",
                 color: producto.stock > 0 ? "#fff" : "var(--text-secondary)",
                 fontSize: 14, fontWeight: 700,
                 cursor: producto.stock > 0 ? "pointer" : "not-allowed",

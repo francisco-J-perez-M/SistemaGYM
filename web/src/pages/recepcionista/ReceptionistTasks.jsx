@@ -9,9 +9,9 @@ import "../../css/CSSUnificado.css";
 const PRIORITIES = ["alta", "media", "baja"];
 
 const PRIORITY_STYLES = {
-  alta:  { color: "#ef4444", bg: "rgba(239,68,68,0.12)",  icon: <FiAlertCircle size={12} /> },
-  media: { color: "#eab308", bg: "rgba(234,179,8,0.12)",  icon: <FiClock size={12} /> },
-  baja:  { color: "#64748b", bg: "rgba(100,116,139,0.12)",icon: <FiFlag size={12} /> },
+  alta:  { color: "var(--danger)", bg: "rgba(239,68,68,0.12)",  icon: <FiAlertCircle size={12} /> },
+  media: { color: "var(--warning)", bg: "rgba(234,179,8,0.12)",  icon: <FiClock size={12} /> },
+  baja:  { color: "var(--text-tertiary)", bg: "rgba(100,116,139,0.12)",icon: <FiFlag size={12} /> },
 };
 
 const CATEGORIES = ["Membresías", "Pagos", "Limpieza", "Equipamiento", "Comunicación", "Otro"];
@@ -102,10 +102,10 @@ export default function ReceptionistTasks() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
           <div style={{ display: "flex", gap: "20px" }}>
             <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>
-              Pendientes: <strong style={{ color: "#eab308" }}>{pending}</strong>
+              Pendientes: <strong style={{ color: "var(--warning)" }}>{pending}</strong>
             </span>
             <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>
-              Completadas: <strong style={{ color: "#22c55e" }}>{completed}</strong>
+              Completadas: <strong style={{ color: "var(--success)" }}>{completed}</strong>
             </span>
             <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>
               Total: <strong style={{ color: "var(--text-primary)" }}>{tasks.length}</strong>
@@ -235,8 +235,8 @@ export default function ReceptionistTasks() {
                   whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
                   style={{
                     width: "22px", height: "22px", borderRadius: "50%", flexShrink: 0,
-                    border: `2px solid ${task.done ? "#22c55e" : "var(--border-hover)"}`,
-                    background: task.done ? "#22c55e" : "transparent",
+                    border: `2px solid ${task.done ? "var(--success)" : "var(--border-hover)"}`,
+                    background: task.done ? "var(--success)" : "transparent",
                     display: "flex", alignItems: "center", justifyContent: "center",
                     cursor: "pointer",
                   }}

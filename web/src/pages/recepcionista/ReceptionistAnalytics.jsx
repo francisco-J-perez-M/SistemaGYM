@@ -69,7 +69,7 @@ function Section({ icon, title, subtitle, children, loading, error, onRetry }) {
 function KPICard({ label, value, sub, color = "var(--accent)" }) {
   return (
     <div style={{
-      background: "var(--bg-dark)", borderRadius: 12,
+      background: "var(--bg-input)", borderRadius: 12,
       border: "1px solid var(--border-dark)", padding: "16px 20px",
       flex: "1 1 160px", minWidth: 150,
     }}>
@@ -358,7 +358,7 @@ export default function ReceptionistAnalytics() {
         {/* Calidad del análisis */}
         {silhouette !== null && (
           <div style={{
-            background: "var(--bg-dark)", borderRadius: 10,
+            background: "var(--bg-input)", borderRadius: 10,
             border: "1px solid var(--border-dark)", padding: "12px 18px",
             marginBottom: 20, display: "inline-flex", alignItems: "center", gap: 10,
           }}>
@@ -408,7 +408,7 @@ export default function ReceptionistAnalytics() {
                   return (
                     <div key={i} style={{
                       display: "flex", alignItems: "center", gap: 12,
-                      background: "var(--bg-dark)", borderRadius: 10,
+                      background: "var(--bg-input)", borderRadius: 10,
                       border: `1px solid ${color}33`, padding: "12px 16px",
                     }}>
                       <div style={{ width: 14, height: 14, borderRadius: "50%", background: color, flexShrink: 0 }} />
@@ -481,7 +481,7 @@ export default function ReceptionistAnalytics() {
 
         {/* Explicación en lenguaje simple */}
         <div style={{
-          background: "var(--bg-dark)", borderRadius: 12,
+          background: "var(--bg-input)", borderRadius: 12,
           border: "1px solid var(--border-dark)", padding: "18px 22px",
         }}>
           <p style={{ margin: "0 0 10px", fontWeight: 600, color: "var(--text-primary)", fontSize: 14 }}>

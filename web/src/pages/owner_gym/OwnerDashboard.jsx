@@ -20,19 +20,19 @@ const S = {
     padding: "28px 32px",
     background: "var(--bg-dark,#0f1117)",
     minHeight: "100vh",
-    color: "var(--text-primary,#f1f5f9)",
+    color: "var(--text-primary,var(--text-primary))",
     fontFamily: "Inter, system-ui, sans-serif",
   },
   header: {
     display: "flex", alignItems: "center", justifyContent: "space-between",
     marginBottom: 28,
   },
-  title: { fontSize: 26, fontWeight: 700, margin: 0, color: "var(--text-primary,#f1f5f9)" },
-  sub:   { fontSize: 13, color: "var(--text-secondary,#94a3b8)", marginTop: 4 },
+  title: { fontSize: 26, fontWeight: 700, margin: 0, color: "var(--text-primary,var(--text-primary))" },
+  sub:   { fontSize: 13, color: "var(--text-secondary,var(--text-secondary))", marginTop: 4 },
   refreshBtn: {
     display: "flex", alignItems: "center", gap: 6, padding: "8px 16px",
     background: "var(--bg-card,#1e2233)", border: "1px solid var(--border,rgba(255,255,255,.08))",
-    borderRadius: 8, color: "var(--text-secondary,#94a3b8)", cursor: "pointer",
+    borderRadius: 8, color: "var(--text-secondary,var(--text-secondary))", cursor: "pointer",
     fontSize: 13, transition: "all .2s",
   },
   grid4: {
@@ -44,9 +44,9 @@ const S = {
     border: "1px solid var(--border,rgba(255,255,255,.08))",
     borderRadius: 12, padding: "20px 22px",
   },
-  cardLabel: { fontSize: 12, color: "var(--text-secondary,#94a3b8)", textTransform: "uppercase", letterSpacing: ".06em" },
-  cardValue: { fontSize: 28, fontWeight: 700, margin: "8px 0 4px", color: "var(--text-primary,#f1f5f9)" },
-  cardSub:   { fontSize: 12, color: "var(--text-tertiary,#64748b)" },
+  cardLabel: { fontSize: 12, color: "var(--text-secondary,var(--text-secondary))", textTransform: "uppercase", letterSpacing: ".06em" },
+  cardValue: { fontSize: 28, fontWeight: 700, margin: "8px 0 4px", color: "var(--text-primary,var(--text-primary))" },
+  cardSub:   { fontSize: 12, color: "var(--text-tertiary,var(--text-tertiary))" },
   grid2: {
     display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 24,
   },
@@ -55,7 +55,7 @@ const S = {
     border: "1px solid var(--border,rgba(255,255,255,.08))",
     borderRadius: 12, padding: "20px 22px",
   },
-  sectionTitle: { fontSize: 15, fontWeight: 600, marginBottom: 16, color: "var(--text-primary,#f1f5f9)" },
+  sectionTitle: { fontSize: 15, fontWeight: 600, marginBottom: 16, color: "var(--text-primary,var(--text-primary))" },
   badge: (color) => ({
     display: "inline-block", padding: "2px 8px", borderRadius: 20,
     fontSize: 11, fontWeight: 600, background: `${color}22`, color: color,
@@ -70,12 +70,12 @@ const S = {
     display: "flex", alignItems: "center", justifyContent: "center",
     fontSize: 16, flexShrink: 0,
   },
-  actText: { flex: 1, fontSize: 13, color: "var(--text-primary,#f1f5f9)" },
-  actDate: { fontSize: 11, color: "var(--text-tertiary,#64748b)" },
+  actText: { flex: 1, fontSize: 13, color: "var(--text-primary,var(--text-primary))" },
+  actDate: { fontSize: 11, color: "var(--text-tertiary,var(--text-tertiary))" },
 };
 
 // ─── Tarjeta KPI ───────────────────────────────────────────────────────────
-function KpiCard({ label, value, sub, icon, accent = "#6366f1", loading }) {
+function KpiCard({ label, value, sub, icon, accent = "var(--accent)", loading }) {
   return (
     <div style={{ ...S.card, borderTop: `3px solid ${accent}` }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -95,8 +95,8 @@ function KpiCard({ label, value, sub, icon, accent = "#6366f1", loading }) {
 function CustomTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   return (
-    <div style={{ background: "#1e2233", border: "1px solid rgba(255,255,255,.1)", borderRadius: 8, padding: "10px 14px" }}>
-      <p style={{ margin: 0, fontWeight: 600, marginBottom: 6, color: "#f1f5f9", fontSize: 13 }}>{label}</p>
+    <div style={{ background: "var(--bg-card)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 8, padding: "10px 14px" }}>
+      <p style={{ margin: 0, fontWeight: 600, marginBottom: 6, color: "var(--text-primary)", fontSize: 13 }}>{label}</p>
       {payload.map((p) => (
         <p key={p.dataKey} style={{ margin: "3px 0", color: p.color, fontSize: 12 }}>
           {p.name}: {fmt(p.value)}
@@ -115,12 +115,12 @@ function Pager({ page, total, onChange }) {
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, marginTop: 12, paddingTop: 10, borderTop: "1px solid var(--border,rgba(255,255,255,.06))" }}>
       <button onClick={() => onChange(page - 1)} disabled={page === 1}
-        style={{ background: "none", border: "1px solid var(--border,rgba(255,255,255,.1))", borderRadius: 6, color: page === 1 ? "#334155" : "#94a3b8", cursor: page === 1 ? "not-allowed" : "pointer", padding: "4px 8px", display: "flex", alignItems: "center" }}>
+        style={{ background: "none", border: "1px solid var(--border,rgba(255,255,255,.1))", borderRadius: 6, color: page === 1 ? "#334155" : "var(--text-secondary)", cursor: page === 1 ? "not-allowed" : "pointer", padding: "4px 8px", display: "flex", alignItems: "center" }}>
         <FiChevronLeft size={13} />
       </button>
-      <span style={{ fontSize: 12, color: "#64748b" }}>{page} / {total}</span>
+      <span style={{ fontSize: 12, color: "var(--text-tertiary)" }}>{page} / {total}</span>
       <button onClick={() => onChange(page + 1)} disabled={page === total}
-        style={{ background: "none", border: "1px solid var(--border,rgba(255,255,255,.1))", borderRadius: 6, color: page === total ? "#334155" : "#94a3b8", cursor: page === total ? "not-allowed" : "pointer", padding: "4px 8px", display: "flex", alignItems: "center" }}>
+        style={{ background: "none", border: "1px solid var(--border,rgba(255,255,255,.1))", borderRadius: 6, color: page === total ? "#334155" : "var(--text-secondary)", cursor: page === total ? "not-allowed" : "pointer", padding: "4px 8px", display: "flex", alignItems: "center" }}>
         <FiChevronRight size={13} />
       </button>
     </div>
@@ -182,19 +182,19 @@ export default function OwnerDashboard() {
           value={kpis?.miembros?.activos ?? "—"}
           sub={`${kpis?.miembros?.nuevos_mes ?? 0} nuevos este mes`}
           icon={<FiUsers />}
-          accent="#6366f1"
+          accent="var(--accent)"
           loading={loading}
         />
         <KpiCard
           label="Ingresos del Mes"
           value={fmt(kpis?.ingresos?.mes_actual)}
           sub={
-            <span style={{ color: varPositive ? "#22c55e" : "#ef4444" }}>
+            <span style={{ color: varPositive ? "var(--success)" : "var(--danger)" }}>
               {varPositive ? "▲" : "▼"} {Math.abs(variacion)}% vs mes anterior
             </span>
           }
           icon={<FiDollarSign />}
-          accent="#22c55e"
+          accent="var(--success)"
           loading={loading}
         />
         <KpiCard
@@ -202,7 +202,7 @@ export default function OwnerDashboard() {
           value={fmt(kpis?.ventas_pos?.total_mes)}
           sub={`${kpis?.ventas_pos?.transacciones ?? 0} transacciones`}
           icon={<FiShoppingCart />}
-          accent="#f59e0b"
+          accent="var(--warning)"
           loading={loading}
         />
         <KpiCard
@@ -210,7 +210,7 @@ export default function OwnerDashboard() {
           value={kpis?.miembros?.por_vencer ?? "—"}
           sub="Próximos 7 días"
           icon={<FiAlertTriangle />}
-          accent={kpis?.miembros?.por_vencer > 0 ? "#ef4444" : "#64748b"}
+          accent={kpis?.miembros?.por_vencer > 0 ? "var(--danger)" : "var(--text-tertiary)"}
           loading={loading}
         />
         <KpiCard
@@ -242,7 +242,7 @@ export default function OwnerDashboard() {
           value={fmt(kpis?.ingresos?.mes_anterior)}
           sub="Para comparación"
           icon={varPositive ? <FiTrendingUp /> : <FiTrendingDown />}
-          accent="#64748b"
+          accent="var(--text-tertiary)"
           loading={loading}
         />
       </div>
@@ -255,12 +255,12 @@ export default function OwnerDashboard() {
           <ResponsiveContainer width="100%" height={220}>
             <LineChart data={ingresos} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,.06)" />
-              <XAxis dataKey="label" tick={{ fill: "#64748b", fontSize: 11 }} />
-              <YAxis tick={{ fill: "#64748b", fontSize: 11 }} tickFormatter={(v) => `$${(v/1000).toFixed(0)}k`} />
+              <XAxis dataKey="label" tick={{ fill: "var(--text-tertiary)", fontSize: 11 }} />
+              <YAxis tick={{ fill: "var(--text-tertiary)", fontSize: 11 }} tickFormatter={(v) => `$${(v/1000).toFixed(0)}k`} />
               <Tooltip content={<CustomTooltip />} />
-              <Legend wrapperStyle={{ fontSize: 12, color: "#94a3b8" }} />
-              <Line type="monotone" dataKey="pagos"  name="Membresías" stroke="#6366f1" strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="ventas" name="POS"         stroke="#f59e0b" strokeWidth={2} dot={false} />
+              <Legend wrapperStyle={{ fontSize: 12, color: "var(--text-secondary)" }} />
+              <Line type="monotone" dataKey="pagos"  name="Membresías" stroke="var(--accent)" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="ventas" name="POS"         stroke="var(--warning)" strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -271,10 +271,10 @@ export default function OwnerDashboard() {
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={ingresos} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,.06)" />
-              <XAxis dataKey="label" tick={{ fill: "#64748b", fontSize: 11 }} />
-              <YAxis tick={{ fill: "#64748b", fontSize: 11 }} tickFormatter={(v) => `$${(v/1000).toFixed(0)}k`} />
+              <XAxis dataKey="label" tick={{ fill: "var(--text-tertiary)", fontSize: 11 }} />
+              <YAxis tick={{ fill: "var(--text-tertiary)", fontSize: 11 }} tickFormatter={(v) => `$${(v/1000).toFixed(0)}k`} />
               <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="total" name="Total" fill="#6366f1" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="total" name="Total" fill="var(--accent)" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -288,7 +288,7 @@ export default function OwnerDashboard() {
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
             <div style={S.sectionTitle}>Actividad Reciente</div>
             {actividad.length > 0 && (
-              <span style={{ fontSize: 11, color: "#64748b" }}>{actividad.length} registros</span>
+              <span style={{ fontSize: 11, color: "var(--text-tertiary)" }}>{actividad.length} registros</span>
             )}
           </div>
           {loading
@@ -296,14 +296,14 @@ export default function OwnerDashboard() {
                 <div key={i} style={{ height: 44, background: "var(--bg-dark,#0f1117)", borderRadius: 6, marginBottom: 8, opacity: 0.5 }} />
               ))
             : actividad.length === 0
-              ? <p style={{ color: "#64748b", fontSize: 13 }}>Sin actividad reciente</p>
+              ? <p style={{ color: "var(--text-tertiary)", fontSize: 13 }}>Sin actividad reciente</p>
               : (() => {
                   const totalPagesAct = Math.ceil(actividad.length / ACT_PER_PAGE);
                   const slice = actividad.slice((actPage - 1) * ACT_PER_PAGE, actPage * ACT_PER_PAGE);
                   const tipoMeta = (tipo) => {
-                    if (tipo === "pago")     return { bg: "rgba(99,102,241,.12)",  color: "#818cf8", icon: <FiCreditCard  size={16} />, prefix: ""              };
-                    if (tipo === "venta")    return { bg: "rgba(245,158,11,.12)",  color: "#f59e0b", icon: <FiShoppingCart size={16} />, prefix: ""              };
-                    /* registro */           return { bg: "rgba(16,185,129,.12)",  color: "#10b981", icon: <FiUserPlus    size={16} />, prefix: "Nuevo miembro: " };
+                    if (tipo === "pago")     return { bg: "var(--accent-dim)",  color: "var(--accent-soft)", icon: <FiCreditCard  size={16} />, prefix: ""              };
+                    if (tipo === "venta")    return { bg: "rgba(245,158,11,.12)",  color: "var(--warning)", icon: <FiShoppingCart size={16} />, prefix: ""              };
+                    /* registro */           return { bg: "rgba(16,185,129,.12)",  color: "var(--success)", icon: <FiUserPlus    size={16} />, prefix: "Nuevo miembro: " };
                   };
                   return (
                     <>
@@ -321,10 +321,10 @@ export default function OwnerDashboard() {
                               </div>
                               <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 2 }}>
                                 {showMonto && (
-                                  <span style={{ fontSize: 12, fontWeight: 700, color: "#10b981" }}>{fmt(a.monto)}</span>
+                                  <span style={{ fontSize: 12, fontWeight: 700, color: "var(--success)" }}>{fmt(a.monto)}</span>
                                 )}
                                 {a.sub && (
-                                  <span style={{ fontSize: 11, color: "#64748b", background: "rgba(255,255,255,.05)", borderRadius: 4, padding: "1px 6px" }}>{a.sub}</span>
+                                  <span style={{ fontSize: 11, color: "var(--text-tertiary)", background: "rgba(255,255,255,.05)", borderRadius: 4, padding: "1px 6px" }}>{a.sub}</span>
                                 )}
                               </div>
                             </div>
@@ -345,14 +345,14 @@ export default function OwnerDashboard() {
         <div style={S.section}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <FiBell size={15} color={alertas.some(a => a.nivel === "error") ? "#ef4444" : "#eab308"} />
+              <FiBell size={15} color={alertas.some(a => a.nivel === "error") ? "var(--danger)" : "var(--warning)"} />
               <span style={S.sectionTitle}>Alertas del Sistema</span>
             </div>
             {alertas.length > 0 && (
               <span style={{
                 fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 99,
                 background: alertas.some(a => a.nivel === "error") ? "rgba(239,68,68,.15)" : "rgba(234,179,8,.15)",
-                color: alertas.some(a => a.nivel === "error") ? "#ef4444" : "#eab308",
+                color: alertas.some(a => a.nivel === "error") ? "var(--danger)" : "var(--warning)",
               }}>
                 {alertas.length} alerta{alertas.length !== 1 ? "s" : ""}
               </span>
@@ -365,9 +365,9 @@ export default function OwnerDashboard() {
               ))
             : alertas.length === 0
               ? (
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "32px 0", gap: 10, color: "#64748b" }}>
-                  <FiCheckCircle size={32} color="#22c55e" style={{ opacity: 0.6 }} />
-                  <p style={{ fontSize: 13, margin: 0, color: "#22c55e" }}>Todo en orden — sin alertas activas</p>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "32px 0", gap: 10, color: "var(--text-tertiary)" }}>
+                  <FiCheckCircle size={32} color="var(--success)" style={{ opacity: 0.6 }} />
+                  <p style={{ fontSize: 13, margin: 0, color: "var(--success)" }}>Todo en orden — sin alertas activas</p>
                 </div>
               )
               : (() => {
@@ -378,7 +378,7 @@ export default function OwnerDashboard() {
                       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                         {slice.map((al, i) => {
                           const isError = al.nivel === "error";
-                          const color   = isError ? "#ef4444" : "#eab308";
+                          const color   = isError ? "var(--danger)" : "var(--warning)";
                           return (
                             <div key={i} style={{
                               display: "flex", alignItems: "flex-start", gap: 12,
@@ -389,11 +389,11 @@ export default function OwnerDashboard() {
                               <span style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>{al.icono}</span>
                               <div style={{ flex: 1 }}>
                                 <div style={{ fontSize: 13, fontWeight: 600, color, marginBottom: 2 }}>{al.titulo}</div>
-                                <div style={{ fontSize: 11, color: "#64748b", lineHeight: 1.4 }}>{al.detalle}</div>
+                                <div style={{ fontSize: 11, color: "var(--text-tertiary)", lineHeight: 1.4 }}>{al.detalle}</div>
                               </div>
                               {isError
-                                ? <FiXCircle size={14} color="#ef4444" style={{ flexShrink: 0, marginTop: 2 }} />
-                                : <FiAlertTriangle size={14} color="#eab308" style={{ flexShrink: 0, marginTop: 2 }} />
+                                ? <FiXCircle size={14} color="var(--danger)" style={{ flexShrink: 0, marginTop: 2 }} />
+                                : <FiAlertTriangle size={14} color="var(--warning)" style={{ flexShrink: 0, marginTop: 2 }} />
                               }
                             </div>
                           );

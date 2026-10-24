@@ -236,7 +236,7 @@ export default function TrainerProfile() {
               display: "flex", alignItems: "center", justifyContent: "center",
               fontSize: 28, fontWeight: 800, color: "#fff",
               border: "3px solid var(--border)",
-              boxShadow: "0 0 0 4px rgba(99,102,241,.15)",
+              boxShadow: "0 0 0 4px var(--accent-dim)",
             }}>
               {initials || <FiUser size={32} />}
             </div>
@@ -264,8 +264,8 @@ export default function TrainerProfile() {
             <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
               {[1,2,3,4,5].map(i => (
                 <FiStar key={i} size={13}
-                  style={{ color: i <= ratingStars ? "#f59e0b" : "var(--border)",
-                    fill: i <= ratingStars ? "#f59e0b" : "none" }} />
+                  style={{ color: i <= ratingStars ? "var(--warning)" : "var(--border)",
+                    fill: i <= ratingStars ? "var(--warning)" : "none" }} />
               ))}
               <span style={{ fontSize: 12, color: "var(--text-secondary)", marginLeft: 4 }}>
                 {stats.avgRating > 0 ? stats.avgRating.toFixed(1) : "Sin calificaciones"}
@@ -276,9 +276,9 @@ export default function TrainerProfile() {
           {/* KPI chips */}
           <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
             {[
-              { icon: FiUsers,        value: stats.totalClients,  label: "Clientes",    color: "#6366f1" },
-              { icon: FiCheckCircle,  value: stats.totalSessions, label: "Sesiones",    color: "#22c55e" },
-              { icon: FiClock,        value: `${stats.yearsActive} años`, label: "Experiencia", color: "#f59e0b" },
+              { icon: FiUsers,        value: stats.totalClients,  label: "Clientes",    color: "var(--accent)" },
+              { icon: FiCheckCircle,  value: stats.totalSessions, label: "Sesiones",    color: "var(--success)" },
+              { icon: FiClock,        value: `${stats.yearsActive} años`, label: "Experiencia", color: "var(--warning)" },
               { icon: FiAward,        value: stats.certifications,label: "Certificaciones", color: "#a855f7" },
             ].map(({ icon: Icon, value, label, color }) => (
               <div key={label} style={{
@@ -378,7 +378,7 @@ export default function TrainerProfile() {
               paddingBottom: 14, borderBottom: "1px solid var(--border)",
               display: "flex", alignItems: "center", gap: 8,
             }}>
-              <FiAward size={15} style={{ color: "#f59e0b" }} />
+              <FiAward size={15} style={{ color: "var(--warning)" }} />
               Logros y Reconocimientos
             </h3>
 
@@ -394,14 +394,14 @@ export default function TrainerProfile() {
                     background: "var(--bg-input)",
                     borderRadius: 12, border: "1px solid var(--border)",
                   }}
-                  whileHover={{ borderColor: "#f59e0b" }}
+                  whileHover={{ borderColor: "var(--warning)" }}
                 >
                   <div style={{
                     width: 44, height: 44, borderRadius: 10,
                     background: "rgba(245,158,11,.15)",
                     display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
                   }}>
-                    <FiAward size={20} style={{ color: "#f59e0b" }} />
+                    <FiAward size={20} style={{ color: "var(--warning)" }} />
                   </div>
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>{a.title}</div>

@@ -21,10 +21,10 @@ import "../../css/CSSUnificado.css";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const STATUS_CFG = {
-  scheduled:     { label: "Programada",  color: "#6366f1", bg: "rgba(99,102,241,.15)"  },
-  "in-progress": { label: "En curso",    color: "#f59e0b", bg: "rgba(245,158,11,.15)"  },
-  completed:     { label: "Completada",  color: "#22c55e", bg: "rgba(34,197,94,.15)"   },
-  cancelled:     { label: "Cancelada",   color: "#ef4444", bg: "rgba(239,68,68,.15)"   },
+  scheduled:     { label: "Programada",  color: "var(--accent)", bg: "var(--accent-dim)"  },
+  "in-progress": { label: "En curso",    color: "var(--warning)", bg: "rgba(245,158,11,.15)"  },
+  completed:     { label: "Completada",  color: "var(--success)", bg: "rgba(34,197,94,.15)"   },
+  cancelled:     { label: "Cancelada",   color: "var(--danger)", bg: "rgba(239,68,68,.15)"   },
 };
 
 const MONTH_NAMES = [
@@ -129,14 +129,14 @@ function SessionCard({ session, onComplete, onCancel, isLoading }) {
           <div style={{ display: "flex", gap: 4 }}>
             <button onClick={() => onComplete(session.id_sesion)} disabled={isLoading} title="Completar"
               style={{ width:20, height:20, borderRadius:4, border:"none",
-                background:"rgba(34,197,94,.2)", color:"#22c55e",
+                background:"rgba(34,197,94,.2)", color:"var(--success)",
                 cursor: isLoading ? "wait" : "pointer",
                 display:"flex", alignItems:"center", justifyContent:"center" }}>
               <FiCheck size={10} />
             </button>
             <button onClick={() => onCancel(session.id_sesion)} disabled={isLoading} title="Cancelar"
               style={{ width:20, height:20, borderRadius:4, border:"none",
-                background:"rgba(239,68,68,.2)", color:"#ef4444",
+                background:"rgba(239,68,68,.2)", color:"var(--danger)",
                 cursor: isLoading ? "wait" : "pointer",
                 display:"flex", alignItems:"center", justifyContent:"center" }}>
               <FiX size={10} />
@@ -451,10 +451,10 @@ export default function TrainerSchedule() {
   const calDays = generateCalendarDays(viewMonth.year, viewMonth.month);
 
   const kpiCards = [
-    { label:"Total semana",  value: totalSessions, color:"#6366f1" },
-    { label:"Completadas",   value: completadas,   color:"#22c55e" },
-    { label:"Programadas",   value: programadas,   color:"#6366f1" },
-    { label:"Canceladas",    value: canceladas,    color:"#ef4444" },
+    { label:"Total semana",  value: totalSessions, color:"var(--accent)" },
+    { label:"Completadas",   value: completadas,   color:"var(--success)" },
+    { label:"Programadas",   value: programadas,   color:"var(--accent)" },
+    { label:"Canceladas",    value: canceladas,    color:"var(--danger)" },
   ];
 
   // ── Render ──────────────────────────────────────────────────────────────────

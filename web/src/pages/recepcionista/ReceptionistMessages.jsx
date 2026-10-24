@@ -35,9 +35,9 @@ const MOCK_MESSAGES = [
 ];
 
 const TYPE_ICON = {
-  alerta:     { icon: <FiAlertCircle size={14} />, color: "#eab308", bg: "rgba(234,179,8,0.12)" },
+  alerta:     { icon: <FiAlertCircle size={14} />, color: "var(--warning)", bg: "rgba(234,179,8,0.12)" },
   mensaje:    { icon: <FiMail size={14} />,         color: "var(--accent-soft)", bg: "var(--accent-dim)" },
-  bienvenida: { icon: <FiBell size={14} />,         color: "#22c55e", bg: "rgba(34,197,94,0.12)" },
+  bienvenida: { icon: <FiBell size={14} />,         color: "var(--success)", bg: "rgba(34,197,94,0.12)" },
 };
 
 export default function ReceptionistMessages() {
@@ -198,7 +198,7 @@ export default function ReceptionistMessages() {
                     <div style={{ position: "absolute", top: "8px", right: "8px", display: "flex", gap: "2px" }}>
                       <button onClick={(e) => toggleStar(msg.id, e)} style={{
                         background: "none", border: "none", cursor: "pointer", padding: "2px",
-                        color: msg.starred ? "#eab308" : "rgba(255,255,255,0.2)",
+                        color: msg.starred ? "var(--warning)" : "rgba(255,255,255,0.2)",
                       }}>
                         <FiStar size={12} />
                       </button>

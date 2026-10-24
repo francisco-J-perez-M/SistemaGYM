@@ -56,9 +56,9 @@ const fmtRelative = (iso) => {
 };
 
 const ESTADO_META = {
-  pendiente: { label: "Pendiente", color: "#f59e0b", bg: "rgba(245,158,11,.12)", icon: <FiClock /> },
-  aceptada:  { label: "Aceptada",  color: "#10b981", bg: "rgba(16,185,129,.12)", icon: <FiCheckCircle /> },
-  rechazada: { label: "Rechazada", color: "#ef4444", bg: "rgba(239,68,68,.12)",  icon: <FiXCircle /> },
+  pendiente: { label: "Pendiente", color: "var(--warning)", bg: "rgba(245,158,11,.12)", icon: <FiClock /> },
+  aceptada:  { label: "Aceptada",  color: "var(--success)", bg: "rgba(16,185,129,.12)", icon: <FiCheckCircle /> },
+  rechazada: { label: "Rechazada", color: "var(--danger)", bg: "rgba(239,68,68,.12)",  icon: <FiXCircle /> },
 };
 
 const TIPO_SESION_LABEL = {
@@ -192,19 +192,19 @@ function TabSolicitudes({ onChatWith }) {
       <div style={{ display: "flex", gap: 12, marginBottom: 24, flexWrap: "wrap", maxWidth: 680 }}>
         <MiniStat
           label="Pendientes"  value={counts.pendiente}
-          color="#f59e0b"     icon={<FiClock />}
+          color="var(--warning)"     icon={<FiClock />}
           active={filtro === "pendiente"}
           onClick={() => setFiltro("pendiente")}
         />
         <MiniStat
           label="Aceptadas"   value={counts.aceptada}
-          color="#10b981"     icon={<FiCheckCircle />}
+          color="var(--success)"     icon={<FiCheckCircle />}
           active={filtro === "aceptada"}
           onClick={() => setFiltro("aceptada")}
         />
         <MiniStat
           label="Rechazadas"  value={counts.rechazada}
-          color="#ef4444"     icon={<FiXCircle />}
+          color="var(--danger)"     icon={<FiXCircle />}
           active={filtro === "rechazada"}
           onClick={() => setFiltro("rechazada")}
         />
@@ -356,7 +356,7 @@ function TabSolicitudes({ onChatWith }) {
                                       display: "flex", alignItems: "center", gap: 6,
                                       padding: "7px 14px", borderRadius: 8, fontSize: "0.82rem",
                                       fontWeight: 600, border: "none", cursor: "pointer",
-                                      background: "rgba(16,185,129,.15)", color: "#10b981",
+                                      background: "rgba(16,185,129,.15)", color: "var(--success)",
                                       transition: "background 0.15s",
                                     }}
                                     onMouseEnter={e => e.currentTarget.style.background = "rgba(16,185,129,.25)"}
@@ -372,7 +372,7 @@ function TabSolicitudes({ onChatWith }) {
                                       display: "flex", alignItems: "center", gap: 6,
                                       padding: "7px 14px", borderRadius: 8, fontSize: "0.82rem",
                                       fontWeight: 600, border: "none", cursor: "pointer",
-                                      background: "rgba(239,68,68,.12)", color: "#ef4444",
+                                      background: "rgba(239,68,68,.12)", color: "var(--danger)",
                                       transition: "background 0.15s",
                                     }}
                                     onMouseEnter={e => e.currentTarget.style.background = "rgba(239,68,68,.22)"}
@@ -391,11 +391,11 @@ function TabSolicitudes({ onChatWith }) {
                                     display: "flex", alignItems: "center", gap: 6,
                                     padding: "7px 14px", borderRadius: 8, fontSize: "0.82rem",
                                     fontWeight: 600, border: "none", cursor: "pointer",
-                                    background: "rgba(99,102,241,.15)", color: "var(--accent, #6366f1)",
+                                    background: "var(--accent-dim)", color: "var(--accent, var(--accent))",
                                     transition: "background 0.15s",
                                   }}
                                   onMouseEnter={e => e.currentTarget.style.background = "rgba(99,102,241,.25)"}
-                                  onMouseLeave={e => e.currentTarget.style.background = "rgba(99,102,241,.15)"}
+                                  onMouseLeave={e => e.currentTarget.style.background = "var(--accent-dim)"}
                                   onClick={() => onChatWith({ id: sol.id_miembro_pg, nombre: sol.nombre_miembro })}
                                 >
                                   <FiMessageSquare size={14} /> Chat
@@ -513,7 +513,7 @@ function TabSolicitudes({ onChatWith }) {
                   width: 42, height: 42, borderRadius: 10, flexShrink: 0,
                   background: modal.accion === "aceptar" ? "rgba(16,185,129,.2)" : "rgba(239,68,68,.2)",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  color: modal.accion === "aceptar" ? "#10b981" : "#ef4444",
+                  color: modal.accion === "aceptar" ? "var(--success)" : "var(--danger)",
                   fontSize: "1.2rem",
                 }}>
                   {modal.accion === "aceptar" ? <FiCheckCircle /> : <FiXCircle />}
@@ -564,8 +564,8 @@ function TabSolicitudes({ onChatWith }) {
                       padding: "9px 22px", borderRadius: 10, fontSize: "0.9rem",
                       fontWeight: 600, border: "none", cursor: saving ? "not-allowed" : "pointer",
                       background: modal.accion === "aceptar"
-                        ? "linear-gradient(135deg, #10b981, #059669)"
-                        : "linear-gradient(135deg, #ef4444, #dc2626)",
+                        ? "linear-gradient(135deg, var(--success), #059669)"
+                        : "linear-gradient(135deg, var(--danger), var(--danger))",
                       color: "#fff", opacity: saving ? 0.7 : 1,
                       boxShadow: modal.accion === "aceptar"
                         ? "0 4px 14px rgba(16,185,129,.4)"
@@ -658,7 +658,7 @@ function ChatView({ miembro, onBack }) {
         </motion.button>
         <div style={{
           width: 42, height: 42, borderRadius: "50%",
-          background: "linear-gradient(135deg, var(--accent, #6366f1), #818cf8)",
+          background: "linear-gradient(135deg, var(--accent, var(--accent)), var(--accent-soft))",
           display: "flex", alignItems: "center", justifyContent: "center",
           color: "#fff", fontWeight: 700, fontSize: "1.1rem",
           boxShadow: "0 2px 10px rgba(99,102,241,.35)",
@@ -668,8 +668,8 @@ function ChatView({ miembro, onBack }) {
         <div>
           <p style={{ margin: 0, fontWeight: 700, fontSize: "0.97rem" }}>{miembro.nombre}</p>
           <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 2 }}>
-            <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#10b981", display: "inline-block" }} />
-            <p style={{ margin: 0, fontSize: "0.75rem", color: "#10b981" }}>Activo</p>
+            <span style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--success)", display: "inline-block" }} />
+            <p style={{ margin: 0, fontSize: "0.75rem", color: "var(--success)" }}>Activo</p>
           </div>
         </div>
       </div>
@@ -708,9 +708,9 @@ function ChatView({ miembro, onBack }) {
               {!esEntrenador && !prevMismo && (
                 <div style={{
                   width: 28, height: 28, borderRadius: "50%", flexShrink: 0,
-                  background: "rgba(99,102,241,.2)",
+                  background: "var(--accent-dim)",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: "0.75rem", fontWeight: 700, color: "var(--accent, #6366f1)",
+                  fontSize: "0.75rem", fontWeight: 700, color: "var(--accent, var(--accent))",
                   alignSelf: "flex-end", marginRight: 8,
                 }}>
                   {m.remitente === "miembro" ? miembro.nombre?.[0]?.toUpperCase() : "?"}
@@ -723,10 +723,10 @@ function ChatView({ miembro, onBack }) {
                 padding: "9px 14px",
                 borderRadius: esEntrenador ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
                 background: esEntrenador
-                  ? "linear-gradient(135deg, var(--accent, #6366f1), #818cf8)"
+                  ? "linear-gradient(135deg, var(--accent, var(--accent)), var(--accent-soft))"
                   : "var(--bg-secondary, var(--bg-input))",
                 color: esEntrenador ? "#fff" : "var(--text-primary)",
-                boxShadow: esEntrenador ? "0 2px 12px rgba(99,102,241,.3)" : "none",
+                boxShadow: esEntrenador ? "0 2px 12px var(--border-hover)" : "none",
               }}>
                 <p style={{ margin: 0, fontSize: "0.9rem", lineHeight: 1.45 }}>{m.texto}</p>
                 <p style={{
@@ -765,7 +765,7 @@ function ChatView({ miembro, onBack }) {
             width: 44, height: 44, borderRadius: 10, flexShrink: 0,
             background: !texto.trim() || sending
               ? "var(--bg-secondary, var(--bg-input))"
-              : "linear-gradient(135deg, var(--accent, #6366f1), #818cf8)",
+              : "linear-gradient(135deg, var(--accent, var(--accent)), var(--accent-soft))",
             color: !texto.trim() || sending ? "var(--text-secondary)" : "#fff",
             border: "none", cursor: !texto.trim() || sending ? "not-allowed" : "pointer",
             display: "flex", alignItems: "center", justifyContent: "center",
@@ -854,11 +854,11 @@ function TabChat({ chatTarget, onClearTarget }) {
         >
           <div style={{
             width: 80, height: 80, borderRadius: "50%",
-            background: "rgba(99,102,241,.1)",
+            background: "var(--accent-dim)",
             display: "flex", alignItems: "center", justifyContent: "center",
             margin: "0 auto 20px",
           }}>
-            <FiMessageSquare size={32} style={{ color: "var(--accent, #6366f1)", opacity: 0.5 }} />
+            <FiMessageSquare size={32} style={{ color: "var(--accent, var(--accent))", opacity: 0.5 }} />
           </div>
           <p style={{ margin: "0 0 6px", fontWeight: 600, color: "var(--text-primary)" }}>Sin chats activos</p>
           <p style={{ margin: 0, fontSize: "0.84rem", color: "var(--text-secondary)" }}>
@@ -881,7 +881,7 @@ function TabChat({ chatTarget, onClearTarget }) {
               display: "flex", alignItems: "center", gap: 14,
               padding: "14px 18px",
               background: "var(--bg-card)",
-              border: m.unread > 0 ? "1px solid rgba(99,102,241,.4)" : "1px solid var(--border)",
+              border: m.unread > 0 ? "1px solid var(--border-hover)" : "1px solid var(--border)",
               borderRadius: 14, cursor: "pointer",
               transition: "border-color 0.15s",
             }}
@@ -889,10 +889,10 @@ function TabChat({ chatTarget, onClearTarget }) {
             <div style={{ position: "relative", flexShrink: 0 }}>
               <div style={{
                 width: 46, height: 46, borderRadius: "50%",
-                background: "linear-gradient(135deg, var(--accent, #6366f1), #818cf8)",
+                background: "linear-gradient(135deg, var(--accent, var(--accent)), var(--accent-soft))",
                 display: "flex", alignItems: "center", justifyContent: "center",
                 color: "#fff", fontWeight: 700, fontSize: "1.1rem",
-                boxShadow: "0 2px 10px rgba(99,102,241,.3)",
+                boxShadow: "0 2px 10px var(--border-hover)",
               }}>
                 {m.nombre?.[0]?.toUpperCase() || "?"}
               </div>
@@ -902,7 +902,7 @@ function TabChat({ chatTarget, onClearTarget }) {
                   animate={{ scale: 1 }}
                   style={{
                     position: "absolute", top: -4, right: -4,
-                    background: "linear-gradient(135deg, #ef4444, #dc2626)",
+                    background: "linear-gradient(135deg, var(--danger), var(--danger))",
                     color: "#fff", borderRadius: "50%",
                     minWidth: 20, height: 20, padding: "0 4px",
                     display: "flex", alignItems: "center", justifyContent: "center",
@@ -917,7 +917,7 @@ function TabChat({ chatTarget, onClearTarget }) {
             <div style={{ flex: 1, minWidth: 0 }}>
               <p style={{ margin: 0, fontWeight: m.unread > 0 ? 700 : 600, fontSize: "0.95rem" }}>{m.nombre}</p>
               {m.unread > 0
-                ? <p style={{ margin: 0, fontSize: "0.79rem", color: "var(--accent, #6366f1)", fontWeight: 600 }}>
+                ? <p style={{ margin: 0, fontSize: "0.79rem", color: "var(--accent, var(--accent))", fontWeight: 600 }}>
                     {m.unread} mensaje{m.unread !== 1 ? "s" : ""} sin leer
                   </p>
                 : <p style={{ margin: 0, fontSize: "0.79rem", color: "var(--text-secondary)" }}>
@@ -987,7 +987,7 @@ function TabAsignar() {
     r.category?.toLowerCase().includes(busqRutina.toLowerCase())
   );
   const rutinaSeleccionada = rutinas.find(r => r.id === selRutina);
-  const DIFF_COLOR = { Principiante: "#10b981", Intermedio: "#f59e0b", Avanzado: "#ef4444" };
+  const DIFF_COLOR = { Principiante: "var(--success)", Intermedio: "var(--warning)", Avanzado: "var(--danger)" };
 
   if (loading) {
     return (
@@ -1010,7 +1010,7 @@ function TabAsignar() {
               display: "flex", alignItems: "center", gap: 10,
               padding: "13px 16px", borderRadius: 10, marginBottom: 16,
               background: "rgba(16,185,129,.12)", border: "1px solid rgba(16,185,129,.3)",
-              color: "#10b981", fontSize: "0.88rem", fontWeight: 600,
+              color: "var(--success)", fontSize: "0.88rem", fontWeight: 600,
             }}
           >
             <FiCheckCircle size={18} style={{ flexShrink: 0 }} /> {ok}
@@ -1026,11 +1026,11 @@ function TabAsignar() {
         >
           <div style={{
             width: 80, height: 80, borderRadius: "50%",
-            background: "rgba(99,102,241,.1)",
+            background: "var(--accent-dim)",
             display: "flex", alignItems: "center", justifyContent: "center",
             margin: "0 auto 20px",
           }}>
-            <FiBook size={32} style={{ color: "var(--accent, #6366f1)", opacity: 0.5 }} />
+            <FiBook size={32} style={{ color: "var(--accent, var(--accent))", opacity: 0.5 }} />
           </div>
           <p style={{ margin: "0 0 6px", fontWeight: 600 }}>Sin miembros activos</p>
           <p style={{ margin: 0, fontSize: "0.84rem", color: "var(--text-secondary)" }}>
@@ -1073,7 +1073,7 @@ function TabAsignar() {
             }}>
               {rutinasFiltradas.map((r, i) => {
                 const selected  = r.id === selRutina;
-                const diffColor = DIFF_COLOR[r.difficulty] || "#94a3b8";
+                const diffColor = DIFF_COLOR[r.difficulty] || "var(--text-secondary)";
                 return (
                   <motion.div
                     key={r.id}
@@ -1082,8 +1082,8 @@ function TabAsignar() {
                     onClick={() => setSelRutina(r.id === selRutina ? "" : r.id)}
                     style={{
                       padding: "13px 14px", borderRadius: 11, cursor: "pointer",
-                      border: `2px solid ${selected ? "var(--accent, #6366f1)" : "var(--border)"}`,
-                      background: selected ? "rgba(99,102,241,.1)" : "var(--bg-card)",
+                      border: `2px solid ${selected ? "var(--accent, var(--accent))" : "var(--border)"}`,
+                      background: selected ? "var(--accent-dim)" : "var(--bg-card)",
                       transition: "all 0.15s", position: "relative",
                     }}
                   >
@@ -1091,7 +1091,7 @@ function TabAsignar() {
                       <div style={{
                         position: "absolute", top: 8, right: 8,
                         width: 20, height: 20, borderRadius: "50%",
-                        background: "var(--accent, #6366f1)",
+                        background: "var(--accent, var(--accent))",
                         display: "flex", alignItems: "center", justifyContent: "center",
                         color: "#fff", fontSize: "0.65rem",
                       }}>
@@ -1133,13 +1133,13 @@ function TabAsignar() {
                 <div style={{
                   display: "flex", gap: 14, padding: "14px 18px",
                   background: "rgba(99,102,241,.08)", borderRadius: 12,
-                  border: "1px solid rgba(99,102,241,.2)",
+                  border: "1px solid var(--accent-dim)",
                 }}>
                   <div style={{
                     width: 44, height: 44, borderRadius: 10, flexShrink: 0,
-                    background: "rgba(99,102,241,.15)",
+                    background: "var(--accent-dim)",
                     display: "flex", alignItems: "center", justifyContent: "center",
-                    color: "var(--accent, #6366f1)",
+                    color: "var(--accent, var(--accent))",
                   }}>
                     <GiMuscleUp size={22} />
                   </div>
@@ -1179,9 +1179,9 @@ function TabAsignar() {
               cursor: (!selMiembro || !selRutina || saving) ? "not-allowed" : "pointer",
               background: (!selMiembro || !selRutina)
                 ? "var(--bg-secondary, var(--bg-input))"
-                : "linear-gradient(135deg, var(--accent, #6366f1), #818cf8)",
+                : "linear-gradient(135deg, var(--accent, var(--accent)), var(--accent-soft))",
               color: (!selMiembro || !selRutina) ? "var(--text-secondary)" : "#fff",
-              boxShadow: (selMiembro && selRutina) ? "0 4px 18px rgba(99,102,241,.4)" : "none",
+              boxShadow: (selMiembro && selRutina) ? "0 4px 18px var(--border-hover)" : "none",
               transition: "all 0.18s", opacity: saving ? 0.75 : 1,
             }}
             onClick={asignar}
@@ -1222,9 +1222,9 @@ export default function TrainerRequests() {
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <div style={{
             width: 52, height: 52, borderRadius: 14, flexShrink: 0,
-            background: "linear-gradient(135deg, var(--accent, #6366f1), #818cf8)",
+            background: "linear-gradient(135deg, var(--accent, var(--accent)), var(--accent-soft))",
             display: "flex", alignItems: "center", justifyContent: "center",
-            boxShadow: "0 4px 18px rgba(99,102,241,.4)",
+            boxShadow: "0 4px 18px var(--border-hover)",
           }}>
             <GiMuscleUp size={26} color="#fff" />
           </div>
@@ -1255,7 +1255,7 @@ export default function TrainerRequests() {
               border: "none", cursor: "pointer",
               fontSize: "0.87rem", fontWeight: 600,
               background: tab === t.id
-                ? "linear-gradient(135deg, var(--accent, #6366f1), #818cf8)"
+                ? "linear-gradient(135deg, var(--accent, var(--accent)), var(--accent-soft))"
                 : "transparent",
               color: tab === t.id ? "#fff" : "var(--text-secondary)",
               boxShadow: tab === t.id ? "0 2px 10px rgba(99,102,241,.35)" : "none",

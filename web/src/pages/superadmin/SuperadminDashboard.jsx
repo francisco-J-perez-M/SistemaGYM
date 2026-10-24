@@ -10,8 +10,8 @@ const fmt  = (n) => Number(n || 0).toLocaleString("es-MX", { minimumFractionDigi
 const fmtM = (n) => "$" + fmt(n);
 
 const card = (extra = {}) => ({
-  background: "var(--bg-card, #1a1d2e)",
-  border: "1px solid var(--border, rgba(255,255,255,.08))",
+  background: "var(--bg-card)",
+  border: "1px solid var(--border)",
   borderRadius: 14,
   padding: "20px 22px",
   ...extra,
@@ -19,10 +19,10 @@ const card = (extra = {}) => ({
 
 const badge = (type = "pos") => {
   const map = {
-    pos:  { bg: "rgba(16,185,129,.15)",  color: "#10b981" },
-    warn: { bg: "rgba(234,179,8,.15)",   color: "#eab308" },
-    neg:  { bg: "rgba(239,68,68,.15)",   color: "#ef4444" },
-    info: { bg: "rgba(99,102,241,.15)",  color: "#818cf8" },
+    pos:  { bg: "rgba(16,185,129,.15)",  color: "var(--success)" },
+    warn: { bg: "rgba(234,179,8,.15)",   color: "var(--warning)" },
+    neg:  { bg: "rgba(239,68,68,.15)",   color: "var(--danger)" },
+    info: { bg: "var(--accent-dim)",  color: "var(--accent-soft)" },
     purple:{ bg: "rgba(168,85,247,.15)", color: "#a855f7" },
   };
   const c = map[type] || map.pos;
@@ -35,33 +35,33 @@ const badge = (type = "pos") => {
 
 function KpiCard({ label, value, meta, badgeText, badgeType, top, icon }) {
   return (
-    <div style={{ ...card(), borderTop: `3px solid ${top || "var(--accent, #6366f1)"}` }}>
+    <div style={{ ...card(), borderTop: `3px solid ${top || "var(--accent, var(--accent))"}` }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-        <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary, #94a3b8)", textTransform: "uppercase", letterSpacing: ".06em" }}>
+        <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: ".06em" }}>
           {label}
         </span>
         {badgeText && <span style={badge(badgeType || "info")}>{badgeText}</span>}
         {icon && !badgeText && <span style={{ fontSize: 22, opacity: .5 }}>{icon}</span>}
       </div>
-      <div style={{ fontSize: 30, fontWeight: 800, color: "var(--text-primary, #f1f5f9)", letterSpacing: "-.02em", margin: "4px 0" }}>
+      <div style={{ fontSize: 30, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-.02em", margin: "4px 0" }}>
         {value}
       </div>
-      {meta && <p style={{ fontSize: 12, color: "var(--text-secondary, #94a3b8)", marginTop: 2 }}>{meta}</p>}
+      {meta && <p style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 2 }}>{meta}</p>}
     </div>
   );
 }
 
 function ChurnRow({ gym }) {
-  const colorMap = { ALTO: "#ef4444", MEDIO: "#eab308" };
-  const c = colorMap[gym.nivel_riesgo] || "#94a3b8";
+  const colorMap = { ALTO: "var(--danger)", MEDIO: "var(--warning)" };
+  const c = colorMap[gym.nivel_riesgo] || "var(--text-secondary)";
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderRadius: 8, background: "rgba(255,255,255,.03)", marginBottom: 4 }}>
       <div style={{ width: 8, height: 8, borderRadius: "50%", background: c, flexShrink: 0 }} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary, #f1f5f9)", marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <p style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {gym.gimnasio}
         </p>
-        <p style={{ fontSize: 11, color: "var(--text-secondary, #94a3b8)" }}>
+        <p style={{ fontSize: 11, color: "var(--text-secondary)" }}>
           {gym.plan} · {gym.estado_sub}
           {gym.dias_inactivo != null && ` · ${gym.dias_inactivo}d sin actividad`}
         </p>
@@ -76,14 +76,14 @@ function ChurnRow({ gym }) {
 function GymRow({ gym }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "10px 14px", borderRadius: 8, background: "rgba(255,255,255,.03)", marginBottom: 4 }}>
-      <div style={{ width: 36, height: 36, borderRadius: 8, background: "var(--accent-dim, rgba(99,102,241,.18))", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 15, fontWeight: 700, color: "var(--accent, #6366f1)" }}>
+      <div style={{ width: 36, height: 36, borderRadius: 8, background: "var(--accent-dim, var(--accent-dim))", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 15, fontWeight: 700, color: "var(--accent, var(--accent))" }}>
         {(gym.nombre || "G").charAt(0)}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary, #f1f5f9)", marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <p style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {gym.nombre}
         </p>
-        <p style={{ fontSize: 11, color: "var(--text-secondary, #94a3b8)" }}>
+        <p style={{ fontSize: 11, color: "var(--text-secondary)" }}>
           {gym.plan} · {gym.total_miembros ?? "—"} miembros
         </p>
       </div>
@@ -121,19 +121,19 @@ export default function SuperadminDashboard() {
   const totalActivos   = resumen.reduce((acc, g) => acc + (g.miembros_activos|| 0), 0);
 
   return (
-    <div style={{ padding: "28px 32px", minHeight: "100vh", background: "var(--bg-dark, #0f1117)", fontFamily: "inherit" }}>
+    <div style={{ padding: "28px 32px", minHeight: "100vh", background: "var(--bg-input)", fontFamily: "inherit" }}>
       {/* Header */}
       <div style={{ marginBottom: 28 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 800, color: "var(--text-primary, #f1f5f9)", marginBottom: 4 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 800, color: "var(--text-primary)", marginBottom: 4 }}>
           Panel de Plataforma
         </h1>
-        <p style={{ fontSize: 14, color: "var(--text-secondary, #94a3b8)" }}>
+        <p style={{ fontSize: 14, color: "var(--text-secondary)" }}>
           Visión global de todos los gimnasios registrados en GymPro
         </p>
       </div>
 
       {loading ? (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 300, color: "var(--text-secondary, #94a3b8)", fontSize: 15 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 300, color: "var(--text-secondary)", fontSize: 15 }}>
           Cargando métricas de plataforma…
         </div>
       ) : (
@@ -144,14 +144,14 @@ export default function SuperadminDashboard() {
               label="Ingresos Totales"
               value={fmtM(totalIngresos)}
               meta="Suma histórica de todos los gimnasios"
-              top="#10b981"
+              top="var(--success)"
               badgeText="Plataforma" badgeType="pos"
             />
             <KpiCard
               label="Gimnasios"
               value={fmt(gymsTotal?.total || resumen.length)}
               meta={`${gymsTotal?.activos ?? gymsTotal?.total ?? "—"} activos`}
-              top="#6366f1"
+              top="var(--accent)"
               badgeText="Registrados" badgeType="info"
             />
             <KpiCard
@@ -165,14 +165,14 @@ export default function SuperadminDashboard() {
               label="Suscripciones"
               value={fmt(subsTotal?.total || "—")}
               meta="Planes activos de gimnasios"
-              top="#eab308"
+              top="var(--warning)"
               badgeText="SaaS" badgeType="warn"
             />
             <KpiCard
               label="Riesgo de Churn"
               value={fmt(churn?.total_riesgo ?? "—")}
               meta="Gimnasios en estado crítico"
-              top="#ef4444"
+              top="var(--danger)"
               badgeText="Alerta" badgeType="neg"
             />
           </div>
@@ -181,14 +181,14 @@ export default function SuperadminDashboard() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 24 }}>
             {/* Top gyms by revenue */}
             <div style={card()}>
-              <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary, #f1f5f9)", marginBottom: 16, letterSpacing: ".03em" }}>
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 16, letterSpacing: ".03em" }}>
                 Top Gimnasios por Ingresos
               </h3>
               {resumen.slice(0, 5).map((g, i) => (
                 <GymRow key={g.id_gimnasio || i} gym={g} />
               ))}
               {resumen.length === 0 && (
-                <p style={{ fontSize: 13, color: "var(--text-secondary, #94a3b8)", textAlign: "center", padding: "20px 0" }}>
+                <p style={{ fontSize: 13, color: "var(--text-secondary)", textAlign: "center", padding: "20px 0" }}>
                   Sin datos de Spark disponibles
                 </p>
               )}
@@ -196,14 +196,14 @@ export default function SuperadminDashboard() {
 
             {/* Churn risk */}
             <div style={card()}>
-              <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary, #f1f5f9)", marginBottom: 16, letterSpacing: ".03em" }}>
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 16, letterSpacing: ".03em" }}>
                 Gimnasios en Riesgo de Churn
               </h3>
               {(churn?.gimnasios_riesgo || []).slice(0, 6).map((g, i) => (
                 <ChurnRow key={g.gym_id || i} gym={g} />
               ))}
               {!churn?.gimnasios_riesgo?.length && (
-                <p style={{ fontSize: 13, color: "#10b981", textAlign: "center", padding: "20px 0" }}>
+                <p style={{ fontSize: 13, color: "var(--success)", textAlign: "center", padding: "20px 0" }}>
                   ✓ Sin gimnasios en riesgo
                 </p>
               )}
@@ -212,7 +212,7 @@ export default function SuperadminDashboard() {
 
           {/* Ingresos por plan */}
           <div style={card()}>
-            <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary, #f1f5f9)", marginBottom: 16, letterSpacing: ".03em" }}>
+            <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 16, letterSpacing: ".03em" }}>
               Resumen por Gimnasio
             </h3>
             <div style={{ overflowX: "auto" }}>
@@ -220,7 +220,7 @@ export default function SuperadminDashboard() {
                 <thead>
                   <tr>
                     {["Gimnasio", "Plan", "Ingresos", "Transacciones", "Ticket Prom.", "Miembros", "Activos", "Estado"].map(h => (
-                      <th key={h} style={{ textAlign: "left", padding: "8px 12px", color: "var(--text-secondary, #94a3b8)", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: ".06em", borderBottom: "1px solid var(--border, rgba(255,255,255,.08))", whiteSpace: "nowrap" }}>
+                      <th key={h} style={{ textAlign: "left", padding: "8px 12px", color: "var(--text-secondary)", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: ".06em", borderBottom: "1px solid var(--border)", whiteSpace: "nowrap" }}>
                         {h}
                       </th>
                     ))}
@@ -229,13 +229,13 @@ export default function SuperadminDashboard() {
                 <tbody>
                   {resumen.map((g, i) => (
                     <tr key={g.id_gimnasio || i} style={{ borderBottom: "1px solid var(--border, rgba(255,255,255,.04))" }}>
-                      <td style={{ padding: "10px 12px", color: "var(--text-primary, #f1f5f9)", fontWeight: 600 }}>{g.gimnasio || "—"}</td>
-                      <td style={{ padding: "10px 12px", color: "var(--text-secondary, #94a3b8)" }}>{g.plan || "—"}</td>
-                      <td style={{ padding: "10px 12px", color: "#10b981", fontWeight: 700 }}>{fmtM(g.ingresos_totales)}</td>
-                      <td style={{ padding: "10px 12px", color: "var(--text-secondary, #94a3b8)" }}>{fmt(g.total_transacciones)}</td>
-                      <td style={{ padding: "10px 12px", color: "var(--text-secondary, #94a3b8)" }}>{fmtM(g.ticket_promedio)}</td>
-                      <td style={{ padding: "10px 12px", color: "var(--text-secondary, #94a3b8)" }}>{fmt(g.total_miembros)}</td>
-                      <td style={{ padding: "10px 12px", color: "#818cf8" }}>{fmt(g.miembros_activos)}</td>
+                      <td style={{ padding: "10px 12px", color: "var(--text-primary)", fontWeight: 600 }}>{g.gimnasio || "—"}</td>
+                      <td style={{ padding: "10px 12px", color: "var(--text-secondary)" }}>{g.plan || "—"}</td>
+                      <td style={{ padding: "10px 12px", color: "var(--success)", fontWeight: 700 }}>{fmtM(g.ingresos_totales)}</td>
+                      <td style={{ padding: "10px 12px", color: "var(--text-secondary)" }}>{fmt(g.total_transacciones)}</td>
+                      <td style={{ padding: "10px 12px", color: "var(--text-secondary)" }}>{fmtM(g.ticket_promedio)}</td>
+                      <td style={{ padding: "10px 12px", color: "var(--text-secondary)" }}>{fmt(g.total_miembros)}</td>
+                      <td style={{ padding: "10px 12px", color: "var(--accent-soft)" }}>{fmt(g.miembros_activos)}</td>
                       <td style={{ padding: "10px 12px" }}>
                         <span style={badge(g.activo ? "pos" : "neg")}>{g.activo ? "Activo" : "Inactivo"}</span>
                       </td>
@@ -243,7 +243,7 @@ export default function SuperadminDashboard() {
                   ))}
                   {resumen.length === 0 && (
                     <tr>
-                      <td colSpan={8} style={{ padding: "30px", textAlign: "center", color: "var(--text-secondary, #94a3b8)" }}>
+                      <td colSpan={8} style={{ padding: "30px", textAlign: "center", color: "var(--text-secondary)" }}>
                         Ejecuta Spark analytics para ver datos aquí
                       </td>
                     </tr>
@@ -252,7 +252,7 @@ export default function SuperadminDashboard() {
               </table>
             </div>
             {analytics?.desde_cache && (
-              <p style={{ fontSize: 11, color: "var(--text-secondary, #94a3b8)", marginTop: 12, textAlign: "right" }}>
+              <p style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 12, textAlign: "right" }}>
                 Datos desde caché · Ejecutado: {new Date(analytics.ejecutado_en).toLocaleString("es-MX")}
               </p>
             )}

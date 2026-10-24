@@ -11,18 +11,18 @@ const CATS = ["General", "Suplementos", "Accesorios", "Snacks", "Bebidas", "Ropa
 
 const inputSt = {
   width: "100%", boxSizing: "border-box", padding: "9px 12px",
-  background: "var(--bg-dark, #0f1117)",
-  border: "1px solid var(--border, rgba(255,255,255,.12))",
-  borderRadius: 8, color: "var(--text-primary, #f1f5f9)", fontSize: 14, outline: "none",
+  background: "var(--bg-input)",
+  border: "1px solid var(--border)",
+  borderRadius: 8, color: "var(--text-primary)", fontSize: 14, outline: "none",
 };
 const labelSt = {
   display: "block", fontSize: 11, fontWeight: 600,
   textTransform: "uppercase", letterSpacing: ".06em",
-  color: "var(--text-secondary, #94a3b8)", marginBottom: 5,
+  color: "var(--text-secondary)", marginBottom: 5,
 };
 const cardSt = {
-  background: "var(--bg-card, #1a1d2e)",
-  border: "1px solid var(--border, rgba(255,255,255,.08))",
+  background: "var(--bg-card)",
+  border: "1px solid var(--border)",
   borderRadius: 12,
 };
 
@@ -97,7 +97,7 @@ export default function ProductoModal({ producto, onClose, onSaved }) {
       <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 9990, background: "rgba(0,0,0,.65)", backdropFilter: "blur(4px)" }} />
       <div style={{ position: "fixed", inset: 0, zIndex: 9991, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, pointerEvents: "none" }}>
         <div style={{ ...cardSt, padding: 0, maxWidth: 560, width: "100%", pointerEvents: "auto", boxShadow: "0 24px 60px rgba(0,0,0,.5)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "18px 22px", borderBottom: "1px solid var(--border, rgba(255,255,255,.08))" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "18px 22px", borderBottom: "1px solid var(--border)" }}>
             <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>
               {producto ? "Editar producto" : "Nuevo producto"}
             </h3>
@@ -137,7 +137,7 @@ export default function ProductoModal({ producto, onClose, onSaved }) {
                   <div key={i} style={{ position: "relative", width: 80, height: 80 }}>
                     <img src={src} alt="" style={{ width: 80, height: 80, objectFit: "cover", borderRadius: 8, border: "1px solid var(--border)" }} />
                     <button type="button" onClick={() => removeImg(i)}
-                      style={{ position: "absolute", top: -6, right: -6, width: 20, height: 20, borderRadius: "50%", background: "#ef4444", border: "none", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10 }}>
+                      style={{ position: "absolute", top: -6, right: -6, width: 20, height: 20, borderRadius: "50%", background: "var(--danger)", border: "none", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10 }}>
                       <FiX size={10} />
                     </button>
                   </div>
@@ -152,13 +152,13 @@ export default function ProductoModal({ producto, onClose, onSaved }) {
               </div>
             </div>
             {err && (
-              <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(239,68,68,.12)", border: "1px solid rgba(239,68,68,.3)", borderRadius: 8, padding: "8px 12px", color: "#ef4444", fontSize: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(239,68,68,.12)", border: "1px solid rgba(239,68,68,.3)", borderRadius: 8, padding: "8px 12px", color: "var(--danger)", fontSize: 12 }}>
                 <FiAlertCircle size={14} /> {err}
               </div>
             )}
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, paddingTop: 6, borderTop: "1px solid var(--border, rgba(255,255,255,.08))" }}>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, paddingTop: 6, borderTop: "1px solid var(--border)" }}>
               <button type="button" onClick={onClose} style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid var(--border)", background: "transparent", color: "var(--text-secondary)", cursor: "pointer", fontSize: 14 }}>Cancelar</button>
-              <button type="submit" disabled={saving} style={{ padding: "8px 20px", borderRadius: 8, background: "#6366f1", border: "none", color: "#fff", cursor: "pointer", fontSize: 14, fontWeight: 700, opacity: saving ? 0.7 : 1 }}>
+              <button type="submit" disabled={saving} style={{ padding: "8px 20px", borderRadius: 8, background: "var(--accent)", border: "none", color: "#fff", cursor: "pointer", fontSize: 14, fontWeight: 700, opacity: saving ? 0.7 : 1 }}>
                 {saving ? "Guardando…" : producto ? "Actualizar" : "Crear producto"}
               </button>
             </div>

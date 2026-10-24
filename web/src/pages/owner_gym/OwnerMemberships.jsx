@@ -55,15 +55,9 @@ export default function OwnerMemberships() {
     setLoading(true);
     try {
       const { data } = await getMembresias({ activos: showAll ? "false" : "false" });
-      setItems(Array.isArray(data) ? data : []);
-    } catch (err) {
-      // 401/403 esperado en gym nuevo — mostrar lista vacía sin error
-      const status = err.response?.status;
-      if (status !== 401 && status !== 403) {
-        Swal.fire("Error", "No se pudieron cargar las membresías", "error");
-      }
-      setItems([]);
-    } finally { setLoading(false); }
+      setItems(data);
+    } catch { Swal.fire("Error", "No se pudieron cargar las membresías", "error"); }
+    finally { setLoading(false); }
   };
 
   useEffect(() => { load(); }, [showAll]);
@@ -138,7 +132,7 @@ export default function OwnerMemberships() {
         : displayed.length === 0
           ? (
             <div style={{ textAlign: "center", padding: "60px 0", color: "#64748b" }}>
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{ margin: "0 auto 12px", display: "block", color: "#475569" }}><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>💳</div>
               <p>No hay membresías {showAll ? "" : "activas"}.</p>
               <button style={{ ...S.btn(), margin: "0 auto" }} onClick={handleCreate}>
                 <FiPlus /> Crear la primera
@@ -166,4 +160,13 @@ export default function OwnerMemberships() {
                     <button style={S.iconBtn(m.activo ? "#ef4444" : "#22c55e")} onClick={() => handleToggle(m)} title={m.activo ? "Desactivar" : "Activar"}>
                       {m.activo ? <FiToggleRight /> : <FiToggleLeft />}
                     </button>
-                    <button style={{ ...S.icon
+                    <button style={{ ...S.iconBtn("#ef4444"), marginLeft: "auto" }} onClick={() => handleDelete(m)} title="Eliminar"><FiTrash2 /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
+      }
+    </div>
+  );
+}

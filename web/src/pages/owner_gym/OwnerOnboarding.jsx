@@ -77,7 +77,7 @@ function TimePicker({ value, onChange }) {
     padding: "7px 16px", borderRadius: 6, cursor: "pointer", fontSize: 13,
     fontWeight: active ? 700 : 400, textAlign: "center",
     background: active ? "var(--accent)" : "transparent",
-    color: active ? "var(--bg-dark, #0f1117)" : "var(--text-primary)",
+    color: active ? "var(--bg-input)" : "var(--text-primary)",
     transition: "background 0.15s", whiteSpace: "nowrap",
   });
 
@@ -244,7 +244,7 @@ export default function OwnerOnboarding() {
   return (
     <div style={{
       minHeight: "100vh",
-      background: "var(--bg-dark)",
+      background: "var(--bg-input)",
       display: "flex",
       alignItems: "center",
       justifyContent: "center",

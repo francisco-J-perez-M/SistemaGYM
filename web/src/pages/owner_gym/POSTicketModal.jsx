@@ -11,18 +11,18 @@ export default function TicketModal({ venta, onClose }) {
     <>
       <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 9994, background: "rgba(0,0,0,.65)", backdropFilter: "blur(4px)" }} />
       <div style={{ position: "fixed", inset: 0, zIndex: 9995, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, pointerEvents: "none" }}>
-        <div style={{ background: "var(--bg-card, #1a1d2e)", border: "1px solid var(--border, rgba(255,255,255,.08))", borderRadius: 12, padding: 0, maxWidth: 380, width: "100%", pointerEvents: "auto", boxShadow: "0 24px 60px rgba(0,0,0,.5)" }}>
+        <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: 0, maxWidth: 380, width: "100%", pointerEvents: "auto", boxShadow: "0 24px 60px rgba(0,0,0,.5)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px 0" }}>
-            <span style={{ fontSize: 12, color: "var(--text-secondary, #94a3b8)" }}>Comprobante de venta</span>
+            <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>Comprobante de venta</span>
             <button onClick={onClose} style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}><FiX size={16} /></button>
           </div>
 
           <div style={{ padding: "14px 22px 22px", fontFamily: "monospace" }}>
             {/* Encabezado */}
             <div style={{ textAlign: "center", marginBottom: 16, paddingBottom: 14, borderBottom: "1px dashed rgba(255,255,255,.15)" }}>
-              <div style={{ fontSize: 20, fontWeight: 900, color: "#6366f1", letterSpacing: 3 }}>GYM PRO</div>
+              <div style={{ fontSize: 20, fontWeight: 900, color: "var(--accent)", letterSpacing: 3 }}>GYM PRO</div>
               <div style={{ fontSize: 10, color: "var(--text-secondary)", marginTop: 2 }}>Punto de Venta</div>
-              <div style={{ fontSize: 10, color: "var(--text-tertiary, #64748b)", marginTop: 4 }}>{venta.fecha}</div>
+              <div style={{ fontSize: 10, color: "var(--text-tertiary, var(--text-tertiary))", marginTop: 4 }}>{venta.fecha}</div>
               {venta.id && (
                 <div style={{ fontSize: 9, color: "var(--text-tertiary)", marginTop: 2 }}>
                   #{venta.id.slice(-8).toUpperCase()}
@@ -48,7 +48,7 @@ export default function TicketModal({ venta, onClose }) {
                   <span style={{ color: "var(--text-primary)", flex: 1 }}>
                     {item.nombre} <span style={{ color: "var(--text-secondary)" }}>x{item.qty}</span>
                   </span>
-                  <span style={{ color: "#10b981", fontWeight: 700, marginLeft: 8 }}>{fmt(item.precio * item.qty)}</span>
+                  <span style={{ color: "var(--success)", fontWeight: 700, marginLeft: 8 }}>{fmt(item.precio * item.qty)}</span>
                 </div>
               ))}
             </div>
@@ -57,7 +57,7 @@ export default function TicketModal({ venta, onClose }) {
             <div style={{ borderTop: "1px dashed rgba(255,255,255,.2)", paddingTop: 10, marginBottom: 12 }}>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 16, fontWeight: 900 }}>
                 <span style={{ color: "var(--text-primary)" }}>TOTAL</span>
-                <span style={{ color: "#10b981" }}>{fmt(venta.total)}</span>
+                <span style={{ color: "var(--success)" }}>{fmt(venta.total)}</span>
               </div>
             </div>
 
@@ -93,7 +93,7 @@ export default function TicketModal({ venta, onClose }) {
               <FiPrinter size={14} /> Imprimir
             </button>
             <button onClick={onClose}
-              style={{ flex: 1, padding: "9px 0", borderRadius: 8, border: "none", background: "#6366f1", color: "#fff", cursor: "pointer", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+              style={{ flex: 1, padding: "9px 0", borderRadius: 8, border: "none", background: "var(--accent)", color: "#fff", cursor: "pointer", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
               <FiCheck size={14} /> Cerrar
             </button>
           </div>

@@ -14,6 +14,7 @@ import OwnerMemberships   from "./pages/owner_gym/OwnerMemberships";
 import OwnerProfile       from "./pages/owner_gym/OwnerProfile";
 import MiembrosDashboard  from "./pages/owner_gym/MiembrosDashboard";
 import PagosDashboard     from "./pages/owner_gym/PagosDashboard";
+import CobrarMembresia    from "./pages/owner_gym/CobrarMembresia";
 import PointOfSale        from "./pages/owner_gym/PointOfSale";
 import BackupsDashboard   from "./pages/owner_gym/BackupsDashboard";
 import AdminAnalytics     from "./pages/owner_gym/AdminAnalytics";
@@ -73,7 +74,6 @@ function App() {
       <BrowserRouter>
         <Routes>
           {/* 1. RUTAS PÚBLICAS */}
-          {/* Ambas rutas apuntan al nuevo componente que maneja la vista internamente */}
           <Route path="/" element={<AuthPage />} />
           <Route path="/register" element={<AuthPage />} />
           <Route path="/register-gym"     element={<RegisterGym />} />
@@ -84,6 +84,7 @@ function App() {
             <Route path="/owner"               element={<OwnerDashboard />}   />
             <Route path="/owner/members"       element={<MiembrosDashboard />} />
             <Route path="/owner/payments"      element={<PagosDashboard />}   />
+            <Route path="/owner/cobrar"        element={<CobrarMembresia />}  />
             <Route path="/owner/pos"           element={<PointOfSale />}      />
             <Route path="/owner/staff"         element={<OwnerStaff />}       />
             <Route path="/owner/memberships"   element={<OwnerMemberships />} />
@@ -97,36 +98,36 @@ function App() {
 
           {/* 3. RUTAS USUARIO (MIEMBRO) */}
           <Route element={<Layout role="user" />}>
-            <Route path="/user/dashboard" element={<UserDashboard />} />
-            <Route path="/user/routine" element={<UserRoutineCreator />} />
-            <Route path="/user/progress" element={<UserBodyProgress />} />
-            <Route path="/user/prediction" element={<UserWeightPrediction />} />
+            <Route path="/user/dashboard"    element={<UserDashboard />} />
+            <Route path="/user/routine"      element={<UserRoutineCreator />} />
+            <Route path="/user/progress"     element={<UserBodyProgress />} />
+            <Route path="/user/prediction"   element={<UserWeightPrediction />} />
             <Route path="/user/body-metrics" element={<UserBodyProgress />} />
-            <Route path="/user/meal-plan" element={<UserMealPlan />} />
-            <Route path="/user/recipes" element={<UserRecipes />} />
-            <Route path="/user/health" element={<UserHealth />} />
+            <Route path="/user/meal-plan"    element={<UserMealPlan />} />
+            <Route path="/user/recipes"      element={<UserRecipes />} />
+            <Route path="/user/health"       element={<UserHealth />} />
             <Route path="/user-health-update" element={<UserHealthUpdate />} />
-            <Route path="/user/payments" element={<UserPayments />} />
-            <Route path="/user/renew" element={<UserMembershipRenewal />} />
-            <Route path="/user/profile" element={<UserProfile />} />
-            <Route path="/user/pos"      element={<PointOfSale />}   />
-            <Route path="/user/training" element={<UserTraining />}  />
-            <Route path="/complete-profile" element={<CompleteProfile />} />
+            <Route path="/user/payments"     element={<UserPayments />} />
+            <Route path="/user/renew"        element={<UserMembershipRenewal />} />
+            <Route path="/user/profile"      element={<UserProfile />} />
+            <Route path="/user/pos"          element={<PointOfSale />} />
+            <Route path="/user/training"     element={<UserTraining />} />
+            <Route path="/complete-profile"  element={<CompleteProfile />} />
           </Route>
 
           {/* 4. RUTAS ENTRENADOR */}
           <Route element={<Layout role="trainer" />}>
-            <Route path="/trainer-dashboard" element={<TrainerDashboard />} />
-            <Route path="/trainer/clients" element={<TrainerClients />} />
-            <Route path="/trainer/schedule" element={<TrainerSchedule />} />
-            <Route path="/trainer/sessions" element={<TrainerSessions />} />
-            <Route path="/trainer/routines" element={<TrainerRoutines />} />
-            <Route path="/trainer/trainer-kmeans" element={<TrainerKMeans />} />
+            <Route path="/trainer-dashboard"         element={<TrainerDashboard />} />
+            <Route path="/trainer/clients"           element={<TrainerClients />} />
+            <Route path="/trainer/schedule"          element={<TrainerSchedule />} />
+            <Route path="/trainer/sessions"          element={<TrainerSessions />} />
+            <Route path="/trainer/routines"          element={<TrainerRoutines />} />
+            <Route path="/trainer/trainer-kmeans"    element={<TrainerKMeans />} />
             <Route path="/trainer/trainer-regresion" element={<TrainerRegresion />} />
-            <Route path="/trainer/reports" element={<TrainerReports />} />
-            <Route path="/trainer/profile" element={<TrainerProfile />} />
-            <Route path="/trainer/pos"      element={<PointOfSale />}    />
-            <Route path="/trainer/requests" element={<TrainerRequests />} />
+            <Route path="/trainer/reports"           element={<TrainerReports />} />
+            <Route path="/trainer/profile"           element={<TrainerProfile />} />
+            <Route path="/trainer/pos"               element={<PointOfSale />} />
+            <Route path="/trainer/requests"          element={<TrainerRequests />} />
           </Route>
 
           {/* 5. RUTAS RECEPCIONISTA */}
@@ -139,7 +140,6 @@ function App() {
             <Route path="/receptionist/members"      element={<ReceptionistMembers />} />
             <Route path="/receptionist/messages"     element={<ReceptionistMessages />} />
             <Route path="/receptionist/tasks"        element={<ReceptionistTasks />} />
-            {/* AI Analytics — hub en lenguaje accesible + páginas detalladas del owner */}
             <Route path="/receptionist/analytics"    element={<ReceptionistAnalytics />} />
             <Route path="/receptionist/mapreduce"    element={<AnalyticsMapReduce />} />
             <Route path="/receptionist/kmeans"       element={<AnalyticsKMeans />} />
@@ -148,26 +148,26 @@ function App() {
 
           {/* 6. RUTAS SUPERADMIN */}
           <Route element={<Layout role="superadmin" />}>
-            <Route path="/superadmin"                  element={<SuperadminDashboard />}     />
-            <Route path="/superadmin/gimnasios"        element={<SuperadminGimnasios />}     />
-            <Route path="/superadmin/suscripciones"    element={<SuperadminSuscripciones />} />
-            <Route path="/superadmin/planes"           element={<SuperadminPlanes />}        />
-            <Route path="/superadmin/usuarios"         element={<SuperadminUsuarios />}      />
-            <Route path="/superadmin/backups"          element={<SuperadminBackups />}       />
-            <Route path="/superadmin/analytics"        element={<SuperadminAnalytics />}     />
+            <Route path="/superadmin"               element={<SuperadminDashboard />}     />
+            <Route path="/superadmin/gimnasios"     element={<SuperadminGimnasios />}     />
+            <Route path="/superadmin/suscripciones" element={<SuperadminSuscripciones />} />
+            <Route path="/superadmin/planes"        element={<SuperadminPlanes />}        />
+            <Route path="/superadmin/usuarios"      element={<SuperadminUsuarios />}      />
+            <Route path="/superadmin/backups"       element={<SuperadminBackups />}       />
+            <Route path="/superadmin/analytics"     element={<SuperadminAnalytics />}     />
           </Route>
 
           {/* 7. RUTA 404 */}
           <Route path="*" element={
             <div style={{
-              color: 'white', 
+              color: 'var(--text-primary)',
               padding: '20px',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
               height: '100vh',
-              background: 'var(--bg-dark)',
+              background: 'var(--bg-main)',
               textAlign: 'center'
             }}>
               <h1 style={{ fontSize: '72px', marginBottom: '20px' }}>404</h1>

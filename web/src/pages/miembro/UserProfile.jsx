@@ -246,7 +246,7 @@ export default function UserProfile() {
                         cursor: 'pointer'
                       }}
                     >
-                      <FiCamera color="var(--bg-dark)" />
+                      <FiCamera color="var(--bg-input)" />
                     </motion.div>
                   </label>
                   <input 
@@ -332,7 +332,7 @@ export default function UserProfile() {
                         style={{
                           width: '100%',
                           padding: '8px',
-                          background: 'var(--bg-dark)',
+                          background: 'var(--bg-input)',
                           border: '1px solid var(--border-dark)',
                           borderRadius: '6px',
                           color: 'var(--text-primary)'

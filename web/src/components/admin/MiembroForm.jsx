@@ -40,17 +40,17 @@ export default function MiembroForm({
           <div style={{ position: 'relative', width: '100px', height: '100px' }}>
             <div style={{
               width: '100%', height: '100%', borderRadius: '50%', overflow: 'hidden',
-              border: '2px solid #3b82f6', background: '#1e293b', display: 'flex',
+              border: '2px solid var(--accent)', background: '#1e293b', display: 'flex',
               alignItems: 'center', justifyContent: 'center'
             }}>
               {fotoPreview ? (
                 <img src={fotoPreview} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : (
-                <span style={{ fontSize: '30px', color: '#64748b' }}>📷</span>
+                <span style={{ fontSize: '30px', color: 'var(--text-tertiary)' }}>📷</span>
               )}
             </div>
             <label style={{
-              position: 'absolute', bottom: '0', right: '0', background: '#3b82f6',
+              position: 'absolute', bottom: '0', right: '0', background: 'var(--accent)',
               color: 'white', borderRadius: '50%', width: '30px', height: '30px',
               display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer'
             }}>
@@ -61,7 +61,7 @@ export default function MiembroForm({
         </div>
 
         {/* --- DATOS DE CUENTA --- */}
-        <h4 style={{ color: '#94a3b8', marginBottom: '10px', fontSize: '0.9rem', borderBottom: '1px solid #334155', paddingBottom: '5px' }}>Datos de Cuenta</h4>
+        <h4 style={{ color: 'var(--text-secondary)', marginBottom: '10px', fontSize: '0.9rem', borderBottom: '1px solid #334155', paddingBottom: '5px' }}>Datos de Cuenta</h4>
         
         <div className="compact-form-grid">
           <div className="form-group compact">
@@ -101,7 +101,7 @@ export default function MiembroForm({
         </div>
 
         {/* --- DATOS FÍSICOS --- */}
-        <h4 style={{ color: '#94a3b8', margin: '15px 0 10px 0', fontSize: '0.9rem', borderBottom: '1px solid #334155', paddingBottom: '5px' }}>Perfil Físico</h4>
+        <h4 style={{ color: 'var(--text-secondary)', margin: '15px 0 10px 0', fontSize: '0.9rem', borderBottom: '1px solid #334155', paddingBottom: '5px' }}>Perfil Físico</h4>
         
         <div className="compact-form-grid">
           <div className="form-group compact">

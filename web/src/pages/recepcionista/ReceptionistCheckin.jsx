@@ -243,7 +243,7 @@ export default function ReceptionistCheckin() {
               </button>
               <div style={{
                 width: 44, height: 44, borderRadius: "50%",
-                background: "var(--accent)", color: "var(--bg-dark)",
+                background: "var(--accent)", color: "var(--bg-input)",
                 display: "flex", alignItems: "center", justifyContent: "center",
                 fontWeight: 700, fontSize: 18, margin: "0 auto 12px",
               }}>
@@ -387,7 +387,7 @@ export default function ReceptionistCheckin() {
                       {/* Avatar */}
                       <div style={{
                         width: 42, height: 42, borderRadius: "50%",
-                        background: "var(--accent)", color: "var(--bg-dark)",
+                        background: "var(--accent)", color: "var(--bg-input)",
                         display: "flex", alignItems: "center", justifyContent: "center",
                         fontWeight: 700, fontSize: 16, flexShrink: 0,
                       }}>
@@ -434,7 +434,7 @@ export default function ReceptionistCheckin() {
                           style={{
                             padding: "7px 14px", borderRadius: 8, fontSize: 12, fontWeight: 700,
                             background: maxed ? "transparent" : "var(--accent)",
-                            color: maxed ? "var(--text-secondary)" : "var(--bg-dark)",
+                            color: maxed ? "var(--text-secondary)" : "var(--bg-input)",
                             border: maxed ? "1px solid var(--border-dark)" : "none",
                             cursor: maxed ? "not-allowed" : "pointer",
                             display: "flex", alignItems: "center", gap: 5,
