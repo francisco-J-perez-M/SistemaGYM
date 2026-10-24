@@ -108,7 +108,8 @@ export default function UserWorkoutLog() {
       });
       setMsg({
         type: "ok",
-        text: `Entrenamiento guardado: ${data.total_ejercicios} ejercicios, ${data.total_series} series, ${data.volumen_total} kg de volumen.` +
+        text: `Entrenamiento guardado: ${data.total_ejercicios} ejercicios, ${data.total_series} series. ` +
+          `Quemaste aproximadamente ${data.calorias_estimadas} kcal.` +
           (data.peso_registrado ? " Tu peso del día actualizó tus métricas." : ""),
       });
       // Reset
@@ -184,10 +185,13 @@ export default function UserWorkoutLog() {
               <input style={S.input} type="number" value={duracion} onChange={e => setDuracion(e.target.value)} placeholder="45" />
             </div>
             <div>
-              <label style={S.label}><FiTrendingUp /> Peso corporal hoy (kg)</label>
-              <input style={S.input} type="number" value={pesoCorporal} onChange={e => setPeso(e.target.value)} placeholder="72.5" />
+              <label style={S.label}><FiTrendingUp /> Peso corporal (opcional)</label>
+              <input style={S.input} type="number" value={pesoCorporal} onChange={e => setPeso(e.target.value)} placeholder="Solo si te pesaste hoy" />
             </div>
           </div>
+          <p style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 6 }}>
+            Al guardar, tu entrenamiento queda registrado y se calculan tus calorías quemadas automáticamente. El peso es opcional: regístralo solo si te pesaste.
+          </p>
           <label style={S.label}>Notas</label>
           <input style={S.input} value={notas} onChange={e => setNotas(e.target.value)} placeholder="Cómo te sentiste…" />
 
@@ -219,6 +223,7 @@ export default function UserWorkoutLog() {
               <div style={S.resItem}><strong>{resumen.total}</strong><span>Entrenamientos</span></div>
               <div style={S.resItem}><strong>{resumen.este_mes}</strong><span>Este mes</span></div>
               <div style={S.resItem}><strong>{Math.round(resumen.volumen_total)}</strong><span>kg volumen</span></div>
+              <div style={S.resItem}><strong>{resumen.calorias_total ?? 0}</strong><span>kcal total</span></div>
             </div>
           )}
 
@@ -241,6 +246,7 @@ export default function UserWorkoutLog() {
                     <span><FiActivity size={12} /> {w.total_ejercicios} ejercicios</span>
                     <span>{w.total_series} series</span>
                     <span>{Math.round(w.volumen_total || 0)} kg vol.</span>
+                    {w.calorias_estimadas ? <span style={{ color: "var(--accent-soft, var(--accent))" }}>{w.calorias_estimadas} kcal</span> : null}
                     {w.duracion_min ? <span><FiClock size={12} /> {w.duracion_min} min</span> : null}
                     {w.peso_corporal ? <span><FiTrendingUp size={12} /> {w.peso_corporal} kg</span> : null}
                   </div>
@@ -280,7 +286,7 @@ const S = {
   msgErr: { background: "rgba(239,68,68,.12)", color: "var(--danger)" },
   msgWarn: { background: "rgba(234,179,8,.12)", color: "var(--warning)" },
   saveBtn: { width: "100%", marginTop: 16, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, background: "var(--accent)", color: "#fff", border: "none", borderRadius: 10, padding: "12px 0", fontSize: 14, fontWeight: 700, cursor: "pointer" },
-  resumen: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 16 },
+  resumen: { display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 16 },
   resItem: { background: "var(--bg-input)", borderRadius: 10, padding: "12px 8px", textAlign: "center", display: "flex", flexDirection: "column", gap: 2 },
   wItem: { background: "var(--bg-input)", borderRadius: 10, padding: "12px 14px" },
 };

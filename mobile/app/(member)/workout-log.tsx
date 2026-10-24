@@ -30,11 +30,12 @@ interface WorkoutItem {
   total_ejercicios: number;
   total_series: number;
   volumen_total: number;
+  calorias_estimadas?: number;
   peso_corporal?: number | null;
 }
 interface WorkoutsResponse {
   workouts: WorkoutItem[];
-  resumen: { total: number; este_mes: number; volumen_total: number };
+  resumen: { total: number; este_mes: number; volumen_total: number; calorias_total: number };
 }
 
 const emptySerie = (): Serie => ({ repeticiones: '', peso: '' });
@@ -89,7 +90,8 @@ export default function WorkoutLogScreen() {
       });
       Alert.alert(
         'Entrenamiento guardado',
-        `${res.total_ejercicios} ejercicios · ${res.total_series} series · ${res.volumen_total} kg de volumen.` +
+        `${res.total_ejercicios} ejercicios · ${res.total_series} series.\n` +
+        `Quemaste aproximadamente ${res.calorias_estimadas} kcal.` +
         (res.peso_registrado ? '\n\nTu peso del día actualizó tus métricas.' : ''),
       );
       setExercises([emptyExercise()]);
@@ -168,10 +170,11 @@ export default function WorkoutLogScreen() {
             <TextInput style={styles.input} keyboardType="number-pad" value={duracion} onChangeText={setDuracion} placeholder="45" placeholderTextColor={colors.textMuted} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.inputLabel}>Peso corporal (kg)</Text>
-            <TextInput style={styles.input} keyboardType="decimal-pad" value={pesoCorporal} onChangeText={setPeso} placeholder="72.5" placeholderTextColor={colors.textMuted} />
+            <Text style={styles.inputLabel}>Peso corporal (opcional)</Text>
+            <TextInput style={styles.input} keyboardType="decimal-pad" value={pesoCorporal} onChangeText={setPeso} placeholder="Si te pesaste" placeholderTextColor={colors.textMuted} />
           </View>
         </View>
+        <Text style={styles.hint}>Tus calorías quemadas se calculan automáticamente. El peso es opcional: regístralo solo si te pesaste hoy.</Text>
         <Text style={styles.inputLabel}>Notas</Text>
         <TextInput style={styles.input} value={notas} onChangeText={setNotas} placeholder="Cómo te sentiste…" placeholderTextColor={colors.textMuted} />
 
@@ -188,9 +191,10 @@ export default function WorkoutLogScreen() {
         <Text style={styles.sectionTitle}>Tu bitácora</Text>
         {resumen && (
           <View style={styles.resumen}>
-            <View style={styles.resItem}><Text style={styles.resVal}>{resumen.total}</Text><Text style={styles.resLbl}>Entrenamientos</Text></View>
+            <View style={styles.resItem}><Text style={styles.resVal}>{resumen.total}</Text><Text style={styles.resLbl}>Total</Text></View>
             <View style={styles.resItem}><Text style={styles.resVal}>{resumen.este_mes}</Text><Text style={styles.resLbl}>Este mes</Text></View>
-            <View style={styles.resItem}><Text style={styles.resVal}>{Math.round(resumen.volumen_total || 0)}</Text><Text style={styles.resLbl}>kg volumen</Text></View>
+            <View style={styles.resItem}><Text style={styles.resVal}>{Math.round(resumen.volumen_total || 0)}</Text><Text style={styles.resLbl}>kg vol.</Text></View>
+            <View style={styles.resItem}><Text style={styles.resVal}>{resumen.calorias_total ?? 0}</Text><Text style={styles.resLbl}>kcal</Text></View>
           </View>
         )}
         {loading && workouts.length === 0 ? (
@@ -211,6 +215,7 @@ export default function WorkoutLogScreen() {
                 <Text style={styles.wMetaTxt}>{w.total_ejercicios} ejercicios</Text>
                 <Text style={styles.wMetaTxt}>{w.total_series} series</Text>
                 <Text style={styles.wMetaTxt}>{Math.round(w.volumen_total || 0)} kg</Text>
+                {w.calorias_estimadas ? <Text style={[styles.wMetaTxt, { color: colors.accent }]}>{w.calorias_estimadas} kcal</Text> : null}
                 {w.peso_corporal ? <Text style={styles.wMetaTxt}>Peso: {w.peso_corporal} kg</Text> : null}
               </View>
             </View>
@@ -229,6 +234,7 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
     subtitle: { color: colors.textSecondary, fontSize: 12.5 * fs, marginTop: 2, marginBottom: 4 },
     sectionTitle: { color: colors.text, fontSize: 15 * fs, fontWeight: '700', marginBottom: 12 },
     inputLabel: { color: colors.textSecondary, fontSize: 12.5 * fs, marginBottom: 4, marginTop: 10, fontWeight: '600' },
+    hint: { color: colors.textMuted, fontSize: 11 * fs, marginTop: 6, lineHeight: 16 },
     input: { backgroundColor: colors.inputBg, borderRadius: 10, borderWidth: 1, borderColor: colors.border, color: colors.text, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14 * fs, marginVertical: 2 },
     exCard: { backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 12, marginTop: 12, gap: 4 },
     exHead: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },

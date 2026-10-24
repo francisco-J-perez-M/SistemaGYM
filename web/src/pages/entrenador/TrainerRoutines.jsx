@@ -1427,14 +1427,30 @@ export default function TrainerRoutines() {
   const handleDeleteEx = async (ex) => {
     const ok = await confirm({
       title: "¿Eliminar ejercicio?",
-      message: `"${ex.nombre}" se eliminará de la biblioteca.`,
+      message: `"${ex.nombre}" se moverá a la papelera. Podrás reactivarlo o eliminarlo definitivamente desde ahí.`,
       type: "danger", confirmText: "Eliminar", cancelText: "Cancelar",
     });
     if (!ok) return;
     try {
       setActionLoading(true);
       await trainerService.deleteExercise(ex.id);
-      toast.success("Ejercicio eliminado", ex.nombre);
+      toast.success("Ejercicio movido a la papelera", ex.nombre);
+      await loadExercises();
+    } catch (err) { toast.error("Error", err.message); }
+    finally { setActionLoading(false); }
+  };
+
+  const handlePermanentDeleteEx = async (ex) => {
+    const ok = await confirm({
+      title: "¿Eliminar definitivamente?",
+      message: `"${ex.nombre}" se borrará por completo y no se podrá recuperar.`,
+      type: "danger", confirmText: "Eliminar definitivamente", cancelText: "Cancelar",
+    });
+    if (!ok) return;
+    try {
+      setActionLoading(true);
+      await trainerService.permanentDeleteExercise(ex.id);
+      toast.success("Ejercicio eliminado definitivamente", ex.nombre);
       await loadExercises();
     } catch (err) { toast.error("Error", err.message); }
     finally { setActionLoading(false); }
@@ -2192,12 +2208,20 @@ export default function TrainerRoutines() {
                                   <FiEdit size={13} />
                                 </motion.button>
                                 {ex.activo === false ? (
-                                  <motion.button className="icon-btn" style={{ padding: 5, color: "var(--success)" }}
-                                    title="Reactivar"
-                                    onClick={() => reactivarEjercicio(ex)}
-                                    whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-                                    <FiCheckCircle size={13} />
-                                  </motion.button>
+                                  <>
+                                    <motion.button className="icon-btn" style={{ padding: 5, color: "var(--success)" }}
+                                      title="Reactivar"
+                                      onClick={() => reactivarEjercicio(ex)}
+                                      whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                                      <FiCheckCircle size={13} />
+                                    </motion.button>
+                                    <motion.button className="icon-btn danger" style={{ padding: 5 }}
+                                      title="Eliminar definitivamente"
+                                      onClick={() => handlePermanentDeleteEx(ex)}
+                                      whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                                      <FiTrash2 size={13} />
+                                    </motion.button>
+                                  </>
                                 ) : (
                                   <motion.button className="icon-btn danger" style={{ padding: 5 }}
                                     title="Eliminar"
