@@ -17,6 +17,26 @@ const token    = () => localStorage.getItem("token");
 const authHdrs = () => ({ Authorization: `Bearer ${token()}`, "Content-Type": "application/json" });
 const fmt      = (n) => (n > 0 ? `${n}` : "—");
 
+// Busca un alimento por código de barras en Open Food Facts (ver
+// api/app/routes/compartido/nutricion_externa.py). El esquema de "mi dieta"
+// guarda cada alimento como texto libre (sin macros por item), así que el
+// resultado se compone en una sola descripción legible.
+async function buscarAlimentoPorCodigoBarras(code){
+  const res = await fetch(`/api/nutricion/barcode/${encodeURIComponent(code)}`, { headers: authHdrs() });
+  const data = await res.json();
+  if(!res.ok) throw new Error(data.error || "No se pudo buscar el código de barras");
+  return data;
+}
+function describirAlimento(data){
+  const partes=[];
+  if(data.calorias!=null) partes.push(`${data.calorias} kcal`);
+  if(data.proteinas_g!=null) partes.push(`${data.proteinas_g}g prot`);
+  if(data.carbohidratos_g!=null) partes.push(`${data.carbohidratos_g}g carbs`);
+  if(data.grasas_g!=null) partes.push(`${data.grasas_g}g grasa`);
+  const detalle = partes.length ? ` (${data.base||"100 g"}: ${partes.join(", ")})` : "";
+  return `${data.nombre}${detalle}`;
+}
+
 const CATEGORIAS = [
   "General", "Alto en Proteína", "Bajo en Calorías", "Pre-Entrenamiento",
   "Post-Entrenamiento", "Vegetariana", "Keto", "Desayuno", "Cena", "Snack",
@@ -516,6 +536,22 @@ function DietaForm({ initial, onSave, onClose }) {
   const setAl      = (ci,ai,v) => setComidas(c => { const a=[...c]; const als=[...a[ci].alimentos]; als[ai]=v; a[ci]={...a[ci],alimentos:als}; return a; });
   const removeAl   = (ci,ai) => setComidas(c => { const a=[...c]; a[ci].alimentos=a[ci].alimentos.filter((_,i)=>i!==ai); return a; });
 
+  const [barcodeFor,setBarcodeFor] = useState(null); // `${ci}-${ai}` de la fila con el buscador abierto, o null
+  const [codigoBarras,setCodigoBarras] = useState("");
+  const [buscandoCodigo,setBuscandoCodigo] = useState(false);
+  const buscarCodigo = async (ci,ai) => {
+    const code=codigoBarras.trim();
+    if(!code) return;
+    setBuscandoCodigo(true);
+    try{
+      const data=await buscarAlimentoPorCodigoBarras(code);
+      if(!data.encontrado){ alert(data.mensaje||"Producto no encontrado en Open Food Facts."); return; }
+      setAl(ci,ai,describirAlimento(data));
+      setBarcodeFor(null); setCodigoBarras("");
+    }catch(e){ alert(e.message||"No se pudo buscar el código de barras"); }
+    finally{ setBuscandoCodigo(false); }
+  };
+
   return (
     <motion.div
       initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
@@ -572,15 +608,32 @@ function DietaForm({ initial, onSave, onClose }) {
                   style={{ padding:"7px 8px",background:"var(--bg-card)",border:"1px solid var(--border)",borderRadius:7,color:"var(--text-primary)",fontSize:12 }} />
                 <button onClick={()=>removeC(ci)} style={{ background:"none",border:"none",color:"#f87171",cursor:"pointer",padding:"0 4px" }}><FiTrash2 size={13}/></button>
               </div>
-              {(c.alimentos||[]).map((al,ai) => (
-                <div key={ai} style={{ display:"flex",gap:6,marginBottom:5 }}>
-                  <input value={al} onChange={e=>setAl(ci,ai,e.target.value)} placeholder={`Alimento ${ai+1}`}
-                    style={{ flex:1,padding:"6px 8px",background:"var(--bg-card)",border:"1px solid var(--border)",borderRadius:7,color:"var(--text-primary)",fontSize:12 }} />
-                  {c.alimentos.length > 1 && (
-                    <button onClick={()=>removeAl(ci,ai)} style={{ background:"none",border:"none",color:"#f87171",cursor:"pointer" }}><FiX size={11}/></button>
+              {(c.alimentos||[]).map((al,ai) => {
+                const clave=`${ci}-${ai}`;
+                return (
+                <div key={ai} style={{ marginBottom:5 }}>
+                  <div style={{ display:"flex",gap:6 }}>
+                    <input value={al} onChange={e=>setAl(ci,ai,e.target.value)} placeholder={`Alimento ${ai+1}`}
+                      style={{ flex:1,padding:"6px 8px",background:"var(--bg-card)",border:"1px solid var(--border)",borderRadius:7,color:"var(--text-primary)",fontSize:12 }} />
+                    <button type="button" title="Buscar por código de barras" onClick={()=>{setBarcodeFor(barcodeFor===clave?null:clave);setCodigoBarras("");}}
+                      style={{ background:"none",border:"1px solid var(--border)",borderRadius:7,color:"var(--text-secondary)",cursor:"pointer",padding:"0 8px" }}><FiSearch size={12}/></button>
+                    {c.alimentos.length > 1 && (
+                      <button onClick={()=>removeAl(ci,ai)} style={{ background:"none",border:"none",color:"#f87171",cursor:"pointer" }}><FiX size={11}/></button>
+                    )}
+                  </div>
+                  {barcodeFor===clave && (
+                    <div style={{ display:"flex",gap:6,marginTop:5 }}>
+                      <input value={codigoBarras} onChange={e=>setCodigoBarras(e.target.value)} placeholder="Código de barras"
+                        onKeyDown={e=>e.key==="Enter"&&buscarCodigo(ci,ai)}
+                        style={{ flex:1,padding:"6px 8px",background:"var(--bg-card)",border:"1px solid var(--border)",borderRadius:7,color:"var(--text-primary)",fontSize:12 }} />
+                      <button type="button" disabled={buscandoCodigo||!codigoBarras.trim()} onClick={()=>buscarCodigo(ci,ai)}
+                        style={{ padding:"6px 10px",background:"var(--bg-card)",border:"1px solid var(--border)",borderRadius:7,color:"var(--accent)",fontSize:11,cursor:"pointer" }}>
+                        {buscandoCodigo?"Buscando...":"Buscar"}
+                      </button>
+                    </div>
                   )}
                 </div>
-              ))}
+              );})}
               <button onClick={()=>addAl(ci)}
                 style={{ fontSize:11,color:"var(--accent)",background:"none",border:"none",cursor:"pointer",padding:"2px 0",display:"flex",alignItems:"center",gap:4 }}>
                 <FiPlus size={10}/> alimento

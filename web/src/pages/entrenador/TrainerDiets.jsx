@@ -49,6 +49,20 @@ function MacroChip({label,value,color}){
   return <span style={{fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:20,background:`${color}22`,color}}>{value}g {label}</span>;
 }
 
+// Busca un alimento por código de barras en Open Food Facts (ver
+// api/app/routes/compartido/nutricion_externa.py). La web no tiene cámara
+// integrada, así que aquí el código se captura a mano (del empaque del
+// producto) en vez de escanearlo como en la app móvil.
+async function buscarAlimentoPorCodigoBarras(code){
+  const token = localStorage.getItem("token");
+  const res = await fetch(`/api/nutricion/barcode/${encodeURIComponent(code)}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  const data = await res.json();
+  if(!res.ok) throw new Error(data.error || "No se pudo buscar el código de barras");
+  return data; // { encontrado, nombre?, calorias?, proteinas_g?, carbohidratos_g?, grasas_g?, imagen?, mensaje? }
+}
+
 // ─── Modal wrapper ─────────────────────────────────────────────────────────
 function Modal({onClose,children,maxWidth=760}){
   return(
@@ -82,10 +96,25 @@ function ModalFooter({onCancel,onSave,saving,saveLabel="Guardar"}){
 
 // ─── ItemRow ───────────────────────────────────────────────────────────────
 function ItemRow({item,recipes,onUpdate,onRemove}){
+  const [mostrarBarcode,setMostrarBarcode]=useState(false);
+  const [codigoBarras,setCodigoBarras]=useState("");
+  const [buscandoCodigo,setBuscandoCodigo]=useState(false);
   const handleRecipeSelect=(id)=>{
     if(!id){onUpdate({...item,id_receta:null});return;}
     const r=recipes.find(rc=>rc.id===id);
     if(r) onUpdate({...item,id_receta:r.id,nombre_alimento:r.nombre,calorias:r.calorias??"",proteinas_g:r.proteinas_g??"",carbohidratos_g:r.carbohidratos_g??"",grasas_g:r.grasas_g??"",imagen:r.imagen??null});
+  };
+  const buscarCodigo=async()=>{
+    const code=codigoBarras.trim();
+    if(!code) return;
+    setBuscandoCodigo(true);
+    try{
+      const data=await buscarAlimentoPorCodigoBarras(code);
+      if(!data.encontrado){ alert(data.mensaje||"Producto no encontrado en Open Food Facts."); return; }
+      onUpdate({...item,id_receta:null,nombre_alimento:data.nombre,calorias:data.calorias??"",proteinas_g:data.proteinas_g??"",carbohidratos_g:data.carbohidratos_g??"",grasas_g:data.grasas_g??"",imagen:data.imagen??null});
+      setMostrarBarcode(false); setCodigoBarras("");
+    }catch(e){ alert(e.message||"No se pudo buscar el código de barras"); }
+    finally{ setBuscandoCodigo(false); }
   };
   return(
     <div style={{background:"var(--bg-input)",borderRadius:8,border:"1px solid var(--border)",padding:"10px 12px",display:"flex",flexDirection:"column",gap:8}}>
@@ -102,7 +131,16 @@ function ItemRow({item,recipes,onUpdate,onRemove}){
           {!item.id_receta&&(
             <div>
               <Label>Nombre</Label>
-              <input className="input-compact" placeholder="ej. Avena" value={item.nombre_alimento} onChange={e=>onUpdate({...item,nombre_alimento:e.target.value})}/>
+              <div style={{display:"flex",gap:4}}>
+                <input className="input-compact" placeholder="ej. Avena" value={item.nombre_alimento} onChange={e=>onUpdate({...item,nombre_alimento:e.target.value})}/>
+                <button type="button" className="icon-btn" title="Buscar por código de barras (Open Food Facts)" onClick={()=>setMostrarBarcode(v=>!v)}><FiSearch size={13}/></button>
+              </div>
+              {mostrarBarcode&&(
+                <div style={{display:"flex",gap:4,marginTop:6}}>
+                  <input className="input-compact" placeholder="Código de barras" value={codigoBarras} onChange={e=>setCodigoBarras(e.target.value)} onKeyDown={e=>e.key==="Enter"&&buscarCodigo()}/>
+                  <button type="button" className="btn-outline-small" disabled={buscandoCodigo||!codigoBarras.trim()} onClick={buscarCodigo}>{buscandoCodigo?"Buscando...":"Buscar"}</button>
+                </div>
+              )}
             </div>
           )}
         </div>

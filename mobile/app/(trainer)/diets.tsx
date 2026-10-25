@@ -24,6 +24,7 @@ import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
+import BarcodeScanner from '../../components/BarcodeScanner';
 import api from '../../services/api';
 import type {
   DietsResponse, DietPlan, RecipesResponse, Recipe, ComidaPlan,
@@ -68,6 +69,35 @@ export default function TrainerDietsScreen() {
   const [savingR, setSavingR] = useState(false);
   /** Receta que se está editando; null = alta. */
   const [editandoR, setEditandoR] = useState<Recipe | null>(null);
+
+  // ── Precargar receta escaneando un código de barras (Open Food Facts) ──
+  const [showScanner, setShowScanner] = useState(false);
+  const [buscandoCodigo, setBuscandoCodigo] = useState(false);
+
+  const buscarPorCodigoBarras = async (code: string) => {
+    setShowScanner(false);
+    setBuscandoCodigo(true);
+    try {
+      const { data } = await api.get(`${ENDPOINTS.NUTRICION_BARCODE}/${code}`);
+      if (!data?.encontrado) {
+        Alert.alert('No encontrado', data?.mensaje ?? 'Ese producto no está en Open Food Facts. Captúralo a mano.');
+        return;
+      }
+      setRForm((f) => ({
+        ...f,
+        nombre:        data.nombre ?? f.nombre,
+        calorias:      data.calorias != null ? String(data.calorias) : f.calorias,
+        proteinas:     data.proteinas_g != null ? String(data.proteinas_g) : f.proteinas,
+        carbohidratos: data.carbohidratos_g != null ? String(data.carbohidratos_g) : f.carbohidratos,
+        grasas:        data.grasas_g != null ? String(data.grasas_g) : f.grasas,
+      }));
+      Alert.alert('Producto encontrado', `${data.nombre}\n\nValores por ${data.base ?? '100 g'} — ajusta la cantidad si tu porción es distinta.`);
+    } catch (e: any) {
+      Alert.alert('Error', e?.response?.data?.error ?? 'No se pudo buscar el código de barras.');
+    } finally {
+      setBuscandoCodigo(false);
+    }
+  };
 
   const abrirAltaReceta = () => {
     setEditandoR(null);
@@ -373,6 +403,14 @@ export default function TrainerDietsScreen() {
               <TouchableOpacity onPress={() => { setShowRecipe(false); setEditandoR(null); }}><Ionicons name="close" size={24} color={colors.text} /></TouchableOpacity>
             </View>
             <ScrollView showsVerticalScrollIndicator={false}>
+              <Button
+                label="Escanear código de barras"
+                variant="secondary"
+                icon={<Ionicons name="barcode-outline" size={18} color={colors.text} />}
+                loading={buscandoCodigo}
+                onPress={() => setShowScanner(true)}
+                style={{ marginBottom: 14 }}
+              />
               <Field label="Nombre *" value={rForm.nombre} onChange={(t) => setRForm({ ...rForm, nombre: t })} colors={colors} styles={styles} placeholder="Ej: Avena con plátano" />
               <View style={styles.row2}>
                 <Field flex label="Calorías" value={rForm.calorias} onChange={(t) => setRForm({ ...rForm, calorias: t })} keyboard colors={colors} styles={styles} placeholder="350" />
@@ -388,6 +426,12 @@ export default function TrainerDietsScreen() {
           </View>
         </View>
       </Modal>
+
+      <BarcodeScanner
+        visible={showScanner}
+        onClose={() => setShowScanner(false)}
+        onScanned={buscarPorCodigoBarras}
+      />
 
       {/* ── Modal crear plan (con recetas) ──────────────────── */}
       <Modal visible={showPlan} transparent animationType="slide">

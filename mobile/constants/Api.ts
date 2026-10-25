@@ -108,6 +108,7 @@ export const ENDPOINTS = {
   // Nutrición
   DIETAS:             '/user/nutrition/dietas',  // GET /api/user/nutrition/dietas
   RECETAS:            '/user/nutrition/recetas', // GET /api/user/nutrition/recetas
+  NUTRICION_BARCODE:  '/nutricion/barcode',       // GET /api/nutricion/barcode/<code> (Open Food Facts)
 
   // ── Entrenador ────────────────────────────────────────────────────────────
   // trainer_bp: url_prefix="/api/trainer"
