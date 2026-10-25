@@ -47,6 +47,7 @@ from app.models.pg.factura_suscripcion import FacturaSuscripcion
 from app.services.payments import PasarelaError, pasarela_de_plataforma
 from app.routes.owner_gym.billing import _monto_para_ciclo
 from app.utils.tenant import require_tenant
+from app.utils.urls_retorno import url_front_retorno
 from app.constants.roles import ROL_PROPIETARIO, ROL_SUPERADMIN, normalizar_rol
 
 logger = logging.getLogger(__name__)
@@ -73,10 +74,6 @@ def _suscripcion_del_gimnasio(gym_id: int) -> Suscripcion | None:
         or Suscripcion.query.filter_by(id_gimnasio=gym_id)
         .order_by(Suscripcion.created_at.desc()).first()
     )
-
-
-def _url_front() -> str:
-    return os.getenv("FRONTEND_URL", "http://localhost:8080").rstrip("/")
 
 
 def _aplicar_estado(sub: Suscripcion, resultado) -> None:
@@ -216,13 +213,9 @@ def crear_recurrente():
     if monto <= 0:
         return jsonify({"msg": "El plan no tiene un precio válido."}), 400
 
-    # Desde el móvil, FRONTEND_URL apunta a localhost y en el teléfono eso es el
-    # propio teléfono. Se usa el host con el que la app llamó a la API, igual
-    # que hace el checkout de pagos.
-    if (data.get("origen") or "").lower() == "mobile":
-        front, sufijo = request.host_url.rstrip("/"), "&app=1"
-    else:
-        front, sufijo = _url_front(), ""
+    # Resuelve el host del frontend para las páginas de retorno del acuerdo --
+    # ver utils/urls_retorno.py (mismo criterio que usa el checkout de pagos).
+    front, sufijo = url_front_retorno(request, data.get("origen"))
 
     try:
         resultado = pasarela.crear_suscripcion(

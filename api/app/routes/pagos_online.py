@@ -30,6 +30,7 @@ from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity
 from app.extensions import db
 from app.models.pg.pasarela_pago import TransaccionPago
 from app.utils.tenant import require_tenant
+from app.utils.urls_retorno import url_front_retorno
 from app.services.payments import (
     PasarelaError, pasarela_de_gimnasio, pasarela_de_plataforma, proveedores_disponibles,
 )
@@ -49,11 +50,6 @@ _CONTEXTOS = ("membresia", "producto", "suscripcion", "lote_capacidad")
 # en services/payments. El resto (membresia, producto) cobra a la cuenta propia
 # de cada gimnasio via pasarela_de_gimnasio().
 _CONTEXTOS_PLATAFORMA = ("suscripcion", "lote_capacidad")
-
-
-def _url_base_front() -> str:
-    """URL pública del frontend, usada para las páginas de retorno."""
-    return os.getenv("FRONTEND_URL", "http://localhost:8080").rstrip("/")
 
 
 def _url_base_api() -> str:
@@ -163,18 +159,10 @@ def crear_checkout():
     db.session.flush()   # obtiene tx.id sin cerrar la transacción
 
     # ── URLs de retorno ──────────────────────────────────────────────────────
-    # Desde la app móvil no sirve FRONTEND_URL si apunta a localhost: en el
-    # teléfono 'localhost' es el propio teléfono. Se usa el host con el que la
-    # app llamó a la API (la IP de la máquina en la red local), que sí es
-    # alcanzable, y se marca 'app=1' para que la página de retorno devuelva el
-    # control a la aplicación mediante el deep link gympro://
-    es_movil = (data.get("origen") or "").lower() == "mobile"
-    if es_movil:
-        front = request.host_url.rstrip("/")
-        sufijo = "&app=1"
-    else:
-        front = _url_base_front()
-        sufijo = ""
+    # Resuelve el host del frontend para las páginas de retorno del pago -- ver
+    # utils/urls_retorno.py: ahí se explica por qué "si es móvil, usar el host
+    # con el que la app llamó a la API" rompía el checkout en producción.
+    front, sufijo = url_front_retorno(request, data.get("origen"))
 
     url_exito       = f"{front}/pago/exito?tx={tx.id}{sufijo}"
     url_cancelacion = f"{front}/pago/cancelado?tx={tx.id}{sufijo}"
