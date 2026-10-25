@@ -61,13 +61,18 @@ export function colorPorIntensidad(t: number): string {
   return `rgb(${r}, ${g}, ${b})`;
 }
 
-const GRUPOS_CON_REGION = ['Piernas', 'Pecho', 'Espalda', 'Hombros', 'Brazos', 'Core'] as const;
+// Exportados (además de usarse aquí) porque components/routines/MuscleDistribution.tsx
+// -- la distribución muscular planeada de UNA rutina/día en el Paso B del flujo de
+// Entrenamiento -- reutiliza el mismo mapa de slugs anatómicos y la misma escala de
+// color en vez de duplicarlos: son dos métricas distintas (histórico real vs. plan
+// de una rutina) que comparten la silueta y la paleta.
+export const GRUPOS_CON_REGION = ['Piernas', 'Pecho', 'Espalda', 'Hombros', 'Brazos', 'Core'] as const;
 
 // Mapa de los 6 grupos canónicos del backend a los slugs anatómicos de
 // `body-anatomy` (23 grupos musculares). Slugs no listados aquí (cabeza,
 // cabello, cuello, manos, pies, tobillos, rodillas) quedan sin color propio
 // —decorativos, color base de la silueta—.
-const GROUP_SLUG_MAP: Record<string, BodySlugInput[]> = {
+export const GROUP_SLUG_MAP: Record<string, BodySlugInput[]> = {
   Piernas: ['quadriceps', 'hamstring', 'calves', 'gluteal', 'adductors', 'tibialis'],
   Pecho: ['chest'],
   Espalda: ['trapezius', 'upper-back', 'lower-back'],
@@ -77,7 +82,7 @@ const GROUP_SLUG_MAP: Record<string, BodySlugInput[]> = {
 };
 
 // Lookup inverso (slug anatómico -> grupo canónico), construido una sola vez.
-const SLUG_A_GRUPO: Record<string, string> = Object.fromEntries(
+export const SLUG_A_GRUPO: Record<string, string> = Object.fromEntries(
   Object.entries(GROUP_SLUG_MAP).flatMap(([grupo, slugs]) => slugs.map((slug) => [slug, grupo])),
 );
 

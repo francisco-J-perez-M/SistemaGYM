@@ -45,19 +45,20 @@ type IconName = React.ComponentProps<typeof Ionicons>['name'];
  * más abajo). El resto de los roles sigue viendo su lista plana de siempre;
  * esto no les afecta en nada.
  *
- * Retroalimentación de Miguel: el cajón del Miembro tenía 11 ítems al
- * mismo nivel (Entrenamiento, Mi Rutina y Registrar Entreno por un lado;
- * Mi Membresía y Pagos por otro; Salud y Predicción de Peso por otro) y se
- * sentía saturado. En vez de fusionar esas pantallas en una sola (un
- * rediseño mucho más riesgoso, tocando la lógica de cada una), se agrupan
- * aquí SOLO en la navegación -como ya hace el sidebar del portal web con
- * "Entrenamiento ▾" y "Mi Membresía ▾" (ver web/src/components/compartido/
- * Sidebar.jsx)-: cada pantalla sigue siendo su propio archivo/ruta, el
- * cajón nada más las anida bajo un encabezado desplegable.
+ * Retroalimentación de Miguel: el cajón del Miembro tenía demasiados ítems al
+ * mismo nivel y se sentía saturado. En vez de fusionar esas pantallas en una
+ * sola (un rediseño mucho más riesgoso, tocando la lógica de cada una), se
+ * agrupan aquí SOLO en la navegación -como ya hace el sidebar del portal web
+ * con "Mi Membresía ▾" (ver web/src/components/compartido/Sidebar.jsx)-: cada
+ * pantalla sigue siendo su propio archivo/ruta, el cajón nada más las anida
+ * bajo un encabezado desplegable.
+ *
+ * 'Entrenamiento' YA NO está aquí: se consolidó en un único ítem plano (sin
+ * dropdown) que entra directo al Paso A del flujo de 3 pasos -- ver
+ * app/(member)/_layout.tsx y app/(member)/training.tsx.
  */
 interface GrupoCajon { id: string; label: string; icon: IconName; rutas: string[] }
 const GRUPOS_MIEMBRO: GrupoCajon[] = [
-  { id: 'grp-entrenamiento', label: 'Entrenamiento',   icon: 'barbell-outline', rutas: ['training', 'mi-rutina', 'workout-log'] },
   { id: 'grp-membresia',     label: 'Mi Membresía',     icon: 'card-outline',    rutas: ['membership', 'payments'] },
   { id: 'grp-progreso',      label: 'Progreso y Salud', icon: 'pulse-outline',   rutas: ['progress', 'health', 'prediccion'] },
 ];

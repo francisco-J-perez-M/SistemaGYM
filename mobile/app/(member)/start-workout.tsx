@@ -56,10 +56,10 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput,
-  Alert, Image, Linking,
+  Alert, Image, Linking, Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors, useFontScale } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
@@ -71,11 +71,14 @@ import Button from '../../components/ui/Button';
 import api from '../../services/api';
 import { estaConectado } from '../../services/offline/connectivity';
 import { encolarAccion } from '../../services/offline/queue';
+import { leerJSON, escribirJSON } from '../../services/offline/storage';
+import ExerciseDetailSheet, { type ExerciseDetail, cacheVideo, cacheImages } from '../../components/routines/ExerciseDetailSheet';
 
 // ── Tipos (mismo contrato que workout-log.tsx) ──────────────────────────────
 interface RoutineEx {
   nombre: string; series?: string | number; reps?: string | number; peso?: string | number;
-  grupo?: string; unidad?: string; notas?: string; imagenes?: string[]; video?: string;
+  grupo?: string; unidad?: string; notas?: string; instrucciones?: string;
+  imagenes?: string[]; video?: string;
 }
 interface RoutineDay { id: string; dia?: string; grupo?: string; ejercicios: RoutineEx[] }
 interface Routine {
@@ -114,6 +117,24 @@ const dayMatchesName = (d: RoutineDay | null | undefined, nombre: string) => nor
 const DIAS_CORTOS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']; // mismo orden que /api/user/checkins/semana (lunes..domingo)
 
 const DESCANSO_DEFECTO_SEG = 60;
+// Presets del botón de ajustes (⚙) de la barra superior -- ver
+// abrirAjustesDescanso más abajo.
+const RESTS_PRESET = [30, 45, 60, 90, 120, 180];
+
+// ── "Previa" por ejercicio (tabla de registro del Paso C) ───────────────────
+// No existe un histórico set-por-set en el backend (WORKOUT_COMPLETE solo
+// guarda el agregado de la sesión, ver api/app/routes/pagos_online.py... no,
+// ver api/app/routes/miembro/user_routine.py) y agregar ese endpoint está
+// fuera de alcance aquí (solo frontend). En su lugar se guarda LOCALMENTE en
+// este dispositivo lo último que se registró de cada ejercicio -- por nombre,
+// sin importar en qué rutina -- y eso alimenta la columna "Previa": es honesto
+// sobre su alcance real (el último registro de ESTE teléfono, no un histórico
+// de servidor que viaje entre dispositivos o se vea en el portal web).
+const CLAVE_PREVIA = 'gympro:ultima_serie_por_ejercicio:v1';
+const normalizarNombreEj = (s: string) => s.trim().toLowerCase();
+type SerieGuardada = { reps: string; peso: string; unidad: string };
+type PreviaPorEjercicio = Record<string, SerieGuardada[]>;
+
 const LB_A_KG = 0.453592;
 const convertirPeso = (valor: number, de: string, a: string): number => {
   const deLb = (de || 'kg').toLowerCase().startsWith('lb');
@@ -123,9 +144,17 @@ const convertirPeso = (valor: number, de: string, a: string): number => {
 };
 
 // ── Modelo de la sesión: un ejercicio con sus series, editable libremente ──
-interface SerieUI { idx: number; reps: string; peso: string; completada: boolean }
+interface SerieUI {
+  idx: number; reps: string; peso: string; completada: boolean;
+  /** Último valor registrado de ESTA serie para este ejercicio (ver
+   *  CLAVE_PREVIA) -- null/undefined si nunca se registró antes. */
+  previa?: SerieGuardada;
+}
 interface EjercicioUI {
-  exIdx: number; nombre: string; grupo?: string; notas?: string;
+  exIdx: number; nombre: string; grupo?: string; notas?: string; instrucciones?: string;
+  /** Nota libre de ESTA sesión (no viene de la rutina, no se envía al
+   *  backend -- ver botón "Notas" en el render). */
+  notasSesion: string;
   imagenes?: string[]; video?: string; unidad: string;
   repsObjetivo: string; pesoObjetivo: string; series: SerieUI[];
 }
@@ -143,6 +172,7 @@ function construirEjercicios(dia: RoutineDay | null): EjercicioUI[] {
       }));
       return {
         exIdx, nombre: ex.nombre, grupo: ex.grupo || dia.grupo, notas: ex.notas,
+        instrucciones: ex.instrucciones, notasSesion: '',
         imagenes: ex.imagenes, video: ex.video, unidad: ex.unidad || 'kg',
         repsObjetivo, pesoObjetivo, series,
       };
@@ -154,6 +184,15 @@ export default function StartWorkoutScreen() {
   const fs = useFontScale();
   const styles = useMemo(() => make_styles(colors, fs), [colors, fs]);
   const insets = useSafeAreaInsets();
+
+  // Paso B del flujo de Entrenamiento (ver empezarEntrenamiento en
+  // components/routines/RoutineDetailModal.tsx): llega con la rutina y el
+  // día EXACTOS a entrenar -- se ignora entonces toda la resolución de "qué
+  // rutina toca hoy" de abajo (candidatas/chips de día) y se arranca esa
+  // sesión directo, sea o no el día de la semana que es hoy. Sin params
+  // (atajo "Empezar entrenamiento" de Inicio, o entrada directa), el
+  // comportamiento es exactamente el de siempre: resolver "hoy" solo.
+  const params = useLocalSearchParams<{ routineId?: string; diaId?: string }>();
 
   // SCRUM-168 / HU-30: la rutina de hoy es la lectura más crítica para
   // entrenar sin conexión — cachear las tres sin las cuales no hay sesión
@@ -224,7 +263,7 @@ export default function StartWorkoutScreen() {
   // en el estado "sin rutina para este día" como en la lista de
   // ejercicios, para poder cambiar de día desde cualquiera de los dos.
   const renderDiaChips = () => {
-    if (diasSemana.length === 0) return null;
+    if (forzado || diasSemana.length === 0) return null;
     return (
       <View style={styles.diaSelectorRow}>
         {diasSemana.map((d, i) => {
@@ -274,6 +313,20 @@ export default function StartWorkoutScreen() {
     ...toArray<Routine>(assignedData?.rutinas).map(r => normalizaRutina(r, 'entrenador')),
   ], [routinesData, assignedData]);
 
+  // Rutina+día exactos pedidos desde el Paso B (ver comentario de `params`
+  // arriba). routine.id en `routines` lleva el prefijo origen: (ver
+  // normalizaRutina) pero el id que manda RoutineDetailModal es el id crudo
+  // del backend -- se prueban ambos orígenes en vez de pedirle el origen
+  // también por parámetro.
+  const seleccionForzada = useMemo(() => {
+    if (!params.routineId || !params.diaId) return null;
+    const r = routines.find((rt) =>
+      rt.id === `entrenador:${params.routineId}` || rt.id === `propia:${params.routineId}`);
+    const day = r?.dias?.find((d) => d.id === params.diaId);
+    return r && day ? { routine: r, day } : null;
+  }, [routines, params.routineId, params.diaId]);
+  const forzado = !!seleccionForzada;
+
   // Todas las rutinas del día elegido (hoy por defecto), de cualquier
   // origen — puede haber más de una (propia + asignada por un entrenador
   // para el mismo día).
@@ -300,8 +353,9 @@ export default function StartWorkoutScreen() {
   }, [candidatas, rutinaElegidaId]);
 
   const seleccion = useMemo(
-    () => candidatas.find((c) => c.routine.id === rutinaElegidaId) ?? candidatas[0] ?? null,
-    [candidatas, rutinaElegidaId],
+    () => seleccionForzada
+      ?? candidatas.find((c) => c.routine.id === rutinaElegidaId) ?? candidatas[0] ?? null,
+    [seleccionForzada, candidatas, rutinaElegidaId],
   );
 
   const unidadPreferida = (profileData?.unidadMedida || '').toLowerCase().startsWith('imperial') ? 'lb' : 'kg';
@@ -311,9 +365,18 @@ export default function StartWorkoutScreen() {
   // llevas marcado en esta sesión.
   const [ejercicios, setEjercicios] = useState<EjercicioUI[] | null>(null);
   useEffect(() => {
-    if (ejercicios === null && seleccion) {
-      setEjercicios(construirEjercicios(seleccion.day));
-    }
+    if (ejercicios !== null || !seleccion) return;
+    const base = construirEjercicios(seleccion.day);
+    setEjercicios(base); // primero sin previa, para no retrasar el primer render
+    (async () => {
+      const cache = await leerJSON<PreviaPorEjercicio>(CLAVE_PREVIA, {});
+      if (Object.keys(cache).length === 0) return;
+      setEjercicios((prev) => (prev ?? base).map((e) => {
+        const guardadas = cache[normalizarNombreEj(e.nombre)];
+        if (!guardadas?.length) return e;
+        return { ...e, series: e.series.map((s, i) => (guardadas[i] ? { ...s, previa: guardadas[i] } : s)) };
+      }));
+    })();
   }, [seleccion, ejercicios]);
 
   const [expandido, setExpandido] = useState<number | null>(null);
@@ -330,9 +393,95 @@ export default function StartWorkoutScreen() {
 
   useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current); }, []);
 
+  // Cronómetro de sesión activa (barra superior) -- solo corre mientras se
+  // está entrenando, no en las pantallas de resumen/guardado.
+  const [ahora, setAhora] = useState(() => Date.now());
+  useEffect(() => {
+    if (estado !== 'progreso') return;
+    const id = setInterval(() => setAhora(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [estado]);
+  const elapsedSeg = Math.max(0, Math.floor((ahora - sesionIniciada) / 1000));
+  const elapsedStr = `${String(Math.floor(elapsedSeg / 60)).padStart(2, '0')}:`
+    + String(elapsedSeg % 60).padStart(2, '0');
+
+  // Ajustes (⚙ de la barra superior): duración del descanso, editable en
+  // vivo -- el modelo de ejercicio del backend aún no tiene este campo (ver
+  // nota sobre DESCANSO_DEFECTO_SEG en el encabezado), así que por ahora es
+  // una preferencia de ESTA sesión, no algo que se guarde.
+  const [descansoSeg, setDescansoSeg] = useState(DESCANSO_DEFECTO_SEG);
+  const abrirAjustesDescanso = () => {
+    Alert.alert(
+      'Descanso entre series',
+      `Duración actual: ${descansoSeg}s`,
+      [
+        ...RESTS_PRESET.map((s) => ({ text: `${s}s`, onPress: () => setDescansoSeg(s) })),
+        { text: 'Cancelar', style: 'cancel' as const },
+      ],
+    );
+  };
+
+  // "+ Añadir serie": el número de series arrancaba fijo desde que se
+  // sembraba la sesión -- esta serie nueva parte del objetivo (reps/peso)
+  // del ejercicio, igual que las demás.
+  const agregarSerie = (exIdx: number) => {
+    setEjercicios((prev) => (prev ?? []).map((e) => {
+      if (e.exIdx !== exIdx) return e;
+      const siguienteIdx = e.series.length > 0 ? e.series[e.series.length - 1].idx + 1 : 0;
+      return {
+        ...e,
+        series: [...e.series, { idx: siguienteIdx, reps: e.repsObjetivo, peso: e.pesoObjetivo, completada: false }],
+      };
+    }));
+  };
+
+  // "Reemplazar" ejercicio: no hay catálogo de ejercicios alternativos en el
+  // backend todavía, así que el reemplazo es libre (texto) y SOLO de esta
+  // sesión -- cambia el nombre con el que se registra (lo que se guarda al
+  // final), no la rutina original.
+  const [reemplazando, setReemplazando] = useState<number | null>(null);
+  const [textoReemplazo, setTextoReemplazo] = useState('');
+  const abrirReemplazo = (ej: EjercicioUI) => { setReemplazando(ej.exIdx); setTextoReemplazo(ej.nombre); };
+  const confirmarReemplazo = () => {
+    const nuevo = textoReemplazo.trim();
+    if (nuevo) {
+      setEjercicios((prev) => (prev ?? []).map((e) => (e.exIdx === reemplazando ? { ...e, nombre: nuevo } : e)));
+    }
+    setReemplazando(null);
+  };
+
+  // "Notas" de la sesión -- libres, por ejercicio, no se envían al backend
+  // (ver notasSesion en EjercicioUI). Ocultas por defecto para no ocupar
+  // espacio cuando no hay nada que anotar.
+  const [notaAbiertaIdx, setNotaAbiertaIdx] = useState<number | null>(null);
+  const actualizarNotaSesion = (exIdx: number, v: string) =>
+    setEjercicios((prev) => (prev ?? []).map((e) => (e.exIdx === exIdx ? { ...e, notasSesion: v } : e)));
+
+  // "Tutorial" -- reusa el bottom sheet de detalle (imágenes + video +
+  // instrucciones) que ya usan training.tsx y mi-rutina.tsx; una
+  // animación/modelo 3D del movimiento está fuera de alcance (no hay
+  // assets ni motor 3D en el proyecto), así que la mejor versión
+  // disponible sin eso es imágenes + video + instrucciones.
+  const [tutorialEj, setTutorialEj] = useState<ExerciseDetail | null>(null);
+  const abrirTutorial = (ej: EjercicioUI) => {
+    const vk = ej.video    ? `sw_v_${ej.exIdx}` : undefined;
+    const ik = ej.imagenes ? `sw_i_${ej.exIdx}` : undefined;
+    if (vk && ej.video)    cacheVideo(vk, ej.video);
+    if (ik && ej.imagenes) cacheImages(ik, ej.imagenes);
+    setTutorialEj({
+      nombre: ej.nombre,
+      setsStr: `${ej.series.length} series${ej.repsObjetivo ? ` × ${ej.repsObjetivo} reps` : ''}`,
+      peso: ej.pesoObjetivo || undefined,
+      notas: ej.notas,
+      instrucciones: ej.instrucciones,
+      imageKey: ik,
+      videoKey: vk,
+    });
+  };
+
   const iniciarDescansoNoBloqueante = () => {
     if (timerRef.current) clearInterval(timerRef.current);
-    setRestante(DESCANSO_DEFECTO_SEG);
+    setRestante(descansoSeg);
     timerRef.current = setInterval(() => {
       setRestante((s) => {
         if (s <= 1) {
@@ -410,6 +559,20 @@ export default function StartWorkoutScreen() {
       return;
     }
 
+    // "Previa" (ver CLAVE_PREVIA arriba): se guarda apenas se decide que SÍ
+    // hay algo que registrar, sin esperar la confirmación del servidor -- es
+    // una caché local optimista, igual de válida si el envío queda
+    // encolado pendiente de sincronizar.
+    leerJSON<PreviaPorEjercicio>(CLAVE_PREVIA, {}).then((cache) => {
+      const next = { ...cache };
+      for (const e of porGuardar) {
+        next[normalizarNombreEj(e.nombre)] = e.series.map((s) => ({
+          reps: String(s.repeticiones), peso: String(s.peso), unidad: e.unidad,
+        }));
+      }
+      escribirJSON(CLAVE_PREVIA, next);
+    });
+
     const duracionMin = Math.max(1, Math.round((Date.now() - sesionIniciada) / 60000));
     const payload = {
       nombre_rutina: `${seleccion.routine.nombre}${seleccion.day.grupo ? ' - ' + seleccion.day.grupo : ''}`,
@@ -417,12 +580,14 @@ export default function StartWorkoutScreen() {
       id_rutina: seleccion.routine.idRutinaOrigen ?? undefined,
       duracion_min: duracionMin,
       ejercicios: porGuardar,
-      // Solo se manda cuando el socio eligió explícitamente un día pasado
-      // de la semana con los chips (ver renderDiaChips) -- para "hoy" se
-      // omite y el backend usa su propia hora local, igual que antes de
-      // este cambio (evita un desfase de un día si el reloj del teléfono
-      // no coincide exactamente con la zona horaria del gimnasio).
-      dia: esDiaElegidoHoy ? undefined : diaElegido,
+      // Se omite (el backend usa su propia hora local) tanto para "hoy"
+      // como cuando la sesión llegó forzada desde el Paso B (`forzado`):
+      // ahí no se está registrando retroactivamente un día pasado de la
+      // semana, se está entrenando AHORA la rutina que el socio eligió.
+      // Solo se manda cuando eligió explícitamente un día pasado con los
+      // chips de abajo (ver renderDiaChips), que ya no se muestran cuando
+      // `forzado` es true.
+      dia: (forzado || esDiaElegidoHoy) ? undefined : diaElegido,
     };
     const totalSeriesGuardadas = porGuardar.reduce((acc, e) => acc + e.series.length, 0);
 
@@ -597,7 +762,7 @@ export default function StartWorkoutScreen() {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={[styles.content, { paddingTop: insets.top + 16 }]}>
       {renderDiaChips()}
-      {candidatas.length > 1 && (
+      {!forzado && candidatas.length > 1 && (
         <View style={styles.selectorRutina}>
           {candidatas.map((c) => {
             const activa = c.routine.id === seleccion.routine.id;
@@ -624,25 +789,74 @@ export default function StartWorkoutScreen() {
         </View>
       )}
 
-      <View style={styles.progresoBar}>
-        <View style={[styles.progresoFill, { width: `${progreso}%`, backgroundColor: colors.accent }]} />
-      </View>
-      <View style={styles.headerRow}>
-        <Text style={styles.progresoTexto}>{hechas} de {totalSeries} series completadas</Text>
+      {/* Barra superior del Paso C: cronómetro de sesión, descanso, ajustes
+          y Terminar -- todo en un solo lugar, visible todo el tiempo. */}
+      <View style={styles.topBar}>
+        <View style={styles.cronometro}>
+          <Ionicons name="time-outline" size={15} color={colors.accent} />
+          <Text style={styles.cronometroTexto}>{elapsedStr}</Text>
+        </View>
+        {restante > 0 ? (
+          <TouchableOpacity
+            onPress={saltarDescanso}
+            style={[styles.descansoChip, { backgroundColor: colors.accent }]}
+            accessibilityRole="button"
+            accessibilityLabel={`Descanso, ${restante} segundos restantes, tocar para saltar`}
+          >
+            <Ionicons name="hourglass-outline" size={14} color={colors.onAccent} />
+            <Text style={styles.descansoChipTexto}>{restante}s · Saltar</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            onPress={abrirAjustesDescanso}
+            style={styles.ajustesBtn}
+            accessibilityRole="button"
+            accessibilityLabel={`Ajustar descanso entre series, actualmente ${descansoSeg} segundos`}
+          >
+            <Ionicons name="settings-outline" size={18} color={colors.textSecondary} />
+          </TouchableOpacity>
+        )}
         <TouchableOpacity onPress={terminarRutina} accessibilityLabel="Terminar rutina" style={styles.terminarBtn}>
           <Ionicons name="stop-circle-outline" size={16} color={colors.textSecondary} />
-          <Text style={styles.terminarTexto}>Terminar rutina</Text>
+          <Text style={styles.terminarTexto}>Terminar</Text>
         </TouchableOpacity>
       </View>
 
-      {restante > 0 && (
-        <View style={styles.descansoBanner}>
-          <Ionicons name="time-outline" size={16} color={colors.accent} />
-          <Text style={styles.descansoBannerTexto}>Descanso sugerido: {restante}s</Text>
-          <TouchableOpacity onPress={saltarDescanso}>
-            <Text style={styles.descansoBannerSaltar}>Saltar</Text>
-          </TouchableOpacity>
-        </View>
+      <View style={styles.progresoBar}>
+        <View style={[styles.progresoFill, { width: `${progreso}%`, backgroundColor: colors.accent }]} />
+      </View>
+      <Text style={styles.progresoTexto}>{hechas} de {totalSeries} series completadas</Text>
+
+      {/* Pestañas/círculos para saltar a un ejercicio -- SOLO un atajo
+          visual, no imponen ningún orden (ver el porqué en el encabezado
+          del archivo: retro explícita de Miguel en v2 de esta pantalla). */}
+      {lista.length > 1 && (
+        <ScrollView
+          horizontal showsHorizontalScrollIndicator={false}
+          style={styles.circulosRow} contentContainerStyle={styles.circulosRowContent}
+        >
+          {lista.map((ej) => {
+            const completoEj = ej.series.length > 0 && ej.series.every((s) => s.completada);
+            const activo = expandido === ej.exIdx;
+            return (
+              <TouchableOpacity
+                key={ej.exIdx}
+                onPress={() => setExpandido(ej.exIdx)}
+                style={[
+                  styles.circulo,
+                  activo && styles.circuloActivo,
+                  completoEj && !activo && styles.circuloCompleto,
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel={`Ir a ${ej.nombre}${completoEj ? ', completado' : ''}`}
+              >
+                {completoEj
+                  ? <Ionicons name="checkmark" size={14} color={activo ? colors.onAccent : colors.success} />
+                  : <Text style={[styles.circuloTexto, activo && styles.circuloTextoActivo]}>{ej.exIdx + 1}</Text>}
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
       )}
 
       <Text style={styles.ayudaTexto}>
@@ -685,16 +899,61 @@ export default function StartWorkoutScreen() {
                     ))}
                   </View>
                 )}
-                {!!ej.video && (
-                  <TouchableOpacity onPress={() => Linking.openURL(ej.video!)} style={styles.videoLink}>
-                    <Ionicons name="play-circle-outline" size={18} color={colors.accent} />
-                    <Text style={{ color: colors.accent, marginLeft: 6, fontWeight: '600' }}>Ver video de técnica</Text>
-                  </TouchableOpacity>
-                )}
                 {!!ej.notas && <Text style={styles.notas}>{ej.notas}</Text>}
+
+                {/* Tutorial / Reemplazar / Notas -- ver abrirTutorial,
+                    abrirReemplazo y actualizarNotaSesion más arriba. Una
+                    animación/modelo 3D del movimiento está fuera de alcance
+                    (no hay assets ni motor 3D en el proyecto): "Tutorial"
+                    abre el mismo detalle con imágenes + video + instrucciones
+                    que ya usan training.tsx y mi-rutina.tsx. */}
+                <View style={styles.accionesEjRow}>
+                  <TouchableOpacity style={styles.accionBtn} onPress={() => abrirTutorial(ej)} accessibilityRole="button">
+                    <Ionicons name="play-circle-outline" size={16} color={colors.accent} />
+                    <Text style={styles.accionBtnTexto}>Tutorial</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.accionBtn} onPress={() => abrirReemplazo(ej)} accessibilityRole="button">
+                    <Ionicons name="swap-horizontal-outline" size={16} color={colors.accent} />
+                    <Text style={styles.accionBtnTexto}>Reemplazar</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.accionBtn}
+                    onPress={() => setNotaAbiertaIdx(notaAbiertaIdx === ej.exIdx ? null : ej.exIdx)}
+                    accessibilityRole="button"
+                  >
+                    <Ionicons name="create-outline" size={16} color={colors.accent} />
+                    <Text style={styles.accionBtnTexto}>Notas</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {notaAbiertaIdx === ej.exIdx && (
+                  <TextInput
+                    style={styles.notaInput}
+                    value={ej.notasSesion}
+                    onChangeText={(v) => actualizarNotaSesion(ej.exIdx, v)}
+                    placeholder="Nota de esta sesión (ej. sentí tirón, subí peso fácil…)"
+                    placeholderTextColor={colors.textMuted}
+                    multiline
+                  />
+                )}
+
+                <View style={styles.serieHeaderRow}>
+                  <Text style={[styles.serieHeaderTexto, styles.serieHeaderCheck]}>Serie</Text>
+                  <Text style={[styles.serieHeaderTexto, styles.serieHeaderPrevia]}>Previa</Text>
+                  <Text style={[styles.serieHeaderTexto, { flex: 1, textAlign: 'center' }]}>Reps</Text>
+                  <Text style={styles.serieHeaderTexto}> </Text>
+                  <Text style={[styles.serieHeaderTexto, { flex: 1, textAlign: 'center' }]}>Peso</Text>
+                  <Text style={[styles.serieHeaderTexto, { width: 24 }]} />
+                </View>
 
                 {ej.series.map((serie) => {
                   const pesoMostrado = serie.peso ? convertirPeso(parseFloat(serie.peso) || 0, ej.unidad, unidadPreferida) : null;
+                  const previaPeso = serie.previa?.peso
+                    ? convertirPeso(parseFloat(serie.previa.peso) || 0, serie.previa.unidad, unidadPreferida)
+                    : null;
+                  const previaStr = serie.previa
+                    ? `${serie.previa.reps}×${previaPeso != null ? Math.round(previaPeso * 10) / 10 : '—'}`
+                    : '—';
                   return (
                     <View key={serie.idx} style={styles.serieRow}>
                       <TouchableOpacity
@@ -708,6 +967,7 @@ export default function StartWorkoutScreen() {
                           ? <Ionicons name="checkmark" size={16} color={colors.onAccent} />
                           : <Text style={styles.serieNumero}>{serie.idx + 1}</Text>}
                       </TouchableOpacity>
+                      <Text style={styles.serieVioPrevia} numberOfLines={1}>{previaStr}</Text>
                       <TextInput
                         style={styles.serieInput}
                         value={serie.reps}
@@ -732,11 +992,46 @@ export default function StartWorkoutScreen() {
                     </View>
                   );
                 })}
+
+                <TouchableOpacity style={styles.addSerieBtn} onPress={() => agregarSerie(ej.exIdx)} accessibilityRole="button">
+                  <Ionicons name="add" size={16} color={colors.accent} />
+                  <Text style={styles.addSerieTexto}>Añadir serie</Text>
+                </TouchableOpacity>
               </View>
             )}
           </Card>
         );
       })}
+
+      {/* Reemplazar ejercicio (solo esta sesión) -- ver abrirReemplazo arriba. */}
+      <Modal visible={reemplazando !== null} transparent animationType="fade" onRequestClose={() => setReemplazando(null)}>
+        <View style={styles.reemplazoOverlay}>
+          <View style={styles.reemplazoCard}>
+            <Text style={styles.reemplazoTitulo}>Reemplazar ejercicio</Text>
+            <Text style={styles.reemplazoAyuda}>
+              Solo para esta sesión: cambia con qué nombre se registra, no la rutina original.
+            </Text>
+            <TextInput
+              style={styles.reemplazoInput}
+              value={textoReemplazo}
+              onChangeText={setTextoReemplazo}
+              placeholder="Nombre del ejercicio"
+              placeholderTextColor={colors.textMuted}
+              autoFocus
+            />
+            <View style={styles.reemplazoBotones}>
+              <Button label="Cancelar" variant="secondary" onPress={() => setReemplazando(null)} style={{ flex: 1 }} />
+              <Button label="Guardar" onPress={confirmarReemplazo} style={{ flex: 1 }} />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <ExerciseDetailSheet
+        visible={!!tutorialEj}
+        exercise={tutorialEj}
+        onClose={() => setTutorialEj(null)}
+      />
     </ScrollView>
   );
 }
@@ -774,20 +1069,78 @@ function make_styles(colors: any, fs: number) {
     diaChipNumero: { fontSize: 13 * fs, color: colors.text, fontWeight: '700', marginTop: 2 },
     diaChipLabelActivo: { color: colors.onAccent },
     diaChipLabelDeshabilitado: { color: colors.textMuted },
+    topBar: {
+      flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4, marginBottom: 10,
+    },
+    cronometro: {
+      flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 6,
+      borderRadius: 10, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
+    },
+    cronometroTexto: { fontSize: 13 * fs, color: colors.text, fontWeight: '700' },
+    descansoChip: {
+      flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+      paddingVertical: 7, borderRadius: 10,
+    },
+    descansoChipTexto: { fontSize: 12.5 * fs, color: colors.onAccent, fontWeight: '700' },
+    ajustesBtn: {
+      width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
+      backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
+    },
+    terminarBtn: {
+      flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 8,
+      borderRadius: 10, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
+    },
+    terminarTexto: { fontSize: 12 * fs, color: colors.textSecondary, fontWeight: '600' },
     progresoBar:  { height: 6, borderRadius: 3, backgroundColor: colors.border, overflow: 'hidden' },
     progresoFill: { height: 6, borderRadius: 3 },
-    headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 },
-    progresoTexto: { fontSize: 12 * fs, color: colors.textSecondary, fontWeight: '600' },
-    terminarBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, padding: 4 },
-    terminarTexto: { fontSize: 12 * fs, color: colors.textSecondary, fontWeight: '600' },
-    descansoBanner: {
-      flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12,
-      backgroundColor: colors.inputBg, borderRadius: 10, borderWidth: 1, borderColor: colors.border,
-      paddingVertical: 8, paddingHorizontal: 12,
+    progresoTexto: { fontSize: 12 * fs, color: colors.textSecondary, fontWeight: '600', marginTop: 8 },
+    circulosRow:        { flexGrow: 0, marginTop: 12 },
+    circulosRowContent: { gap: 8, paddingVertical: 2 },
+    circulo: {
+      width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center',
+      backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
     },
-    descansoBannerTexto: { flex: 1, fontSize: 12.5 * fs, color: colors.text, fontWeight: '600' },
-    descansoBannerSaltar: { fontSize: 12.5 * fs, color: colors.accent, fontWeight: '700' },
+    circuloActivo:   { backgroundColor: colors.accent, borderColor: colors.accent },
+    circuloCompleto: { backgroundColor: colors.successBg ?? (colors.success + '22'), borderColor: colors.success },
+    circuloTexto:       { fontSize: 12.5 * fs, color: colors.textSecondary, fontWeight: '700' },
+    circuloTextoActivo: { color: colors.onAccent },
     ayudaTexto: { fontSize: 12 * fs, color: colors.textMuted, marginTop: 12, lineHeight: 17 },
+    accionesEjRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
+    accionBtn: {
+      flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
+      paddingVertical: 8, borderRadius: 10, backgroundColor: colors.accentBg,
+    },
+    accionBtnTexto: { fontSize: 12 * fs, color: colors.accent, fontWeight: '700' },
+    notaInput: {
+      backgroundColor: colors.inputBg, borderWidth: 1, borderColor: colors.border, borderRadius: 10,
+      padding: 10, color: colors.text, fontSize: 13 * fs, minHeight: 60, textAlignVertical: 'top',
+      marginBottom: 10,
+    },
+    serieHeaderRow:   { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+    serieHeaderTexto: { fontSize: 10.5 * fs, color: colors.textMuted, fontWeight: '700' },
+    serieHeaderCheck:  { width: 30, textAlign: 'center' },
+    serieHeaderPrevia: { width: 54, textAlign: 'center' },
+    serieVioPrevia: { width: 54, fontSize: 11.5 * fs, color: colors.textMuted, textAlign: 'center', fontWeight: '600' },
+    addSerieBtn: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+      paddingVertical: 9, marginTop: 8, borderRadius: 10, borderWidth: 1, borderStyle: 'dashed',
+      borderColor: colors.accent,
+    },
+    addSerieTexto: { fontSize: 12.5 * fs, color: colors.accent, fontWeight: '700' },
+    reemplazoOverlay: {
+      flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', padding: 24,
+    },
+    reemplazoCard: {
+      width: '100%', backgroundColor: colors.card, borderRadius: 16, padding: 18, gap: 10,
+      borderWidth: 1, borderColor: colors.border,
+    },
+    reemplazoTitulo: { fontSize: 16 * fs, color: colors.text, fontWeight: '700' },
+    reemplazoAyuda:  { fontSize: 12 * fs, color: colors.textMuted, lineHeight: 17 },
+    reemplazoInput: {
+      backgroundColor: colors.inputBg, borderWidth: 1, borderColor: colors.border, borderRadius: 10,
+      paddingHorizontal: 12, paddingVertical: 10, color: colors.text, fontSize: 14 * fs,
+    },
+    reemplazoBotones: { flexDirection: 'row', gap: 10, marginTop: 4 },
     ejercicioHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     ejercicioNombreRow: { flexDirection: 'row', alignItems: 'center' },
     nombreEjercicio: { fontSize: 15 * fs, fontWeight: '700', color: colors.text },

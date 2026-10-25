@@ -12,9 +12,12 @@ interface Screen { name: string; title: string; icon: IconName; iconActive: Icon
 const SCREENS: Screen[] = [
   { name: 'index',      title: 'Inicio',             icon: 'home-outline',      iconActive: 'home'      },
   { name: 'pos',        title: 'Punto de Venta',     icon: 'cart-outline',      iconActive: 'cart'      },
+  // mi-rutina y workout-log ya no son ítems propios del cajón: el flujo de
+  // Entrenamiento se consolidó en 3 pasos dentro de 'training' (dashboard del
+  // plan -> detalle de rutina -> registro en vivo); ambas quedan como rutas
+  // ocultas más abajo, alcanzables desde dentro del flujo (Mi Biblioteca y el
+  // respaldo manual de bitácora), no desde el menú.
   { name: 'training',   title: 'Entrenamiento',      icon: 'barbell-outline',   iconActive: 'barbell'   },
-  { name: 'mi-rutina',  title: 'Mi Rutina',          icon: 'create-outline',    iconActive: 'create'    },
-  { name: 'workout-log',title: 'Registrar Entreno',  icon: 'fitness-outline',   iconActive: 'fitness'   },
   { name: 'nutrition',  title: 'Nutrición y Dietas', icon: 'nutrition-outline', iconActive: 'nutrition'  },
   { name: 'membership', title: 'Mi Membresía',       icon: 'card-outline',      iconActive: 'card'      },
   { name: 'payments',   title: 'Pagos',              icon: 'receipt-outline',   iconActive: 'receipt'   },
@@ -28,6 +31,13 @@ const SCREENS: Screen[] = [
   { name: 'prediccion', title: 'Predicción de Peso', icon: 'trending-up-outline', iconActive: 'trending-up' },
   { name: 'profile',    title: 'Mi Perfil',          icon: 'person-outline',    iconActive: 'person'    },
 ];
+
+const TITULOS_OCULTOS: Record<string, string> = {
+  'checkin-qr':  'Registrar entrada',
+  'chat':        'Chat con tu entrenador',
+  'mi-rutina':   'Mi Biblioteca',
+  'workout-log': 'Registrar Entreno',
+};
 
 export default function MemberLayout() {
   const colors = useColors();
@@ -75,16 +85,18 @@ export default function MemberLayout() {
           }}
         />
       ))}
-      {(['routines', 'chat', 'start-workout', 'checkin-qr'] as const).map((name) => (
+      {([
+        'routines', 'chat', 'start-workout', 'checkin-qr', 'mi-rutina', 'workout-log',
+      ] as const).map((name) => (
         <Drawer.Screen
           key={name}
           name={name}
           options={{
             drawerItemStyle: { display: 'none' },
-            // checkin-qr es nueva (QR general de check-in): se le da un
-            // título legible en vez de usar el nombre de archivo tal cual,
-            // como hacían las demás pantallas ocultas de este grupo.
-            title: name === 'checkin-qr' ? 'Registrar entrada' : name,
+            // Título legible en vez del nombre de archivo tal cual -- mi-rutina y
+            // workout-log se sumaron aquí al consolidar Entrenamiento en 3 pasos
+            // (ver comentario junto a 'training' arriba).
+            title: TITULOS_OCULTOS[name] ?? name,
           }}
         />
       ))}
