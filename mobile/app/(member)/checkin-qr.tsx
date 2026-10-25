@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors, useFontScale } from '../../hooks/useColors';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
+import ScanningOverlay from '../../components/ScanningOverlay';
 import api from '../../services/api';
 import { ENDPOINTS } from '../../constants/Api';
 
@@ -131,10 +132,11 @@ export default function CheckinQr() {
         onBarcodeScanned={estado === 'escaneando' ? handleBarcodeScanned : undefined}
       />
       <View style={[styles.overlay, { paddingTop: insets.top + 24 }]}>
-        <View style={styles.frame} />
-        <Text style={styles.hint}>
-          {estado === 'enviando' ? 'Registrando...' : 'Apunta al código que muestra recepción'}
-        </Text>
+        <ScanningOverlay
+          icon="qr-code-outline"
+          hint={estado === 'enviando' ? 'Registrando...' : 'Apunta al código que muestra recepción'}
+          active={estado === 'escaneando'}
+        />
         {estado === 'enviando' && <ActivityIndicator color="#fff" style={{ marginTop: 8 }} />}
       </View>
     </View>
@@ -150,14 +152,6 @@ function useMemoStyles(colors: ReturnType<typeof useColors>, fs: number) {
     },
     overlay: {
       flex: 1, alignItems: 'center',
-    },
-    frame: {
-      width: 240, height: 240, borderRadius: 16,
-      borderWidth: 3, borderColor: '#fff', opacity: 0.85,
-    },
-    hint: {
-      marginTop: 20, color: '#fff', fontSize: 14 * fs, fontWeight: '600',
-      textAlign: 'center', paddingHorizontal: 32,
     },
     title: { color: colors.text, fontSize: 18 * fs, fontWeight: '700', textAlign: 'center' },
     subtitle: { color: colors.textSecondary, fontSize: 13 * fs, textAlign: 'center' },

@@ -12,6 +12,7 @@ import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Modal } from 'react-native';
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
+import ScanningOverlay from './ScanningOverlay';
 
 type Props = {
   visible: boolean;
@@ -60,8 +61,7 @@ export default function BarcodeScanner({ visible, onClose, onScanned }: Props) {
               onBarcodeScanned={handleScanned}
             />
             <View style={styles.overlay} pointerEvents="none">
-              <View style={styles.frame} />
-              <Text style={styles.hint}>Apunta al código de barras del producto</Text>
+              <ScanningOverlay icon="barcode-outline" hint="Apunta al código de barras del producto" />
             </View>
           </>
         )}
@@ -77,8 +77,6 @@ const styles = StyleSheet.create({
   screen:   { flex: 1, backgroundColor: '#000' },
   center:   { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24 },
   overlay:  { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  frame:    { width: 270, height: 150, borderRadius: 12, borderWidth: 3, borderColor: '#fff', opacity: 0.85 },
-  hint:     { marginTop: 16, color: '#fff', fontSize: 14, fontWeight: '600', textAlign: 'center', paddingHorizontal: 32 },
   closeBtn: { position: 'absolute', top: 54, right: 20, padding: 8, backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 20 },
   btn:      { marginTop: 8, paddingVertical: 10, paddingHorizontal: 20, backgroundColor: '#fff', borderRadius: 8 },
   btnText:  { color: '#000', fontWeight: '700' },
