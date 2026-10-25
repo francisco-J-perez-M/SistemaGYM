@@ -9,10 +9,21 @@
  * cámara y lo manda al backend junto con el JWT del miembro — la
  * identidad del check-in la pone el JWT, el QR solo certifica que el
  * escaneo ocurrió frente a esa pantalla hace pocos segundos.
+ *
+ * Cámara: se prefiere el escáner NATIVO de expo-camera
+ * (`CameraView.launchScanner` — Google code scanner en Android,
+ * `DataScannerViewController` en iOS 16+). Ese escáner presenta su PROPIA
+ * cámara en una hoja nativa, fuera del árbol de vistas de React Native, así
+ * que no le afecta el bug de `PreviewView` en negro bajo la Nueva
+ * Arquitectura (Fabric) que sí le pega al `<CameraView>` embebido -- ver
+ * components/ScanningOverlay.tsx para el detalle completo. Solo cuando ese
+ * escáner nativo no está disponible (sin Google Play Services, Meta Quest,
+ * iOS < 16) se cae al `<CameraView>` embebido de respaldo, con la
+ * animación de ScanningOverlay en vez de su preview rota.
  */
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
-import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
+import { CameraView, useCameraPermissions, type BarcodeScanningResult, type ScanningResult } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -34,18 +45,16 @@ export default function CheckinQr() {
   const [permission, requestPermission] = useCameraPermissions();
   const [estado, setEstado] = useState<Estado>('escaneando');
   const [mensaje, setMensaje] = useState<string>('');
-  const [escaneadoEn, setEscaneadoEn] = useState(0); // evita procesar el mismo frame varias veces
+  const [escaneadoEn, setEscaneadoEn] = useState(0); // evita procesar el mismo código varias veces
+  // Si el escáner nativo falla al abrir en tiempo real (p.ej. Play Services
+  // recién deshabilitado) se cae al <CameraView> embebido para esta sesión.
+  const [usarEmbebido, setUsarEmbebido] = useState(!CameraView.isModernBarcodeScannerAvailable);
 
-  const reintentar = () => {
-    setEstado('escaneando');
-    setMensaje('');
-  };
-
-  const handleBarcodeScanned = useCallback(async ({ data }: BarcodeScanningResult) => {
+  const procesarCodigo = useCallback(async (data: string) => {
     const ahora = Date.now();
-    // CameraView sigue emitiendo detecciones mientras el código esté en
-    // cuadro; con `estado` ya cambiado a 'enviando' se ignoran, pero por si
-    // acaso se agrega un debounce corto extra.
+    // Tanto el escáner nativo como el <CameraView> embebido pueden seguir
+    // emitiendo el mismo código varias veces mientras está en cuadro; este
+    // debounce corto evita mandarlo dos veces al backend.
     if (ahora - escaneadoEn < 1500) return;
     setEscaneadoEn(ahora);
     setEstado('enviando');
@@ -71,8 +80,38 @@ export default function CheckinQr() {
     }
   }, [escaneadoEn]);
 
-  // ── Permiso de cámara aún no resuelto ───────────────────────────────────
-  if (!permission) {
+  const handleBarcodeScanned = useCallback(({ data }: BarcodeScanningResult) => {
+    procesarCodigo(data);
+  }, [procesarCodigo]);
+
+  const reintentar = () => {
+    setEstado('escaneando');
+    setMensaje('');
+  };
+
+  // ── Escáner nativo (Google code scanner / DataScannerViewController) ────
+  useEffect(() => {
+    if (usarEmbebido || estado !== 'escaneando') return undefined;
+
+    const sub = CameraView.onModernBarcodeScanned(({ data }: ScanningResult) => procesarCodigo(data));
+
+    CameraView.launchScanner({ barcodeTypes: ['qr'] }).catch((e: any) => {
+      const msg = String(e?.message || '');
+      if (/cancel/i.test(msg)) {
+        router.back(); // el usuario cerró el escáner nativo (back/swipe)
+      } else if (/play services|mlkit/i.test(msg)) {
+        setUsarEmbebido(true); // no disponible ahora mismo: usar el <CameraView> de respaldo
+      } else {
+        setEstado('error');
+        setMensaje('No se pudo abrir el escáner. Intenta de nuevo.');
+      }
+    });
+
+    return () => sub.remove();
+  }, [usarEmbebido, estado, procesarCodigo]);
+
+  // ── Permiso de cámara (solo aplica al <CameraView> embebido) ─────────────
+  if (usarEmbebido && !permission) {
     return (
       <View style={[styles.center, { paddingTop: insets.top }]}>
         <ActivityIndicator color={colors.accent} />
@@ -80,8 +119,7 @@ export default function CheckinQr() {
     );
   }
 
-  // ── Permiso denegado ─────────────────────────────────────────────────────
-  if (!permission.granted) {
+  if (usarEmbebido && !permission.granted) {
     return (
       <View style={[styles.center, { paddingTop: insets.top + 16 }]}>
         <Card style={{ alignItems: 'center', gap: 12 }}>
@@ -97,7 +135,7 @@ export default function CheckinQr() {
     );
   }
 
-  // ── Resultado (éxito / ya registrado / expirado / error) ────────────────
+  // ── Resultado (éxito / ya registrado / expirado / error) ─────────────────
   if (estado !== 'escaneando' && estado !== 'enviando') {
     const info: Record<Exclude<Estado, 'escaneando' | 'enviando'>, { icon: any; color: string; titulo: string }> = {
       exito:         { icon: 'checkmark-circle', color: colors.success, titulo: '¡Entrada registrada!' },
@@ -122,23 +160,35 @@ export default function CheckinQr() {
     );
   }
 
-  // ── Escaneando ───────────────────────────────────────────────────────────
-  return (
-    <View style={styles.screen}>
-      <CameraView
-        style={StyleSheet.absoluteFillObject}
-        facing="back"
-        barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-        onBarcodeScanned={estado === 'escaneando' ? handleBarcodeScanned : undefined}
-      />
-      <View style={[styles.overlay, { paddingTop: insets.top + 24 }]}>
-        <ScanningOverlay
-          icon="qr-code-outline"
-          hint={estado === 'enviando' ? 'Registrando...' : 'Apunta al código que muestra recepción'}
-          active={estado === 'escaneando'}
+  // ── Escaneando con el <CameraView> embebido (respaldo) ───────────────────
+  if (usarEmbebido) {
+    return (
+      <View style={styles.screen}>
+        <CameraView
+          style={StyleSheet.absoluteFillObject}
+          facing="back"
+          barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+          onBarcodeScanned={estado === 'escaneando' ? handleBarcodeScanned : undefined}
         />
-        {estado === 'enviando' && <ActivityIndicator color="#fff" style={{ marginTop: 8 }} />}
+        <View style={[styles.overlay, { paddingTop: insets.top + 24 }]}>
+          <ScanningOverlay
+            icon="qr-code-outline"
+            hint={estado === 'enviando' ? 'Registrando...' : 'Apunta al código que muestra recepción'}
+            active={estado === 'escaneando'}
+          />
+          {estado === 'enviando' && <ActivityIndicator color="#fff" style={{ marginTop: 8 }} />}
+        </View>
       </View>
+    );
+  }
+
+  // ── Escáner nativo: abriéndose o procesando el resultado ─────────────────
+  // (la hoja nativa de Google/Apple cubre la pantalla en cuanto abre; esto
+  // solo se ve en el instante antes de que aparezca, o al regresar de ella).
+  return (
+    <View style={[styles.center, { paddingTop: insets.top }]}>
+      <ActivityIndicator color={colors.accent} />
+      {estado === 'enviando' && <Text style={[styles.subtitle, { marginTop: 12 }]}>Registrando...</Text>}
     </View>
   );
 }
