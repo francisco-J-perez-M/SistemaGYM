@@ -12,11 +12,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import { useColors, useFontScale } from '../../hooks/useColors';
 import { toStr, toArray } from '../../utils/format';
 import { ENDPOINTS } from '../../constants/Api';
 import api from '../../services/api';
 import Badge from '../ui/Badge';
+import MuscleDistribution from './MuscleDistribution';
 
 const { width: SW } = Dimensions.get('window');
 const IMG_SIZE = (SW - 64) / 3;   // 3 columnas
@@ -82,8 +84,21 @@ interface Props {
    * Si se pasa, cada día muestra un botón para darlo por hecho. Registra el
    * entrenamiento en la bitácora, cuenta la asistencia del día y alimenta la
    * racha y las gráficas de progreso. Solo tiene sentido en modo 'member'.
+   * Se omite por completo cuando se pasa `diaId` (ver abajo): ese caso ya
+   * tiene su propio botón flotante "Empezar Entrenamiento", que es el único
+   * camino para registrar el día -- ver Paso C en app/(member)/start-workout.tsx.
    */
   onCompletado?: () => void;
+  /**
+   * Paso B del flujo de Entrenamiento (ver app/(member)/training.tsx): si se
+   * pasa, el modal muestra SOLO ese día (no toda la semana), agrega su
+   * distribución muscular planeada (MuscleDistribution) y cambia el botón de
+   * "Marcar día como completado" por uno flotante "▶ Empezar Entrenamiento"
+   * que lanza el registro en vivo (Paso C) para ese día y rutina exactos.
+   * Sin este prop el modal se comporta exactamente como antes (vista de toda
+   * la semana, usada por "Mi Biblioteca").
+   */
+  diaId?: string;
 }
 
 // ── Componente imagen ─────────────────────────────────────────────────────────
@@ -200,7 +215,7 @@ const exS = StyleSheet.create({
 
 // ── Modal principal ───────────────────────────────────────────────────────────
 export default function RoutineDetailModal({
-  visible, routine, onClose, mode, onCompletado,
+  visible, routine, onClose, mode, onCompletado, diaId,
 }: Props) {
   const insets = useSafeAreaInsets();
   const colors = useColors();
@@ -220,6 +235,22 @@ export default function RoutineDetailModal({
   const duration    = routine.duration ?? (routine.duracion_minutos ? `${routine.duracion_minutos} min` : '');
   const description = toStr(routine.description ?? routine.descripcion, '');
   const active      = routine.active ?? routine.activa ?? true;
+
+  // Paso B (diaId presente): solo el día solicitado, no toda la semana.
+  const diasDisponibles = toArray<DiaRutinaDetail>(routine.dias);
+  const diasAMostrar    = diaId
+    ? diasDisponibles.filter((d) => d.id === diaId)
+    : diasDisponibles;
+  const diaUnico = diaId ? diasAMostrar[0] : undefined;
+
+  const empezarEntrenamiento = () => {
+    if (!diaUnico) return;
+    onClose();
+    router.push({
+      pathname: '/(member)/start-workout',
+      params: { routineId: toStr(routine.id), diaId: diaUnico.id },
+    });
+  };
 
   /**
    * Marca un día como completado.
@@ -376,12 +407,14 @@ export default function RoutineDetailModal({
           )}
 
           {/* ── MODO MEMBER: días → ejercicios ────────────────────────────── */}
-          {mode === 'member' && toArray(routine.dias).length > 0 && (
+          {mode === 'member' && diasAMostrar.length > 0 && (
             <>
-              <Text style={[styles.sectionTitle, { color: colors.text, fontSize: 15 * fs }]}>
-                Plan de entrenamiento
-              </Text>
-              {routine.dias!.map((dia) => (
+              {!diaId && (
+                <Text style={[styles.sectionTitle, { color: colors.text, fontSize: 15 * fs }]}>
+                  Plan de entrenamiento
+                </Text>
+              )}
+              {diasAMostrar.map((dia) => (
                 <View key={dia.id} style={styles.dayBlock}>
                   <View style={[styles.dayHeader, { backgroundColor: colors.accent + '18' }]}>
                     <Ionicons name="calendar-outline" size={15} color={colors.accent} />
@@ -409,8 +442,12 @@ export default function RoutineDetailModal({
                     />
                   ))}
 
-                  {/* Marcar el día como hecho */}
-                  {onCompletado && toArray(dia.ejercicios).length > 0 && (() => {
+                  {/* Distribución muscular planeada -- solo en el Paso B (un día). */}
+                  {diaId && <MuscleDistribution dia={dia} />}
+
+                  {/* Marcar el día como hecho -- oculto en el Paso B: ahí el único
+                      camino para registrar el día es el botón flotante de abajo. */}
+                  {!diaId && onCompletado && toArray(dia.ejercicios).length > 0 && (() => {
                     const hecho     = diasHechos.includes(dia.id);
                     const guardando = guardandoDia === dia.id;
                     return (
@@ -453,7 +490,7 @@ export default function RoutineDetailModal({
           )}
 
           {/* Sin ejercicios */}
-          {(mode === 'trainer' ? toArray(routine.exerciseList).length === 0 : toArray(routine.dias).length === 0) && (
+          {(mode === 'trainer' ? toArray(routine.exerciseList).length === 0 : diasAMostrar.length === 0) && (
             <View style={styles.empty}>
               <Ionicons name="barbell-outline" size={40} color={colors.textMuted} />
               <Text style={[styles.emptyText, { color: colors.textMuted, fontSize: 14 * fs }]}>
@@ -462,8 +499,26 @@ export default function RoutineDetailModal({
             </View>
           )}
 
-          <View style={{ height: insets.bottom + 24 }} />
+          <View style={{ height: insets.bottom + (diaUnico ? 88 : 24) }} />
         </ScrollView>
+
+        {/* Botón flotante fijo del Paso B -- único camino para arrancar el
+            registro en vivo (Paso C) de este día y rutina. */}
+        {diaUnico && toArray(diaUnico.ejercicios).length > 0 && (
+          <View style={[styles.floatingBar, { paddingBottom: insets.bottom + 12, backgroundColor: colors.background, borderTopColor: colors.border }]}>
+            <TouchableOpacity
+              style={[styles.empezarBtn, { backgroundColor: colors.accent }]}
+              onPress={empezarEntrenamiento}
+              accessibilityRole="button"
+              accessibilityLabel="Empezar entrenamiento"
+            >
+              <Ionicons name="play" size={18} color={colors.onAccent} />
+              <Text style={[styles.empezarTxt, { color: colors.onAccent, fontSize: 15 * fs }]}>
+                Empezar Entrenamiento
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     </Modal>
   );
@@ -495,4 +550,13 @@ const styles = StyleSheet.create({
   dayGrupo:    {},
   empty:       { alignItems: 'center', paddingVertical: 40, gap: 10 },
   emptyText:   { fontWeight: '600', textAlign: 'center' },
+  floatingBar: {
+    position: 'absolute', left: 0, right: 0, bottom: 0,
+    paddingHorizontal: 20, paddingTop: 12, borderTopWidth: 1,
+  },
+  empezarBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    paddingVertical: 14, borderRadius: 14,
+  },
+  empezarTxt: { fontWeight: '800' },
 });

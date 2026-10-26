@@ -1,7 +1,21 @@
 /**
- * Mi Rutina — el miembro crea, edita y guarda sus propias rutinas.
- * Consume /api/user/routines (GET lista, POST crear, PUT editar, DELETE borrar)
- * y /api/user/routines/<id> (GET detalle). Espeja el creador del portal web.
+ * Mi Biblioteca — Miembro.
+ *
+ * Antes esta pantalla solo mostraba las rutinas PROPIAS del socio (crearlas,
+ * editarlas, borrarlas). El nuevo Paso A de Entrenamiento (ver
+ * app/(member)/training.tsx) la convierte en "Mi Biblioteca": añade un
+ * segundo tab de solo lectura con las rutinas ASIGNADAS por el entrenador
+ * (antes vivían en el tab "Mi Rutina" de training.tsx), para que el socio
+ * vea en un solo lugar "rutinas hechas por el usuario o por el entrenador",
+ * tal como pide el punto 3 (Paso A) del rediseño.
+ *
+ * Propias:    GET/POST/PUT/DELETE /api/user/routines  (sin cambios, espeja
+ *             el creador del portal web).
+ * Asignadas:  GET /api/user/training/assigned-routines -- de solo lectura
+ *             aquí; ya trae dias[].ejercicios[] completos (incluido
+ *             instrucciones/imagenes/video/grupo), así que "Ver" no necesita
+ *             ninguna llamada adicional, a diferencia de las propias (que sí
+ *             piden el detalle por id porque la lista no lo trae completo).
  */
 import React, { useState, useMemo, useCallback } from 'react';
 import {
@@ -47,6 +61,7 @@ const grupoColor = (id: string, colors: Palette) => {
 type Ej    = { nombre: string; series: string; reps: string; peso: string; unidad: string };
 type Dia   = { dia: string; grupo: string; ejercicios: Ej[] };
 type Rutina = { id?: string; nombre: string; dias: Dia[] };
+type Tab = 'propias' | 'entrenador';
 
 const nuevoEj = (): Ej => ({ nombre: '', series: '4', reps: '12', peso: '', unidad: 'kg' });
 const nuevoDia = (): Dia => ({ dia: 'Lunes', grupo: 'pecho', ejercicios: [nuevoEj()] });
@@ -58,9 +73,19 @@ export default function MiRutinaScreen() {
   const styles = useMemo(() => make_styles(colors, fs), [colors, fs]);
   const insets = useSafeAreaInsets();
 
+  const [tab, setTab] = useState<Tab>('propias');
+
   const { data, loading, refetch } = useFetch<any>(ENDPOINTS.USER_ROUTINES);
   const lista: any[] =
     data?.routines ?? data?.rutinas ?? (Array.isArray(data) ? data : []);
+
+  // Rutinas asignadas por el entrenador -- de solo lectura, ya vienen
+  // completas (ver cabecera del archivo), así que no necesitan su propio
+  // "cargarRutina"/"guardar"/"eliminar" como las propias.
+  const { data: asignadaData, loading: loadingAsignadas, refetch: refetchAsignadas } =
+    useFetch<any>(ENDPOINTS.USER_ASSIGNED_ROUTINES);
+  const listaAsignadas: any[] =
+    asignadaData?.rutinas ?? (Array.isArray(asignadaData) ? asignadaData : []);
 
   const [editing, setEditing] = useState<Rutina | null>(null);
   const [saving, setSaving]   = useState(false);
@@ -98,6 +123,12 @@ export default function MiRutinaScreen() {
     } catch {
       Alert.alert('Error', 'No se pudo cargar el detalle de la rutina.');
     }
+  }, []);
+
+  // Las asignadas ya vienen completas en la lista -- no hace falta pedir el
+  // detalle por id, a diferencia de verDetalle() arriba.
+  const verDetalleAsignada = useCallback((r: any) => {
+    setDetalle(r as RoutineForModal);
   }, []);
 
   // ── Cargar una rutina para editar ──────────────────────────────────────────
@@ -201,9 +232,12 @@ export default function MiRutinaScreen() {
   const setEjField = (di: number, ei: number, k: keyof Ej, v: string) =>
     setEditing((r) => (r ? { ...r, dias: r.dias.map((d, i) => (i === di ? { ...d, ejercicios: d.ejercicios.map((e, j) => (j === ei ? { ...e, [k]: v } : e)) } : d)) } : r));
 
-  if (loading && !editing) return <LoadingSpinner fullScreen message="Cargando tus rutinas…" />;
+  if ((loading || loadingAsignadas) && !editing && lista.length === 0 && listaAsignadas.length === 0) {
+    return <LoadingSpinner fullScreen message="Cargando tu biblioteca…" />;
+  }
 
   // ────────────────────────────── VISTA EDITOR ──────────────────────────────
+  // Solo aplica a rutinas propias -- las del entrenador son de solo lectura.
   if (editing) {
     return (
       <ScrollView
@@ -350,57 +384,111 @@ export default function MiRutinaScreen() {
       style={styles.screen}
       contentContainerStyle={[styles.content, { paddingTop: insets.top + 16 }]}
       showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={loading} onRefresh={refetch} tintColor={colors.accent} />}
+      refreshControl={
+        <RefreshControl
+          refreshing={loading || loadingAsignadas}
+          onRefresh={() => { refetch(); refetchAsignadas(); }}
+          tintColor={colors.accent}
+        />
+      }
     >
       <View style={styles.header}>
-        <Text style={styles.title} accessibilityRole="header">Mi Rutina</Text>
-        <Text style={styles.subtitle}>Crea y guarda tus propias rutinas de entrenamiento.</Text>
+        <Text style={styles.title} accessibilityRole="header">Mi Biblioteca</Text>
+        <Text style={styles.subtitle}>Tus rutinas propias y las que te asigna tu entrenador.</Text>
       </View>
 
-      <Button
-        label="Crear rutina nueva"
-        onPress={() => setEditing(rutinaVacia())}
-        icon={<Ionicons name="add-circle-outline" size={18} color={colors.onAccent} />}
-      />
+      {/* Tabs */}
+      <View style={styles.tabRow}>
+        {([['propias', 'Propias', 'person-outline'], ['entrenador', 'De mi entrenador', 'school-outline']] as const).map(([t, label, icon]) => (
+          <TouchableOpacity
+            key={t}
+            style={[styles.tabBtn, tab === t && styles.tabBtnActive]}
+            onPress={() => setTab(t)}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: tab === t }}
+          >
+            <Ionicons name={icon} size={15} color={tab === t ? colors.accent : colors.textSecondary} />
+            <Text style={[styles.tabLabel, tab === t && styles.tabLabelActive]}>{label}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
 
-      {lista.length === 0 ? (
-        <Card style={styles.emptyCard}>
-          <Ionicons name="barbell-outline" size={36} color={colors.textMuted} />
-          <Text style={styles.emptyText}>Aún no tienes rutinas propias.{'\n'}Crea la primera con el botón de arriba.</Text>
-        </Card>
+      {tab === 'propias' ? (
+        <>
+          <Button
+            label="Crear rutina nueva"
+            onPress={() => setEditing(rutinaVacia())}
+            icon={<Ionicons name="add-circle-outline" size={18} color={colors.onAccent} />}
+          />
+
+          {lista.length === 0 ? (
+            <Card style={styles.emptyCard}>
+              <Ionicons name="barbell-outline" size={36} color={colors.textMuted} />
+              <Text style={styles.emptyText}>Aún no tienes rutinas propias.{'\n'}Crea la primera con el botón de arriba.</Text>
+            </Card>
+          ) : (
+            lista.map((r: any) => (
+              <Card key={r.id} style={styles.routineCard}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.routineName}>{r.nombre || 'Sin nombre'}</Text>
+                  <Text style={styles.routineMeta}>
+                    {(r.dias?.length ?? 0)} {(r.dias?.length ?? 0) === 1 ? 'día' : 'días'}
+                    {r.categoria ? ` · ${r.categoria}` : ''}
+                  </Text>
+                </View>
+                <TouchableOpacity style={styles.iconBtn} onPress={() => verDetalle(String(r.id))}
+                                  accessibilityLabel={`Ver ${r.nombre || 'la rutina'} a detalle`}>
+                  <Ionicons name="eye-outline" size={20} color={colors.accent} />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.iconBtn} onPress={() => cargarRutina(String(r.id))} accessibilityLabel="Editar">
+                  <Ionicons name="create-outline" size={20} color={colors.accent} />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.iconBtn} onPress={() => eliminar(String(r.id), r.nombre)} accessibilityLabel="Eliminar">
+                  <Ionicons name="trash-outline" size={20} color={colors.dataRiesgo} />
+                </TouchableOpacity>
+              </Card>
+            ))
+          )}
+        </>
       ) : (
-        lista.map((r: any) => (
-          <Card key={r.id} style={styles.routineCard}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.routineName}>{r.nombre || 'Sin nombre'}</Text>
-              <Text style={styles.routineMeta}>
-                {(r.dias?.length ?? 0)} {(r.dias?.length ?? 0) === 1 ? 'día' : 'días'}
-                {r.categoria ? ` · ${r.categoria}` : ''}
-              </Text>
-            </View>
-            <TouchableOpacity style={styles.iconBtn} onPress={() => verDetalle(String(r.id))}
-                              accessibilityLabel={`Ver ${r.nombre || 'la rutina'} a detalle`}>
-              <Ionicons name="eye-outline" size={20} color={colors.accent} />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.iconBtn} onPress={() => cargarRutina(String(r.id))} accessibilityLabel="Editar">
-              <Ionicons name="create-outline" size={20} color={colors.accent} />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.iconBtn} onPress={() => eliminar(String(r.id), r.nombre)} accessibilityLabel="Eliminar">
-              <Ionicons name="trash-outline" size={20} color={colors.dataRiesgo} />
-            </TouchableOpacity>
+        listaAsignadas.length === 0 ? (
+          <Card style={styles.emptyCard}>
+            <Ionicons name="school-outline" size={36} color={colors.textMuted} />
+            <Text style={styles.emptyText}>Tu entrenador aún no te ha asignado ninguna rutina.</Text>
           </Card>
-        ))
+        ) : (
+          listaAsignadas.map((r: any, i: number) => (
+            <Card key={r.id ?? i} style={styles.routineCard}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.routineName}>{r.nombre || 'Sin nombre'}</Text>
+                <Text style={styles.routineMeta}>
+                  {(r.dias?.length ?? 0)} {(r.dias?.length ?? 0) === 1 ? 'día' : 'días'}
+                  {r.duracion_minutos ? ` · ${r.duracion_minutos} min` : ''}
+                </Text>
+                {r.nombre_entrenador ? (
+                  <Text style={styles.routineTrainer}>Por {r.nombre_entrenador}</Text>
+                ) : null}
+              </View>
+              <TouchableOpacity style={styles.iconBtn} onPress={() => verDetalleAsignada(r)}
+                                accessibilityLabel={`Ver ${r.nombre || 'la rutina'} a detalle`}>
+                <Ionicons name="eye-outline" size={20} color={colors.accent} />
+              </TouchableOpacity>
+            </Card>
+          ))
+        )
       )}
 
-      {/* Detalle en solo lectura, ejercicio por ejercicio */}
+      {/* Detalle en solo lectura, ejercicio por ejercicio -- sirve tanto para
+          propias como para asignadas (comparten la misma forma de datos). */}
       <RoutineDetailModal
         visible={!!detalle}
         routine={detalle}
         mode="member"
         onClose={() => setDetalle(null)}
-        // Al marcar un día se recarga la lista: el conteo de entrenamientos y
-        // la racha que muestra el panel quedan al día sin salir de la pantalla.
-        onCompletado={refetch}
+        // Al marcar un día se recarga la lista correspondiente: el conteo de
+        // entrenamientos y la racha que muestra el panel quedan al día sin
+        // salir de la pantalla.
+        onCompletado={tab === 'propias' ? refetch : refetchAsignadas}
       />
     </ScrollView>
   );
@@ -419,6 +507,12 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
       borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10,
       color: colors.text, fontSize: 14 * fs,
     },
+    // Tabs (Propias / De mi entrenador)
+    tabRow:  { flexDirection: 'row', backgroundColor: colors.card, borderRadius: 12, padding: 4, borderWidth: 1, borderColor: colors.border },
+    tabBtn:  { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 9, borderRadius: 10 },
+    tabBtnActive:   { backgroundColor: colors.accentBg },
+    tabLabel:       { color: colors.textSecondary, fontSize: 13 * fs, fontWeight: '600' },
+    tabLabelActive: { color: colors.accent },
     // Editor — día
     diaHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     diaTitle:  { color: colors.text, fontSize: 15 * fs, fontWeight: '700' },
@@ -468,6 +562,7 @@ function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
     routineCard: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     routineName: { color: colors.text, fontSize: 15 * fs, fontWeight: '700' },
     routineMeta: { color: colors.textSecondary, fontSize: 12 * fs, marginTop: 2 },
+    routineTrainer: { color: colors.accent, fontSize: 11 * fs, marginTop: 1 },
     iconBtn: {
       width: 38, height: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
       backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,

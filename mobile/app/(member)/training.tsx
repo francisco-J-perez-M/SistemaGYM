@@ -1,665 +1,295 @@
 /**
- * Entrenamiento — Miembro
- * Tab "Mi Rutina":  GET /api/user/training/assigned-routines
- *   → { rutinas: [{ id, nombre, descripcion, categoria, dificultad,
- *                   duracion_minutos, nombre_entrenador, notas_entrenador,
- *                   dias: [{ id, dia, grupo, ejercicios: [{nombre, series, reps, peso, notas}] }] }] }
+ * Entrenamiento — Paso A: Dashboard del Plan Diario (Miembro).
  *
- * Tab "Entrenador": GET /api/user/training/trainers
- *   + Chat GET|POST /api/user/training/chat/<trainer_id>
+ * Primer paso del flujo unificado de 3 pasos de Entrenamiento (ver también
+ * components/routines/RoutineDetailModal.tsx -- Paso B -- y
+ * app/(member)/start-workout.tsx -- Paso C). Antes esta pantalla era un tab
+ * "Mi Rutina" (lista de rutinas asignadas) + un tab "Entrenador" (chat);
+ * ambos se repartieron al consolidar el menú (ver components/navigation/
+ * CustomDrawer.tsx y app/(member)/_layout.tsx): la lista de rutinas
+ * asignadas se unió con las propias en "Mi Biblioteca" (mi-rutina.tsx) y la
+ * gestión de PT + chat se movió completa a chat.tsx -- ver los comentarios
+ * de cabecera de esos dos archivos para el detalle de qué se llevó cada uno.
+ *
+ * GET /api/user/training/assigned-routines y GET /api/user/routines --
+ * mismos endpoints y formas de siempre (ambos ya traen dias[].ejercicios[]
+ * completos, incluido el grupo muscular POR EJERCICIO -- ver
+ * api/app/routes/miembro/user_routine.py y .../training.py-- no hace falta
+ * ningún endpoint nuevo), solo que ahora se combinan aquí para resolver "qué
+ * rutina toca" en CUALQUIER día de la semana, no solo hoy (ver candidata).
  */
-import React, { useState, useRef, useMemo, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, SectionList, ScrollView, TouchableOpacity,
-  RefreshControl, TextInput, KeyboardAvoidingView, Platform, Alert, Image,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors, useFontScale } from '../../hooks/useColors';
 import { ENDPOINTS } from '../../constants/Api';
 import { useFetch } from '../../hooks/useFetch';
-import { toStr, toArray, toDateStr } from '../../utils/format';
+import { toArray } from '../../utils/format';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Card from '../../components/ui/Card';
-import Badge from '../../components/ui/Badge';
 import RoutineDetailModal, { type RoutineForModal } from '../../components/routines/RoutineDetailModal';
-import ExerciseDetailSheet, { type ExerciseDetail, cacheVideo, cacheImages } from '../../components/routines/ExerciseDetailSheet';
-import PerfilEntrenador from '../../components/usuarios/PerfilEntrenador';
-import api from '../../services/api';
-import * as Haptics from 'expo-haptics';
 
-type Tab = 'rutina' | 'entrenador';
+// ── Resolución de día (mismo criterio que start-workout.tsx, sin acentos) ───
+const DIAS        = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+const DIAS_CORTOS = ['Lun',   'Mar',    'Mié',       'Jue',    'Vie',     'Sáb',    'Dom'];
+const normTxt = (s?: string) =>
+  (s ?? '').toString().toLowerCase()
+    .replace(/á/g, 'a').replace(/é/g, 'e').replace(/í/g, 'i')
+    .replace(/ó/g, 'o').replace(/ú/g, 'u').trim();
+// Date#getDay(): domingo=0..sábado=6; DIAS empieza en lunes -- este índice
+// traduce uno al otro para que el chip de "hoy" arranque seleccionado.
+const indiceHoy = () => (new Date().getDay() + 6) % 7;
 
-// ── Types ─────────────────────────────────────────────────────────────────────
 interface Ejercicio {
-  nombre:          string;
-  series?:         string | number;
-  reps?:           string | number;
-  peso?:           string | number;
-  notas?:          string;
-  instrucciones?:  string;
-  imagenes?:       string[];
-  video?:          string;
+  nombre: string; series?: string | number; reps?: string | number; peso?: string | number;
+  grupo?: string; notas?: string; imagenes?: string[]; video?: string;
 }
-interface DiaRutina {
-  id:         string;
-  dia:        string;
-  grupo:      string;
-  ejercicios: Ejercicio[];
+interface DiaRutina { id: string; dia: string; grupo: string; ejercicios: Ejercicio[] }
+interface Rutina {
+  id: string; nombre: string; activa?: boolean; categoria?: string; dificultad?: string;
+  duracion_minutos?: number; nombre_entrenador?: string; notas_entrenador?: string; dias: DiaRutina[];
 }
-interface RutinaAsignada {
-  id:                string;
-  nombre:            string;
-  descripcion?:      string;
-  categoria?:        string;
-  dificultad?:       string;
-  duracion_minutos?: number;
-  nombre_entrenador?: string;
-  notas_entrenador?:  string;
-  dias:              DiaRutina[];
-}
-interface Trainer {
-  id?:           number;
-  _id?:          string;
-  nombre?:       string;
-  name?:         string;
-  especialidad?: string;
-  email?:        string;
-  foto?:         string | null;   // base64 data URI
-}
-interface PTSolicitud {
-  id?:                string;
-  id_entrenador_pg:   number;
-  nombre_entrenador?: string;
-  estado:             string;   // pendiente | aceptada | rechazada
-}
-interface ChatMsg {
-  _id?:       string;
-  remitente?: string;
-  rol?:       string;
-  mensaje?:   string;
-  texto?:     string;
-  fecha?:     string;
-  created_at?: string;
-}
+type Origen = 'propia' | 'entrenador';
+type RutinaUI = Rutina & { origen: Origen };
 
-function trainerName(t: Trainer): string {
-  return toStr(t.nombre ?? t.name, 'Entrenador');
-}
-
-// La calificación y el botón de terminar viven ahora en PerfilEntrenador, la
-// hoja que se abre al tocar la tarjeta del entrenador. Estaban aquí ocupando
-// media pantalla y dejaban el chat reducido a unas pocas líneas.
-
-// ── Componente ────────────────────────────────────────────────────────────────
 export default function TrainingScreen() {
   const colors = useColors();
-  const fs = useFontScale();
-  const mbS = useMemo(() => make_mbS(colors, fs), [colors, fs]);
+  const fs     = useFontScale();
   const styles = useMemo(() => make_styles(colors, fs), [colors, fs]);
-  const insets   = useSafeAreaInsets();
-  const [tab, setTab]                         = useState<Tab>('rutina');
-  const [selectedTrainer, setSelectedTrainer] = useState<Trainer | null>(null);
-  const [expandedRutina, setExpandedRutina]   = useState<string | null>(null);
-  const [selectedRutina, setSelectedRutina]   = useState<RoutineForModal | null>(null);
-  const [selectedEj, setSelectedEj] = useState<ExerciseDetail | null>(null);
-  const [perfilId, setPerfilId]     = useState<number | null>(null);
-  const [msg, setMsg]     = useState('');
-  const [sending, setSending] = useState(false);
-  const flatRef = useRef<FlatList>(null);
+  const insets = useSafeAreaInsets();
 
-  const { data: rutinaData, loading: loadingR, refetch: refetchR } =
-    useFetch<{ rutinas: RutinaAsignada[] }>(ENDPOINTS.USER_ASSIGNED_ROUTINES);
+  const { data: propiasData,   loading: loadingPropias,   refetch: refetchPropias } =
+    useFetch<{ rutinas: Rutina[] }>(ENDPOINTS.USER_ROUTINES);
+  const { data: asignadasData, loading: loadingAsignadas, refetch: refetchAsignadas } =
+    useFetch<{ rutinas: Rutina[] }>(ENDPOINTS.USER_ASSIGNED_ROUTINES);
 
-  const { data: trainersData, loading: loadingT, refetch: refetchT } =
-    useFetch<Trainer[] | { trainers: Trainer[] }>(ENDPOINTS.USER_TRAINERS_LIST);
+  const cargando = loadingPropias || loadingAsignadas;
+  const refetch  = () => { refetchPropias(); refetchAsignadas(); };
 
-  // Solicitudes PT: el miembro solo puede chatear con su entrenador ASIGNADO
-  // (solicitud en estado "aceptada"). Restringimos la lista a esos entrenadores.
-  const { data: ptData, loading: loadingPT, refetch: refetchPT } =
-    useFetch<{ solicitudes: PTSolicitud[] }>(ENDPOINTS.USER_PT_REQUEST);
+  const rutinas = useMemo<RutinaUI[]>(() => [
+    ...toArray<Rutina>(asignadasData?.rutinas).map((r) => ({ ...r, origen: 'entrenador' as const })),
+    ...toArray<Rutina>(propiasData?.rutinas).map((r) => ({ ...r, origen: 'propia' as const })),
+  ], [asignadasData, propiasData]);
 
-  const rutinas     = toArray(rutinaData?.rutinas);
-  const allTrainers = toArray<Trainer>(
-    Array.isArray(trainersData) ? trainersData : (trainersData as any)?.trainers ?? [],
-  );
-  const assignedIds = new Set(
-    toArray<PTSolicitud>(ptData?.solicitudes)
-      .filter((s) => s.estado === 'aceptada')
-      .map((s) => s.id_entrenador_pg),
-  );
-  // Solicitud propia aún sin responder (SCRUM-204): mientras exista una, no
-  // tiene sentido mostrarle al miembro la lista para solicitar otro
-  // entrenador -- el backend la rechazaría con 409 de todos modos.
-  const pendingRequest =
-    toArray<PTSolicitud>(ptData?.solicitudes).find((s) => s.estado === 'pendiente') ?? null;
-  // Entrenadores que el miembro SÍ puede solicitar: los del catálogo del
-  // propio gimnasio (ya filtrado por tenant en el backend) que no tengan ya
-  // una solicitud pendiente o aceptada con él.
-  const requestedIds = new Set(
-    toArray<PTSolicitud>(ptData?.solicitudes)
-      .filter((s) => s.estado === 'pendiente' || s.estado === 'aceptada')
-      .map((s) => s.id_entrenador_pg),
-  );
-  const availableTrainers: Trainer[] = allTrainers.filter(
-    (t) => !requestedIds.has((t.id ?? t._id) as number),
-  );
-  // Entrenadores asignados (con info completa del catálogo). Si el catálogo aún
-  // no cargó pero sí hay solicitud aceptada, caemos a los datos de la solicitud.
-  const trainers: Trainer[] = allTrainers.filter((t) => assignedIds.has((t.id ?? t._id) as number));
-  if (trainers.length === 0 && assignedIds.size > 0) {
-    toArray<PTSolicitud>(ptData?.solicitudes)
-      .filter((s) => s.estado === 'aceptada')
-      .forEach((s) => trainers.push({ id: s.id_entrenador_pg, nombre: s.nombre_entrenador }));
+  const [diaIdx, setDiaIdx] = useState(indiceHoy());
+  const nombreDia = DIAS[diaIdx];
+
+  // Candidata del día elegido: se prioriza la asignada por el entrenador
+  // sobre la propia -- mismo criterio que usa start-workout.tsx al arrancar
+  // la sesión en vivo (Paso C), para que lo que se previsualiza aquí y lo
+  // que de verdad se entrena después nunca contradigan.
+  const candidata = useMemo(() => {
+    for (const origen of ['entrenador', 'propia'] as const) {
+      for (const r of rutinas) {
+        if (r.origen !== origen || r.activa === false) continue;
+        const dia = toArray(r.dias).find((d) => normTxt(d.dia).includes(normTxt(nombreDia)));
+        if (dia) return { routine: r, dia };
+      }
+    }
+    return null;
+  }, [rutinas, nombreDia]);
+
+  const [verDetalle, setVerDetalle] = useState(false);
+
+  if (cargando && rutinas.length === 0) {
+    return <LoadingSpinner fullScreen message="Cargando tu plan…" />;
   }
-  const active   = selectedTrainer ?? (trainers[0] ?? null);
-  const trainerId = active?.id ?? active?._id;
-  const chatUrl   = trainerId ? `${ENDPOINTS.USER_CHAT_BASE}/${trainerId}` : '';
 
-  const { data: chatData, loading: loadingC, refetch: refetchC } =
-    useFetch<ChatMsg[] | { mensajes: ChatMsg[] }>(chatUrl);
-
-  const mensajes = toArray(Array.isArray(chatData) ? chatData : (chatData as any)?.mensajes ?? []);
-
-  const [requestingId, setRequestingId] = useState<number | null>(null);
-  const [cancelling, setCancelling]       = useState(false);
-
-  // SCRUM-204: hasta ahora no existía ningún punto de la app que llamara a
-  // POST /api/user/training/pt-request -- el endpoint estaba listo en el
-  // backend, pero la pantalla de "Entrenador" solo mostraba un mensaje fijo
-  // ("envía una solicitud...") sin ningún control para enviarla.
-  const handleRequestPT = async (trainer: Trainer) => {
-    const tId = Number(trainer.id ?? trainer._id ?? 0);
-    if (!tId) return;
-    setRequestingId(tId);
-    try {
-      await api.post(ENDPOINTS.USER_PT_REQUEST, { id_entrenador_pg: tId });
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      Alert.alert(
-        'Solicitud enviada',
-        `Le avisamos a ${trainerName(trainer)}. Te notificaremos cuando responda.`,
-      );
-      refetchPT();
-    } catch (e: any) {
-      Alert.alert('No se pudo enviar', e?.response?.data?.error ?? 'Intenta de nuevo más tarde.');
-    } finally {
-      setRequestingId(null);
-    }
-  };
-
-  const handleCancelPT = async () => {
-    if (!pendingRequest?.id) return;
-    setCancelling(true);
-    try {
-      await api.delete(`${ENDPOINTS.USER_PT_REQUEST}/${pendingRequest.id}`);
-      refetchPT();
-    } catch (e: any) {
-      Alert.alert('No se pudo cancelar', e?.response?.data?.error ?? 'Intenta de nuevo más tarde.');
-    } finally {
-      setCancelling(false);
-    }
-  };
-
-  const handleSend = async () => {
-    const texto = msg.trim();
-    if (!texto || !trainerId) return;
-    setSending(true);
-    try {
-      await api.post(`${ENDPOINTS.USER_CHAT_BASE}/${trainerId}`, { texto });
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      setMsg('');
-      refetchC();
-      setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 300);
-    } catch (e: any) {
-      Alert.alert('Error', e?.response?.data?.error ?? 'No se pudo enviar');
-    } finally {
-      setSending(false);
-    }
-  };
-
-  if ((tab === 'rutina' ? loadingR : loadingT) && rutinas.length === 0 && trainers.length === 0) {
-    return <LoadingSpinner fullScreen message="Cargando entrenamiento…" />;
-  }
+  const rutinaParaModal: RoutineForModal | null = candidata ? {
+    id:                candidata.routine.id,
+    nombre:            candidata.routine.nombre,
+    categoria:         candidata.routine.categoria,
+    dificultad:        candidata.routine.dificultad,
+    duracion_minutos:  candidata.routine.duracion_minutos,
+    activa:            candidata.routine.activa,
+    nombre_entrenador: candidata.routine.nombre_entrenador,
+    notas_entrenador:  candidata.routine.notas_entrenador,
+    dias:              candidata.routine.dias,
+  } : null;
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.screen, { paddingTop: insets.top + 16 }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={insets.top + 60}
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={[styles.content, { paddingTop: insets.top + 16 }]}
+      showsVerticalScrollIndicator={false}
+      refreshControl={<RefreshControl refreshing={cargando} onRefresh={refetch} tintColor={colors.accent} />}
     >
-      {/* Tabs */}
-      <View style={styles.tabRow}>
-        {([['rutina', 'Mi Rutina', 'barbell-outline'], ['entrenador', 'Entrenador', 'person-outline']] as const).map(([t, label, icon]) => (
-          <TouchableOpacity
-            key={t}
-            style={[styles.tabBtn, tab === t && styles.tabBtnActive]}
-            onPress={() => setTab(t)}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: tab === t }}
-          >
-            <Ionicons name={icon} size={16} color={tab === t ? colors.accent : colors.textSecondary} />
-            <Text style={[styles.tabLabel, tab === t && styles.tabLabelActive]}>{label}</Text>
-          </TouchableOpacity>
-        ))}
+      <View style={styles.header}>
+        <Text style={styles.title} accessibilityRole="header">Entrenamiento</Text>
+        <Text style={styles.subtitle}>Tu plan, día por día.</Text>
       </View>
 
-      {/* ── MI RUTINA ────────────────────────────────────────── */}
-      {tab === 'rutina' && (
-        <FlatList
-          data={rutinas}
-          keyExtractor={(r, i) => r.id ?? String(i)}
-          contentContainerStyle={styles.list}
-          showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={loadingR} onRefresh={refetchR} tintColor={colors.accent} />}
-          ListEmptyComponent={
-            <View style={styles.empty}>
-              <Ionicons name="barbell-outline" size={44} color={colors.textMuted} />
-              <Text style={styles.emptyText}>No tienes rutinas asignadas.</Text>
-              <Text style={styles.emptyHint}>Tu entrenador las configurará pronto.</Text>
+      {/* Selector de día -- unifica lo que antes era "elegir día" dentro de
+          Mi Rutina con la vista general del plan. No fuerza nada: solo
+          cambia qué día se PREVISUALIZA en la tarjeta de abajo. */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.diasRow}>
+        {DIAS.map((d, i) => (
+          <TouchableOpacity
+            key={d}
+            onPress={() => setDiaIdx(i)}
+            style={[styles.diaChip, i === diaIdx && styles.diaChipActivo]}
+            accessibilityRole="button"
+            accessibilityLabel={`${d}${i === diaIdx ? ', seleccionado' : ''}`}
+          >
+            <Text style={[styles.diaChipTexto, i === diaIdx && styles.diaChipTextoActivo]}>
+              {DIAS_CORTOS[i]}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      {/* Tarjeta del día */}
+      <Card style={styles.diaCard}>
+        {candidata ? (
+          <>
+            <View style={styles.diaCardHeader}>
+              <View style={styles.diaCardIcon}>
+                <Ionicons name="barbell-outline" size={22} color={colors.accent} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.diaCardDia}>
+                  {nombreDia}{candidata.dia.grupo ? ` — ${candidata.dia.grupo}` : ''}
+                </Text>
+                <Text style={styles.diaCardNombre}>{candidata.routine.nombre}</Text>
+              </View>
+              <Ionicons
+                name={candidata.routine.origen === 'entrenador' ? 'school-outline' : 'person-outline'}
+                size={16}
+                color={colors.textMuted}
+              />
             </View>
-          }
-          renderItem={({ item: r }) => {
-            const isOpen = expandedRutina === r.id;
-            return (
-              <Card style={styles.rutinaCard}>
-                {/* Header */}
-                <TouchableOpacity
-                  style={styles.rutinaHeader}
-                  onPress={() => setExpandedRutina(isOpen ? null : r.id)}
-                  accessibilityRole="button"
-                  accessibilityState={{ expanded: isOpen }}
-                >
-                  <View style={styles.rutinaIconBox}>
-                    <Ionicons name="barbell-outline" size={20} color={colors.accent} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.rutinaNombre}>{r.nombre}</Text>
-                    <Text style={styles.rutinaMeta}>
-                      {[r.categoria, r.dificultad, r.duracion_minutos && `${r.duracion_minutos} min`]
-                        .filter(Boolean).join(' · ')}
-                    </Text>
-                    {r.nombre_entrenador ? (
-                      <Text style={styles.rutinaTrainer}>Por {r.nombre_entrenador}</Text>
-                    ) : null}
-                  </View>
-                  <TouchableOpacity
-                    style={mbS.verBtn}
-                    onPress={() => setSelectedRutina(r as RoutineForModal)}
-                    accessibilityLabel={`Ver detalle de ${r.nombre}`}
-                    accessibilityRole="button"
-                  >
-                    <Ionicons name="eye-outline" size={13} color={colors.onAccent} />
-                    <Text style={mbS.verBtnText}>Ver</Text>
-                  </TouchableOpacity>
-                  <Ionicons
-                    name={isOpen ? 'chevron-up' : 'chevron-down'}
-                    size={18} color={colors.textSecondary}
-                  />
-                </TouchableOpacity>
-
-                {r.descripcion ? (
-                  <Text style={styles.rutinaDesc}>{r.descripcion}</Text>
-                ) : null}
-
-                {r.notas_entrenador ? (
-                  <View style={styles.notasBox}>
-                    <Ionicons name="chatbubble-outline" size={12} color={colors.accent} />
-                    <Text style={styles.notasText}>{r.notas_entrenador}</Text>
-                  </View>
-                ) : null}
-
-                {/* Días y ejercicios (expandible) */}
-                {isOpen && toArray(r.dias).map((dia) => (
-                  <View key={dia.id} style={styles.diaSection}>
-                    <View style={styles.diaHeader}>
-                      <Text style={styles.diaNombre}>{toStr(dia.dia)}</Text>
-                      {dia.grupo ? (
-                        <Text style={styles.diaGrupo}>{dia.grupo}</Text>
-                      ) : null}
-                    </View>
-                    {toArray(dia.ejercicios).map((ej, i) => (
-                      <View key={i} style={styles.ejRow}>
-                        <View style={styles.ejNum}>
-                          <Text style={styles.ejNumText}>{i + 1}</Text>
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.ejNombre}>{toStr(ej.nombre)}</Text>
-                          <Text style={styles.ejDetalle}>
-                            {[
-                              ej.series && `${ej.series} series`,
-                              ej.reps   && `${ej.reps} reps`,
-                              ej.peso   && `${ej.peso} kg`,
-                            ].filter(Boolean).join(' · ')}
-                          </Text>
-                          {ej.notas ? <Text style={styles.ejNotas}>{ej.notas}</Text> : null}
-                        </View>
-                        <TouchableOpacity
-                          style={mbS.verBtn}
-                          onPress={() => {
-                            const vk  = ej.video    ? `ej_${r.id}_${dia.id}_${i}` : undefined;
-                            const ik  = ej.imagenes ? `im_${r.id}_${dia.id}_${i}` : undefined;
-                            if (vk && ej.video)    cacheVideo(vk, ej.video);
-                            if (ik && ej.imagenes) cacheImages(ik, ej.imagenes);
-                            setSelectedEj({
-                              nombre: toStr(ej.nombre),
-                              setsStr: [ej.series && `${ej.series} series`, ej.reps && `${ej.reps} reps`].filter(Boolean).join(' × '),
-                              peso: ej.peso ? String(ej.peso) : undefined,
-                              notas: ej.notas,
-                              instrucciones: ej.instrucciones,
-                              imageKey: ik,
-                              videoKey: vk,
-                            });
-                          }}
-                          accessibilityLabel={`Ver detalle de ${ej.nombre}`}
-                          accessibilityRole="button">
-                          <Ionicons name="eye-outline" size={13} color={colors.onAccent} />
-                          <Text style={mbS.verBtnText}>Ver</Text>
-                        </TouchableOpacity>
-                      </View>
-                    ))}
-                  </View>
-                ))}
-              </Card>
-            );
-          }}
-        />
-      )}
-
-      {/* ── ENTRENADOR + CHAT ─────────────────────────────────── */}
-      {/* Rediseño (feedback de Miguel): antes el chat se dibujaba SIEMPRE
-          debajo, aunque todavía no hubiera ningún entrenador asignado --
-          quedaba un bloque de chat vacío "colgando" con un hueco grande
-          entre el título "Chat" y el mensaje "Selecciona un entrenador",
-          pegado hasta abajo por el `justifyContent: 'flex-end'` de la
-          lista, lo que se veía encimado/desordenado. Ahora el chat NO se
-          monta en absoluto hasta que hay un entrenador asignado (`active`
-          con `trainers.length > 0`); mientras tanto, la gestión de la
-          solicitud de PT ocupa toda la pantalla en su propio scroll. */}
-      {tab === 'entrenador' && (
-        <View style={{ flex: 1 }}>
-          {/* Selector si hay varios */}
-          {trainers.length > 1 && (
-            <FlatList
-              horizontal data={trainers}
-              keyExtractor={(t, i) => String(t.id ?? t._id ?? i)}
-              showsHorizontalScrollIndicator={false}
-              style={styles.trainerSelector}
-              contentContainerStyle={{ gap: 8, paddingHorizontal: 20, paddingBottom: 8, alignItems: 'center' }}
-              renderItem={({ item: t }) => {
-                const isActive = (t.id ?? t._id) === (active?.id ?? active?._id);
-                return (
-                  <TouchableOpacity
-                    style={[styles.trainerChip, isActive && styles.trainerChipActive]}
-                    onPress={() => setSelectedTrainer(t)}
-                  >
-                    <Text style={[styles.trainerChipText, isActive && { color: colors.onAccent }]}>
-                      {trainerName(t)}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              }}
-            />
-          )}
-
-          {trainers.length === 0 ? (
-            <ScrollView contentContainerStyle={styles.sinEntrenadorScroll} showsVerticalScrollIndicator={false}>
-              {pendingRequest ? (
-                <Card style={styles.trainerCard}>
-                  <View style={styles.empty}>
-                    <Ionicons name="time-outline" size={40} color={colors.textMuted} />
-                    <Text style={styles.emptyText}>
-                      Esperando respuesta de {pendingRequest.nombre_entrenador ?? 'tu entrenador'}
-                    </Text>
-                    <Text style={styles.emptyHint}>Te avisaremos cuando la acepte o la rechace.</Text>
-                    <TouchableOpacity
-                      onPress={handleCancelPT}
-                      disabled={cancelling}
-                      accessibilityRole="button"
-                      accessibilityLabel="Cancelar solicitud"
-                    >
-                      <Text style={styles.cancelRequestText}>
-                        {cancelling ? 'Cancelando…' : 'Cancelar solicitud'}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </Card>
-              ) : availableTrainers.length === 0 ? (
-                <Card style={styles.trainerCard}>
-                  <View style={styles.empty}>
-                    <Ionicons name="person-outline" size={40} color={colors.textMuted} />
-                    <Text style={styles.emptyText}>Tu gimnasio aún no tiene entrenadores disponibles.</Text>
-                  </View>
-                </Card>
-              ) : (
-                <View>
-                  <Text style={styles.seccionTitle}>Elige un entrenador para solicitar PT</Text>
-                  {availableTrainers.map((t) => {
-                    const tId = Number(t.id ?? t._id ?? 0);
-                    return (
-                      <Card key={tId} style={styles.trainerCard}>
-                        <View style={styles.trainerRow}>
-                          {t.foto && t.foto.startsWith('data:image') ? (
-                            <Image source={{ uri: t.foto }} style={styles.trainerAvatarImg} resizeMode="cover" />
-                          ) : (
-                            <View style={styles.trainerAvatar}>
-                              <Text style={styles.trainerInitials}>{trainerName(t).charAt(0).toUpperCase()}</Text>
-                            </View>
-                          )}
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.trainerName}>{trainerName(t)}</Text>
-                            {t.especialidad ? <Text style={styles.trainerSpec}>{t.especialidad}</Text> : null}
-                          </View>
-                          <TouchableOpacity
-                            style={styles.requestBtn}
-                            onPress={() => handleRequestPT(t)}
-                            disabled={requestingId === tId}
-                            accessibilityRole="button"
-                            accessibilityLabel={`Solicitar a ${trainerName(t)}`}
-                          >
-                            <Text style={styles.requestBtnText}>
-                              {requestingId === tId ? 'Enviando…' : 'Solicitar'}
-                            </Text>
-                          </TouchableOpacity>
-                        </View>
-                      </Card>
-                    );
-                  })}
+            <View style={styles.diaCardMetaRow}>
+              {!!candidata.routine.duracion_minutos && (
+                <View style={styles.metaPill}>
+                  <Ionicons name="time-outline" size={12} color={colors.textSecondary} />
+                  <Text style={styles.metaPillTexto}>{candidata.routine.duracion_minutos} min</Text>
                 </View>
               )}
-            </ScrollView>
-          ) : active ? (
-            <>
-              {/* La tarjeta abre la ficha completa: datos, certificaciones y
-                  calificación. Al sacarlas de aquí, el chat recupera la pantalla. */}
-              <TouchableOpacity
-                activeOpacity={0.85}
-                onPress={() => setPerfilId(Number(active.id ?? 0) || null)}
-                accessibilityRole="button"
-                accessibilityLabel={`Ver el perfil de ${trainerName(active)}`}
-                accessibilityHint="Muestra su información, certificaciones y la calificación"
-              >
-                <Card style={styles.trainerCard}>
-                  <View style={styles.trainerRow}>
-                    {active.foto && active.foto.startsWith('data:image') ? (
-                      <Image source={{ uri: active.foto }} style={styles.trainerAvatarImg} resizeMode="cover" />
-                    ) : (
-                      <View style={styles.trainerAvatar}>
-                        <Text style={styles.trainerInitials}>
-                          {trainerName(active).charAt(0).toUpperCase()}
-                        </Text>
-                      </View>
-                    )}
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.trainerName}>{trainerName(active)}</Text>
-                      {active.especialidad ? <Text style={styles.trainerSpec}>{active.especialidad}</Text> : null}
-                      <Text style={styles.trainerVerMas}>Ver perfil y calificar</Text>
-                    </View>
-                    <Badge label="PT" color="accent" />
-                    <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-                  </View>
-                </Card>
-              </TouchableOpacity>
-
-              {/* Chat — ya solo se monta cuando hay entrenador asignado, así
-                  aprovecha todo el espacio sobrante en vez de quedar vacío
-                  debajo de la lista de solicitud. */}
-              <View style={styles.chatContainer}>
-                <Text style={styles.chatTitle}>Chat con {trainerName(active)}</Text>
-                <FlatList
-                  ref={flatRef}
-                  data={mensajes}
-                  keyExtractor={(m, i) => m._id ?? String(i)}
-                  contentContainerStyle={styles.chatList}
-                  showsVerticalScrollIndicator={false}
-                  refreshControl={<RefreshControl refreshing={loadingC} onRefresh={refetchC} tintColor={colors.accent} />}
-                  onContentSizeChange={() => flatRef.current?.scrollToEnd({ animated: false })}
-                  ListEmptyComponent={
-                    <View style={styles.chatEmpty}>
-                      <Ionicons name="chatbubbles-outline" size={36} color={colors.textMuted} />
-                      <Text style={styles.chatEmptyText}>Inicia la conversación.</Text>
-                    </View>
-                  }
-                  renderItem={({ item: m }) => {
-                    const isMe  = (m.remitente ?? m.rol) === 'miembro';
-                    const texto = toStr(m.mensaje ?? m.texto);
-                    const hora  = toStr(m.fecha ?? m.created_at);
-                    return (
-                      <View style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleThem]}>
-                        <Text style={[styles.bubbleText, isMe && styles.bubbleTextMe]}>{texto}</Text>
-                        {hora ? (
-                          <Text style={[styles.bubbleTime, isMe && { color: colors.onAccent, opacity: 0.7 }]}>
-                            {toDateStr(hora, 16).slice(11, 16)}
-                          </Text>
-                        ) : null}
-                      </View>
-                    );
-                  }}
-                />
-                <View style={[styles.inputBar, { paddingBottom: insets.bottom + 8 }]}>
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="Escribe un mensaje…"
-                    placeholderTextColor={colors.textMuted}
-                    value={msg} onChangeText={setMsg}
-                    multiline maxLength={500}
-                    accessibilityLabel="Mensaje al entrenador"
-                  />
-                  <TouchableOpacity
-                    style={[styles.sendBtn, (!msg.trim() || sending) && styles.sendBtnDisabled]}
-                    onPress={handleSend}
-                    disabled={!msg.trim() || sending}
-                  >
-                    <Ionicons name="send" size={18} color={colors.onAccent} />
-                  </TouchableOpacity>
-                </View>
+              <View style={styles.metaPill}>
+                <Ionicons name="list-outline" size={12} color={colors.textSecondary} />
+                <Text style={styles.metaPillTexto}>
+                  {toArray(candidata.dia.ejercicios).length} ejercicios
+                </Text>
               </View>
-            </>
-          ) : null}
+            </View>
+            <TouchableOpacity
+              style={styles.verBtn}
+              onPress={() => setVerDetalle(true)}
+              accessibilityRole="button"
+              accessibilityLabel={`Ver ${candidata.routine.nombre}`}
+            >
+              <Ionicons name="eye-outline" size={14} color={colors.onAccent} />
+              <Text style={styles.verBtnTexto}>Ver</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <View style={styles.diaVacio}>
+            <Ionicons name="moon-outline" size={32} color={colors.textMuted} />
+            <Text style={styles.diaVacioTexto}>
+              {diaIdx === indiceHoy() ? 'Hoy no tienes rutina asignada.' : 'Sin rutina para este día.'}
+            </Text>
+          </View>
+        )}
+      </Card>
+
+      {/* Accesos directos */}
+      <View style={styles.accesosRow}>
+        <TouchableOpacity
+          style={styles.accesoCard}
+          onPress={() => router.push('/(member)/mi-rutina')}
+          accessibilityRole="button"
+          accessibilityLabel="Mi Biblioteca"
+        >
+          <Ionicons name="library-outline" size={22} color={colors.accent} />
+          <Text style={styles.accesoTexto}>Mi Biblioteca</Text>
+        </TouchableOpacity>
+
+        {/* Generar entrenamiento con IA -- fuera de alcance por ahora (no hay
+            backend ni modelo todavía): se deja el acceso visible como
+            "Próximamente" para no prometer algo que no funciona. */}
+        <View style={[styles.accesoCard, styles.accesoDeshabilitado]}>
+          <Ionicons name="sparkles-outline" size={22} color={colors.textMuted} />
+          <Text style={[styles.accesoTexto, { color: colors.textMuted }]}>Generar con IA</Text>
+          <View style={styles.proximamenteBadge}>
+            <Text style={styles.proximamenteTexto}>Próximamente</Text>
+          </View>
         </View>
-      )}
 
-      <PerfilEntrenador
-        trainerId={perfilId}
-        onClose={() => setPerfilId(null)}
-        esMiEntrenador={!!active && Number(active.id) === perfilId}
-        onTerminar={() => { setSelectedTrainer(null); refetchPT?.(); }}
-      />
-      <ExerciseDetailSheet
-        visible={!!selectedEj}
-        exercise={selectedEj}
-        onClose={() => setSelectedEj(null)}
-      />
+        <TouchableOpacity
+          style={styles.accesoCard}
+          onPress={() => router.push('/(member)/chat')}
+          accessibilityRole="button"
+          accessibilityLabel="Chat con tu entrenador"
+        >
+          <Ionicons name="chatbubbles-outline" size={22} color={colors.accent} />
+          <Text style={styles.accesoTexto}>Chat con tu entrenador</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Paso B -- ver RoutineDetailModal.tsx: diaId acota el modal a SOLO
+          este día (distribución muscular + botón flotante "Empezar
+          Entrenamiento" directo al Paso C). */}
       <RoutineDetailModal
-        visible={!!selectedRutina}
-        routine={selectedRutina}
-        onClose={() => setSelectedRutina(null)}
+        visible={verDetalle}
+        routine={rutinaParaModal}
+        diaId={candidata?.dia.id}
         mode="member"
-        // Registrar el día refresca la rutina asignada por el entrenador.
-        onCompletado={refetchR}
+        onClose={() => setVerDetalle(false)}
       />
-    </KeyboardAvoidingView>
+    </ScrollView>
   );
-}
-
-function make_mbS(colors: ReturnType<typeof useColors>, fs = 1) {
-  return StyleSheet.create({
-  verBtn:     { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.accent, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 8 },
-  verBtnText: { color: colors.onAccent, fontSize: 11 * fs, fontWeight: '700' },
-});
 }
 
 function make_styles(colors: ReturnType<typeof useColors>, fs = 1) {
   return StyleSheet.create({
-  screen:  { flex: 1, backgroundColor: colors.background },
-  tabRow:  { flexDirection: 'row', marginHorizontal: 20, marginBottom: 16, backgroundColor: colors.card, borderRadius: 12, padding: 4, borderWidth: 1, borderColor: colors.border },
-  tabBtn:  { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 9, borderRadius: 10 },
-  tabBtnActive:  { backgroundColor: colors.accentBg },
-  tabLabel:      { color: colors.textSecondary, fontSize: 14 * fs, fontWeight: '600' },
-  tabLabelActive:{ color: colors.accent },
-  list:    { paddingHorizontal: 20, gap: 14, paddingBottom: 32 },
-  empty:   { alignItems: 'center', paddingVertical: 40, gap: 8 },
-  emptyText: { color: colors.textMuted, fontSize: 15 * fs, fontWeight: '600', textAlign: 'center' },
-  emptyHint: { color: colors.textMuted, fontSize: 13 * fs, textAlign: 'center' },
-  rutinaCard:   { gap: 10 },
-  rutinaHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  rutinaIconBox:{ width: 44, height: 44, borderRadius: 12, backgroundColor: colors.accentBg, alignItems: 'center', justifyContent: 'center' },
-  rutinaNombre: { color: colors.text, fontSize: 16 * fs, fontWeight: '700' },
-  rutinaMeta:   { color: colors.textSecondary, fontSize: 12 * fs, marginTop: 2 },
-  rutinaTrainer:{ color: colors.accent, fontSize: 11 * fs, marginTop: 1 },
-  rutinaDesc:   { color: colors.textSecondary, fontSize: 13 * fs, lineHeight: 18 },
-  notasBox:     { flexDirection: 'row', alignItems: 'flex-start', gap: 6, backgroundColor: colors.accentBg, borderRadius: 8, padding: 8 },
-  notasText:    { color: colors.textSecondary, fontSize: 12 * fs, flex: 1 },
-  diaSection:   { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 10, gap: 8 },
-  diaHeader:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  diaNombre:    { color: colors.accent, fontSize: 13 * fs, fontWeight: '700' },
-  diaGrupo:     { color: colors.textSecondary, fontSize: 12 * fs },
-  ejRow:        { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  ejNum:        { width: 22, height: 22, borderRadius: 8, backgroundColor: colors.accentBg, alignItems: 'center', justifyContent: 'center' },
-  ejNumText:    { color: colors.accent, fontSize: 11 * fs, fontWeight: '700' },
-  ejNombre:     { color: colors.text, fontSize: 14 * fs, fontWeight: '600' },
-  ejDetalle:    { color: colors.accent, fontSize: 12 * fs },
-  ejNotas:      { color: colors.textSecondary, fontSize: 12 * fs, fontStyle: 'italic' },
-  // Scroll propio de la pantalla "sin entrenador asignado todavía"
-  // (pendiente de respuesta / sin entrenadores / elige uno para pedir PT):
-  // centra el contenido si es corto, se desplaza si la lista es larga, y ya
-  // no deja un bloque de chat vacío colgando debajo (ver comentario arriba).
-  sinEntrenadorScroll: { flexGrow: 1, justifyContent: 'center', paddingVertical: 20 },
-  // Título de esa pantalla: mismo estilo que chatTitle, pero con su propio
-  // margen horizontal porque aquí NO vive dentro de un contenedor con
-  // padding (a diferencia de chatTitle, que sí lo hereda de chatContainer).
-  seccionTitle: { color: colors.textSecondary, fontSize: 12 * fs, fontWeight: '700', marginBottom: 10, marginHorizontal: 20 },
-  trainerSelector: { flexGrow: 0, maxHeight: 48 },
-  trainerChip:  { alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
-  trainerChipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
-  trainerChipText:   { color: colors.textSecondary, fontSize: 13 * fs, fontWeight: '600' },
-  trainerCard:  { marginHorizontal: 20, marginBottom: 12 },
-  trainerRow:   { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  trainerAvatar:{ width: 52, height: 52, borderRadius: 16, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
-  trainerAvatarImg:{ width: 52, height: 52, borderRadius: 16, backgroundColor: colors.surface },
-  trainerInitials: { color: colors.onAccent, fontSize: 22 * fs, fontWeight: '800' },
-  trainerName:  { color: colors.text, fontSize: 16 * fs, fontWeight: '700' },
-  trainerSpec:  { color: colors.accent, fontSize: 12 * fs },
-  trainerEmail: { color: colors.textSecondary, fontSize: 12 * fs },
-  trainerVerMas:{ color: colors.accent, fontSize: 11.5 * fs, fontWeight: '600', marginTop: 3 },
-  requestBtn:     { backgroundColor: colors.accent, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9 },
-  requestBtnText: { color: colors.onAccent, fontSize: 13 * fs, fontWeight: '700' },
-  cancelRequestText: { color: colors.error, fontSize: 13 * fs, fontWeight: '600', marginTop: 4 },
-  // minHeight evita que el chat quede aplastado entre las tarjetas superiores
-  // cuando la pantalla es corta: siempre conserva alto útil de conversación.
-  chatContainer:{ flex: 1, minHeight: 280, marginHorizontal: 20 },
-  chatTitle:    { color: colors.textSecondary, fontSize: 12 * fs, fontWeight: '700', marginBottom: 8 },
-  chatList:     { paddingVertical: 8, gap: 8, flexGrow: 1, justifyContent: 'flex-end' },
-  chatEmpty:    { alignItems: 'center', gap: 8, paddingVertical: 24 },
-  chatEmptyText:{ color: colors.textMuted, fontSize: 13 * fs, textAlign: 'center' },
-  bubble:       { maxWidth: '80%', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 18, gap: 2 },
-  bubbleMe:     { alignSelf: 'flex-end', backgroundColor: colors.accent, borderBottomRightRadius: 4 },
-  bubbleThem:   { alignSelf: 'flex-start', backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderBottomLeftRadius: 4 },
-  bubbleText:   { color: colors.text, fontSize: 14 * fs, lineHeight: 20 },
-  bubbleTextMe: { color: colors.onAccent },
-  bubbleTime:   { color: colors.textMuted, fontSize: 10 * fs, alignSelf: 'flex-end' },
-  inputBar:     { flexDirection: 'row', alignItems: 'flex-end', gap: 10, paddingTop: 8, borderTopWidth: 1, borderTopColor: colors.border },
-  textInput:    { flex: 1, maxHeight: 100, backgroundColor: colors.card, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, color: colors.text, fontSize: 14 * fs, borderWidth: 1, borderColor: colors.border },
-  sendBtn:      { width: 44, height: 44, borderRadius: 12, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
-  sendBtnDisabled: { opacity: 0.4 },
-});
+    screen:  { flex: 1, backgroundColor: colors.background },
+    content: { padding: 20, gap: 16, paddingBottom: 40 },
+    header:  { gap: 4 },
+    title:   { color: colors.text, fontSize: 26 * fs, fontWeight: '700' },
+    subtitle:{ color: colors.textSecondary, fontSize: 13 * fs },
+    diasRow: { gap: 6, paddingVertical: 2 },
+    diaChip: {
+      paddingHorizontal: 13, paddingVertical: 8, borderRadius: 20,
+      backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
+    },
+    diaChipActivo:      { backgroundColor: colors.accent, borderColor: colors.accent },
+    diaChipTexto:       { color: colors.textSecondary, fontSize: 12.5 * fs, fontWeight: '700' },
+    diaChipTextoActivo: { color: colors.onAccent },
+    diaCard:        { gap: 12 },
+    diaCardHeader:  { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    diaCardIcon:    {
+      width: 46, height: 46, borderRadius: 14, backgroundColor: colors.accentBg,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    diaCardDia:     { color: colors.accent, fontSize: 12 * fs, fontWeight: '700', textTransform: 'uppercase' },
+    diaCardNombre:  { color: colors.text, fontSize: 18 * fs, fontWeight: '700', marginTop: 2 },
+    diaCardMetaRow: { flexDirection: 'row', gap: 8 },
+    metaPill: {
+      flexDirection: 'row', alignItems: 'center', gap: 5,
+      backgroundColor: colors.surface, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5,
+    },
+    metaPillTexto: { color: colors.textSecondary, fontSize: 12 * fs, fontWeight: '600' },
+    verBtn: {
+      flexDirection: 'row', alignSelf: 'flex-start', alignItems: 'center', gap: 6,
+      backgroundColor: colors.accent, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 9,
+    },
+    verBtnTexto: { color: colors.onAccent, fontSize: 13 * fs, fontWeight: '700' },
+    diaVacio:      { alignItems: 'center', gap: 8, paddingVertical: 16 },
+    diaVacioTexto: { color: colors.textMuted, fontSize: 13 * fs, textAlign: 'center' },
+    accesosRow: { flexDirection: 'row', gap: 10 },
+    accesoCard: {
+      flex: 1, alignItems: 'center', gap: 6, backgroundColor: colors.card, borderRadius: 14,
+      borderWidth: 1, borderColor: colors.border, paddingVertical: 16, paddingHorizontal: 8,
+    },
+    accesoDeshabilitado: { opacity: 0.75 },
+    accesoTexto: { color: colors.text, fontSize: 11.5 * fs, fontWeight: '600', textAlign: 'center' },
+    proximamenteBadge: {
+      backgroundColor: colors.warning + '22', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2, marginTop: 2,
+    },
+    proximamenteTexto: { color: colors.warning, fontSize: 9.5 * fs, fontWeight: '700' },
+  });
 }
